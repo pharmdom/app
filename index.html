@@ -1,12 +1,10 @@
-
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Dashboard | Pharm & Dom</title>
+  <title>Pharm & Dom | Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
-
     :root {
       --sidebar-bg: #0f172a;
       --sidebar-hover: #1e293b;
@@ -18,10 +16,6 @@
       --radius: 14px;
     }
 
-    * {
-      box-sizing: border-box;
-    }
-
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -31,16 +25,13 @@
       overflow: hidden;
     }
 
-    /* Sidebar */
-
     .sidebar {
       width: 260px;
       background: var(--sidebar-bg);
       color: white;
+      padding: 20px;
       display: flex;
       flex-direction: column;
-      padding: 20px;
-      transition: width 0.3s ease;
     }
 
     .brand {
@@ -65,13 +56,10 @@
       background: var(--primary);
     }
 
-    /* Main Area */
-
     .main {
       flex: 1;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
     }
 
     .topbar {
@@ -86,13 +74,14 @@
 
     .content {
       padding: 30px;
+      flex: 1;
       overflow-y: auto;
       opacity: 0;
       transform: translateY(10px);
-      transition: all 0.3s ease;
+      transition: all 0.25s ease;
     }
 
-    .content.loaded {
+    .content.show {
       opacity: 1;
       transform: translateY(0);
     }
@@ -103,13 +92,7 @@
       border-radius: var(--radius);
       box-shadow: 0 10px 25px rgba(0,0,0,0.05);
       margin-bottom: 20px;
-      transition: transform 0.2s ease;
     }
-
-    .card:hover {
-      transform: translateY(-3px);
-    }
-
   </style>
 </head>
 
@@ -117,20 +100,14 @@
 
   <div class="sidebar" id="sidebar">
     <div class="brand">Pharm & Dom</div>
-    <!-- Nav Items injected dynamically -->
   </div>
 
   <div class="main">
     <div class="topbar">
-      <div>Dashboard</div>
+      <div id="pageTitle">Dashboard</div>
       <div id="userName"></div>
     </div>
-
-    <div class="content" id="content">
-      <div class="card">
-        Welcome to Pharm & Dom Operations.
-      </div>
-    </div>
+    <div class="content" id="content"></div>
   </div>
 
   <script>
@@ -138,7 +115,7 @@
     const user = JSON.parse(sessionStorage.getItem("user"));
 
     if (!user) {
-      window.location.href = "login.html";
+      window.location.href = "login";
     }
 
     document.getElementById("userName").innerText =
@@ -148,43 +125,138 @@
       return user.permissions.includes(permission);
     }
 
+    /* ===============================
+       PAGE REGISTRY
+    =============================== */
+
+    const pages = {
+
+      dashboard: {
+        title: "Dashboard",
+        permission: "dashboard",
+        render: () => `
+          <div class="card">Welcome back, ${user.firstName}.</div>
+          <div class="card">System overview coming soon.</div>
+        `
+      },
+
+      sourcing: {
+        title: "Product Sourcing",
+        permission: "sourcing",
+        render: () => `
+          <div class="card">
+            <h3>Sourcing Module</h3>
+            Manage product opportunities.
+          </div>
+        `
+      },
+
+      inventory: {
+        title: "Inventory",
+        permission: "inventory",
+        render: () => `
+          <div class="card">
+            <h3>Inventory Module</h3>
+            Warehouse tracking interface.
+          </div>
+        `
+      },
+
+      users: {
+        title: "User Management",
+        permission: "users",
+        render: () => `
+          <div class="card">
+            <h3>User Management</h3>
+            Admin only section.
+          </div>
+        `
+      }
+
+    };
+
+    /* ===============================
+       SIDEBAR BUILD
+    =============================== */
+
     function buildSidebar() {
 
       const sidebar = document.getElementById("sidebar");
 
-      let nav = `<div class="brand">Pharm & Dom</div>`;
+      let navHTML = `<div class="brand">Pharm & Dom</div>`;
 
-      if (hasPermission("dashboard")) {
-        nav += `<div class="nav-item active">Dashboard</div>`;
-      }
+      Object.keys(pages).forEach(key => {
 
-      if (hasPermission("sourcing")) {
-        nav += `<div class="nav-item">Product Sourcing</div>`;
-      }
+        if (hasPermission(pages[key].permission)) {
+          navHTML += `
+            <div class="nav-item" onclick="loadPage('${key}')">
+              ${pages[key].title}
+            </div>
+          `;
+        }
 
-      if (hasPermission("inventory")) {
-        nav += `<div class="nav-item">Inventory</div>`;
-      }
+      });
 
-      if (hasPermission("users")) {
-        nav += `<div class="nav-item">Users</div>`;
-      }
+      navHTML += `
+        <div class="nav-item" onclick="logout()">
+          Logout
+        </div>
+      `;
 
-      nav += `<div class="nav-item" onclick="logout()">Logout</div>`;
+      sidebar.innerHTML = navHTML;
+    }
 
-      sidebar.innerHTML = nav;
+    /* ===============================
+       PAGE LOADER
+    =============================== */
+
+    function loadPage(pageKey) {
+
+      if (!pages[pageKey]) return;
+      if (!hasPermission(pages[pageKey].permission)) return;
+
+      const content = document.getElementById("content");
+
+      content.classList.remove("show");
+
+      setTimeout(() => {
+        document.getElementById("pageTitle").innerText = pages[pageKey].title;
+        content.innerHTML = pages[pageKey].render();
+        content.classList.add("show");
+        highlightActive(pageKey);
+      }, 150);
+    }
+
+    function highlightActive(activeKey) {
+      const items = document.querySelectorAll(".nav-item");
+      items.forEach(item => item.classList.remove("active"));
+
+      items.forEach(item => {
+        if (item.innerText === pages[activeKey].title) {
+          item.classList.add("active");
+        }
+      });
     }
 
     function logout() {
       sessionStorage.removeItem("user");
-      window.location.href = "login.html";
+      window.location.href = "login";
     }
+
+    /* ===============================
+       INIT
+    =============================== */
 
     buildSidebar();
 
-    window.addEventListener("load", () => {
-      document.getElementById("content").classList.add("loaded");
-    });
+    // Load first permitted page automatically
+    const firstPage = Object.keys(pages).find(key =>
+      hasPermission(pages[key].permission)
+    );
+
+    if (firstPage) {
+      loadPage(firstPage);
+    }
 
   </script>
 
