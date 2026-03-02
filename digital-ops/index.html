@@ -1,1 +1,280 @@
-<p>this is for warehouse</p>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Digital Ops | Pharm & Dom</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    :root {
+      --sidebar-bg: #0f172a;
+      --sidebar-hover: #1e293b;
+      --primary: #2563eb;
+      --background: #f4f6f9;
+      --card-bg: #ffffff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      height: 100vh;
+      background: var(--background);
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: var(--sidebar-bg);
+      color: white;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand {
+      font-weight: 600;
+      font-size: 18px;
+      margin-bottom: 25px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      opacity: 0.5;
+      margin: 15px 0 8px 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .nav-item {
+      padding: 12px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-bottom: 6px;
+      transition: 0.2s ease;
+    }
+
+    .nav-item:hover {
+      background: var(--sidebar-hover);
+    }
+
+    .nav-item.active {
+      background: var(--primary);
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      height: 70px;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .content {
+      padding: 30px;
+      flex: 1;
+      overflow-y: auto;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.25s ease;
+    }
+
+    .content.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <div class="sidebar" id="sidebar"></div>
+
+  <div class="main">
+    <div class="topbar">
+      <div id="pageTitle">Overview</div>
+      <div id="userInfo"></div>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+
+  <script>
+
+    /* ============================
+       CONFIG
+    ============================ */
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbyaDQrxTKE9e5y6qH8HubLEK7d9z6MbIrCRp-8Cj_0gpxUHFayWSZ_7aanI1HENvD4/exec";
+
+    const user = JSON.parse(sessionStorage.getItem("user"));
+
+    if (!user || user.role !== "Digital Ops") {
+      window.location.href = "../login.html";
+    }
+
+    document.getElementById("userInfo").innerText =
+      user.firstName + " " + user.lastName;
+
+    function hasPermission(permission) {
+      return user.permissions && user.permissions.includes(permission);
+    }
+
+    /* ============================
+       PAGES
+    ============================ */
+
+    const pages = {
+      overview: { title: "Overview", file: "overview.html" }
+    };
+
+    const modules = {
+      sourcing: {
+        title: "Product Sourcing",
+        permission: "sourcing",
+        file: "../modules/sourcing.html"
+      },
+      listing: {
+        title: "Listing & Veeqo",
+        permission: "listing",
+        file: "../modules/listing.html"
+      },
+      inventory: {
+        title: "Inventory",
+        permission: "inventory",
+        file: "../modules/inventory.html"
+      }
+    };
+
+    /* ============================
+       SIDEBAR
+    ============================ */
+
+    function buildSidebar() {
+
+      const sidebar = document.getElementById("sidebar");
+      let html = `<div class="brand">Pharm & Dom</div>`;
+
+      html += `<div class="section-title">Digital Ops</div>`;
+
+      html += `
+        <div class="nav-item" onclick="loadPage('overview')">
+          Overview
+        </div>
+      `;
+
+      const enabledModules = Object.keys(modules)
+        .filter(key => hasPermission(modules[key].permission));
+
+      if (enabledModules.length > 0) {
+
+        html += `<div class="section-title">Modules</div>`;
+
+        enabledModules.forEach(key => {
+          html += `
+            <div class="nav-item" onclick="loadModule('${key}')">
+              ${modules[key].title}
+            </div>
+          `;
+        });
+      }
+
+      html += `<div style="flex:1;"></div>`;
+
+      html += `
+        <div class="nav-item" onclick="logout()">
+          Logout
+        </div>
+      `;
+
+      sidebar.innerHTML = html;
+    }
+
+    /* ============================
+       LOADERS
+    ============================ */
+
+    async function loadPage(key) {
+
+      const content = document.getElementById("content");
+      content.classList.remove("show");
+
+      const response = await fetch(pages[key].file);
+      const html = await response.text();
+
+      setTimeout(() => {
+        document.getElementById("pageTitle").innerText = pages[key].title;
+        content.innerHTML = html;
+
+        executeScripts(content);
+
+        content.classList.add("show");
+        highlightActive(pages[key].title);
+      }, 150);
+    }
+
+    async function loadModule(key) {
+
+      if (!modules[key] || !hasPermission(modules[key].permission)) return;
+
+      const content = document.getElementById("content");
+      content.classList.remove("show");
+
+      const response = await fetch(modules[key].file);
+      const html = await response.text();
+
+      setTimeout(() => {
+        document.getElementById("pageTitle").innerText = modules[key].title;
+        content.innerHTML = html;
+
+        executeScripts(content);
+
+        content.classList.add("show");
+        highlightActive(modules[key].title);
+      }, 150);
+    }
+
+    function executeScripts(container) {
+      const scripts = container.querySelectorAll("script");
+      scripts.forEach(oldScript => {
+        const newScript = document.createElement("script");
+        newScript.textContent = oldScript.textContent;
+        document.body.appendChild(newScript);
+        document.body.removeChild(newScript);
+      });
+    }
+
+    function highlightActive(title) {
+      document.querySelectorAll(".nav-item").forEach(item => {
+        item.classList.remove("active");
+        if (item.innerText === title) {
+          item.classList.add("active");
+        }
+      });
+    }
+
+    function logout() {
+      sessionStorage.removeItem("user");
+      window.location.href = "../login.html";
+    }
+
+    /* ============================
+       INIT
+    ============================ */
+
+    buildSidebar();
+    loadPage("overview");
+
+  </script>
+
+</body>
+</html>
