@@ -11,8 +11,6 @@
       --primary: #2563eb;
       --background: #f4f6f9;
       --card-bg: #ffffff;
-      --text-dark: #0f172a;
-      --text-light: #64748b;
       --radius: 14px;
     }
 
@@ -21,13 +19,11 @@
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--background);
       display: flex;
       height: 100vh;
+      background: var(--background);
       overflow: hidden;
     }
-
-    /* Sidebar */
 
     .sidebar {
       width: 260px;
@@ -49,7 +45,7 @@
       border-radius: 10px;
       cursor: pointer;
       margin-bottom: 6px;
-      transition: all 0.2s ease;
+      transition: 0.2s ease;
     }
 
     .nav-item:hover {
@@ -59,8 +55,6 @@
     .nav-item.active {
       background: var(--primary);
     }
-
-    /* Main */
 
     .main {
       flex: 1;
@@ -91,14 +85,6 @@
       opacity: 1;
       transform: translateY(0);
     }
-
-    .card {
-      background: var(--card-bg);
-      padding: 25px;
-      border-radius: var(--radius);
-      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-      margin-bottom: 20px;
-    }
   </style>
 </head>
 
@@ -118,10 +104,6 @@
 
   <script>
 
-    /* ===============================
-       AUTH + ROLE GUARD
-    =============================== */
-
     const user = JSON.parse(sessionStorage.getItem("user"));
 
     if (!user || user.role !== "Admin") {
@@ -131,95 +113,24 @@
     document.getElementById("userInfo").innerText =
       user.firstName + " " + user.lastName;
 
-    function hasPermission(permission) {
-      return user.permissions.includes(permission);
-    }
-
-    /* ===============================
-       ADMIN CORE PAGES
-    =============================== */
-
-    const adminPages = {
-
-      overview: {
-        title: "Overview",
-        render: () => `
-          <div class="card">
-            <h2>Admin Overview</h2>
-            <p>System control center.</p>
-          </div>
-        `
-      },
-
-      users: {
-        title: "Users",
-        render: () => `
-          <div class="card">
-            <h2>User Management</h2>
-            <p>Create and manage system users.</p>
-          </div>
-        `
-      },
-
-      settings: {
-        title: "Settings",
-        render: () => `
-          <div class="card">
-            <h2>System Settings</h2>
-            <p>Configuration and controls.</p>
-          </div>
-        `
-      }
-
+    const pages = {
+      overview: { title: "Overview", file: "overview.html" },
+      users: { title: "Users", file: "users.html" },
+      settings: { title: "Settings", file: "settings.html" }
     };
-
-    /* ===============================
-       SHARED MODULES
-    =============================== */
-
-    const modules = {
-
-      sourcing: {
-        title: "Product Sourcing",
-        permission: "sourcing",
-        loader: () => import("../modules/sourcing.js")
-      },
-
-      listing: {
-        title: "Listing & Veeqo",
-        permission: "listing",
-        loader: () => import("../modules/listing.js")
-      }
-
-    };
-
-    /* ===============================
-       SIDEBAR BUILD
-    =============================== */
 
     function buildSidebar() {
 
       const sidebar = document.getElementById("sidebar");
+
       let html = `<div class="brand">Pharm & Dom</div>`;
 
-      // Admin core pages
-      Object.keys(adminPages).forEach(key => {
+      Object.keys(pages).forEach(key => {
         html += `
-          <div class="nav-item" onclick="loadAdminPage('${key}')">
-            ${adminPages[key].title}
+          <div class="nav-item" onclick="loadPage('${key}')">
+            ${pages[key].title}
           </div>
         `;
-      });
-
-      // Modules based on permissions
-      Object.keys(modules).forEach(key => {
-        if (hasPermission(modules[key].permission)) {
-          html += `
-            <div class="nav-item" onclick="loadModule('${key}')">
-              ${modules[key].title}
-            </div>
-          `;
-        }
       });
 
       html += `<div class="nav-item" onclick="logout()">Logout</div>`;
@@ -227,38 +138,20 @@
       sidebar.innerHTML = html;
     }
 
-    /* ===============================
-       PAGE LOADERS
-    =============================== */
-
-    function loadAdminPage(key) {
+    async function loadPage(key) {
 
       const content = document.getElementById("content");
 
       content.classList.remove("show");
 
-      setTimeout(() => {
-        document.getElementById("pageTitle").innerText = adminPages[key].title;
-        content.innerHTML = adminPages[key].render();
-        content.classList.add("show");
-        highlightActive(adminPages[key].title);
-      }, 150);
-    }
-
-    async function loadModule(key) {
-
-      if (!hasPermission(modules[key].permission)) return;
-
-      const content = document.getElementById("content");
-      content.classList.remove("show");
-
-      const module = await modules[key].loader();
+      const response = await fetch(pages[key].file);
+      const html = await response.text();
 
       setTimeout(() => {
-        document.getElementById("pageTitle").innerText = modules[key].title;
-        content.innerHTML = module.render();
+        document.getElementById("pageTitle").innerText = pages[key].title;
+        content.innerHTML = html;
         content.classList.add("show");
-        highlightActive(modules[key].title);
+        highlightActive(pages[key].title);
       }, 150);
     }
 
@@ -276,12 +169,8 @@
       window.location.href = "../login.html";
     }
 
-    /* ===============================
-       INIT
-    =============================== */
-
     buildSidebar();
-    loadAdminPage("overview");
+    loadPage("overview"); // default page
 
   </script>
 
