@@ -137,66 +137,67 @@
       overview: { title: "Overview", file: "overview.html" }
     };
 
-let modules = {};
+    const modules = {
+      sourcing: {
+        title: "Product Sourcing",
+        permission: "sourcing",
+        file: "../modules/sourcing.html"
+      },
+      listing: {
+        title: "Listing & Veeqo",
+        permission: "listing",
+        file: "../modules/listing.html"
+      },
+      inventory: {
+        title: "Inventory",
+        permission: "inventory",
+        file: "../modules/inventory.html"
+      }
+    };
 
     /* ============================
        SIDEBAR
     ============================ */
 
-    async function buildSidebar() {
+    function buildSidebar() {
 
-  const sidebar = document.getElementById("sidebar");
+      const sidebar = document.getElementById("sidebar");
+      let html = `<div class="brand">Pharm & Dom</div>`;
 
-  let html = `<div class="brand">Pharm & Dom</div>`;
-  html += `<div class="section-title">${user.role}</div>`;
+      html += `<div class="section-title">Digital Ops</div>`;
 
-  html += `
-    <div class="nav-item" onclick="loadPage('overview')">
-      Overview
-    </div>
-  `;
+      html += `
+        <div class="nav-item" onclick="loadPage('overview')">
+          Overview
+        </div>
+      `;
 
-  // Fetch modules from backend
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify({ action: "getModules" })
-  });
+      const enabledModules = Object.keys(modules)
+        .filter(key => hasPermission(modules[key].permission));
 
-  const result = await response.json();
+      if (enabledModules.length > 0) {
 
-  if (result.success) {
+        html += `<div class="section-title">Modules</div>`;
 
-    const enabledModules = result.modules
-      .filter(m => user.permissions.includes(m.key));
+        enabledModules.forEach(key => {
+          html += `
+            <div class="nav-item" onclick="loadModule('${key}')">
+              ${modules[key].title}
+            </div>
+          `;
+        });
+      }
 
-    if (enabledModules.length > 0) {
+      html += `<div style="flex:1;"></div>`;
 
-      html += `<div class="section-title">Modules</div>`;
+      html += `
+        <div class="nav-item" onclick="logout()">
+          Logout
+        </div>
+      `;
 
-      enabledModules.forEach(module => {
-
-        modules[module.key] = module;
-
-        html += `
-          <div class="nav-item" onclick="loadModule('${module.key}')">
-            ${module.title}
-          </div>
-        `;
-      });
+      sidebar.innerHTML = html;
     }
-  }
-
-  html += `<div style="flex:1;"></div>`;
-
-  html += `
-    <div class="nav-item" onclick="logout()">
-      Logout
-    </div>
-  `;
-
-  sidebar.innerHTML = html;
-}
 
     /* ============================
        LOADERS
@@ -221,26 +222,27 @@ let modules = {};
       }, 150);
     }
 
-   async function loadModule(key) {
+    async function loadModule(key) {
 
-  if (!modules[key]) return;
+      if (!modules[key] || !hasPermission(modules[key].permission)) return;
 
-  const content = document.getElementById("content");
-  content.classList.remove("show");
+      const content = document.getElementById("content");
+      content.classList.remove("show");
 
-  const response = await fetch(modules[key].file);
-  const html = await response.text();
+      const response = await fetch(modules[key].file);
+      const html = await response.text();
 
-  setTimeout(() => {
-    document.getElementById("pageTitle").innerText = modules[key].title;
-    content.innerHTML = html;
-    executeScripts(content);
-    content.classList.add("show");
-  }, 150);
-}
+      setTimeout(() => {
+        document.getElementById("pageTitle").innerText = modules[key].title;
+        content.innerHTML = html;
 
+        executeScripts(content);
 
-    
+        content.classList.add("show");
+        highlightActive(modules[key].title);
+      }, 150);
+    }
+
     function executeScripts(container) {
       const scripts = container.querySelectorAll("script");
       scripts.forEach(oldScript => {
