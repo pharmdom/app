@@ -1,1 +1,289 @@
-<admin overview>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin | Pharm & Dom</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    :root {
+      --sidebar-bg: #0f172a;
+      --sidebar-hover: #1e293b;
+      --primary: #2563eb;
+      --background: #f4f6f9;
+      --card-bg: #ffffff;
+      --text-dark: #0f172a;
+      --text-light: #64748b;
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--background);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+
+    .sidebar {
+      width: 260px;
+      background: var(--sidebar-bg);
+      color: white;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand {
+      font-weight: 600;
+      font-size: 18px;
+      margin-bottom: 30px;
+    }
+
+    .nav-item {
+      padding: 12px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-bottom: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .nav-item:hover {
+      background: var(--sidebar-hover);
+    }
+
+    .nav-item.active {
+      background: var(--primary);
+    }
+
+    /* Main */
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      height: 70px;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .content {
+      padding: 30px;
+      flex: 1;
+      overflow-y: auto;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.25s ease;
+    }
+
+    .content.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .card {
+      background: var(--card-bg);
+      padding: 25px;
+      border-radius: var(--radius);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="sidebar" id="sidebar">
+    <div class="brand">Pharm & Dom</div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div id="pageTitle">Overview</div>
+      <div id="userInfo"></div>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+
+  <script>
+
+    /* ===============================
+       AUTH + ROLE GUARD
+    =============================== */
+
+    const user = JSON.parse(sessionStorage.getItem("user"));
+
+    if (!user || user.role !== "Admin") {
+      window.location.href = "../login.html";
+    }
+
+    document.getElementById("userInfo").innerText =
+      user.firstName + " " + user.lastName;
+
+    function hasPermission(permission) {
+      return user.permissions.includes(permission);
+    }
+
+    /* ===============================
+       ADMIN CORE PAGES
+    =============================== */
+
+    const adminPages = {
+
+      overview: {
+        title: "Overview",
+        render: () => `
+          <div class="card">
+            <h2>Admin Overview</h2>
+            <p>System control center.</p>
+          </div>
+        `
+      },
+
+      users: {
+        title: "Users",
+        render: () => `
+          <div class="card">
+            <h2>User Management</h2>
+            <p>Create and manage system users.</p>
+          </div>
+        `
+      },
+
+      settings: {
+        title: "Settings",
+        render: () => `
+          <div class="card">
+            <h2>System Settings</h2>
+            <p>Configuration and controls.</p>
+          </div>
+        `
+      }
+
+    };
+
+    /* ===============================
+       SHARED MODULES
+    =============================== */
+
+    const modules = {
+
+      sourcing: {
+        title: "Product Sourcing",
+        permission: "sourcing",
+        loader: () => import("../modules/sourcing.js")
+      },
+
+      listing: {
+        title: "Listing & Veeqo",
+        permission: "listing",
+        loader: () => import("../modules/listing.js")
+      }
+
+    };
+
+    /* ===============================
+       SIDEBAR BUILD
+    =============================== */
+
+    function buildSidebar() {
+
+      const sidebar = document.getElementById("sidebar");
+      let html = `<div class="brand">Pharm & Dom</div>`;
+
+      // Admin core pages
+      Object.keys(adminPages).forEach(key => {
+        html += `
+          <div class="nav-item" onclick="loadAdminPage('${key}')">
+            ${adminPages[key].title}
+          </div>
+        `;
+      });
+
+      // Modules based on permissions
+      Object.keys(modules).forEach(key => {
+        if (hasPermission(modules[key].permission)) {
+          html += `
+            <div class="nav-item" onclick="loadModule('${key}')">
+              ${modules[key].title}
+            </div>
+          `;
+        }
+      });
+
+      html += `<div class="nav-item" onclick="logout()">Logout</div>`;
+
+      sidebar.innerHTML = html;
+    }
+
+    /* ===============================
+       PAGE LOADERS
+    =============================== */
+
+    function loadAdminPage(key) {
+
+      const content = document.getElementById("content");
+
+      content.classList.remove("show");
+
+      setTimeout(() => {
+        document.getElementById("pageTitle").innerText = adminPages[key].title;
+        content.innerHTML = adminPages[key].render();
+        content.classList.add("show");
+        highlightActive(adminPages[key].title);
+      }, 150);
+    }
+
+    async function loadModule(key) {
+
+      if (!hasPermission(modules[key].permission)) return;
+
+      const content = document.getElementById("content");
+      content.classList.remove("show");
+
+      const module = await modules[key].loader();
+
+      setTimeout(() => {
+        document.getElementById("pageTitle").innerText = modules[key].title;
+        content.innerHTML = module.render();
+        content.classList.add("show");
+        highlightActive(modules[key].title);
+      }, 150);
+    }
+
+    function highlightActive(title) {
+      document.querySelectorAll(".nav-item").forEach(item => {
+        item.classList.remove("active");
+        if (item.innerText === title) {
+          item.classList.add("active");
+        }
+      });
+    }
+
+    function logout() {
+      sessionStorage.removeItem("user");
+      window.location.href = "../login.html";
+    }
+
+    /* ===============================
+       INIT
+    =============================== */
+
+    buildSidebar();
+    loadAdminPage("overview");
+
+  </script>
+
+</body>
+</html>
