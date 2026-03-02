@@ -1,134 +1,226 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Login | Product Ops</title>
+  <title>Login | Pharm & Dom</title>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f4f6f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
       display: flex;
       align-items: center;
       justify-content: center;
       height: 100vh;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    body.loaded {
+      opacity: 1;
     }
 
     .login-card {
       background: white;
-      padding: 40px;
-      width: 360px;
-      border-radius: 10px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      padding: 45px 40px;
+      width: 380px;
+      border-radius: 14px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+      transform: translateY(20px);
+      animation: floatIn 0.5s ease forwards;
     }
 
-    h1 {
-      margin: 0 0 20px 0;
-      font-size: 22px;
+    @keyframes floatIn {
+      to {
+        transform: translateY(0);
+      }
+    }
+
+    .brand {
       text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .brand span {
+      font-size: 13px;
+      color: #64748b;
     }
 
     .form-group {
-      margin-bottom: 16px;
+      margin-bottom: 18px;
     }
 
     label {
       font-size: 13px;
-      font-weight: bold;
-      display: block;
+      font-weight: 500;
       margin-bottom: 6px;
+      display: block;
+      color: #334155;
     }
 
     input {
       width: 100%;
-      padding: 10px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
       font-size: 14px;
+      transition: all 0.2s ease;
     }
 
     input:focus {
       outline: none;
-      border-color: #007bff;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
     }
 
     button {
       width: 100%;
-      padding: 12px;
+      padding: 13px;
       border: none;
-      border-radius: 6px;
-      background: #007bff;
+      border-radius: 8px;
+      background: #2563eb;
       color: white;
-      font-weight: bold;
+      font-weight: 600;
       cursor: pointer;
       font-size: 14px;
+      transition: all 0.2s ease;
+      position: relative;
     }
 
     button:hover {
-      background: #0069d9;
+      background: #1d4ed8;
     }
 
-    .error {
-      margin-top: 12px;
-      font-size: 13px;
-      color: red;
-      text-align: center;
-    }
-
-    .loading {
-      opacity: 0.6;
+    button.loading {
       pointer-events: none;
+      opacity: 0.85;
     }
+
+    button.loading::after {
+      content: "";
+      width: 16px;
+      height: 16px;
+      border: 2px solid white;
+      border-top: 2px solid transparent;
+      border-radius: 50%;
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: translateY(-50%) rotate(360deg); }
+    }
+
+    /* Toast */
+
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 9999;
+    }
+
+    .toast {
+      background: #ef4444;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      transform: translateX(120%);
+      opacity: 0;
+      transition: all 0.35s ease;
+    }
+
+    .toast.show {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
   </style>
 </head>
 
 <body>
 
   <div class="login-card">
-    <h1>Product Ops Login</h1>
+
+    <div class="brand">
+      <h1>Pharm & Dom</h1>
+      <span>Operations System</span>
+    </div>
 
     <div class="form-group">
       <label>Email</label>
-      <input type="email" id="email" required>
+      <input type="email" id="email">
     </div>
 
     <div class="form-group">
       <label>Password</label>
-      <input type="password" id="password" required>
+      <input type="password" id="password">
     </div>
 
-    <button onclick="login()">Login</button>
+    <button id="loginBtn" onclick="login()">Login</button>
 
-    <div id="errorMessage" class="error"></div>
   </div>
+
+  <div class="toast-container" id="toastContainer"></div>
 
   <script>
 
-    // 🔁 Replace with your deployed Apps Script Web App URL
     const API_URL = "https://script.google.com/macros/s/AKfycbyaDQrxTKE9e5y6qH8HubLEK7d9z6MbIrCRp-8Cj_0gpxUHFayWSZ_7aanI1HENvD4/exec";
 
-    // Prevent logged-in users from accessing login page again
+    window.addEventListener("load", () => {
+      document.body.classList.add("loaded");
+    });
+
     const existingSession = sessionStorage.getItem("user");
     if (existingSession) {
       window.location.href = "index.html";
+    }
+
+    function showToast(message) {
+
+      const container = document.getElementById("toastContainer");
+
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      toast.innerText = message;
+
+      container.appendChild(toast);
+
+      setTimeout(() => toast.classList.add("show"), 10);
+
+      setTimeout(() => {
+        toast.classList.remove("show");
+        setTimeout(() => container.removeChild(toast), 350);
+      }, 3000);
     }
 
     async function login() {
 
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value.trim();
-      const errorMessage = document.getElementById("errorMessage");
-
-      errorMessage.innerText = "";
+      const button = document.getElementById("loginBtn");
 
       if (!email || !password) {
-        errorMessage.innerText = "Please enter email and password.";
+        showToast("Please enter email and password.");
         return;
       }
 
-      const button = document.querySelector("button");
       button.classList.add("loading");
       button.innerText = "Logging in...";
 
@@ -139,8 +231,8 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "login",
-            email: email,
-            password: password
+            email,
+            password
           })
         });
 
@@ -150,14 +242,18 @@
 
           sessionStorage.setItem("user", JSON.stringify(result.user));
 
-          window.location.href = "index.html";
+          button.innerText = "Success ✓";
+
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 400);
 
         } else {
-          errorMessage.innerText = result.message || "Login failed.";
+          showToast(result.message || "Invalid credentials.");
         }
 
       } catch (error) {
-        errorMessage.innerText = "Server error. Try again.";
+        showToast("Server error. Try again.");
       }
 
       button.classList.remove("loading");
