@@ -1,4 +1,234 @@
 <div class="card">
   <h2>User Management</h2>
-  <p>Manage roles and permissions here.</p>
+
+  <button onclick="openCreateUser()" class="primary-btn">
+    + Add User
+  </button>
+
+  <div id="usersTable" style="margin-top:20px;"></div>
 </div>
+
+<!-- Create/Edit Modal -->
+<div id="userModal" class="modal hidden">
+  <div class="modal-content">
+
+    <h3 id="modalTitle">Create User</h3>
+
+    <div class="form-grid">
+      <input type="hidden" id="userId">
+
+      <div>
+        <label>First Name</label>
+        <input id="firstName">
+      </div>
+
+      <div>
+        <label>Last Name</label>
+        <input id="lastName">
+      </div>
+
+      <div>
+        <label>Email</label>
+        <input id="email">
+      </div>
+
+      <div>
+        <label>Password</label>
+        <input id="password">
+      </div>
+
+      <div>
+        <label>Role</label>
+        <select id="role">
+          <option>Admin</option>
+          <option>Digital Ops</option>
+          <option>Warehouse</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Status</label>
+        <select id="status">
+          <option>Active</option>
+          <option>Suspended</option>
+        </select>
+      </div>
+    </div>
+
+    <h4 style="margin-top:20px;">Permissions</h4>
+
+    <div class="permissions">
+      <label><input type="checkbox" value="sourcing"> Sourcing</label>
+      <label><input type="checkbox" value="listing"> Listing</label>
+      <label><input type="checkbox" value="inventory"> Inventory</label>
+      <label><input type="checkbox" value="analytics"> Analytics</label>
+    </div>
+
+    <div style="margin-top:20px;text-align:right;">
+      <button onclick="closeModal()">Cancel</button>
+      <button onclick="saveUser()" class="primary-btn">Save</button>
+    </div>
+
+  </div>
+</div>
+
+<style>
+.primary-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.form-grid input, select {
+  width: 100%;
+  padding: 8px;
+}
+
+.permissions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 14px;
+  width: 600px;
+}
+</style>
+
+<script>
+
+async function loadUsers() {
+
+  const response = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ action: "getUsers" })
+  });
+
+  const result = await response.json();
+
+  if (!result.success) return;
+
+  renderUsers(result.users);
+}
+
+function renderUsers(users) {
+
+  let html = `
+    <table width="100%" style="border-collapse:collapse;">
+      <tr style="background:#f1f5f9;">
+        <th>Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+  `;
+
+  users.forEach(user => {
+
+    html += `
+      <tr>
+        <td>${user.firstName} ${user.lastName}</td>
+        <td>${user.email}</td>
+        <td>${user.role}</td>
+        <td>${user.status}</td>
+        <td>
+          <button onclick='editUser(${JSON.stringify(user)})'>Edit</button>
+        </td>
+      </tr>
+    `;
+  });
+
+  html += "</table>";
+
+  document.getElementById("usersTable").innerHTML = html;
+}
+
+function openCreateUser() {
+  document.getElementById("modalTitle").innerText = "Create User";
+  document.getElementById("userModal").classList.remove("hidden");
+}
+
+function closeModal() {
+  document.getElementById("userModal").classList.add("hidden");
+}
+
+function editUser(user) {
+
+  document.getElementById("modalTitle").innerText = "Edit User";
+
+  document.getElementById("userId").value = user.userId;
+  document.getElementById("firstName").value = user.firstName;
+  document.getElementById("lastName").value = user.lastName;
+  document.getElementById("email").value = user.email;
+  document.getElementById("role").value = user.role;
+  document.getElementById("status").value = user.status;
+
+  document.querySelectorAll(".permissions input").forEach(cb => {
+    cb.checked = user.permissions.includes(cb.value);
+  });
+
+  document.getElementById("userModal").classList.remove("hidden");
+}
+
+async function saveUser() {
+
+  const permissions = Array.from(
+    document.querySelectorAll(".permissions input:checked")
+  ).map(cb => cb.value);
+
+  const payload = {
+    action: "saveUser",
+    userId: document.getElementById("userId").value,
+    firstName: document.getElementById("firstName").value,
+    lastName: document.getElementById("lastName").value,
+    email: document.getElementById("email").value,
+    password: document.getElementById("password").value,
+    role: document.getElementById("role").value,
+    status: document.getElementById("status").value,
+    permissions: permissions.join(",")
+  };
+
+  const response = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify(payload)
+  });
+
+  const result = await response.json();
+
+  if (result.success) {
+    closeModal();
+    loadUsers();
+  }
+}
+
+loadUsers();
+
+</script>
