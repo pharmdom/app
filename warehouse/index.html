@@ -129,62 +129,64 @@
       overview: { title: "Overview", file: "overview.html" }
     };
 
-let modules = {};
-
-async function buildSidebar() {
-
-  const sidebar = document.getElementById("sidebar");
-
-  let html = `<div class="brand">Pharm & Dom</div>`;
-  html += `<div class="section-title">${user.role}</div>`;
-
-  html += `
-    <div class="nav-item" onclick="loadPage('overview')">
-      Overview
-    </div>
-  `;
-
-  // Fetch modules from backend
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify({ action: "getModules" })
-  });
-
-  const result = await response.json();
-
-  if (result.success) {
-
-    const enabledModules = result.modules
-      .filter(m => user.permissions.includes(m.key));
-
-    if (enabledModules.length > 0) {
-
-      html += `<div class="section-title">Modules</div>`;
-
-      enabledModules.forEach(module => {
-
-        modules[module.key] = module;
-
-        html += `
-          <div class="nav-item" onclick="loadModule('${module.key}')">
-            ${module.title}
-          </div>
-        `;
-      });
-    }
+const modules = {
+  sourcing: {
+    title: "Product Sourcing",
+    permission: "sourcing",
+    file: "../modules/sourcing.html"
+  },
+  inventory: {
+    title: "Inventory",
+    permission: "inventory",
+    file: "../modules/inventory.html"
+  },
+  listing: {
+    title: "Listing & Veeqo",
+    permission: "listing",
+    file: "../modules/listing.html"
   }
+};
 
-  html += `<div style="flex:1;"></div>`;
+    function buildSidebar() {
 
-  html += `
-    <div class="nav-item" onclick="logout()">
-      Logout
-    </div>
-  `;
+      const sidebar = document.getElementById("sidebar");
+      let html = `<div class="brand">Pharm & Dom</div>`;
 
-  sidebar.innerHTML = html;
-}
+      html += `<div class="section-title">Warehouse</div>`;
+
+      html += `
+        <div class="nav-item" onclick="loadPage('overview')">
+          Overview
+        </div>
+      `;
+
+      const enabledModules = Object.keys(modules)
+        .filter(key => hasPermission(modules[key].permission));
+
+      if (enabledModules.length > 0) {
+
+        html += `<div class="section-title">Modules</div>`;
+
+        enabledModules.forEach(key => {
+          html += `
+            <div class="nav-item" onclick="loadModule('${key}')">
+              ${modules[key].title}
+            </div>
+          `;
+        });
+      }
+
+      html += `<div style="flex:1;"></div>`;
+
+      html += `
+        <div class="nav-item" onclick="logout()">
+          Logout
+        </div>
+      `;
+
+      sidebar.innerHTML = html;
+    }
+
     async function loadPage(key) {
 
       const content = document.getElementById("content");
@@ -204,23 +206,23 @@ async function buildSidebar() {
 
     async function loadModule(key) {
 
-  if (!modules[key]) return;
+      if (!modules[key] || !hasPermission(modules[key].permission)) return;
 
-  const content = document.getElementById("content");
-  content.classList.remove("show");
+      const content = document.getElementById("content");
+      content.classList.remove("show");
 
-  const response = await fetch(modules[key].file);
-  const html = await response.text();
+      const response = await fetch(modules[key].file);
+      const html = await response.text();
 
-  setTimeout(() => {
-    document.getElementById("pageTitle").innerText = modules[key].title;
-    content.innerHTML = html;
-    executeScripts(content);
-    content.classList.add("show");
-  }, 150);
-}
+      setTimeout(() => {
+        document.getElementById("pageTitle").innerText = modules[key].title;
+        content.innerHTML = html;
+        executeScripts(content);
+        content.classList.add("show");
+        highlightActive(modules[key].title);
+      }, 150);
+    }
 
-    
     function executeScripts(container) {
       const scripts = container.querySelectorAll("script");
       scripts.forEach(oldScript => {
