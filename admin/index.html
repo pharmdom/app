@@ -98,6 +98,37 @@
       transform: translateY(0);
     }
 
+
+    .nav-group {
+  margin-bottom: 6px;
+}
+
+.nav-parent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-children {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.3s ease;
+  padding-left: 10px;
+}
+
+.nav-children.open {
+  max-height: 300px;
+}
+
+.chevron {
+  font-size: 12px;
+  transition: transform 0.3s ease;
+}
+
+.chevron.rotate {
+  transform: rotate(90deg);
+}
+    
   </style>
 </head>
 
@@ -165,51 +196,92 @@
        SIDEBAR BUILD
     ============================ */
 
-    function buildSidebar() {
+function buildSidebar() {
 
-      const sidebar = document.getElementById("sidebar");
+  const sidebar = document.getElementById("sidebar");
 
-      let html = `<div class="brand">Pharm & Dom</div>`;
+  let html = `<div class="brand">Pharm & Dom</div>`;
 
-      // Core Admin Section
-      html += `<div class="section-title">Admin</div>`;
+  /* =========================
+     ADMIN SECTION
+  ========================= */
 
-      Object.keys(pages).forEach(key => {
-        html += `
-          <div class="nav-item" onclick="loadPage('${key}')">
-            ${pages[key].title}
-          </div>
-        `;
-      });
+  html += `<div class="section-title">Admin</div>`;
 
-      // Modules Section
-      const enabledModules = Object.keys(modules)
-        .filter(key => hasPermission(modules[key].permission));
+  Object.keys(pages).forEach(key => {
+    html += `
+      <div class="nav-item" onclick="loadPage('${key}')">
+        ${pages[key].title}
+      </div>
+    `;
+  });
 
-      if (enabledModules.length > 0) {
+  /* =========================
+     PRODUCTS GROUP
+  ========================= */
 
-        html += `<div class="section-title">Modules</div>`;
+  const hasSourcing = hasPermission("sourcing");
+  const hasListing = hasPermission("listing");
 
-        enabledModules.forEach(key => {
-          html += `
-            <div class="nav-item" onclick="loadModule('${key}')">
-              ${modules[key].title}
-            </div>
-          `;
-        });
-      }
+  if (hasSourcing || hasListing) {
 
-      html += `<div style="flex:1;"></div>`;
+    html += `<div class="section-title">Modules</div>`;
 
+    html += `
+      <div class="nav-group">
+        <div class="nav-item nav-parent" onclick="toggleProducts()">
+          <span>Products</span>
+          <span id="productsChevron" class="chevron">▶</span>
+        </div>
+
+        <div id="productsChildren" class="nav-children">
+    `;
+
+    if (hasSourcing) {
       html += `
-        <div class="nav-item" onclick="logout()">
-          Logout
+        <div class="nav-item" onclick="loadModule('sourcing')">
+          Product Sourcing
         </div>
       `;
-
-      sidebar.innerHTML = html;
     }
 
+    if (hasListing) {
+      html += `
+        <div class="nav-item" onclick="loadModule('listing')">
+          Listing & Veeqo
+        </div>
+      `;
+    }
+
+    html += `
+        </div>
+      </div>
+    `;
+  }
+
+  html += `<div style="flex:1;"></div>`;
+
+  html += `
+    <div class="nav-item" onclick="logout()">
+      Logout
+    </div>
+  `;
+
+  sidebar.innerHTML = html;
+}
+
+
+
+    function toggleProducts() {
+
+  const children = document.getElementById("productsChildren");
+  const chevron = document.getElementById("productsChevron");
+
+  children.classList.toggle("open");
+  chevron.classList.toggle("rotate");
+}
+
+    
     /* ============================
        PAGE LOADERS
     ============================ */
