@@ -1,18 +1,28 @@
 <div class="card">
-  <h2>User Management</h2>
 
-  <button onclick="openCreateUser()" class="primary-btn">
-    + Add User
-  </button>
+  <div class="header-row">
+    <h2>User Management</h2>
 
-  <div id="usersTable" style="margin-top:20px;"></div>
+    <div class="header-actions">
+      <input id="searchInput" placeholder="Search users..." oninput="filterUsers()">
+      <button onclick="openCreateUser()" class="primary-btn">
+        + Add User
+      </button>
+    </div>
+  </div>
+
+  <div id="usersTable" class="table-container"></div>
+
 </div>
 
-<!-- Create/Edit Modal -->
+<!-- Modal -->
 <div id="userModal" class="modal hidden">
   <div class="modal-content">
 
-    <h3 id="modalTitle">Create User</h3>
+    <div class="modal-header">
+      <h3 id="modalTitle">Create User</h3>
+      <span class="close-btn" onclick="closeModal()">✕</span>
+    </div>
 
     <div class="form-grid">
       <input type="hidden" id="userId">
@@ -34,7 +44,7 @@
 
       <div>
         <label>Password</label>
-        <input id="password">
+        <input id="password" type="password">
       </div>
 
       <div>
@@ -64,7 +74,7 @@
       <label><input type="checkbox" value="analytics"> Analytics</label>
     </div>
 
-    <div style="margin-top:20px;text-align:right;">
+    <div class="modal-actions">
       <button onclick="closeModal()">Cancel</button>
       <button onclick="saveUser()" class="primary-btn">Save</button>
     </div>
@@ -73,6 +83,24 @@
 </div>
 
 <style>
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+#searchInput {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
 .primary-btn {
   background: var(--primary);
   color: white;
@@ -80,6 +108,102 @@
   padding: 10px 16px;
   border-radius: 8px;
   cursor: pointer;
+}
+
+.table-container {
+  margin-top: 20px;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  padding: 12px;
+  background: #f1f5f9;
+  font-size: 13px;
+}
+
+td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+}
+
+tr:hover {
+  background: #f9fafb;
+  cursor: pointer;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.badge.active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge.suspended {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.permission-pill {
+  background: #e0e7ff;
+  color: #3730a3;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  margin-right: 4px;
+  display: inline-block;
+}
+
+/* Modal */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 14px;
+  width: 650px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(15px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.close-btn {
+  cursor: pointer;
+  font-size: 18px;
 }
 
 .form-grid {
@@ -99,30 +223,20 @@
   gap: 10px;
 }
 
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.modal-actions {
+  margin-top: 20px;
+  text-align: right;
 }
 
-.modal.hidden {
-  display: none;
-}
-
-.modal-content {
-  background: white;
-  padding: 30px;
-  border-radius: 14px;
-  width: 600px;
-}
 </style>
 
 <script>
 
+let allUsers = [];
+
 async function loadUsers() {
+
+  document.getElementById("usersTable").innerHTML = "Loading...";
 
   const response = await fetch(API_URL, {
     method: "POST",
@@ -134,33 +248,40 @@ async function loadUsers() {
 
   if (!result.success) return;
 
-  renderUsers(result.users);
+  allUsers = result.users;
+  renderUsers(allUsers);
 }
 
 function renderUsers(users) {
 
   let html = `
-    <table width="100%" style="border-collapse:collapse;">
-      <tr style="background:#f1f5f9;">
+    <table>
+      <tr>
         <th>Name</th>
         <th>Email</th>
         <th>Role</th>
         <th>Status</th>
-        <th>Actions</th>
+        <th>Permissions</th>
       </tr>
   `;
 
   users.forEach(user => {
 
+    const badgeClass = user.status === "Active"
+      ? "badge active"
+      : "badge suspended";
+
+    const permissionsHtml = user.permissions
+      .map(p => `<span class="permission-pill">${p}</span>`)
+      .join("");
+
     html += `
-      <tr>
+      <tr onclick='editUser(${JSON.stringify(user)})'>
         <td>${user.firstName} ${user.lastName}</td>
         <td>${user.email}</td>
         <td>${user.role}</td>
-        <td>${user.status}</td>
-        <td>
-          <button onclick='editUser(${JSON.stringify(user)})'>Edit</button>
-        </td>
+        <td><span class="${badgeClass}">${user.status}</span></td>
+        <td>${permissionsHtml}</td>
       </tr>
     `;
   });
@@ -170,8 +291,25 @@ function renderUsers(users) {
   document.getElementById("usersTable").innerHTML = html;
 }
 
+function filterUsers() {
+  const value = document.getElementById("searchInput").value.toLowerCase();
+
+  const filtered = allUsers.filter(user =>
+    user.firstName.toLowerCase().includes(value) ||
+    user.lastName.toLowerCase().includes(value) ||
+    user.email.toLowerCase().includes(value)
+  );
+
+  renderUsers(filtered);
+}
+
 function openCreateUser() {
+
   document.getElementById("modalTitle").innerText = "Create User";
+  document.getElementById("userId").value = "";
+  document.querySelectorAll("input").forEach(i => i.value = "");
+  document.querySelectorAll(".permissions input").forEach(cb => cb.checked = false);
+
   document.getElementById("userModal").classList.remove("hidden");
 }
 
