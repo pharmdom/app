@@ -25,6 +25,8 @@
       overflow: hidden;
     }
 
+    /* Sidebar */
+
     .sidebar {
       width: 260px;
       background: var(--sidebar-bg);
@@ -37,7 +39,15 @@
     .brand {
       font-weight: 600;
       font-size: 18px;
-      margin-bottom: 30px;
+      margin-bottom: 25px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      opacity: 0.5;
+      margin: 15px 0 8px 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
     .nav-item {
@@ -55,6 +65,8 @@
     .nav-item.active {
       background: var(--primary);
     }
+
+    /* Main */
 
     .main {
       flex: 1;
@@ -85,14 +97,13 @@
       opacity: 1;
       transform: translateY(0);
     }
+
   </style>
 </head>
 
 <body>
 
-  <div class="sidebar" id="sidebar">
-    <div class="brand">Pharm & Dom</div>
-  </div>
+  <div class="sidebar" id="sidebar"></div>
 
   <div class="main">
     <div class="topbar">
@@ -104,6 +115,10 @@
 
   <script>
 
+    /* ============================
+       AUTH + ROLE GUARD
+    ============================ */
+
     const user = JSON.parse(sessionStorage.getItem("user"));
 
     if (!user || user.role !== "Admin") {
@@ -113,17 +128,49 @@
     document.getElementById("userInfo").innerText =
       user.firstName + " " + user.lastName;
 
+    function hasPermission(permission) {
+      return user.permissions && user.permissions.includes(permission);
+    }
+
+    /* ============================
+       ADMIN CORE PAGES
+    ============================ */
+
     const pages = {
       overview: { title: "Overview", file: "overview.html" },
       users: { title: "Users", file: "users.html" },
       settings: { title: "Settings", file: "settings.html" }
     };
 
+    /* ============================
+       MODULES (permission based)
+    ============================ */
+
+    const modules = {
+      sourcing: {
+        title: "Product Sourcing",
+        permission: "sourcing",
+        file: "../modules/sourcing.html"
+      },
+      listing: {
+        title: "Listing & Veeqo",
+        permission: "listing",
+        file: "../modules/listing.html"
+      }
+    };
+
+    /* ============================
+       SIDEBAR BUILD
+    ============================ */
+
     function buildSidebar() {
 
       const sidebar = document.getElementById("sidebar");
 
       let html = `<div class="brand">Pharm & Dom</div>`;
+
+      // Core Admin Section
+      html += `<div class="section-title">Admin</div>`;
 
       Object.keys(pages).forEach(key => {
         html += `
@@ -133,10 +180,37 @@
         `;
       });
 
-      html += `<div class="nav-item" onclick="logout()">Logout</div>`;
+      // Modules Section
+      const enabledModules = Object.keys(modules)
+        .filter(key => hasPermission(modules[key].permission));
+
+      if (enabledModules.length > 0) {
+
+        html += `<div class="section-title">Modules</div>`;
+
+        enabledModules.forEach(key => {
+          html += `
+            <div class="nav-item" onclick="loadModule('${key}')">
+              ${modules[key].title}
+            </div>
+          `;
+        });
+      }
+
+      html += `<div style="flex:1;"></div>`;
+
+      html += `
+        <div class="nav-item" onclick="logout()">
+          Logout
+        </div>
+      `;
 
       sidebar.innerHTML = html;
     }
+
+    /* ============================
+       PAGE LOADERS
+    ============================ */
 
     async function loadPage(key) {
 
@@ -155,6 +229,25 @@
       }, 150);
     }
 
+    async function loadModule(key) {
+
+      if (!modules[key] || !hasPermission(modules[key].permission)) return;
+
+      const content = document.getElementById("content");
+
+      content.classList.remove("show");
+
+      const response = await fetch(modules[key].file);
+      const html = await response.text();
+
+      setTimeout(() => {
+        document.getElementById("pageTitle").innerText = modules[key].title;
+        content.innerHTML = html;
+        content.classList.add("show");
+        highlightActive(modules[key].title);
+      }, 150);
+    }
+
     function highlightActive(title) {
       document.querySelectorAll(".nav-item").forEach(item => {
         item.classList.remove("active");
@@ -169,8 +262,12 @@
       window.location.href = "../login.html";
     }
 
+    /* ============================
+       INIT
+    ============================ */
+
     buildSidebar();
-    loadPage("overview"); // default page
+    loadPage("overview");
 
   </script>
 
