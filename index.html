@@ -1,1 +1,192 @@
 
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard | Pharm & Dom</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+
+    :root {
+      --sidebar-bg: #0f172a;
+      --sidebar-hover: #1e293b;
+      --primary: #2563eb;
+      --background: #f4f6f9;
+      --card-bg: #ffffff;
+      --text-dark: #0f172a;
+      --text-light: #64748b;
+      --radius: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--background);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+
+    .sidebar {
+      width: 260px;
+      background: var(--sidebar-bg);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      transition: width 0.3s ease;
+    }
+
+    .brand {
+      font-weight: 600;
+      font-size: 18px;
+      margin-bottom: 30px;
+    }
+
+    .nav-item {
+      padding: 12px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-bottom: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .nav-item:hover {
+      background: var(--sidebar-hover);
+    }
+
+    .nav-item.active {
+      background: var(--primary);
+    }
+
+    /* Main Area */
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .topbar {
+      height: 70px;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .content {
+      padding: 30px;
+      overflow-y: auto;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s ease;
+    }
+
+    .content.loaded {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .card {
+      background: var(--card-bg);
+      padding: 25px;
+      border-radius: var(--radius);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+      transition: transform 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <div class="sidebar" id="sidebar">
+    <div class="brand">Pharm & Dom</div>
+    <!-- Nav Items injected dynamically -->
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div>Dashboard</div>
+      <div id="userName"></div>
+    </div>
+
+    <div class="content" id="content">
+      <div class="card">
+        Welcome to Pharm & Dom Operations.
+      </div>
+    </div>
+  </div>
+
+  <script>
+
+    const user = JSON.parse(sessionStorage.getItem("user"));
+
+    if (!user) {
+      window.location.href = "login.html";
+    }
+
+    document.getElementById("userName").innerText =
+      user.firstName + " " + user.lastName;
+
+    function hasPermission(permission) {
+      return user.permissions.includes(permission);
+    }
+
+    function buildSidebar() {
+
+      const sidebar = document.getElementById("sidebar");
+
+      let nav = `<div class="brand">Pharm & Dom</div>`;
+
+      if (hasPermission("dashboard")) {
+        nav += `<div class="nav-item active">Dashboard</div>`;
+      }
+
+      if (hasPermission("sourcing")) {
+        nav += `<div class="nav-item">Product Sourcing</div>`;
+      }
+
+      if (hasPermission("inventory")) {
+        nav += `<div class="nav-item">Inventory</div>`;
+      }
+
+      if (hasPermission("users")) {
+        nav += `<div class="nav-item">Users</div>`;
+      }
+
+      nav += `<div class="nav-item" onclick="logout()">Logout</div>`;
+
+      sidebar.innerHTML = nav;
+    }
+
+    function logout() {
+      sessionStorage.removeItem("user");
+      window.location.href = "login.html";
+    }
+
+    buildSidebar();
+
+    window.addEventListener("load", () => {
+      document.getElementById("content").classList.add("loaded");
+    });
+
+  </script>
+
+</body>
+</html>
