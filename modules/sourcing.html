@@ -1,17 +1,111 @@
+<style>
+.sourcing-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+}
+.stats{
+  display:flex;
+  gap:20px;
+  font-weight:600;
+}
+.actions{
+  display:flex;
+  gap:10px;
+}
+.actions input{
+  padding:8px 12px;
+  border-radius:8px;
+  border:1px solid #ddd;
+}
+.actions button{
+  padding:8px 16px;
+  border:none;
+  border-radius:8px;
+  background:#2563eb;
+  color:white;
+  cursor:pointer;
+}
+table{
+  width:100%;
+  border-collapse:collapse;
+  background:white;
+  border-radius:12px;
+  overflow:hidden;
+}
+th,td{
+  padding:12px;
+  border-bottom:1px solid #eee;
+  font-size:14px;
+}
+tr:hover{
+  background:#f9fafb;
+  cursor:pointer;
+}
+.pagination{
+  margin-top:15px;
+  display:flex;
+  justify-content:center;
+  gap:20px;
+}
+.drawer{
+  position:fixed;
+  top:0;
+  right:-500px;
+  width:500px;
+  height:100%;
+  background:white;
+  box-shadow:-5px 0 20px rgba(0,0,0,0.1);
+  padding:30px;
+  overflow-y:auto;
+  transition:0.3s;
+  z-index:1000;
+}
+.drawer.open{ right:0; }
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.4);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:2000;
+}
+.modal-content{
+  background:white;
+  padding:30px;
+  border-radius:12px;
+  width:600px;
+  max-height:90vh;
+  overflow-y:auto;
+}
+.timer{
+  font-size:14px;
+  margin-bottom:15px;
+  color:#2563eb;
+  font-weight:600;
+}
+.field{
+  margin-bottom:12px;
+}
+.field input, .field select, .field textarea{
+  width:100%;
+  padding:8px;
+  border-radius:6px;
+  border:1px solid #ddd;
+}
+</style>
+
 <div class="sourcing-header">
   <div class="stats">
     <div id="needsApproval"></div>
     <div id="needsPurchase"></div>
   </div>
-
   <div class="actions">
-    <input type="text" id="searchInput" placeholder="Search product..." />
+    <input type="text" id="searchInput" placeholder="Search product...">
     <button onclick="openAddModal()">Add Product</button>
   </div>
-</div>
-
-<div class="filters collapsed" id="filterBar">
-  <!-- filter toggles -->
 </div>
 
 <table id="sourcingTable"></table>
@@ -22,86 +116,228 @@
   <button onclick="nextPage()">Next</button>
 </div>
 
-<!-- Drawer -->
-<div id="detailDrawer"></div>
+<div id="detailDrawer" class="drawer"></div>
 
-<!-- Add Modal -->
-<div id="addModal"></div>
-
+<div id="addModal" class="modal">
+  <div class="modal-content">
+    <div class="timer" id="timer">00:00</div>
+    <h3>Add Product</h3>
+    <div id="addForm"></div>
+    <button onclick="saveProduct()">Save</button>
+    <button onclick="closeModal()">Cancel</button>
+  </div>
+</div>
 
 <script>
 
-function filterData() {
-  const query = document.getElementById("searchInput")
-    .value.toLowerCase();
+const API_URL = "YOUR_SCRIPT_URL";
+let allData = [];
+let filtered = [];
+let currentPage = 1;
+const perPage = 25;
+let startTime;
+let timerInterval;
 
-  filtered = allData.filter(item =>
-    item["Product Name"].toLowerCase().includes(query)
-  );
+/* ===================== LOAD DATA ===================== */
 
+async function loadData(){
+  const res = await fetch(API_URL,{
+    method:"POST",
+    body:JSON.stringify({action:"getSourcing"}),
+    headers:{"Content-Type":"text/plain"}
+  });
+  const data = await res.json();
+  allData = data.data;
+  filtered = allData;
+  updateStats();
   renderTable();
 }
 
-  const perPage = 25;
-let currentPage = 1;
+function updateStats(){
+  const needsApproval = allData.filter(p=>!p["Approved"]).length;
+  const needsPurchase = allData.filter(p=>!p["Purchased"]).length;
 
-function paginate(data) {
-  const start = (currentPage - 1) * perPage;
-  return data.slice(start, start + perPage);
+  document.getElementById("needsApproval").innerText =
+    `${needsApproval} need approval`;
+
+  document.getElementById("needsPurchase").innerText =
+    `${needsPurchase} need purchase`;
 }
 
+/* ===================== SEARCH ===================== */
 
-  let startTime;
-
-function openAddModal() {
-  startTime = Date.now();
-  showModal();
-  startTimerUI();
-}
-
-
-
-  const seconds = Math.floor((Date.now() - startTime) / 1000);
-
-await fetch(API_URL, {
-  method: "POST",
-  body: JSON.stringify({
-    action: "logSourcingTime",
-    opportunityId: generatedId,
-    agent: user.firstName,
-    supplierName: payload.supplierName,
-    productName: payload.productName,
-    seconds: seconds,
-    formatted: formatTime(seconds)
-  })
+document.getElementById("searchInput")
+.addEventListener("input",function(){
+  const q=this.value.toLowerCase();
+  filtered = allData.filter(p=>
+    (p["Product Name"]||"").toLowerCase().includes(q)
+  );
+  currentPage=1;
+  renderTable();
 });
 
+/* ===================== TABLE ===================== */
 
+function renderTable(){
+  const table = document.getElementById("sourcingTable");
+  table.innerHTML="";
 
-  const needsApproval = data.filter(
-  p => !p["Approved"]
-).length;
+  const headers = `
+  <tr>
+    <th>ID</th>
+    <th>Date</th>
+    <th>Supplier</th>
+    <th>Product</th>
+    <th>Net Profit</th>
+    <th>ROI</th>
+    <th>Approved</th>
+    <th>Purchased</th>
+  </tr>`;
+  table.innerHTML+=headers;
 
-const needsPurchase = data.filter(
-  p => !p["Purchased"]
-).length;
+  const start = (currentPage-1)*perPage;
+  const pageData = filtered.slice(start,start+perPage);
 
-document.getElementById("needsApproval")
-  .innerText = `${needsApproval} need approval`;
+  pageData.forEach(row=>{
+    table.innerHTML+=`
+      <tr onclick="openDrawer('${row["Opportunity ID"]}')">
+        <td>${row["Opportunity ID"]}</td>
+        <td>${new Date(row["Created At"]).toLocaleDateString()}</td>
+        <td>${row["Supplier Name"]}</td>
+        <td>${row["Product Name"]}</td>
+        <td>${row["Net Profit"]}</td>
+        <td>${row["ROI"]}</td>
+        <td>${row["Approved"]?"Yes":""}</td>
+        <td>${row["Purchased"]?"Yes":""}</td>
+      </tr>`;
+  });
 
-document.getElementById("needsPurchase")
-  .innerText = `${needsPurchase} need purchase`;
+  document.getElementById("pageInfo").innerText=
+    `Page ${currentPage} of ${Math.ceil(filtered.length/perPage)}`;
+}
 
+function nextPage(){
+  if(currentPage*perPage<filtered.length){
+    currentPage++;
+    renderTable();
+  }
+}
+function prevPage(){
+  if(currentPage>1){
+    currentPage--;
+    renderTable();
+  }
+}
 
+/* ===================== DRAWER ===================== */
 
-  
+function openDrawer(id){
+  const row = allData.find(p=>p["Opportunity ID"]===id);
+  const drawer=document.getElementById("detailDrawer");
+  drawer.innerHTML="<h3>Product Details</h3>";
 
-  document.getElementById("pageInfo")
-  .innerText = `Page ${currentPage}`;
+  Object.keys(row).forEach(key=>{
+    drawer.innerHTML+=`
+      <div class="field">
+        <label>${key}</label>
+        <input value="${row[key]||""}" 
+          ${isEditable(key)? "" : "disabled"}>
+      </div>`;
+  });
 
+  drawer.classList.add("open");
+}
 
-  document.getElementById("searchInput")
-  .addEventListener("input", filterData);
+function isEditable(key){
+  const locked = [
+    "Opportunity ID","Created At","ROI",
+    "Cost","Amt. ROI","After Pack",
+    "Percentage ROI","Last Updated"
+  ];
+  return !locked.includes(key);
+}
 
-  
+/* ===================== ADD MODAL ===================== */
+
+function openAddModal(){
+  document.getElementById("addModal").style.display="flex";
+  startTime=Date.now();
+  startTimer();
+  buildAddForm();
+}
+
+function closeModal(){
+  document.getElementById("addModal").style.display="none";
+  clearInterval(timerInterval);
+}
+
+function startTimer(){
+  timerInterval=setInterval(()=>{
+    const seconds=Math.floor((Date.now()-startTime)/1000);
+    document.getElementById("timer").innerText=formatTime(seconds);
+  },1000);
+}
+
+function formatTime(s){
+  const m=Math.floor(s/60);
+  const sec=s%60;
+  return `${m.toString().padStart(2,"0")}:${sec.toString().padStart(2,"0")}`;
+}
+
+function buildAddForm(){
+  const fields=[
+    "Agent","Supplier Name","Code","Product Name","ASIN(s)",
+    "Cost of Unit","Cost of Sale","Net Profit",
+    "Keepa","Primary Fulfillment","Supplier Cheapest",
+    "Notes","Unit Quantity","Packing",
+    "Seasonality","Competition","Supplier Stock"
+  ];
+  const form=document.getElementById("addForm");
+  form.innerHTML="";
+  fields.forEach(f=>{
+    form.innerHTML+=`
+      <div class="field">
+        <label>${f}</label>
+        <input id="field_${f.replace(/\s/g,'_')}">
+      </div>`;
+  });
+}
+
+async function saveProduct(){
+  const inputs=document.querySelectorAll("#addForm input");
+  let payload={};
+  inputs.forEach(i=>{
+    payload[i.id.replace("field_","").replace(/_/g," ")]=i.value;
+  });
+
+  await fetch(API_URL,{
+    method:"POST",
+    body:JSON.stringify({action:"saveSourcing",...payload}),
+    headers:{"Content-Type":"text/plain"}
+  });
+
+  const seconds=Math.floor((Date.now()-startTime)/1000);
+
+  await fetch(API_URL,{
+    method:"POST",
+    body:JSON.stringify({
+      action:"logSourcingTime",
+      opportunityId:"", 
+      agent:payload["Agent"],
+      supplierName:payload["Supplier Name"],
+      productName:payload["Product Name"],
+      seconds:seconds,
+      formatted:formatTime(seconds)
+    }),
+    headers:{"Content-Type":"text/plain"}
+  });
+
+  closeModal();
+  loadData();
+}
+
+/* ===================== INIT ===================== */
+
+loadData();
+
 </script>
