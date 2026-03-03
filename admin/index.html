@@ -14,25 +14,29 @@
     :root {
       --sidebar-w: 256px;
       --topbar-h: 64px;
-      --bg: #f5f6fa;
-      --white: #ffffff;
-      --ink: #0d0f14;
-      --ink-2: #374151;
-      --ink-3: #6b7280;
-      --ink-4: #9ca3af;
-      --border: #e5e7eb;
-      --blue: #2563eb;
-      --blue-h: #1d4ed8;
-      --blue-soft: rgba(37,99,235,0.1);
-      --blue-glow: rgba(37,99,235,0.2);
+      /* Login page branding colours */
+      --ink: #060912;
+      --blue: #3b6ef8;
+      --blue-h: #4c7df9;
+      --blue-soft: rgba(59,110,248,0.12);
+      --blue-glow: rgba(59,110,248,0.28);
       --sidebar: #0d1117;
       --sidebar-border: rgba(255,255,255,0.06);
       --sidebar-hover: rgba(255,255,255,0.06);
-      --sidebar-active: rgba(37,99,235,0.85);
+      --sidebar-active-bg: rgba(59,110,248,0.85);
+      /* App shell */
+      --bg: #f5f6fa;
+      --white: #ffffff;
+      --text-primary: #0d0f14;
+      --text-2: #374151;
+      --text-3: #6b7280;
+      --text-4: #9ca3af;
+      --border: #e5e7eb;
       --radius: 12px;
       --radius-sm: 8px;
-      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --shadow: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.1);
+      --success: #22c55e;
     }
 
     html, body { height: 100%; }
@@ -40,7 +44,7 @@
     body {
       font-family: 'Inter', system-ui, sans-serif;
       background: var(--bg);
-      color: var(--ink);
+      color: var(--text-primary);
       display: flex;
       height: 100vh;
       overflow: hidden;
@@ -59,12 +63,39 @@
       transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
     }
 
+    /* Subtle mesh on sidebar */
+    .sidebar::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0.3;
+      background-image:
+        linear-gradient(rgba(59,110,248,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,110,248,0.04) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+    }
+
+    /* Blue glow orb top-left of sidebar */
+    .sidebar::after {
+      content: '';
+      position: absolute;
+      width: 260px; height: 260px;
+      background: radial-gradient(circle, rgba(59,110,248,0.18), transparent 70%);
+      top: -80px; left: -60px;
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(40px);
+    }
+
     .sidebar-header {
       padding: 20px 16px 16px;
       border-bottom: 1px solid var(--sidebar-border);
       display: flex;
       align-items: center;
       gap: 10px;
+      position: relative;
+      z-index: 2;
     }
 
     .sidebar-logo {
@@ -72,11 +103,6 @@
       object-fit: contain;
       border-radius: 8px;
       flex-shrink: 0;
-    }
-
-    .sidebar-brand {
-      display: flex;
-      flex-direction: column;
     }
 
     .sidebar-brand-name {
@@ -89,7 +115,7 @@
 
     .sidebar-brand-sub {
       font-size: 10px;
-      color: rgba(255,255,255,0.35);
+      color: rgba(255,255,255,0.3);
       letter-spacing: 0.6px;
       text-transform: uppercase;
       margin-top: 1px;
@@ -100,6 +126,8 @@
       overflow-y: auto;
       padding: 12px 10px;
       scrollbar-width: none;
+      position: relative;
+      z-index: 2;
     }
 
     .sidebar-nav::-webkit-scrollbar { display: none; }
@@ -109,7 +137,7 @@
       font-weight: 600;
       letter-spacing: 1px;
       text-transform: uppercase;
-      color: rgba(255,255,255,0.25);
+      color: rgba(255,255,255,0.22);
       padding: 12px 8px 6px;
     }
 
@@ -121,11 +149,10 @@
       border-radius: var(--radius-sm);
       cursor: pointer;
       transition: all 0.18s ease;
-      color: rgba(255,255,255,0.55);
+      color: rgba(255,255,255,0.5);
       font-size: 13.5px;
       font-weight: 500;
       margin-bottom: 2px;
-      position: relative;
       user-select: none;
     }
 
@@ -135,26 +162,16 @@
     }
 
     .nav-item.active {
-      background: var(--sidebar-active);
+      background: var(--sidebar-active-bg);
       color: #fff;
-      box-shadow: 0 2px 8px rgba(37,99,235,0.35);
+      box-shadow: 0 2px 12px rgba(59,110,248,0.4);
     }
 
-    .nav-item svg {
-      width: 16px; height: 16px;
-      flex-shrink: 0;
-      opacity: 0.7;
-      transition: opacity 0.18s ease;
-    }
-
-    .nav-item:hover svg,
-    .nav-item.active svg { opacity: 1; }
-
+    .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.7; transition: opacity 0.18s; }
+    .nav-item:hover svg, .nav-item.active svg { opacity: 1; }
     .nav-item-label { flex: 1; }
 
-    /* Group / collapse */
-    .nav-group { margin-bottom: 2px; }
-
+    /* Groups */
     .nav-group-header {
       display: flex;
       align-items: center;
@@ -163,26 +180,20 @@
       border-radius: var(--radius-sm);
       cursor: pointer;
       transition: all 0.18s ease;
-      color: rgba(255,255,255,0.55);
+      color: rgba(255,255,255,0.5);
       font-size: 13.5px;
       font-weight: 500;
       user-select: none;
     }
 
-    .nav-group-header:hover {
-      background: var(--sidebar-hover);
-      color: rgba(255,255,255,0.85);
-    }
-
+    .nav-group-header:hover { background: var(--sidebar-hover); color: rgba(255,255,255,0.85); }
     .nav-group-header svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.7; }
     .nav-group-header:hover svg { opacity: 1; }
-
     .nav-group-label { flex: 1; }
 
     .nav-chevron {
-      width: 14px !important;
-      height: 14px !important;
-      opacity: 0.4 !important;
+      width: 14px !important; height: 14px !important;
+      opacity: 0.35 !important;
       transition: transform 0.25s ease !important;
     }
 
@@ -201,77 +212,48 @@
     .sidebar-footer {
       padding: 10px;
       border-top: 1px solid var(--sidebar-border);
+      position: relative;
+      z-index: 2;
     }
 
-    .user-card {
+    .sidebar-user-card {
       display: flex;
       align-items: center;
       gap: 10px;
       padding: 10px 12px;
       border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: background 0.2s ease;
     }
 
-    .user-card:hover { background: var(--sidebar-hover); }
-
-    .user-avatar {
-      width: 32px; height: 32px;
+    .sidebar-avatar {
+      width: 30px; height: 30px;
       border-radius: 50%;
       background: linear-gradient(135deg, var(--blue) 0%, #7c3aed 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       color: #fff;
       flex-shrink: 0;
     }
 
-    .user-info { flex: 1; min-width: 0; }
-
-    .user-name {
+    .sidebar-user-name {
       font-size: 13px;
       font-weight: 600;
-      color: rgba(255,255,255,0.85);
+      color: rgba(255,255,255,0.7);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .user-role {
+    .sidebar-user-role {
       font-size: 11px;
-      color: rgba(255,255,255,0.3);
+      color: rgba(255,255,255,0.25);
       margin-top: 1px;
     }
 
-    .logout-btn {
-      width: 28px; height: 28px;
-      border-radius: 6px;
-      background: rgba(255,255,255,0.05);
-      border: none;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: rgba(255,255,255,0.35);
-      transition: all 0.2s ease;
-      flex-shrink: 0;
-    }
-
-    .logout-btn:hover {
-      background: rgba(239,68,68,0.15);
-      color: #f87171;
-    }
-
     /* ── MAIN ── */
-    .main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      min-width: 0;
-    }
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 
     /* ── TOPBAR ── */
     .topbar {
@@ -285,26 +267,31 @@
       flex-shrink: 0;
       box-shadow: var(--shadow);
       z-index: 10;
+      position: relative;
     }
 
-    .topbar-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
 
     .page-title {
       font-size: 16px;
       font-weight: 600;
       letter-spacing: -0.3px;
-      color: var(--ink);
+      color: var(--text-primary);
     }
 
-    .topbar-right {
+    .breadcrumb {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-4);
+      margin-top: 2px;
     }
+
+    .breadcrumb span { color: var(--text-3); }
+    .breadcrumb svg { width: 12px; height: 12px; }
+
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
 
     .topbar-btn {
       width: 36px; height: 36px;
@@ -315,18 +302,25 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--ink-3);
+      color: var(--text-3);
       transition: all 0.2s ease;
       position: relative;
     }
 
-    .topbar-btn:hover {
-      background: var(--bg);
-      border-color: #d1d5db;
-      color: var(--ink-2);
+    .topbar-btn:hover { background: var(--bg); border-color: #d1d5db; color: var(--text-2); }
+    .topbar-btn svg { width: 16px; height: 16px; }
+
+    .notif-dot {
+      position: absolute;
+      top: 7px; right: 7px;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--blue);
+      border: 2px solid var(--white);
     }
 
-    .topbar-btn svg { width: 16px; height: 16px; }
+    /* User dropdown trigger */
+    .user-menu-wrap { position: relative; }
 
     .topbar-user {
       display: flex;
@@ -338,34 +332,103 @@
       cursor: pointer;
       transition: all 0.2s ease;
       background: var(--white);
+      user-select: none;
     }
 
     .topbar-user:hover { border-color: #d1d5db; background: var(--bg); }
 
     .topbar-avatar {
-      width: 26px; height: 26px;
+      width: 28px; height: 28px;
       border-radius: 50%;
       background: linear-gradient(135deg, var(--blue) 0%, #7c3aed 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 700;
       color: #fff;
     }
 
-    .topbar-user-name {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--ink-2);
+    .topbar-user-name { font-size: 13px; font-weight: 500; color: var(--text-2); }
+
+    .topbar-chevron {
+      width: 14px; height: 14px;
+      color: var(--text-4);
+      transition: transform 0.25s ease;
     }
 
-    /* ── CONTENT ── */
-    .content-wrap {
-      flex: 1;
-      overflow-y: auto;
-      position: relative;
+    .topbar-user.open .topbar-chevron { transform: rotate(180deg); }
+
+    /* ── USER DROPDOWN ── */
+    .user-dropdown {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      width: 220px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-md);
+      z-index: 100;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(-8px) scale(0.97);
+      pointer-events: none;
+      transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
+      transform-origin: top right;
     }
+
+    .user-dropdown.open {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .dropdown-header {
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .dropdown-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .dropdown-role {
+      font-size: 12px;
+      color: var(--text-4);
+      margin-top: 2px;
+    }
+
+    .dropdown-body { padding: 6px; }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-2);
+      transition: all 0.15s ease;
+    }
+
+    .dropdown-item:hover { background: var(--bg); color: var(--text-primary); }
+
+    .dropdown-item svg { width: 15px; height: 15px; color: var(--text-4); flex-shrink: 0; }
+    .dropdown-item:hover svg { color: var(--text-2); }
+
+    .dropdown-divider { height: 1px; background: var(--border); margin: 4px 6px; }
+
+    .dropdown-item.danger { color: #dc2626; }
+    .dropdown-item.danger:hover { background: #fef2f2; color: #b91c1c; }
+    .dropdown-item.danger svg { color: #dc2626; }
+
+    /* ── CONTENT ── */
+    .content-wrap { flex: 1; overflow-y: auto; position: relative; }
 
     .content {
       padding: 28px;
@@ -375,12 +438,9 @@
       transition: opacity 0.3s ease, transform 0.3s ease;
     }
 
-    .content.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    .content.show { opacity: 1; transform: translateY(0); }
 
-    /* ── LOADING OVERLAY ── */
+    /* Page loader */
     .page-loader {
       position: absolute;
       inset: 0;
@@ -394,10 +454,9 @@
       transition: opacity 0.2s ease;
     }
 
-    .page-loader.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
+    .page-loader.active { opacity: 1; pointer-events: auto; }
+
+    .loader-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 
     .loader-ring {
       width: 36px; height: 36px;
@@ -407,31 +466,11 @@
       animation: spin 0.7s linear infinite;
     }
 
+    .loader-text { font-size: 13px; color: var(--text-4); font-weight: 500; }
+
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── BREADCRUMB ── */
-    .breadcrumb {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: var(--ink-4);
-    }
-
-    .breadcrumb span { color: var(--ink-3); }
-    .breadcrumb svg { width: 12px; height: 12px; }
-
-    /* ── NOTIFICATION DOT ── */
-    .notif-dot {
-      position: absolute;
-      top: 7px; right: 7px;
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: var(--blue);
-      border: 2px solid var(--white);
-    }
-
-    /* ── MOBILE SIDEBAR TOGGLE ── */
+    /* Mobile */
     .sidebar-toggle {
       display: none;
       width: 36px; height: 36px;
@@ -441,27 +480,23 @@
       cursor: pointer;
       align-items: center;
       justify-content: center;
-      color: var(--ink-3);
+      color: var(--text-3);
     }
 
     .sidebar-toggle svg { width: 16px; height: 16px; }
 
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 40;
+    }
+
     @media (max-width: 768px) {
-      .sidebar {
-        position: fixed;
-        top: 0; left: 0; bottom: 0;
-        transform: translateX(-100%);
-        z-index: 50;
-      }
+      .sidebar { position: fixed; top: 0; left: 0; bottom: 0; transform: translateX(-100%); z-index: 50; }
       .sidebar.open { transform: translateX(0); }
       .sidebar-toggle { display: flex; }
-      .sidebar-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.4);
-        z-index: 40;
-      }
       .sidebar-overlay.active { display: block; }
     }
   </style>
@@ -483,51 +518,89 @@
         </button>
         <div>
           <div class="page-title" id="pageTitle">Overview</div>
-          <div class="breadcrumb" id="breadcrumb">
+          <div class="breadcrumb">
             <span>Admin</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             <span id="breadcrumbPage">Overview</span>
           </div>
         </div>
       </div>
+
       <div class="topbar-right">
+        <!-- Notifications -->
         <button class="topbar-btn" title="Notifications">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
           </svg>
           <div class="notif-dot"></div>
         </button>
-        <div class="topbar-user" id="topbarUser">
-          <div class="topbar-avatar" id="topbarAvatar">AD</div>
-          <span class="topbar-user-name" id="topbarName">Admin</span>
+
+        <!-- User menu -->
+        <div class="user-menu-wrap">
+          <div class="topbar-user" id="topbarUser" onclick="toggleDropdown()">
+            <div class="topbar-avatar" id="topbarAvatar">AD</div>
+            <span class="topbar-user-name" id="topbarName">Admin</span>
+            <svg class="topbar-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
+
+          <div class="user-dropdown" id="userDropdown">
+            <div class="dropdown-header">
+              <div class="dropdown-name" id="dropdownName">Admin User</div>
+              <div class="dropdown-role">Administrator</div>
+            </div>
+            <div class="dropdown-body">
+              <div class="dropdown-item" onclick="loadPageFromDropdown('settings')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                Settings
+              </div>
+              <div class="dropdown-divider"></div>
+              <div class="dropdown-item danger" onclick="logout()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Sign out
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </header>
 
     <div class="content-wrap">
       <div class="page-loader" id="pageLoader">
-        <div class="loader-ring"></div>
+        <div class="loader-wrap">
+          <div class="loader-ring"></div>
+          <div class="loader-text">Loading…</div>
+        </div>
       </div>
       <div class="content" id="content"></div>
     </div>
   </div>
 
   <script>
-
-    /* ── AUTH GUARD ── */
+    /* ── AUTH ── */
     const API_URL = "https://script.google.com/macros/s/AKfycbyaDQrxTKE9e5y6qH8HubLEK7d9z6MbIrCRp-8Cj_0gpxUHFayWSZ_7aanI1HENvD4/exec";
     const user = JSON.parse(sessionStorage.getItem("user"));
     if (!user || user.role !== "Admin") window.location.href = "../login.html";
 
-    // User info
-    const fullName = (user.firstName || "") + " " + (user.lastName || "");
+    const fullName = ((user.firstName || "") + " " + (user.lastName || "")).trim() || "Admin";
     const initials = ((user.firstName || "?")[0] + (user.lastName || "?")[0]).toUpperCase();
-    document.getElementById("topbarName").textContent = fullName.trim() || "Admin";
+
+    document.getElementById("topbarName").textContent = fullName;
     document.getElementById("topbarAvatar").textContent = initials;
+    document.getElementById("dropdownName").textContent = fullName;
 
     function hasPermission(p) { return user.permissions && user.permissions.includes(p); }
 
-    /* ── NAV CONFIG ── */
+    /* ── NAV CONFIG (settings removed from sidebar) ── */
     const pages = {
       overview: { title: "Overview", section: "Admin", file: "overview.html" },
       users:    { title: "Users",    section: "Admin", file: "users.html" },
@@ -535,41 +608,39 @@
     };
 
     const modules = {
-      sourcing: { navTitle: "Sourcing",      pageTitle: "Product Sourcing", section: "Modules", permission: "sourcing", file: "../modules/sourcing.html" },
+      sourcing: { navTitle: "Sourcing",       pageTitle: "Product Sourcing", section: "Modules", permission: "sourcing", file: "../modules/sourcing.html" },
       listing:  { navTitle: "Listing & Veeqo", pageTitle: "Listing & Veeqo", section: "Modules", permission: "listing",  file: "../modules/listing.html" }
     };
 
     /* ── ICONS ── */
-    const icons = {
+    const ic = {
       overview: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
       users:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
-      settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
       sourcing: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
-      listing:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
+      listing:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
       products: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
-      chevron:  `<svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`,
-      logout:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`
+      chevron:  `<svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`
     };
 
-    /* ── BUILD SIDEBAR ── */
+    /* ── BUILD SIDEBAR (no settings item) ── */
     function buildSidebar() {
       const s = document.getElementById("sidebar");
-
       let html = `
         <div class="sidebar-header">
           <img class="sidebar-logo" src="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png" alt="Logo">
-          <div class="sidebar-brand">
+          <div>
             <div class="sidebar-brand-name">Pharm & Dom</div>
+            <div class="sidebar-brand-sub">Admin Panel</div>
           </div>
         </div>
         <nav class="sidebar-nav">
-          <div class="nav-section-label">Admin</div>
-      `;
+          <div class="nav-section-label">Admin</div>`;
 
-      Object.keys(pages).forEach(key => {
+      // Only overview + users in sidebar (settings goes to dropdown)
+      ["overview", "users"].forEach(key => {
         html += `
           <div class="nav-item" id="nav-${key}" onclick="loadPage('${key}')">
-            ${icons[key] || ""}
+            ${ic[key]}
             <span class="nav-item-label">${pages[key].title}</span>
           </div>`;
       });
@@ -581,21 +652,21 @@
         html += `<div class="nav-section-label">Modules</div>
           <div class="nav-group">
             <div class="nav-group-header" onclick="toggleGroup('products')">
-              ${icons.products}
+              ${ic.products}
               <span class="nav-group-label">Products</span>
-              <span id="chevron-products">${icons.chevron}</span>
+              <span id="chevron-products">${ic.chevron}</span>
             </div>
             <div class="nav-children" id="children-products">`;
 
         if (hasSourcing) html += `
           <div class="nav-item" id="nav-sourcing" onclick="loadModule('sourcing')">
-            ${icons.sourcing}
+            ${ic.sourcing}
             <span class="nav-item-label">${modules.sourcing.navTitle}</span>
           </div>`;
 
         if (hasListing) html += `
           <div class="nav-item" id="nav-listing" onclick="loadModule('listing')">
-            ${icons.listing}
+            ${ic.listing}
             <span class="nav-item-label">${modules.listing.navTitle}</span>
           </div>`;
 
@@ -604,15 +675,12 @@
 
       html += `</nav>
         <div class="sidebar-footer">
-          <div class="user-card">
-            <div class="user-avatar">${initials}</div>
-            <div class="user-info">
-              <div class="user-name">${fullName.trim() || "Admin"}</div>
-              <div class="user-role">Administrator</div>
+          <div class="sidebar-user-card">
+            <div class="sidebar-avatar">${initials}</div>
+            <div>
+              <div class="sidebar-user-name">${fullName}</div>
+              <div class="sidebar-user-role">Administrator</div>
             </div>
-            <button class="logout-btn" title="Sign out" onclick="logout()">
-              ${icons.logout}
-            </button>
           </div>
         </div>`;
 
@@ -627,7 +695,31 @@
       if (chevron) chevron.classList.toggle("open");
     }
 
-    /* ── LOAD PAGE ── */
+    /* ── DROPDOWN ── */
+    function toggleDropdown() {
+      const trigger  = document.getElementById("topbarUser");
+      const dropdown = document.getElementById("userDropdown");
+      const isOpen   = dropdown.classList.contains("open");
+      dropdown.classList.toggle("open", !isOpen);
+      trigger.classList.toggle("open", !isOpen);
+    }
+
+    function loadPageFromDropdown(key) {
+      document.getElementById("userDropdown").classList.remove("open");
+      document.getElementById("topbarUser").classList.remove("open");
+      loadPage(key);
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener("click", e => {
+      const wrap = document.querySelector(".user-menu-wrap");
+      if (!wrap.contains(e.target)) {
+        document.getElementById("userDropdown").classList.remove("open");
+        document.getElementById("topbarUser").classList.remove("open");
+      }
+    });
+
+    /* ── PAGE LOADING ── */
     let currentKey = null;
 
     async function loadPage(key) {
@@ -652,36 +744,29 @@
     async function fetchAndRender(file) {
       const loader  = document.getElementById("pageLoader");
       const content = document.getElementById("content");
-
       content.classList.remove("show");
       loader.classList.add("active");
-
       try {
         const res  = await fetch(file);
         const html = await res.text();
-
         await new Promise(r => setTimeout(r, 180));
-
         content.innerHTML = html;
-
-        // Re-execute inline scripts
         content.querySelectorAll("script").forEach(old => {
           const s = document.createElement("script");
           s.textContent = old.textContent;
           document.body.appendChild(s);
           document.body.removeChild(s);
         });
-
         loader.classList.remove("active");
         requestAnimationFrame(() => content.classList.add("show"));
-      } catch (err) {
+      } catch {
         loader.classList.remove("active");
-        content.innerHTML = `<div style="padding:40px;text-align:center;color:#6b7280;font-size:14px;">Failed to load page.</div>`;
+        content.innerHTML = `<div style="padding:60px;text-align:center;color:#9ca3af;font-size:14px;">Failed to load page.</div>`;
         content.classList.add("show");
       }
     }
 
-    function updateHeader(title, section) {
+    function updateHeader(title) {
       document.getElementById("pageTitle").textContent = title;
       document.getElementById("breadcrumbPage").textContent = title;
     }
@@ -692,7 +777,7 @@
       if (el) el.classList.add("active");
     }
 
-    /* ── MOBILE SIDEBAR ── */
+    /* ── MOBILE ── */
     function toggleSidebar() {
       document.getElementById("sidebar").classList.toggle("open");
       document.getElementById("sidebarOverlay").classList.toggle("active");
@@ -703,7 +788,6 @@
       document.getElementById("sidebarOverlay").classList.remove("active");
     }
 
-    /* ── LOGOUT ── */
     function logout() {
       sessionStorage.removeItem("user");
       window.location.href = "../login.html";
@@ -712,7 +796,6 @@
     /* ── INIT ── */
     buildSidebar();
     loadPage("overview");
-
   </script>
 </body>
 </html>
