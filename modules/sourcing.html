@@ -1,4 +1,107 @@
-<div class="card">
-  <h2>Product Sourcing</h2>
-  <p>Sourcing system will live here.</p>
+<div class="sourcing-header">
+  <div class="stats">
+    <div id="needsApproval"></div>
+    <div id="needsPurchase"></div>
+  </div>
+
+  <div class="actions">
+    <input type="text" id="searchInput" placeholder="Search product..." />
+    <button onclick="openAddModal()">Add Product</button>
+  </div>
 </div>
+
+<div class="filters collapsed" id="filterBar">
+  <!-- filter toggles -->
+</div>
+
+<table id="sourcingTable"></table>
+
+<div class="pagination">
+  <button onclick="prevPage()">Previous</button>
+  <span id="pageInfo"></span>
+  <button onclick="nextPage()">Next</button>
+</div>
+
+<!-- Drawer -->
+<div id="detailDrawer"></div>
+
+<!-- Add Modal -->
+<div id="addModal"></div>
+
+
+<script>
+
+function filterData() {
+  const query = document.getElementById("searchInput")
+    .value.toLowerCase();
+
+  filtered = allData.filter(item =>
+    item["Product Name"].toLowerCase().includes(query)
+  );
+
+  renderTable();
+}
+
+  const perPage = 25;
+let currentPage = 1;
+
+function paginate(data) {
+  const start = (currentPage - 1) * perPage;
+  return data.slice(start, start + perPage);
+}
+
+
+  let startTime;
+
+function openAddModal() {
+  startTime = Date.now();
+  showModal();
+  startTimerUI();
+}
+
+
+
+  const seconds = Math.floor((Date.now() - startTime) / 1000);
+
+await fetch(API_URL, {
+  method: "POST",
+  body: JSON.stringify({
+    action: "logSourcingTime",
+    opportunityId: generatedId,
+    agent: user.firstName,
+    supplierName: payload.supplierName,
+    productName: payload.productName,
+    seconds: seconds,
+    formatted: formatTime(seconds)
+  })
+});
+
+
+
+  const needsApproval = data.filter(
+  p => !p["Approved"]
+).length;
+
+const needsPurchase = data.filter(
+  p => !p["Purchased"]
+).length;
+
+document.getElementById("needsApproval")
+  .innerText = `${needsApproval} need approval`;
+
+document.getElementById("needsPurchase")
+  .innerText = `${needsPurchase} need purchase`;
+
+
+
+  
+
+  document.getElementById("pageInfo")
+  .innerText = `Page ${currentPage}`;
+
+
+  document.getElementById("searchInput")
+  .addEventListener("input", filterData);
+
+  
+</script>
