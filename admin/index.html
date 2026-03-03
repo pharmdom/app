@@ -1,96 +1,378 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <title>Admin | Pharm & Dom</title>
+  <link rel="icon" type="image/png" href__="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href__="https://fonts.googleapis.com">
+  <link rel="preconnect" href__="https://fonts.gstatic.com" crossorigin>
+  <link href__="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     :root {
-      --sidebar-bg: #0f172a;
-      --sidebar-hover: #1e293b;
-      --primary: #2563eb;
-      --background: #f4f6f9;
-      --card-bg: #ffffff;
-      --radius: 14px;
+      --sidebar-w: 256px;
+      --topbar-h: 64px;
+      --bg: #f5f6fa;
+      --white: #ffffff;
+      --ink: #0d0f14;
+      --ink-2: #374151;
+      --ink-3: #6b7280;
+      --ink-4: #9ca3af;
+      --border: #e5e7eb;
+      --blue: #2563eb;
+      --blue-h: #1d4ed8;
+      --blue-soft: rgba(37,99,235,0.1);
+      --blue-glow: rgba(37,99,235,0.2);
+      --sidebar: #0d1117;
+      --sidebar-border: rgba(255,255,255,0.06);
+      --sidebar-hover: rgba(255,255,255,0.06);
+      --sidebar-active: rgba(37,99,235,0.85);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
     }
 
-    * { box-sizing: border-box; }
+    html, body { height: 100%; }
 
     body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
       display: flex;
       height: 100vh;
-      background: var(--background);
       overflow: hidden;
     }
 
-    /* Sidebar */
-
+    /* ── SIDEBAR ── */
     .sidebar {
-      width: 260px;
-      background: var(--sidebar-bg);
-      color: white;
-      padding: 20px;
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--sidebar);
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--sidebar-border);
+      position: relative;
+      z-index: 20;
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .sidebar-header {
+      padding: 20px 16px 16px;
+      border-bottom: 1px solid var(--sidebar-border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidebar-logo {
+      width: 32px; height: 32px;
+      object-fit: contain;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-brand {
       display: flex;
       flex-direction: column;
     }
 
-    .brand {
-      font-weight: 600;
-      font-size: 18px;
-      margin-bottom: 25px;
+    .sidebar-brand-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.3px;
+      line-height: 1.2;
     }
 
-    .section-title {
-      font-size: 12px;
-      opacity: 0.5;
-      margin: 15px 0 8px 0;
+    .sidebar-brand-sub {
+      font-size: 10px;
+      color: rgba(255,255,255,0.35);
+      letter-spacing: 0.6px;
       text-transform: uppercase;
+      margin-top: 1px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 10px;
+      scrollbar-width: none;
+    }
+
+    .sidebar-nav::-webkit-scrollbar { display: none; }
+
+    .nav-section-label {
+      font-size: 10px;
+      font-weight: 600;
       letter-spacing: 1px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.25);
+      padding: 12px 8px 6px;
     }
 
     .nav-item {
-      padding: 12px 14px;
-      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
       cursor: pointer;
-      margin-bottom: 6px;
-      transition: 0.2s ease;
+      transition: all 0.18s ease;
+      color: rgba(255,255,255,0.55);
+      font-size: 13.5px;
+      font-weight: 500;
+      margin-bottom: 2px;
+      position: relative;
+      user-select: none;
     }
 
     .nav-item:hover {
       background: var(--sidebar-hover);
+      color: rgba(255,255,255,0.85);
     }
 
     .nav-item.active {
-      background: var(--primary);
+      background: var(--sidebar-active);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(37,99,235,0.35);
     }
 
-    /* Main */
+    .nav-item svg {
+      width: 16px; height: 16px;
+      flex-shrink: 0;
+      opacity: 0.7;
+      transition: opacity 0.18s ease;
+    }
 
+    .nav-item:hover svg,
+    .nav-item.active svg { opacity: 1; }
+
+    .nav-item-label { flex: 1; }
+
+    /* Group / collapse */
+    .nav-group { margin-bottom: 2px; }
+
+    .nav-group-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.18s ease;
+      color: rgba(255,255,255,0.55);
+      font-size: 13.5px;
+      font-weight: 500;
+      user-select: none;
+    }
+
+    .nav-group-header:hover {
+      background: var(--sidebar-hover);
+      color: rgba(255,255,255,0.85);
+    }
+
+    .nav-group-header svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.7; }
+    .nav-group-header:hover svg { opacity: 1; }
+
+    .nav-group-label { flex: 1; }
+
+    .nav-chevron {
+      width: 14px !important;
+      height: 14px !important;
+      opacity: 0.4 !important;
+      transition: transform 0.25s ease !important;
+    }
+
+    .nav-chevron.open { transform: rotate(90deg); }
+
+    .nav-children {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1);
+      padding-left: 14px;
+    }
+
+    .nav-children.open { max-height: 400px; }
+
+    /* Sidebar footer */
+    .sidebar-footer {
+      padding: 10px;
+      border-top: 1px solid var(--sidebar-border);
+    }
+
+    .user-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .user-card:hover { background: var(--sidebar-hover); }
+
+    .user-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue) 0%, #7c3aed 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .user-info { flex: 1; min-width: 0; }
+
+    .user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.85);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .user-role {
+      font-size: 11px;
+      color: rgba(255,255,255,0.3);
+      margin-top: 1px;
+    }
+
+    .logout-btn {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.05);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,0.35);
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .logout-btn:hover {
+      background: rgba(239,68,68,0.15);
+      color: #f87171;
+    }
+
+    /* ── MAIN ── */
     .main {
       flex: 1;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
     }
 
+    /* ── TOPBAR ── */
     .topbar {
-      height: 70px;
-      background: white;
+      height: var(--topbar-h);
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 30px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      padding: 0 28px;
+      flex-shrink: 0;
+      box-shadow: var(--shadow);
+      z-index: 10;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .page-title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      color: var(--ink);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .topbar-btn {
+      width: 36px; height: 36px;
+      border-radius: var(--radius-sm);
+      background: none;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--ink-3);
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .topbar-btn:hover {
+      background: var(--bg);
+      border-color: #d1d5db;
+      color: var(--ink-2);
+    }
+
+    .topbar-btn svg { width: 16px; height: 16px; }
+
+    .topbar-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px 5px 5px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: var(--white);
+    }
+
+    .topbar-user:hover { border-color: #d1d5db; background: var(--bg); }
+
+    .topbar-avatar {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue) 0%, #7c3aed 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .topbar-user-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink-2);
+    }
+
+    /* ── CONTENT ── */
+    .content-wrap {
+      flex: 1;
+      overflow-y: auto;
+      position: relative;
     }
 
     .content {
-      padding: 30px;
-      flex: 1;
-      overflow-y: auto;
+      padding: 28px;
+      min-height: 100%;
       opacity: 0;
-      transform: translateY(10px);
-      transition: all 0.25s ease;
+      transform: translateY(12px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
     }
 
     .content.show {
@@ -98,275 +380,340 @@
       transform: translateY(0);
     }
 
+    /* ── LOADING OVERLAY ── */
+    .page-loader {
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
 
-    .nav-group {
-  margin-bottom: 6px;
-}
+    .page-loader.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
 
-.nav-parent {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+    .loader-ring {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
 
-.nav-children {
-  overflow: hidden;
-  max-height: 0;
-  transition: max-height 0.3s ease;
-  padding-left: 10px;
-}
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-.nav-children.open {
-  max-height: 300px;
-}
+    /* ── BREADCRUMB ── */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--ink-4);
+    }
 
-.chevron {
-  font-size: 12px;
-  transition: transform 0.3s ease;
-}
+    .breadcrumb span { color: var(--ink-3); }
+    .breadcrumb svg { width: 12px; height: 12px; }
 
-.chevron.rotate {
-  transform: rotate(90deg);
-}
-    
+    /* ── NOTIFICATION DOT ── */
+    .notif-dot {
+      position: absolute;
+      top: 7px; right: 7px;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--blue);
+      border: 2px solid var(--white);
+    }
+
+    /* ── MOBILE SIDEBAR TOGGLE ── */
+    .sidebar-toggle {
+      display: none;
+      width: 36px; height: 36px;
+      border-radius: var(--radius-sm);
+      background: none;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      color: var(--ink-3);
+    }
+
+    .sidebar-toggle svg { width: 16px; height: 16px; }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        top: 0; left: 0; bottom: 0;
+        transform: translateX(-100%);
+        z-index: 50;
+      }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-toggle { display: flex; }
+      .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.4);
+        z-index: 40;
+      }
+      .sidebar-overlay.active { display: block; }
+    }
   </style>
 </head>
 
 <body>
 
-  <div class="sidebar" id="sidebar"></div>
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <aside class="sidebar" id="sidebar"></aside>
 
   <div class="main">
-    <div class="topbar">
-      <div id="pageTitle">Overview</div>
-      <div id="userInfo"></div>
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <div>
+          <div class="page-title" id="pageTitle">Overview</div>
+          <div class="breadcrumb" id="breadcrumb">
+            <span>Admin</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <span id="breadcrumbPage">Overview</span>
+          </div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="topbar-btn" title="Notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <div class="notif-dot"></div>
+        </button>
+        <div class="topbar-user" id="topbarUser">
+          <div class="topbar-avatar" id="topbarAvatar">AD</div>
+          <span class="topbar-user-name" id="topbarName">Admin</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="content-wrap">
+      <div class="page-loader" id="pageLoader">
+        <div class="loader-ring"></div>
+      </div>
+      <div class="content" id="content"></div>
     </div>
-    <div class="content" id="content"></div>
   </div>
 
   <script>
 
-    /* ============================
-       AUTH + ROLE GUARD
-    ============================ */
-
+    /* ── AUTH GUARD ── */
     const API_URL = "https://script.google.com/macros/s/AKfycbyaDQrxTKE9e5y6qH8HubLEK7d9z6MbIrCRp-8Cj_0gpxUHFayWSZ_7aanI1HENvD4/exec";
-
     const user = JSON.parse(sessionStorage.getItem("user"));
+    if (!user || user.role !== "Admin") window.location.href = "../login.html";
 
-    if (!user || user.role !== "Admin") {
-      window.location.href = "../login.html";
-    }
+    // User info
+    const fullName = (user.firstName || "") + " " + (user.lastName || "");
+    const initials = ((user.firstName || "?")[0] + (user.lastName || "?")[0]).toUpperCase();
+    document.getElementById("topbarName").textContent = fullName.trim() || "Admin";
+    document.getElementById("topbarAvatar").textContent = initials;
 
-    document.getElementById("userInfo").innerText =
-      user.firstName + " " + user.lastName;
+    function hasPermission(p) { return user.permissions && user.permissions.includes(p); }
 
-    function hasPermission(permission) {
-      return user.permissions && user.permissions.includes(permission);
-    }
-
-    /* ============================
-       ADMIN CORE PAGES
-    ============================ */
-
+    /* ── NAV CONFIG ── */
     const pages = {
-      overview: { title: "Overview", file: "overview.html" },
-      users: { title: "Users", file: "users.html" },
-      settings: { title: "Settings", file: "settings.html" }
+      overview: { title: "Overview", section: "Admin", file: "overview.html" },
+      users:    { title: "Users",    section: "Admin", file: "users.html" },
+      settings: { title: "Settings", section: "Admin", file: "settings.html" }
     };
 
-    /* ============================
-       MODULES (permission based)
-    ============================ */
+    const modules = {
+      sourcing: { navTitle: "Sourcing",      pageTitle: "Product Sourcing", section: "Modules", permission: "sourcing", file: "../modules/sourcing.html" },
+      listing:  { navTitle: "Listing & Veeqo", pageTitle: "Listing & Veeqo", section: "Modules", permission: "listing",  file: "../modules/listing.html" }
+    };
 
-const modules = {
-  sourcing: {
-    navTitle: "Sourcing",
-    pageTitle: "Product Sourcing",
-    permission: "sourcing",
-    file: "../modules/sourcing.html"
-  },
-  listing: {
-    navTitle: "Listing & Veeqo",
-    pageTitle: "Listing & Veeqo",
-    permission: "listing",
-    file: "../modules/listing.html"
-  }
-};
+    /* ── ICONS ── */
+    const icons = {
+      overview: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
+      users:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+      settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+      sourcing: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+      listing:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
+      products: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
+      chevron:  `<svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`,
+      logout:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`
+    };
 
-    /* ============================
-       SIDEBAR BUILD
-    ============================ */
+    /* ── BUILD SIDEBAR ── */
+    function buildSidebar() {
+      const s = document.getElementById("sidebar");
 
-function buildSidebar() {
-
-  const sidebar = document.getElementById("sidebar");
-
-  let html = `<div class="brand">Pharm & Dom</div>`;
-
-  /* =========================
-     ADMIN SECTION
-  ========================= */
-
-  html += `<div class="section-title">Admin</div>`;
-
-  Object.keys(pages).forEach(key => {
-    html += `
-      <div class="nav-item" onclick="loadPage('${key}')">
-        ${pages[key].title}
-      </div>
-    `;
-  });
-
-  /* =========================
-     PRODUCTS GROUP
-  ========================= */
-
-  const hasSourcing = hasPermission("sourcing");
-  const hasListing = hasPermission("listing");
-
-  if (hasSourcing || hasListing) {
-
-    html += `<div class="section-title">Modules</div>`;
-
-    html += `
-      <div class="nav-group">
-        <div class="nav-item nav-parent" onclick="toggleProducts()">
-          <span>Products</span>
-          <span id="productsChevron" class="chevron">▶</span>
+      let html = `
+        <div class="sidebar-header">
+          <img class="sidebar-logo" src="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png" alt="Logo">
+          <div class="sidebar-brand">
+            <div class="sidebar-brand-name">Pharm & Dom</div>
+            <div class="sidebar-brand-sub">Admin Panel</div>
+          </div>
         </div>
-
-        <div id="productsChildren" class="nav-children">
-    `;
-
-    if (hasSourcing) {
-      html += `
-        <div class="nav-item" onclick="loadModule('sourcing')">
-          ${modules.sourcing.navTitle}
-        </div>
+        <nav class="sidebar-nav">
+          <div class="nav-section-label">Admin</div>
       `;
+
+      Object.keys(pages).forEach(key => {
+        html += `
+          <div class="nav-item" id="nav-${key}" onclick="loadPage('${key}')">
+            ${icons[key] || ""}
+            <span class="nav-item-label">${pages[key].title}</span>
+          </div>`;
+      });
+
+      const hasSourcing = hasPermission("sourcing");
+      const hasListing  = hasPermission("listing");
+
+      if (hasSourcing || hasListing) {
+        html += `<div class="nav-section-label">Modules</div>
+          <div class="nav-group">
+            <div class="nav-group-header" onclick="toggleGroup('products')">
+              ${icons.products}
+              <span class="nav-group-label">Products</span>
+              <span id="chevron-products">${icons.chevron}</span>
+            </div>
+            <div class="nav-children" id="children-products">`;
+
+        if (hasSourcing) html += `
+          <div class="nav-item" id="nav-sourcing" onclick="loadModule('sourcing')">
+            ${icons.sourcing}
+            <span class="nav-item-label">${modules.sourcing.navTitle}</span>
+          </div>`;
+
+        if (hasListing) html += `
+          <div class="nav-item" id="nav-listing" onclick="loadModule('listing')">
+            ${icons.listing}
+            <span class="nav-item-label">${modules.listing.navTitle}</span>
+          </div>`;
+
+        html += `</div></div>`;
+      }
+
+      html += `</nav>
+        <div class="sidebar-footer">
+          <div class="user-card">
+            <div class="user-avatar">${initials}</div>
+            <div class="user-info">
+              <div class="user-name">${fullName.trim() || "Admin"}</div>
+              <div class="user-role">Administrator</div>
+            </div>
+            <button class="logout-btn" title="Sign out" onclick="logout()">
+              ${icons.logout}
+            </button>
+          </div>
+        </div>`;
+
+      s.innerHTML = html;
     }
 
-    if (hasListing) {
-      html += `
-        <div class="nav-item" onclick="loadModule('listing')">
-          ${modules.listing.navTitle}
-        </div>
-      `;
+    function toggleGroup(id) {
+      const children = document.getElementById(`children-${id}`);
+      const chevron  = document.getElementById(`chevron-${id}`)?.querySelector(".nav-chevron");
+      if (!children) return;
+      children.classList.toggle("open");
+      if (chevron) chevron.classList.toggle("open");
     }
 
-    html += `
-        </div>
-      </div>
-    `;
-  }
-
-  html += `<div style="flex:1;"></div>`;
-
-  html += `
-    <div class="nav-item" onclick="logout()">
-      Logout
-    </div>
-  `;
-
-  sidebar.innerHTML = html;
-}
-
-
-
-function toggleProducts() {
-
-  const children = document.getElementById("productsChildren");
-  const chevron = document.getElementById("productsChevron");
-
-  if (!children || !chevron) return;
-
-  children.classList.toggle("open");
-  chevron.classList.toggle("rotate");
-}
-
-    
-    /* ============================
-       PAGE LOADERS
-    ============================ */
+    /* ── LOAD PAGE ── */
+    let currentKey = null;
 
     async function loadPage(key) {
-
-      const content = document.getElementById("content");
-
-      content.classList.remove("show");
-
-      const response = await fetch(pages[key].file);
-      const html = await response.text();
-
-      setTimeout(() => {
-        document.getElementById("pageTitle").innerText = pages[key].title;
-        content.innerHTML = html;
-
-// Re-execute scripts inside loaded page
-const scripts = content.querySelectorAll("script");
-scripts.forEach(oldScript => {
-  const newScript = document.createElement("script");
-  newScript.textContent = oldScript.textContent;
-  document.body.appendChild(newScript);
-  document.body.removeChild(newScript);
-});
-        content.classList.add("show");
-        highlightActive(pages[key].title);
-      }, 150);
+      if (currentKey === key) return;
+      currentKey = key;
+      setActiveNav(`nav-${key}`);
+      updateHeader(pages[key].title, pages[key].section);
+      await fetchAndRender(pages[key].file);
+      closeSidebar();
     }
 
     async function loadModule(key) {
-
       if (!modules[key] || !hasPermission(modules[key].permission)) return;
+      if (currentKey === key) return;
+      currentKey = key;
+      setActiveNav(`nav-${key}`);
+      updateHeader(modules[key].pageTitle, modules[key].section);
+      await fetchAndRender(modules[key].file);
+      closeSidebar();
+    }
 
+    async function fetchAndRender(file) {
+      const loader  = document.getElementById("pageLoader");
       const content = document.getElementById("content");
 
       content.classList.remove("show");
+      loader.classList.add("active");
 
-      const response = await fetch(modules[key].file);
-      const html = await response.text();
+      try {
+        const res  = await fetch(file);
+        const html = await res.text();
 
-      setTimeout(() => {
-document.getElementById("pageTitle").innerText = modules[key].pageTitle;
-content.innerHTML = html;
+        await new Promise(r => setTimeout(r, 180));
 
-// Re-execute scripts inside loaded module
-const scripts = content.querySelectorAll("script");
-scripts.forEach(oldScript => {
-  const newScript = document.createElement("script");
-  newScript.textContent = oldScript.textContent;
-  document.body.appendChild(newScript);
-  document.body.removeChild(newScript);
-});
+        content.innerHTML = html;
 
-content.classList.add("show");
-        highlightActive(modules[key].title);
-      }, 150);
+        // Re-execute inline scripts
+        content.querySelectorAll("script").forEach(old => {
+          const s = document.createElement("script");
+          s.textContent = old.textContent;
+          document.body.appendChild(s);
+          document.body.removeChild(s);
+        });
+
+        loader.classList.remove("active");
+        requestAnimationFrame(() => content.classList.add("show"));
+      } catch (err) {
+        loader.classList.remove("active");
+        content.innerHTML = `<div style="padding:40px;text-align:center;color:#6b7280;font-size:14px;">Failed to load page.</div>`;
+        content.classList.add("show");
+      }
     }
 
-    function highlightActive(title) {
-      document.querySelectorAll(".nav-item").forEach(item => {
-        item.classList.remove("active");
-        if (item.innerText === title) {
-          item.classList.add("active");
-        }
-      });
+    function updateHeader(title, section) {
+      document.getElementById("pageTitle").textContent = title;
+      document.getElementById("breadcrumbPage").textContent = title;
     }
 
+    function setActiveNav(id) {
+      document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
+      const el = document.getElementById(id);
+      if (el) el.classList.add("active");
+    }
+
+    /* ── MOBILE SIDEBAR ── */
+    function toggleSidebar() {
+      document.getElementById("sidebar").classList.toggle("open");
+      document.getElementById("sidebarOverlay").classList.toggle("active");
+    }
+
+    function closeSidebar() {
+      document.getElementById("sidebar").classList.remove("open");
+      document.getElementById("sidebarOverlay").classList.remove("active");
+    }
+
+    /* ── LOGOUT ── */
     function logout() {
       sessionStorage.removeItem("user");
       window.location.href = "../login.html";
     }
 
-    /* ============================
-       INIT
-    ============================ */
-
+    /* ── INIT ── */
     buildSidebar();
     loadPage("overview");
 
   </script>
-
 </body>
 </html>
