@@ -745,7 +745,7 @@ function applyFilters() {
     if (fApproved  === 'yes' && !p['Approved'])  return false;
     if (fApproved  === 'no'  &&  p['Approved'])  return false;
     if (fPacking  && p['Packing']        !== fPacking) return false;
-    if (fSeason   && p['Seasonality']    !== fSeason)  return false;
+    if (fSeason && String(p['Seasonality']).trim() !== fSeason) return false;
     if (fComp     && p['Competition']    !== fComp)    return false;
     if (fStock    && p['Supplier Stock'] !== fStock)   return false;
     return true;
@@ -1043,7 +1043,7 @@ function closeDrawer() {
 
 /* ── Editable Cards ── */
 function editCard(id, label, value, type, sheetKey) {
-  const disp = (value === undefined || value === null || value === '') ? '' : value;
+  const disp = (value === undefined || value === null) ? '' : String(value).trim();
   let inp = '';
 
   if (type === 'supplier') {
@@ -1054,7 +1054,7 @@ function editCard(id, label, value, type, sheetKey) {
     inp = '<select class="edit-select" onchange="saveField(\'' + escAttr(id) + '\',\'' + escAttr(sheetKey) + '\',this.value)"><option value="">—</option>' + opts + '</select>';
   } else if (type.startsWith('select:')) {
     const options = type.replace('select:', '').split(',');
-    const opts = options.map(o => '<option value="' + escAttr(o) + '"' + (o === value ? ' selected' : '') + '>' + escHtml(o) + '</option>').join('');
+    const opts = options.map(o => '<option value="' + escAttr(o) + '"' + (o.toLowerCase() === disp.toLowerCase() ? ' selected' : '') + '>' + escHtml(o) + '</option>').join('');
     inp = '<select class="edit-select" onchange="saveField(\'' + escAttr(id) + '\',\'' + escAttr(sheetKey) + '\',this.value)"><option value="">—</option>' + opts + '</select>';
   } else if (type === 'number') {
     const n = parseFloat(value);
