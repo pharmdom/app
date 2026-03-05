@@ -1,3 +1,11 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Listing & Fulfilment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -586,7 +594,7 @@ body {
 /* ════════════════════════════════════ */
 /*             CONFIGURATION           */
 /* ════════════════════════════════════ */
-const API_URL = ''; // <-- Set your API URL here
+const API_URL = 'https://script.google.com/macros/s/AKfycbyaDQrxTKE9e5y6qH8HubLEK7d9z6MbIrCRp-8Cj_0gpxUHFayWSZ_7aanI1HENvD4/exec';
 
 /* ════════ SVG ICONS ════════ */
 const ICONS = {
@@ -620,26 +628,6 @@ async function init() {
   await Promise.all([loadData(), loadUsers(), loadSuppliers()]);
 }
 
-/* ════════ DATA ════════ */
-async function loadData() {
-  if (!API_URL) {
-    // Demo data
-    allData = generateDemoData();
-    applyFilters();
-    updateStats();
-    return;
-  }
-  try {
-    const res  = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getListing' }), headers: { 'Content-Type': 'text/plain' } });
-    const data = await res.json();
-    allData = data.data || [];
-    applyFilters();
-    updateStats();
-  } catch (e) {
-    showToast('Failed to load data', 'error');
-    document.getElementById('loadingState').innerHTML = '<p style="color:#dc2626;font-weight:600;">Failed to load. Check connection.</p>';
-  }
-}
 
 async function loadUsers() {
   if (!API_URL) { users = [{id:'1',name:'John Smith'},{id:'2',name:'Sarah Jones'}]; return; }
@@ -659,32 +647,51 @@ async function loadSuppliers() {
   } catch (e) {}
 }
 
-function generateDemoData() {
-  const names = ['Premium Bluetooth Speaker 40W','Wireless Earbuds Pro Max','Organic Cotton T-Shirt Pack','LED Desk Lamp RGB','Stainless Steel Water Bottle 1L','Yoga Mat Non-Slip 6mm','Portable Phone Charger 20000mAh','Kitchen Knife Set 8pc','Memory Foam Pillow','Running Shoes Mens UK10','Smart Watch Fitness Tracker','Bamboo Cutting Board Set','Travel Backpack 40L','Vitamin D3 Supplements','Resistance Bands Set 5pc','Air Fryer 4.5L Digital','Desk Organizer Wood','Protein Powder 1kg Vanilla','Silicone Baking Mat Set','Wireless Mouse Ergonomic'];
-  return names.map((name, i) => ({
-    'Opportunity ID': 'OPP-' + (1000 + i),
-    'Product Name': name,
-    'ASIN': 'B0' + String(Math.random()).slice(2,10).toUpperCase(),
-    'Listed': i < 12,
-    'Veeqo': i < 7,
-    'Amazon': Math.random() > 0.3,
-    'eBay': Math.random() > 0.4,
-    'TikTok': Math.random() > 0.5,
-    'Prime': Math.random() > 0.6,
-    'Unit Cost': (Math.random() * 20 + 2).toFixed(2),
-    'ASIN Cost': (Math.random() * 15 + 1).toFixed(2),
-    'Sale Quantity': Math.floor(Math.random() * 200 + 10),
-    'Sales': (Math.random() * 5000 + 100).toFixed(2),
-    'TikTok Sales': (Math.random() * 1000).toFixed(2),
-    'P.Size eBay': Math.random() > 0.5 ? 'Standard' : 'Large',
-    'P.Size TT': Math.random() > 0.5 ? 'Standard' : 'Oversized',
-    'Warehouse': Math.random() > 0.3,
-    'Arrived': Math.random() > 0.4,
-    'Merged': Math.random() > 0.5,
-    'Bundled': Math.random() > 0.6,
-  }));
-}
+/* ════════ DATA LOAD FROM APPS SCRIPT ════════ */
 
+async function loadData() {
+
+  if (!API_URL) {
+    console.error("API_URL not set");
+    document.getElementById('loadingState').innerHTML =
+      '<p style="color:#dc2626;font-weight:600;">API_URL not configured.</p>';
+    return;
+  }
+
+  try {
+
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'getListing'
+      })
+    });
+
+    const data = await res.json();
+
+    /* Store listing data from Apps Script */
+    allData = data.data || [];
+
+    /* Apply filters and render UI */
+    applyFilters();
+
+    /* Update KPI counters */
+    updateStats();
+
+  } catch (err) {
+
+    console.error(err);
+
+    document.getElementById('loadingState').innerHTML =
+      '<p style="color:#dc2626;font-weight:600;">Failed to load data.</p>';
+
+    showToast('Failed to load data', 'error');
+
+  }
+
+}
+  
 /* ════════ STATS ════════ */
 function updateStats() {
   const wh = allData.filter(p => toBool(p['Warehouse'])).length;
@@ -1136,3 +1143,6 @@ window.addNote          = addNote;
 init();
 })();
 </script>
+</head>
+<body></body>
+</html>
