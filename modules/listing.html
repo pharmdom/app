@@ -1,72 +1,490 @@
-<div class="card">
-  <h2>Listing & Veeqo</h2>
-  <p style="color:#64748b;margin-top:4px;">
-    Listing management, marketplace sync, and channel control.
-  </p>
-</div>
-
-<div class="kpi-grid">
-
-  <div class="kpi-card">
-    <div class="kpi-title">Amazon Listings</div>
-    <div class="kpi-value">--</div>
-    <div class="kpi-sub">Active SKUs</div>
-  </div>
-
-  <div class="kpi-card">
-    <div class="kpi-title">eBay Listings</div>
-    <div class="kpi-value">--</div>
-    <div class="kpi-sub">Live items</div>
-  </div>
-
-  <div class="kpi-card">
-    <div class="kpi-title">TikTok Shop</div>
-    <div class="kpi-value">--</div>
-    <div class="kpi-sub">Published products</div>
-  </div>
-
-  <div class="kpi-card">
-    <div class="kpi-title">Pending Sync</div>
-    <div class="kpi-value">--</div>
-    <div class="kpi-sub">Awaiting push</div>
-  </div>
-
-</div>
+<!-- ============================================================= -->
+<!-- LISTING & VEEQO MODULE                                       -->
+<!-- Pharm & Dom Admin System                                     -->
+<!-- This module loads inside the admin shell using fetch()       -->
+<!-- ============================================================= -->
 
 <style>
-.kpi-grid {
-  margin-top: 20px;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
+
+/* ============================================================= */
+/* PAGE LAYOUT                                                   */
+/* ============================================================= */
+
+.page-title{
+  font-size:20px;
+  font-weight:600;
+  margin-bottom:16px;
 }
 
-.kpi-card {
-  background: white;
-  padding: 20px;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.04);
-  transition: 0.2s ease;
+.kpi-row{
+  display:flex;
+  gap:12px;
+  margin-bottom:16px;
 }
 
-.kpi-card:hover {
-  transform: translateY(-3px);
+.kpi{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  padding:12px 16px;
+  border-radius:8px;
+  min-width:160px;
 }
 
-.kpi-title {
-  font-size: 13px;
-  color: #64748b;
-  margin-bottom: 8px;
+.kpi-title{
+  font-size:12px;
+  color:#6b7280;
 }
 
-.kpi-value {
-  font-size: 28px;
-  font-weight: 600;
-  margin-bottom: 6px;
+.kpi-value{
+  font-size:20px;
+  font-weight:600;
 }
 
-.kpi-sub {
-  font-size: 12px;
-  color: #94a3b8;
+/* ============================================================= */
+/* TABLE                                                         */
+/* ============================================================= */
+
+.table-container{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:8px;
+  overflow:hidden;
 }
+
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+thead{
+  background:#f9fafb;
+}
+
+th,td{
+  padding:10px;
+  font-size:13px;
+  text-align:left;
+  border-bottom:1px solid #f1f1f1;
+}
+
+tbody tr:hover{
+  background:#f9fafb;
+  cursor:pointer;
+}
+
+/* ============================================================= */
+/* SEARCH BAR                                                    */
+/* ============================================================= */
+
+.toolbar{
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:10px;
+}
+
+.search-input{
+  padding:6px 10px;
+  border:1px solid #d1d5db;
+  border-radius:6px;
+  width:240px;
+}
+
+/* ============================================================= */
+/* PAGINATION                                                    */
+/* ============================================================= */
+
+.pagination{
+  display:flex;
+  justify-content:flex-end;
+  gap:6px;
+  padding:10px;
+}
+
+.page-btn{
+  padding:6px 10px;
+  border:1px solid #e5e7eb;
+  background:#fff;
+  border-radius:4px;
+  cursor:pointer;
+}
+
+/* ============================================================= */
+/* DRAWER                                                        */
+/* ============================================================= */
+
+.drawer{
+  position:fixed;
+  top:0;
+  right:-420px;
+  width:420px;
+  height:100%;
+  background:#fff;
+  border-left:1px solid #e5e7eb;
+  transition:0.25s;
+  padding:20px;
+  overflow:auto;
+  z-index:999;
+}
+
+.drawer.open{
+  right:0;
+}
+
+.drawer h3{
+  margin-top:0;
+}
+
+.field{
+  margin-bottom:12px;
+}
+
+.field label{
+  font-size:12px;
+  color:#6b7280;
+  display:block;
+  margin-bottom:4px;
+}
+
+.field input,
+.field select{
+  width:100%;
+  padding:6px;
+  border:1px solid #d1d5db;
+  border-radius:4px;
+}
+
+.close-btn{
+  margin-top:20px;
+  background:#111827;
+  color:#fff;
+  border:none;
+  padding:8px 12px;
+  border-radius:6px;
+  cursor:pointer;
+}
+
 </style>
+
+<div>
+
+<!-- ============================================================= -->
+<!-- MODULE HEADER                                                -->
+<!-- ============================================================= -->
+
+<div class="page-title">
+Listing & Veeqo
+</div>
+
+<!-- ============================================================= -->
+<!-- KPI SECTION                                                  -->
+<!-- ============================================================= -->
+
+<div class="kpi-row">
+
+<div class="kpi">
+<div class="kpi-title">Need Listing</div>
+<div class="kpi-value" id="kpiNeedListing">0</div>
+</div>
+
+<div class="kpi">
+<div class="kpi-title">Need Veeqo</div>
+<div class="kpi-value" id="kpiNeedVeeqo">0</div>
+</div>
+
+<div class="kpi">
+<div class="kpi-title">Ready to Publish</div>
+<div class="kpi-value" id="kpiReady">0</div>
+</div>
+
+</div>
+
+<!-- ============================================================= -->
+<!-- SEARCH BAR                                                   -->
+<!-- ============================================================= -->
+
+<div class="toolbar">
+
+<input
+  type="text"
+  class="search-input"
+  placeholder="Search product..."
+  id="searchInput"
+/>
+
+</div>
+
+<!-- ============================================================= -->
+<!-- TABLE                                                        -->
+<!-- ============================================================= -->
+
+<div class="table-container">
+
+<table>
+
+<thead>
+<tr>
+
+<th>Date</th>
+<th>Product</th>
+<th>ASIN</th>
+<th>Unit Cost</th>
+<th>Sales</th>
+<th>eBay & TT</th>
+<th>TikTok</th>
+<th>Warehouse</th>
+
+</tr>
+</thead>
+
+<tbody id="listingTable"></tbody>
+
+</table>
+
+<div class="pagination" id="pagination"></div>
+
+</div>
+
+</div>
+
+<!-- ============================================================= -->
+<!-- DRAWER                                                       -->
+<!-- ============================================================= -->
+
+<div class="drawer" id="drawer">
+
+<h3 id="drawerTitle"></h3>
+
+<div id="drawerFields"></div>
+
+<button class="close-btn" onclick="closeDrawer()">
+Close
+</button>
+
+</div>
+
+<script>
+
+/* ============================================================= */
+/* MODULE STATE                                                  */
+/* ============================================================= */
+
+let listingData = []
+let filteredData = []
+let currentPage = 1
+const rowsPerPage = 25
+
+/* ============================================================= */
+/* LOAD DATA FROM APPS SCRIPT                                    */
+/* ============================================================= */
+
+async function loadListing(){
+
+  const res = await fetch(API_URL,{
+    method:"POST",
+    headers:{ "Content-Type":"text/plain" },
+    body:JSON.stringify({
+      action:"getListing"
+    })
+  })
+
+  listingData = await res.json()
+
+  filteredData = [...listingData]
+
+  updateKPIs()
+
+  renderTable()
+
+}
+
+/* ============================================================= */
+/* UPDATE KPI COUNTERS                                           */
+/* ============================================================= */
+
+function updateKPIs(){
+
+  let needListing = 0
+  let needVeeqo = 0
+  let ready = 0
+
+  listingData.forEach(row=>{
+
+    if(row["Warehouse"] !== "Yes") needListing++
+
+    if(row["Warehouse"] === "Yes" && row["Arrived"] !== "Yes")
+      needVeeqo++
+
+    if(row["Arrived"] === "Yes")
+      ready++
+
+  })
+
+  document.getElementById("kpiNeedListing").innerText = needListing
+  document.getElementById("kpiNeedVeeqo").innerText = needVeeqo
+  document.getElementById("kpiReady").innerText = ready
+
+}
+
+/* ============================================================= */
+/* RENDER TABLE                                                  */
+/* ============================================================= */
+
+function renderTable(){
+
+  const table = document.getElementById("listingTable")
+
+  table.innerHTML = ""
+
+  const start = (currentPage-1)*rowsPerPage
+  const rows = filteredData.slice(start,start+rowsPerPage)
+
+  const fragment = document.createDocumentFragment()
+
+  rows.forEach(row=>{
+
+    const tr = document.createElement("tr")
+
+    tr.innerHTML = `
+      <td>${row["Created At"]||""}</td>
+      <td>${row["Listing Name"]||""}</td>
+      <td>${row["ASINs"]||""}</td>
+      <td>${row["Unit Cost"]||""}</td>
+      <td>${row["Sales"]||""}</td>
+      <td>${row["eBay & TT"]||""}</td>
+      <td>${row["TikTok"]||""}</td>
+      <td>${row["Warehouse"]||""}</td>
+    `
+
+    tr.onclick = ()=>openDrawer(row)
+
+    fragment.appendChild(tr)
+
+  })
+
+  table.appendChild(fragment)
+
+  renderPagination()
+
+}
+
+/* ============================================================= */
+/* PAGINATION                                                    */
+/* ============================================================= */
+
+function renderPagination(){
+
+  const totalPages = Math.ceil(filteredData.length / rowsPerPage)
+
+  const container = document.getElementById("pagination")
+
+  container.innerHTML = ""
+
+  for(let i=1;i<=totalPages;i++){
+
+    const btn = document.createElement("button")
+
+    btn.className="page-btn"
+    btn.innerText=i
+
+    btn.onclick=()=>{
+      currentPage=i
+      renderTable()
+    }
+
+    container.appendChild(btn)
+
+  }
+
+}
+
+/* ============================================================= */
+/* SEARCH                                                        */
+/* ============================================================= */
+
+document.getElementById("searchInput").addEventListener("input",e=>{
+
+  const q = e.target.value.toLowerCase()
+
+  filteredData = listingData.filter(r=>
+    (r["Listing Name"]||"").toLowerCase().includes(q) ||
+    (r["ASINs"]||"").toLowerCase().includes(q)
+  )
+
+  currentPage=1
+  renderTable()
+
+})
+
+/* ============================================================= */
+/* DRAWER OPEN                                                   */
+/* ============================================================= */
+
+function openDrawer(row){
+
+  const drawer = document.getElementById("drawer")
+
+  drawer.classList.add("open")
+
+  document.getElementById("drawerTitle").innerText = row["Listing Name"]
+
+  const fields = document.getElementById("drawerFields")
+
+  fields.innerHTML=""
+
+  createField(fields,row,"Warehouse")
+  createField(fields,row,"Arrived")
+  createField(fields,row,"Prime")
+  createField(fields,row,"P.Size eBay & TT")
+
+}
+
+/* ============================================================= */
+/* CREATE EDITABLE FIELD                                         */
+/* ============================================================= */
+
+function createField(container,row,field){
+
+  const div = document.createElement("div")
+  div.className="field"
+
+  div.innerHTML=`
+  <label>${field}</label>
+  <input value="${row[field]||""}" />
+  `
+
+  const input = div.querySelector("input")
+
+  input.onchange = async ()=>{
+
+    await fetch(API_URL,{
+      method:"POST",
+      headers:{ "Content-Type":"text/plain" },
+      body:JSON.stringify({
+        action:"updateListingField",
+        opportunityId:row["Opportunity ID"],
+        field:field,
+        value:input.value
+      })
+    })
+
+  }
+
+  container.appendChild(div)
+
+}
+
+/* ============================================================= */
+/* CLOSE DRAWER                                                  */
+/* ============================================================= */
+
+function closeDrawer(){
+  document.getElementById("drawer").classList.remove("open")
+}
+
+/* ============================================================= */
+/* INITIAL LOAD                                                  */
+/* ============================================================= */
+
+loadListing()
+
+</script>
