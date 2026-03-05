@@ -1,4 +1,3 @@
-
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -203,11 +202,15 @@ body {
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.kc-plat-icon.amz   { background: #fff8ed; }
-.kc-plat-icon.ebay  { background: #eff6ff; }
-.kc-plat-icon.tt    { background: #f1f5f9; }
+.kc-plat-icon img { width: 14px; height: 14px; object-fit: contain; }
+.kc-plat-icon.amz  { background: #fff8ed; }
+.kc-plat-icon.ebay { background: #eff6ff; }
+.kc-plat-icon.tt   { background: #f1f5f9; }
 .kc-plat-icon.prime { background: #f1f5f9; }
-.kc-plat-icon.off   { opacity: 0.3; }
+.kc-plat-icon.off { opacity: 0.3; }
+
+/* Marketplace SVG icons inline */
+.mp-icon { width: 14px; height: 14px; flex-shrink: 0; }
 
 /* ── BADGES ── */
 .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 100px; font-size: 11.5px; font-weight: 600; }
@@ -316,6 +319,7 @@ body {
   font-family: 'SF Mono', monospace; margin-bottom: 12px;
   position: relative; z-index: 1;
 }
+/* Hero KPI row */
 .drawer-kpi-row {
   display: grid; grid-template-columns: repeat(4, 1fr);
   gap: 6px; position: relative; z-index: 1;
@@ -388,7 +392,7 @@ body {
 }
 .edit-input:focus, .edit-select:focus { border-color: #2563eb; }
 
-/* Platform cards in drawer */
+/* Platform cards in drawer - smaller, icon-based */
 .platform-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -417,11 +421,11 @@ body {
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.plat-icon-sm.amz   { background: #ff9900; }
-.plat-icon-sm.ebay  { background: #0064d2; }
-.plat-icon-sm.tt    { background: #010101; }
+.plat-icon-sm.amz  { background: #ff9900; }
+.plat-icon-sm.ebay { background: #0064d2; }
+.plat-icon-sm.tt   { background: #010101; }
 .plat-icon-sm.prime { background: #232f3e; }
-.plat-icon-sm svg   { width: 14px; height: 14px; }
+.plat-icon-sm svg { width: 14px; height: 14px; }
 .plat-toggle-name {
   font-size: 9px; font-weight: 700; color: #64748b; text-align: center;
 }
@@ -429,8 +433,12 @@ body {
   font-size: 9px; font-weight: 700;
   padding: 1px 6px; border-radius: 100px;
 }
-.plat-toggle-card.on .plat-toggle-status { background: #dcfce7; color: #16a34a; }
-.plat-toggle-card:not(.on) .plat-toggle-status { background: #f1f5f9; color: #94a3b8; }
+.plat-toggle-card.on .plat-toggle-status {
+  background: #dcfce7; color: #16a34a;
+}
+.plat-toggle-card:not(.on) .plat-toggle-status {
+  background: #f1f5f9; color: #94a3b8;
+}
 
 /* Drawer footer */
 .drawer-footer {
@@ -484,9 +492,7 @@ body {
 }
 </style>
 
-
 <div class="page-wrapper">
-
   <!-- Header -->
   <div class="page-header">
     <div class="stats-row">
@@ -577,6 +583,9 @@ body {
 <script>
 (function () {
 
+/* ════════════════════════════════════ */
+/*             CONFIGURATION           */
+/* ════════════════════════════════════ */
 const API_URL = ''; // <-- Set your API URL here
 
 /* ════════ SVG ICONS ════════ */
@@ -593,14 +602,16 @@ let activeDrawerTab = 'platforms';
 
 /* ════════ KANBAN COLUMNS ════════ */
 const COLUMNS = [
-  { key: 'listing', title: 'Need Listing',     dotColor: '#fbbf24' },
-  { key: 'veeqo',   title: 'Need Veeqo',       dotColor: '#60a5fa' },
-  { key: 'ready',   title: 'Ready to Publish',  dotColor: '#4ade80' },
+  { key: 'listing',  title: 'Need Listing',      color: '#f59e0b', dotColor: '#fbbf24' },
+  { key: 'veeqo',    title: 'Need Veeqo',        color: '#3b82f6', dotColor: '#60a5fa' },
+  { key: 'ready',    title: 'Ready to Publish',   color: '#16a34a', dotColor: '#4ade80' },
 ];
 
 function getStage(row) {
-  if (!toBool(row['Listed'])) return 'listing';
-  if (!toBool(row['Veeqo']))  return 'veeqo';
+  const listed = toBool(row['Listed']);
+  const veeqo  = toBool(row['Veeqo']);
+  if (!listed) return 'listing';
+  if (listed && !veeqo) return 'veeqo';
   return 'ready';
 }
 
@@ -611,6 +622,13 @@ async function init() {
 
 /* ════════ DATA ════════ */
 async function loadData() {
+  if (!API_URL) {
+    // Demo data
+    allData = generateDemoData();
+    applyFilters();
+    updateStats();
+    return;
+  }
   try {
     const res  = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getListing' }), headers: { 'Content-Type': 'text/plain' } });
     const data = await res.json();
@@ -624,6 +642,7 @@ async function loadData() {
 }
 
 async function loadUsers() {
+  if (!API_URL) { users = [{id:'1',name:'John Smith'},{id:'2',name:'Sarah Jones'}]; return; }
   try {
     const res  = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getUsers' }), headers: { 'Content-Type': 'text/plain' } });
     const data = await res.json();
@@ -632,11 +651,38 @@ async function loadUsers() {
 }
 
 async function loadSuppliers() {
+  if (!API_URL) { suppliers = [{name:'Supplier A'},{name:'Supplier B'}]; return; }
   try {
     const res  = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getSuppliers' }), headers: { 'Content-Type': 'text/plain' } });
     const data = await res.json();
     suppliers = data.suppliers || [];
   } catch (e) {}
+}
+
+function generateDemoData() {
+  const names = ['Premium Bluetooth Speaker 40W','Wireless Earbuds Pro Max','Organic Cotton T-Shirt Pack','LED Desk Lamp RGB','Stainless Steel Water Bottle 1L','Yoga Mat Non-Slip 6mm','Portable Phone Charger 20000mAh','Kitchen Knife Set 8pc','Memory Foam Pillow','Running Shoes Mens UK10','Smart Watch Fitness Tracker','Bamboo Cutting Board Set','Travel Backpack 40L','Vitamin D3 Supplements','Resistance Bands Set 5pc','Air Fryer 4.5L Digital','Desk Organizer Wood','Protein Powder 1kg Vanilla','Silicone Baking Mat Set','Wireless Mouse Ergonomic'];
+  return names.map((name, i) => ({
+    'Opportunity ID': 'OPP-' + (1000 + i),
+    'Product Name': name,
+    'ASIN': 'B0' + String(Math.random()).slice(2,10).toUpperCase(),
+    'Listed': i < 12,
+    'Veeqo': i < 7,
+    'Amazon': Math.random() > 0.3,
+    'eBay': Math.random() > 0.4,
+    'TikTok': Math.random() > 0.5,
+    'Prime': Math.random() > 0.6,
+    'Unit Cost': (Math.random() * 20 + 2).toFixed(2),
+    'ASIN Cost': (Math.random() * 15 + 1).toFixed(2),
+    'Sale Quantity': Math.floor(Math.random() * 200 + 10),
+    'Sales': (Math.random() * 5000 + 100).toFixed(2),
+    'TikTok Sales': (Math.random() * 1000).toFixed(2),
+    'P.Size eBay': Math.random() > 0.5 ? 'Standard' : 'Large',
+    'P.Size TT': Math.random() > 0.5 ? 'Standard' : 'Oversized',
+    'Warehouse': Math.random() > 0.3,
+    'Arrived': Math.random() > 0.4,
+    'Merged': Math.random() > 0.5,
+    'Bundled': Math.random() > 0.6,
+  }));
 }
 
 /* ════════ STATS ════════ */
@@ -651,7 +697,7 @@ function updateStats() {
   setStatChip('statBundled',   bd + ' Bundled',   'purple');
 }
 
-function setStatChip(elId, text) {
+function setStatChip(elId, text, cls) {
   const el = document.getElementById(elId);
   const svg = el.querySelector('svg').outerHTML;
   el.innerHTML = svg + '<span>' + text + '</span>';
@@ -664,7 +710,8 @@ document.getElementById('searchInput').addEventListener('input', function () { a
 function toggleFilters() {
   const pills = document.getElementById('filterPills');
   const btn   = document.getElementById('filterToggleBtn');
-  btn.classList.toggle('active', pills.classList.toggle('open'));
+  const open  = pills.classList.toggle('open');
+  btn.classList.toggle('active', open);
 }
 
 function applyFilters() {
@@ -675,7 +722,10 @@ function applyFilters() {
   const fB = document.getElementById('fBundled').value;
 
   filtered = allData.filter(p => {
-    if (q && !((p['Product Name']||'').toLowerCase().includes(q) || (p['ASIN']||'').toLowerCase().includes(q))) return false;
+    if (q && !(
+      (p['Product Name']||'').toLowerCase().includes(q) ||
+      (p['ASIN']||'').toLowerCase().includes(q)
+    )) return false;
     if (fW === 'yes' && !toBool(p['Warehouse'])) return false;
     if (fW === 'no'  &&  toBool(p['Warehouse'])) return false;
     if (fA === 'yes' && !toBool(p['Arrived']))   return false;
@@ -710,9 +760,14 @@ function clearFilters() {
 /* ════════ KANBAN RENDER ════════ */
 function renderKanban() {
   const wrapper = document.getElementById('kanbanWrapper');
+
+  // Group by stage
   const groups = {};
   COLUMNS.forEach(c => groups[c.key] = []);
-  filtered.forEach(row => { const s = getStage(row); if (groups[s]) groups[s].push(row); });
+  filtered.forEach(row => {
+    const stage = getStage(row);
+    if (groups[stage]) groups[stage].push(row);
+  });
 
   let html = '';
   COLUMNS.forEach(col => {
@@ -724,18 +779,12 @@ function renderKanban() {
       + '</div>'
       + '<div class="kanban-col-body">';
 
-    if (!items.length) {
+    if (items.length === 0) {
       html += '<div class="empty-state"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><p>No products</p></div>';
     } else {
       items.forEach(row => {
         const id = row['Opportunity ID'] || '';
-        const plats = [
-          { key:'Amazon', cls:'amz',   icon: ICONS.amazon  },
-          { key:'eBay',   cls:'ebay',  icon: ICONS.ebay    },
-          { key:'TikTok', cls:'tt',    icon: ICONS.tiktok  },
-          { key:'Prime',  cls:'prime', icon: ICONS.prime   },
-        ].map(p => '<div class="kc-plat-icon ' + p.cls + (toBool(row[p.key]) ? '' : ' off') + '">' + p.icon + '</div>').join('');
-
+        const platforms = renderCardPlatforms(row);
         html += '<div class="kanban-card" onclick="openDrawer(\'' + escAttr(id) + '\')">'
           + '<div class="kanban-card-name">' + escHtml(row['Product Name'] || '—') + '</div>'
           + '<div class="kanban-card-asin">' + escHtml(row['ASIN'] || '') + '</div>'
@@ -744,14 +793,30 @@ function renderKanban() {
           + '<div><div class="kc-stat-label">Sales</div><div class="kc-stat-val">£' + fmt(row['Sales']) + '</div></div>'
           + '<div><div class="kc-stat-label">Qty</div><div class="kc-stat-val">' + (row['Sale Quantity'] || '—') + '</div></div>'
           + '</div>'
-          + '<div class="kanban-card-platforms">' + plats + '</div>'
+          + '<div class="kanban-card-platforms">' + platforms + '</div>'
           + '</div>';
       });
     }
+
     html += '</div></div>';
   });
 
   wrapper.innerHTML = html;
+}
+
+function renderCardPlatforms(row) {
+  let html = '';
+  const platforms = [
+    { key: 'Amazon', cls: 'amz',   icon: ICONS.amazon },
+    { key: 'eBay',   cls: 'ebay',  icon: ICONS.ebay },
+    { key: 'TikTok', cls: 'tt',    icon: ICONS.tiktok },
+    { key: 'Prime',  cls: 'prime', icon: ICONS.prime },
+  ];
+  platforms.forEach(p => {
+    const on = toBool(row[p.key]);
+    html += '<div class="kc-plat-icon ' + p.cls + (on ? '' : ' off') + '">' + p.icon + '</div>';
+  });
+  return html;
 }
 
 /* ════════ DRAWER ════════ */
@@ -772,12 +837,15 @@ function closeDrawer() {
 function renderDrawer(row) {
   const id    = row['Opportunity ID'] || '';
   const stage = getStage(row);
+
+  // Stage badge
   const stageBadges = {
     listing: '<span class="drawer-stage-badge dsb-listing">Need Listing</span>',
     veeqo:   '<span class="drawer-stage-badge dsb-veeqo">Need Veeqo</span>',
     ready:   '<span class="drawer-stage-badge dsb-ready">Ready to Publish</span>',
   };
 
+  // Hero with 4 KPI cards: Unit Cost, ASIN Cost, Sale Quantity, Sales, TikTok
   const unitCost = parseFloat(row['Unit Cost']);
   const asinCost = parseFloat(row['ASIN Cost']);
   const saleQty  = row['Sale Quantity'] || '—';
@@ -791,27 +859,35 @@ function renderDrawer(row) {
     + '<div class="drawer-product-name">' + escHtml(row['Product Name'] || '—') + '</div>'
     + '<div class="drawer-product-asin">' + escHtml(row['ASIN'] || '') + '</div>'
     + '<div class="drawer-kpi-row">'
+    // Unit Cost
     + '<div class="drawer-kpi"><div class="drawer-kpi-top"><div class="drawer-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#ff9900" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="drawer-kpi-label">Unit Cost</div></div><div class="drawer-kpi-val">' + (!isNaN(unitCost) ? '£' + unitCost.toFixed(2) : '—') + '</div></div>'
+    // ASIN Cost
     + '<div class="drawer-kpi"><div class="drawer-kpi-top"><div class="drawer-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div><div class="drawer-kpi-label">ASIN Cost</div></div><div class="drawer-kpi-val">' + (!isNaN(asinCost) ? '£' + asinCost.toFixed(2) : '—') + '</div></div>'
+    // Sale Quantity
     + '<div class="drawer-kpi"><div class="drawer-kpi-top"><div class="drawer-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div><div class="drawer-kpi-label">Sale Qty</div></div><div class="drawer-kpi-val">' + saleQty + '</div></div>'
+    // Sales + TikTok combined
     + '<div class="drawer-kpi"><div class="drawer-kpi-top"><div class="drawer-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div><div class="drawer-kpi-label">Sales / TT</div></div><div class="drawer-kpi-val" style="font-size:12px;">' + (!isNaN(sales) ? '£' + sales.toFixed(0) : '—') + '<span style="color:rgba(255,255,255,.4);font-size:10px;margin:0 3px;">/</span>' + (!isNaN(ttSales) ? '£' + ttSales.toFixed(0) : '—') + '</div></div>'
     + '</div></div>';
 
+  // Tabs: Platforms, Overview, Financials
   document.getElementById('drawerTabs').innerHTML =
     tabBtn('platforms', id, '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>', 'Platforms')
     + tabBtn('overview', id, '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>', 'Overview')
     + tabBtn('notes', id, '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>', 'Notes');
 
+  // Body
   let body = '';
 
   if (activeDrawerTab === 'platforms') {
     const platforms = [
-      { key: 'Amazon', cls: 'amz',   label: 'Amazon', icon: ICONS.amazon  },
-      { key: 'eBay',   cls: 'ebay',  label: 'eBay',   icon: ICONS.ebay   },
-      { key: 'TikTok', cls: 'tt',    label: 'TikTok', icon: ICONS.tiktok },
-      { key: 'Prime',  cls: 'prime', label: 'Prime',  icon: ICONS.prime  },
+      { key: 'Amazon', cls: 'amz',   label: 'Amazon',  icon: ICONS.amazon },
+      { key: 'eBay',   cls: 'ebay',  label: 'eBay',    icon: ICONS.ebay },
+      { key: 'TikTok', cls: 'tt',    label: 'TikTok',  icon: ICONS.tiktok },
+      { key: 'Prime',  cls: 'prime', label: 'Prime',   icon: ICONS.prime },
     ];
-    body += '<div class="drawer-section"><div class="section-label">Marketplace Status</div><div class="platform-grid">';
+
+    body += '<div class="drawer-section"><div class="section-label">Marketplace Status</div>';
+    body += '<div class="platform-grid">';
     platforms.forEach(p => {
       const on = toBool(row[p.key]);
       body += '<div class="plat-toggle-card ' + (on ? 'on' : '') + '" onclick="togglePlatform(\'' + escAttr(id) + '\',\'' + p.key + '\',' + !on + ')">'
@@ -821,29 +897,35 @@ function renderDrawer(row) {
         + '</div>';
     });
     body += '</div></div>';
-    body += '<div class="drawer-section"><div class="section-label">Packaging Sizes</div><div class="info-grid">';
+
+    // P.Size eBay & TT field moved here
+    body += '<div class="drawer-section"><div class="section-label">Packaging Sizes</div>';
+    body += '<div class="info-grid">';
     body += editCard(id, 'P.Size eBay', row['P.Size eBay'] || '', 'select:Standard,Large,Oversized', 'P.Size eBay');
-    body += editCard(id, 'P.Size TT',   row['P.Size TT']   || '', 'select:Standard,Large,Oversized', 'P.Size TT');
+    body += editCard(id, 'P.Size TT',   row['P.Size TT'] || '',   'select:Standard,Large,Oversized', 'P.Size TT');
     body += '</div></div>';
   }
 
   if (activeDrawerTab === 'overview') {
-    body += '<div class="drawer-section"><div class="section-label">Product Info</div><div class="info-grid">';
-    body += editCard(id, 'Product Name', row['Product Name'] || '', 'text',          'Product Name');
-    body += editCard(id, 'ASIN',         row['ASIN']         || '', 'text',          'ASIN');
-    body += editCard(id, 'Listed',       toBool(row['Listed'])    ? 'Yes' : 'No', 'select:Yes,No', 'Listed');
-    body += editCard(id, 'Veeqo',        toBool(row['Veeqo'])     ? 'Yes' : 'No', 'select:Yes,No', 'Veeqo');
-    body += editCard(id, 'Warehouse',    toBool(row['Warehouse'])  ? 'Yes' : 'No', 'select:Yes,No', 'Warehouse');
-    body += editCard(id, 'Arrived',      toBool(row['Arrived'])    ? 'Yes' : 'No', 'select:Yes,No', 'Arrived');
-    body += editCard(id, 'Merged',       toBool(row['Merged'])     ? 'Yes' : 'No', 'select:Yes,No', 'Merged');
-    body += editCard(id, 'Bundled',      toBool(row['Bundled'])    ? 'Yes' : 'No', 'select:Yes,No', 'Bundled');
+    body += '<div class="drawer-section"><div class="section-label">Product Info</div>';
+    body += '<div class="info-grid">';
+    body += editCard(id, 'Product Name', row['Product Name'] || '', 'text', 'Product Name');
+    body += editCard(id, 'ASIN',         row['ASIN'] || '',         'text', 'ASIN');
+    body += editCard(id, 'Listed',       toBool(row['Listed']) ? 'Yes' : 'No', 'select:Yes,No', 'Listed');
+    body += editCard(id, 'Veeqo',        toBool(row['Veeqo']) ? 'Yes' : 'No',  'select:Yes,No', 'Veeqo');
+    body += editCard(id, 'Warehouse',    toBool(row['Warehouse']) ? 'Yes' : 'No', 'select:Yes,No', 'Warehouse');
+    body += editCard(id, 'Arrived',      toBool(row['Arrived']) ? 'Yes' : 'No',   'select:Yes,No', 'Arrived');
+    body += editCard(id, 'Merged',       toBool(row['Merged']) ? 'Yes' : 'No',    'select:Yes,No', 'Merged');
+    body += editCard(id, 'Bundled',      toBool(row['Bundled']) ? 'Yes' : 'No',   'select:Yes,No', 'Bundled');
     body += '</div></div>';
-    body += '<div class="drawer-section"><div class="section-label">Financials</div><div class="info-grid">';
-    body += editCard(id, 'Unit Cost',     row['Unit Cost']     || '', 'number', 'Unit Cost');
-    body += editCard(id, 'ASIN Cost',     row['ASIN Cost']     || '', 'number', 'ASIN Cost');
+
+    body += '<div class="drawer-section"><div class="section-label">Financials</div>';
+    body += '<div class="info-grid">';
+    body += editCard(id, 'Unit Cost',     row['Unit Cost'] || '',     'number', 'Unit Cost');
+    body += editCard(id, 'ASIN Cost',     row['ASIN Cost'] || '',     'number', 'ASIN Cost');
     body += editCard(id, 'Sale Quantity', row['Sale Quantity'] || '', 'number', 'Sale Quantity');
-    body += editCard(id, 'Sales',         row['Sales']         || '', 'number', 'Sales');
-    body += editCard(id, 'TikTok Sales',  row['TikTok Sales']  || '', 'number', 'TikTok Sales');
+    body += editCard(id, 'Sales',         row['Sales'] || '',         'number', 'Sales');
+    body += editCard(id, 'TikTok Sales',  row['TikTok Sales'] || '',  'number', 'TikTok Sales');
     body += '</div></div>';
   }
 
@@ -855,7 +937,7 @@ function renderDrawer(row) {
           + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
           + '<div style="width:24px;height:24px;border-radius:50%;background:#dbeafe;color:#1d4ed8;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;">' + getInitials(n.name) + '</div>'
           + '<span style="font-size:12px;font-weight:600;color:#334155;">' + escHtml(n.name) + '</span>'
-          + '<span style="font-size:10px;color:#94a3b8;margin-left:auto;">' + (n.date || '') + '</span>'
+          + '<span style="font-size:10px;color:#94a3b8;margin-left:auto;">' + (n.date||'') + '</span>'
           + '</div>'
           + '<div style="font-size:12.5px;color:#475569;line-height:1.5;">' + escHtml(n.text) + '</div>'
           + '</div>'
@@ -863,6 +945,7 @@ function renderDrawer(row) {
       : '<p style="font-size:13px;color:#94a3b8;">No notes yet.</p>';
 
     const usrOpts = users.map(u => '<option value="' + escAttr(u.name) + '">' + escHtml(u.name) + '</option>').join('');
+
     body += '<div class="drawer-section"><div class="section-label">Notes</div>'
       + noteItems
       + '<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-top:10px;">'
@@ -908,15 +991,23 @@ async function togglePlatform(id, platform, newVal) {
   const idx = allData.findIndex(p => (p['Opportunity ID'] || '') === id);
   if (idx < 0) return;
   allData[idx][platform] = newVal;
-  showSaveInd('saving');
-  try {
-    await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'updateListing', opportunityId: id, field: platform, value: newVal }),
-      headers: { 'Content-Type': 'text/plain' }
-    });
+
+  if (API_URL) {
+    showSaveInd('saving');
+    try {
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'updateListing', opportunityId: id, field: platform, value: newVal }),
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      showSaveInd('saved');
+    } catch (e) {
+      showSaveInd('error');
+    }
+  } else {
     showSaveInd('saved');
-  } catch (e) { showSaveInd('error'); }
+  }
+
   renderDrawer(allData[idx]);
   applyFilters();
 }
@@ -925,20 +1016,30 @@ async function togglePlatform(id, platform, newVal) {
 async function saveField(id, field, value) {
   const idx = allData.findIndex(p => (p['Opportunity ID'] || '') === id);
   if (idx < 0) return;
+
+  // Handle boolean fields
   if (['Listed','Veeqo','Warehouse','Arrived','Merged','Bundled'].includes(field)) {
     allData[idx][field] = value === 'Yes';
   } else {
     allData[idx][field] = value;
   }
-  showSaveInd('saving');
-  try {
-    await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'updateListing', opportunityId: id, field, value }),
-      headers: { 'Content-Type': 'text/plain' }
-    });
+
+  if (API_URL) {
+    showSaveInd('saving');
+    try {
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'updateListing', opportunityId: id, field, value }),
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      showSaveInd('saved');
+    } catch (e) {
+      showSaveInd('error');
+    }
+  } else {
     showSaveInd('saved');
-  } catch (e) { showSaveInd('error'); }
+  }
+
   updateStats();
   applyFilters();
 }
@@ -951,28 +1052,53 @@ async function addNote(id) {
   const text = textEl ? textEl.value.trim() : '';
   if (!name) { showToast('Select a user', 'error'); return; }
   if (!text) { showToast('Write something', 'error'); return; }
+
   const idx = allData.findIndex(p => (p['Opportunity ID'] || '') === id);
   if (idx < 0) return;
+
   const notes = parseJSON(allData[idx]['Notes'], []);
   notes.push({ name, text, date: new Date().toLocaleDateString('en-GB') });
   allData[idx]['Notes'] = JSON.stringify(notes);
-  await fetch(API_URL, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'updateListing', opportunityId: id, field: 'Notes', value: JSON.stringify(notes) }),
-    headers: { 'Content-Type': 'text/plain' }
-  });
+
+  if (API_URL) {
+    await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateListing', opportunityId: id, field: 'Notes', value: JSON.stringify(notes) }),
+      headers: { 'Content-Type': 'text/plain' }
+    });
+  }
+
   showToast('Note added', 'success');
   activeDrawerTab = 'notes';
   renderDrawer(allData[idx]);
 }
 
 /* ════════ HELPERS ════════ */
-function toBool(val) { return val === true || val === 'true' || val === 'Yes' || val === 'yes' || val === 1; }
-function fmt(val) { const n = parseFloat(val); return isNaN(n) ? '—' : n.toFixed(2); }
-function parseJSON(val, fallback) { if (!val || val === '' || val === 'false') return fallback; try { return JSON.parse(val); } catch (e) { return fallback; } }
-function getInitials(name) { return (name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2); }
-function escHtml(str) { return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function escAttr(str) { return String(str || '').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function toBool(val) {
+  return val === true || val === 'true' || val === 'Yes' || val === 'yes' || val === 1;
+}
+
+function fmt(val) {
+  const n = parseFloat(val);
+  return isNaN(n) ? '—' : n.toFixed(2);
+}
+
+function parseJSON(val, fallback) {
+  if (!val || val === '' || val === 'false') return fallback;
+  try { return JSON.parse(val); } catch (e) { return fallback; }
+}
+
+function getInitials(name) {
+  return (name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function escAttr(str) {
+  return String(str || '').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 function showSaveInd(state) {
   const el = document.getElementById('saveInd');
@@ -989,7 +1115,7 @@ function showToast(msg, type) {
   t.className = 'toast ' + (type || '');
   const icons = {
     success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-    error:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+    error: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
   };
   t.innerHTML = (icons[type] || '') + escHtml(msg);
   c.appendChild(t);
@@ -997,15 +1123,15 @@ function showToast(msg, type) {
 }
 
 /* ════════ EXPOSE & START ════════ */
-window.openDrawer     = openDrawer;
-window.closeDrawer    = closeDrawer;
-window.switchTab      = switchTab;
-window.toggleFilters  = toggleFilters;
-window.applyFilters   = applyFilters;
-window.clearFilters   = clearFilters;
-window.saveField      = saveField;
-window.togglePlatform = togglePlatform;
-window.addNote        = addNote;
+window.openDrawer       = openDrawer;
+window.closeDrawer      = closeDrawer;
+window.switchTab        = switchTab;
+window.toggleFilters    = toggleFilters;
+window.applyFilters     = applyFilters;
+window.clearFilters     = clearFilters;
+window.saveField        = saveField;
+window.togglePlatform   = togglePlatform;
+window.addNote          = addNote;
 
 init();
 })();
