@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Listing & Fulfilment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  color: #0f172a;
+  background: #f8fafc;
+  line-height: 1.5;
+  height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── PAGE WRAPPER ── */
+.page-wrapper {
+  padding: 0 10px 10px;
+  max-width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── HEADER ── */
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px; flex-wrap: wrap; gap: 8px;
+  flex-shrink: 0;
+}
+.stats-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.stat-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 13px; border-radius: 100px;
+  font-size: 12.5px; font-weight: 600; border: 1px solid transparent; white-space: nowrap;
+}
+.stat-chip.orange { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+.stat-chip.blue   { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.stat-chip.green  { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+.stat-chip.purple { background: #faf5ff; color: #7c3aed; border-color: #e9d5ff; }
+.stat-chip svg    { width: 13px; height: 13px; flex-shrink: 0; }
+
+/* ── TOOLBAR ── */
+.toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; flex-shrink: 0; }
+.search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 300px; }
+.search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; width: 15px; height: 15px; pointer-events: none; }
+.search-input {
+  width: 100%; padding: 8px 10px 8px 33px; border: 1.5px solid #e2e8f0; border-radius: 9px;
+  font-size: 13px; font-family: inherit; background: #fff; color: #0f172a; outline: none; transition: border-color .15s;
+}
+.search-input:focus { border-color: #2563eb; }
+
+/* ── FILTER BAR ── */
+.filter-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; min-height: 0; flex-shrink: 0; }
+.filter-toggle-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 13px; border: 1.5px solid #e2e8f0; border-radius: 9px;
+  background: #fff; font-size: 12.5px; font-weight: 600; font-family: inherit; color: #64748b; cursor: pointer; transition: all .15s;
+}
+.filter-toggle-btn:hover { border-color: #2563eb; color: #2563eb; }
+.filter-toggle-btn.active { border-color: #2563eb; color: #2563eb; background: #eff6ff; }
+.filter-toggle-btn svg { width: 13px; height: 13px; }
+.filter-dot { width: 6px; height: 6px; border-radius: 50%; background: #2563eb; flex-shrink: 0; }
+.filter-pills { display: none; align-items: center; gap: 6px; flex-wrap: wrap; }
+.filter-pills.open { display: flex; }
+.filter-select {
+  padding: 6px 9px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+  font-size: 12px; font-family: inherit; color: #374151; background: #fff;
+  outline: none; cursor: pointer; transition: border-color .15s; max-width: 140px; appearance: auto;
+}
+.filter-select:focus { border-color: #2563eb; }
+.filter-select.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+.filter-clear-btn {
+  display: none; align-items: center; gap: 4px; padding: 6px 11px; border: none; border-radius: 8px;
+  background: #fee2e2; color: #dc2626; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; transition: background .15s;
+}
+.filter-clear-btn.visible { display: inline-flex; }
+.filter-clear-btn:hover { background: #fecaca; }
+
+/* ── KANBAN AREA ── */
+.kanban-wrapper {
+  flex: 1;
+  display: flex;
+  gap: 10px;
+  min-height: 0;
+  overflow: hidden;
+}
+.kanban-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+.kanban-col-header {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid #f1f5f9;
+  background: #fafbfc;
+}
+.kanban-col-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.kanban-col-title .col-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.kanban-col-count {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: #f1f5f9;
+  color: #64748b;
+}
+.kanban-col-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kanban-col-body::-webkit-scrollbar { width: 4px; }
+.kanban-col-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+
+/* ── KANBAN CARD ── */
+.kanban-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: transform .12s, box-shadow .12s, border-color .12s;
+  animation: cardIn .18s ease both;
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.kanban-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  border-color: #bfdbfe;
+}
+.kanban-card-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.3;
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.kanban-card-asin {
+  font-size: 10px;
+  color: #94a3b8;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  margin-bottom: 6px;
+}
+.kanban-card-stats {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.kc-stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #94a3b8;
+}
+.kc-stat-val {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.kanban-card-platforms {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding-top: 6px;
+  border-top: 1px solid #f1f5f9;
+}
+.kc-plat-icon {
+  width: 18px; height: 18px;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.kc-plat-icon img { width: 14px; height: 14px; object-fit: contain; }
+.kc-plat-icon.amz  { background: #fff8ed; }
+.kc-plat-icon.ebay { background: #eff6ff; }
+.kc-plat-icon.tt   { background: #f1f5f9; }
+.kc-plat-icon.prime { background: #f1f5f9; }
+.kc-plat-icon.off { opacity: 0.3; }
+
+/* Marketplace SVG icons inline */
+.mp-icon { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* ── BADGES ── */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 100px; font-size: 11.5px; font-weight: 600; }
+.badge-green  { background: #dcfce7; color: #15803d; }
+.badge-red    { background: #fee2e2; color: #dc2626; }
+.badge-gray   { background: #f1f5f9; color: #64748b; }
+.badge-blue   { background: #dbeafe; color: #1d4ed8; }
+.badge-orange { background: #fff7ed; color: #c2410c; }
+
+/* ── LOADING ── */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #94a3b8;
+  gap: 10px;
+  flex: 1;
+}
+.spinner {
+  display: inline-block; width: 24px; height: 24px;
+  border: 3px solid #e2e8f0; border-top-color: #2563eb;
+  border-radius: 50%; animation: spin .65s linear infinite;
+}
+.spinner.sm { width: 13px; height: 13px; border-width: 2px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── EMPTY ── */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 30px 20px; color: #94a3b8; gap: 6px; text-align: center;
+}
+.empty-state svg { opacity: 0.35; }
+.empty-state p { font-size: 13px; font-weight: 600; color: #64748b; }
+
+/* ── DRAWER OVERLAY ── */
+.drawer-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,.3);
+  z-index: 900; opacity: 0; pointer-events: none;
+  transition: opacity .25s; backdrop-filter: blur(2px);
+}
+.drawer-overlay.visible { opacity: 1; pointer-events: all; }
+
+/* ── DRAWER ── */
+.drawer {
+  position: fixed;
+  top: 0; right: 0;
+  width: 560px;
+  max-width: 97vw;
+  height: 100vh;
+  background: #fff;
+  box-shadow: -8px 0 40px rgba(0,0,0,.13);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .28s cubic-bezier(.4,0,.2,1);
+  overflow: hidden;
+}
+.drawer.open { transform: translateX(0); }
+
+/* Drawer hero */
+.drawer-hero {
+  padding: 16px 22px 14px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  position: relative; overflow: hidden;
+  flex-shrink: 0;
+}
+.drawer-hero::before {
+  content: ''; position: absolute; top: -50px; right: -50px;
+  width: 160px; height: 160px; border-radius: 50%; background: rgba(255,255,255,0.03);
+}
+.drawer-hero::after {
+  content: ''; position: absolute; bottom: -25px; left: 30px;
+  width: 100px; height: 100px; border-radius: 50%; background: rgba(37,99,235,0.1);
+}
+.drawer-hero-close {
+  position: absolute; top: 12px; right: 12px;
+  width: 28px; height: 28px;
+  border: none; border-radius: 7px;
+  background: rgba(255,255,255,.1);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,.65);
+  transition: background .15s;
+  z-index: 1;
+}
+.drawer-hero-close:hover { background: rgba(255,255,255,.2); color: #fff; }
+.drawer-stage-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 11px; border-radius: 100px;
+  margin-bottom: 7px; font-size: 11.5px; font-weight: 700;
+  letter-spacing: .2px; position: relative; z-index: 1;
+}
+.dsb-listing { background: rgba(251,191,36,.15); border: 1px solid rgba(251,191,36,.3); color: #fbbf24; }
+.dsb-veeqo   { background: rgba(96,165,250,.15); border: 1px solid rgba(96,165,250,.3); color: #60a5fa; }
+.dsb-ready   { background: rgba(74,222,128,.15); border: 1px solid rgba(74,222,128,.3); color: #4ade80; }
+.drawer-product-name {
+  font-size: 16px; font-weight: 800; color: #fff;
+  padding-right: 40px; line-height: 1.3; margin-bottom: 2px;
+  position: relative; z-index: 1;
+}
+.drawer-product-asin {
+  font-size: 11px; color: rgba(255,255,255,.35);
+  font-family: 'SF Mono', monospace; margin-bottom: 12px;
+  position: relative; z-index: 1;
+}
+/* Hero KPI row */
+.drawer-kpi-row {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 6px; position: relative; z-index: 1;
+}
+.drawer-kpi {
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 10px; padding: 8px 10px;
+}
+.drawer-kpi-top { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; }
+.drawer-kpi-icon svg { width: 12px; height: 12px; }
+.drawer-kpi-label {
+  font-size: 9px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .5px; color: rgba(255,255,255,.4);
+}
+.drawer-kpi-val {
+  font-size: 15px; font-weight: 700; color: #fff; line-height: 1;
+}
+
+/* Drawer tabs */
+.drawer-tabs {
+  display: flex; border-bottom: 1px solid #e2e8f0;
+  background: #fff; flex-shrink: 0;
+  overflow-x: auto; scrollbar-width: none;
+}
+.drawer-tabs::-webkit-scrollbar { display: none; }
+.drawer-tab {
+  padding: 10px 15px; font-size: 12.5px; font-weight: 700;
+  font-family: inherit; color: #64748b;
+  border: none; background: none; cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all .15s; white-space: nowrap;
+  display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+}
+.drawer-tab svg { width: 13px; height: 13px; }
+.drawer-tab:hover { color: #334155; }
+.drawer-tab.active { color: #2563eb; border-bottom-color: #2563eb; background: #fafcff; }
+
+/* Drawer body */
+.drawer-body {
+  flex: 1; overflow-y: auto; padding: 16px 22px;
+  min-height: 0;
+}
+.drawer-body::-webkit-scrollbar { width: 4px; }
+.drawer-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+
+/* Sections */
+.drawer-section { margin-bottom: 16px; }
+.section-label {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .8px; color: #94a3b8;
+  margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+}
+.section-label::after { content: ''; flex: 1; height: 1px; background: #f1f5f9; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.info-card {
+  background: #f8fafc; border: 1px solid #f1f5f9;
+  border-radius: 10px; padding: 9px 12px; transition: border-color .15s;
+}
+.info-card:focus-within { border-color: #bfdbfe; background: #fafcff; }
+.info-card label {
+  display: block; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; margin-bottom: 4px;
+}
+.edit-input, .edit-select {
+  width: 100%; padding: 5px 8px;
+  border: 1.5px solid #bfdbfe; border-radius: 6px;
+  font-size: 13px; font-family: inherit; color: #0f172a;
+  background: #fff; outline: none; transition: border-color .15s;
+}
+.edit-input:focus, .edit-select:focus { border-color: #2563eb; }
+
+/* Platform cards in drawer - smaller, icon-based */
+.platform-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.plat-toggle-card {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.plat-toggle-card.on {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+.plat-toggle-card:hover { border-color: #94a3b8; }
+.plat-icon-sm {
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.plat-icon-sm.amz  { background: #ff9900; }
+.plat-icon-sm.ebay { background: #0064d2; }
+.plat-icon-sm.tt   { background: #010101; }
+.plat-icon-sm.prime { background: #232f3e; }
+.plat-icon-sm svg { width: 14px; height: 14px; }
+.plat-toggle-name {
+  font-size: 9px; font-weight: 700; color: #64748b; text-align: center;
+}
+.plat-toggle-status {
+  font-size: 9px; font-weight: 700;
+  padding: 1px 6px; border-radius: 100px;
+}
+.plat-toggle-card.on .plat-toggle-status {
+  background: #dcfce7; color: #16a34a;
+}
+.plat-toggle-card:not(.on) .plat-toggle-status {
+  background: #f1f5f9; color: #94a3b8;
+}
+
+/* Drawer footer */
+.drawer-footer {
+  padding: 8px 22px; border-top: 1px solid #f1f5f9;
+  display: flex; gap: 8px; align-items: center;
+  flex-shrink: 0; background: #fafafa;
+}
+.save-ind {
+  font-size: 11px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 9px; border-radius: 7px;
+  opacity: 0; transition: opacity .2s;
+}
+.save-ind.saving { background: #eff6ff; color: #2563eb; opacity: 1; }
+.save-ind.saved  { background: #f0fdf4; color: #16a34a; opacity: 1; }
+.save-ind.error  { background: #fef2f2; color: #dc2626; opacity: 1; }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: none; border-radius: 9px;
+  font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer;
+  transition: background .15s, transform .1s; white-space: nowrap;
+}
+.btn:active { transform: scale(.97); }
+.btn-ghost { background: #f1f5f9; color: #475569; }
+.btn-ghost:hover { background: #e2e8f0; }
+.btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 7px; }
+
+/* ── TOAST ── */
+.toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 7px; }
+.toast {
+  display: flex; align-items: center; gap: 9px; padding: 11px 16px; background: #0f172a; color: #fff;
+  border-radius: 10px; font-size: 13px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  animation: toastIn .2s ease; max-width: 320px;
+}
+.toast.success { background: #15803d; }
+.toast.error   { background: #dc2626; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .kanban-wrapper { flex-direction: column; overflow-y: auto; }
+  .kanban-column { min-height: 200px; }
+  .platform-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .page-wrapper { padding: 8px; }
+  .drawer { width: 100%; max-width: 100%; }
+  .drawer-kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .info-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+<div class="page-wrapper">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="stats-row">
+      <div class="stat-chip orange" id="statWarehouse">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        <span>Loading…</span>
+      </div>
+      <div class="stat-chip blue" id="statArrived">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        <span>Loading…</span>
+      </div>
+      <div class="stat-chip green" id="statMerged">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span>Loading…</span>
+      </div>
+      <div class="stat-chip purple" id="statBundled">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        <span>Loading…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" class="search-input" placeholder="Search products…">
+    </div>
+    <button class="filter-toggle-btn" id="filterToggleBtn" onclick="toggleFilters()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
+      Filters
+      <span class="filter-dot" id="filterDot" style="display:none"></span>
+    </button>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <div class="filter-pills" id="filterPills">
+      <select class="filter-select" id="fWarehouse" onchange="applyFilters()">
+        <option value="">Warehouse: All</option>
+        <option value="yes">Warehouse: Yes</option>
+        <option value="no">Warehouse: No</option>
+      </select>
+      <select class="filter-select" id="fArrived" onchange="applyFilters()">
+        <option value="">Arrived: All</option>
+        <option value="yes">Arrived: Yes</option>
+        <option value="no">Arrived: No</option>
+      </select>
+      <select class="filter-select" id="fMerged" onchange="applyFilters()">
+        <option value="">Merged: All</option>
+        <option value="yes">Merged: Yes</option>
+        <option value="no">Merged: No</option>
+      </select>
+      <select class="filter-select" id="fBundled" onchange="applyFilters()">
+        <option value="">Bundled: All</option>
+        <option value="yes">Bundled: Yes</option>
+        <option value="no">Bundled: No</option>
+      </select>
+      <button class="filter-clear-btn" id="filterClearBtn" onclick="clearFilters()">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Clear
+      </button>
+    </div>
+  </div>
+
+  <!-- Kanban -->
+  <div class="kanban-wrapper" id="kanbanWrapper">
+    <div class="loading-state" id="loadingState">
+      <span class="spinner"></span>
+      <span style="font-size:13px;font-weight:600;">Loading products…</span>
+    </div>
+  </div>
+</div>
+
+<!-- Drawer overlay -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+
+<!-- Drawer -->
+<div class="drawer" id="detailDrawer">
+  <div class="drawer-header" id="drawerHeader"></div>
+  <div class="drawer-tabs" id="drawerTabs"></div>
+  <div class="drawer-body" id="drawerBody"></div>
+  <div class="drawer-footer" id="drawerFooter"></div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+
+/* ════════════════════════════════════ */
+/*             CONFIGURATION           */
+/* ════════════════════════════════════ */
+const API_URL = ''; // <-- Set your API URL here
+
+/* ════════ SVG ICONS ════════ */
+const ICONS = {
+  amazon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M.045 18.02c.072-.116.187-.124.348-.022 3.636 2.11 7.594 3.166 11.87 3.166 2.852 0 5.668-.533 8.447-1.595l.315-.14c.222-.1.383-.096.489.012.116.12.089.277-.075.47-.987 1.08-2.142 1.956-3.467 2.627-1.325.67-2.732 1.063-4.222 1.178-.22.018-.44.027-.66.027-3.036 0-5.927-.869-8.673-2.607-.264-.165-.487-.35-.668-.554-.08-.093-.08-.18.002-.26l.094-.102zm6.11-5.835c0-1.275.343-2.303 1.03-3.083.686-.78 1.607-1.17 2.763-1.17 1.2 0 2.14.403 2.823 1.21.682.806 1.024 1.856 1.024 3.148v.55H8.16v.12c0 .882.213 1.578.64 2.09.427.51 1.01.766 1.75.766.458 0 .868-.098 1.23-.293.363-.195.66-.474.89-.835l.69.46c-.307.505-.724.902-1.252 1.19-.528.287-1.1.43-1.717.43-1.143 0-2.046-.384-2.712-1.154-.665-.77-.998-1.8-.998-3.093v-.337zm5.63-.58v-.236c0-.835-.187-1.502-.56-2-.373-.498-.884-.747-1.533-.747-.65 0-1.163.24-1.54.72-.378.48-.583 1.134-.617 1.963h4.25z" fill="#FF9900"/><path d="M21.415 19.49c.84-.542 1.522-1.18 2.047-1.916.154-.217.09-.363-.187-.434-.78-.205-1.577-.367-2.39-.487-.164-.024-.26.044-.29.204-.28 1.59-.883 2.78-1.81 3.57 1.053-.07 1.88-.384 2.63-.937z" fill="#FF9900"/></svg>',
+  ebay: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none"><rect width="24" height="24" rx="4" fill="#0064D2" fill-opacity="0"/><text x="4" y="17" font-family="Inter,sans-serif" font-size="12" font-weight="900" fill="#0064D2">e</text></svg>',
+  tiktok: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.8.1V9.01a6.22 6.22 0 0 0-.8-.05 6.27 6.27 0 0 0-6.27 6.27A6.27 6.27 0 0 0 9.49 21.5a6.27 6.27 0 0 0 6.27-6.27V8.99a8.22 8.22 0 0 0 4.83 1.55V7.1a4.83 4.83 0 0 1-1-.41z" fill="#010101"/></svg>',
+  prime: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none"><rect width="24" height="24" rx="4" fill="#232F3E" fill-opacity="0"/><path d="M4 14l3-8h1.5L5.5 14H4zm5-8h1.5l2 5.5L14.5 6H16l-3 8h-1.5L8.5 6z" fill="#FF9900"/></svg>'
+};
+
+/* ════════ STATE ════════ */
+let allData = [], filtered = [], users = [], suppliers = [];
+let activeDrawerTab = 'platforms';
+
+/* ════════ KANBAN COLUMNS ════════ */
+const COLUMNS = [
+  { key: 'listing',  title: 'Need Listing',      color: '#f59e0b', dotColor: '#fbbf24' },
+  { key: 'veeqo',    title: 'Need Veeqo',        color: '#3b82f6', dotColor: '#60a5fa' },
+  { key: 'ready',    title: 'Ready to Publish',   color: '#16a34a', dotColor: '#4ade80' },
+];
+
+function getStage(row) {
+  const listed = toBool(row['Listed']);
+  const veeqo  = toBool(row['Veeqo']);
+  if (!listed) return 'listing';
+  if (listed && !veeqo) return 'veeqo';
+  return 'ready';
+}
+
+/* ════════ INIT ════════ */
+async function init() {
+  await Promise.all([loadData(), loadUsers(), loadSuppliers()]);
+}
+
+/* ════════ DATA ════════ */
+async function loadData() {
+  if (!API_URL) {
+    // Demo data
+    allData = generateDemoData();
+    applyFilters();
+    updateStats();
+    return;
+  }
+  try {
+    const res  = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getListing' }), headers: { 'Content-Type': 'text/plain' } });
+    const data = await res.json();
+    allData = data.data || [];
+    applyFilters();
+    updateStats();
+  } catch (e) {
+    showToast('Failed to load data', 'error');
+    document.getElementById('loadingState').innerHTML = '<p style="color:#dc2626;font-weight:600;">Failed to load. Check connection.</p>';
+  }
+}
+
+async function loadUsers() {
+  if (!API_URL) { users = [{id:'1',name:'John Smith'},{id:'2',name:'Sarah Jones'}]; return; }
+  try {
+    const res  = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getUsers' }), headers: { 'Content-Type': 'text/plain' } });
+    const data = await res.json();
+    users = (data.users || []).map(u => ({ id: u.userId, name: (u.firstName + ' ' + u.lastName).trim() }));
+  } catch (e) {}
+}
+
+async function loadSuppliers() {
+  if (!API_URL) { suppliers = [{name:'Supplier A'},{name:'Supplier B'}]; return; }
+  try {
+    const res  = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getSuppliers' }), headers: { 'Content-Type': 'text/plain' } });
+    const data = await res.json();
+    suppliers = data.suppliers || [];
+  } catch (e) {}
+}
+
+function generateDemoData() {
+  const names = ['Premium Bluetooth Speaker 40W','Wireless Earbuds Pro Max','Organic Cotton T-Shirt Pack','LED Desk Lamp RGB','Stainless Steel Water Bottle 1L','Yoga Mat Non-Slip 6mm','Portable Phone Charger 20000mAh','Kitchen Knife Set 8pc','Memory Foam Pillow','Running Shoes Mens UK10','Smart Watch Fitness Tracker','Bamboo Cutting Board Set','Travel Backpack 40L','Vitamin D3 Supplements','Resistance Bands Set 5pc','Air Fryer 4.5L Digital','Desk Organizer Wood','Protein Powder 1kg Vanilla','Silicone Baking Mat Set','Wireless Mouse Ergonomic'];
+  return names.map((name, i) => ({
+    'Opportunity ID': 'OPP-' + (1000 + i),
+    'Product Name': name,
+    'ASIN': 'B0' + String(Math.random()).slice(2,10).toUpperCase(),
+    'Listed': i < 12,
+    'Veeqo': i < 7,
+    'Amazon': Math.random() > 0.3,
+    'eBay': Math.random() > 0.4,
+    'TikTok': Math.random() > 0.5,
+    'Prime': Math.random() > 0.6,
+    'Unit Cost': (Math.random() * 20 + 2).toFixed(2),
+    'ASIN Cost': (Math.random() * 15 + 1).toFixed(2),
+    'Sale Quantity': Math.floor(Math.random() * 200 + 10),
+    'Sales': (Math.random() * 5000 + 100).toFixed(2),
+    'TikTok Sales': (Math.random() * 1000).toFixed(2),
+    'P.Size eBay': Math.random() > 0.5 ? 'Standard' : 'Large',
+    'P.Size TT': Math.random() > 0.5 ? 'Standard' : 'Oversized',
+    'Warehouse': Math.random() > 0.3,
+    'Arrived': Math.random() > 0.4,
+    'Merged': Math.random() > 0.5,
+    'Bundled': Math.random() > 0.6,
+  }));
+}
+
+/* ════════ STATS ════════ */
+function updateStats() {
+  const wh = allData.filter(p => toBool(p['Warehouse'])).length;
+  const ar = allData.filter(p => toBool(p['Arrived'])).length;
+  const mg = allData.filter(p => toBool(p['Merged'])).length;
+  const bd = allData.filter(p => toBool(p['Bundled'])).length;
+  setStatChip('statWarehouse', wh + ' Warehouse', 'orange');
+  setStatChip('statArrived',   ar + ' Arrived',   'blue');
+  setStatChip('statMerged',    mg + ' Merged',    'green');
+  setStatChip('statBundled',   bd + ' Bundled',   'purple');
+}
+
+function setStatChip(elId, text, cls) {
+  const el = document.getElementById(elId);
+  const svg = el.querySelector('svg').outerHTML;
+  el.innerHTML = svg + '<span>' + text + '</span>';
+}
+
+/* ════════ SEARCH ════════ */
+document.getElementById('searchInput').addEventListener('input', function () { applyFilters(); });
+
+/* ════════ FILTERS ════════ */
+function toggleFilters() {
+  const pills = document.getElementById('filterPills');
+  const btn   = document.getElementById('filterToggleBtn');
+  const open  = pills.classList.toggle('open');
+  btn.classList.toggle('active', open);
+}
+
+function applyFilters() {
+  const q  = document.getElementById('searchInput').value.toLowerCase();
+  const fW = document.getElementById('fWarehouse').value;
+  const fA = document.getElementById('fArrived').value;
+  const fM = document.getElementById('fMerged').value;
+  const fB = document.getElementById('fBundled').value;
+
+  filtered = allData.filter(p => {
+    if (q && !(
+      (p['Product Name']||'').toLowerCase().includes(q) ||
+      (p['ASIN']||'').toLowerCase().includes(q)
+    )) return false;
+    if (fW === 'yes' && !toBool(p['Warehouse'])) return false;
+    if (fW === 'no'  &&  toBool(p['Warehouse'])) return false;
+    if (fA === 'yes' && !toBool(p['Arrived']))   return false;
+    if (fA === 'no'  &&  toBool(p['Arrived']))   return false;
+    if (fM === 'yes' && !toBool(p['Merged']))    return false;
+    if (fM === 'no'  &&  toBool(p['Merged']))    return false;
+    if (fB === 'yes' && !toBool(p['Bundled']))   return false;
+    if (fB === 'no'  &&  toBool(p['Bundled']))   return false;
+    return true;
+  });
+
+  const anyActive = fW || fA || fM || fB;
+  document.getElementById('filterDot').style.display = anyActive ? 'inline-block' : 'none';
+  document.getElementById('filterClearBtn').classList.toggle('visible', !!anyActive);
+  ['fWarehouse','fArrived','fMerged','fBundled'].forEach(id => {
+    document.getElementById(id).classList.toggle('active', !!document.getElementById(id).value);
+  });
+
+  renderKanban();
+}
+
+function clearFilters() {
+  ['fWarehouse','fArrived','fMerged','fBundled'].forEach(id => {
+    document.getElementById(id).value = '';
+    document.getElementById(id).classList.remove('active');
+  });
+  document.getElementById('filterDot').style.display = 'none';
+  document.getElementById('filterClearBtn').classList.remove('visible');
+  applyFilters();
+}
+
+/* ════════ KANBAN RENDER ════════ */
+function renderKanban() {
+  const wrapper = document.getElementById('kanbanWrapper');
+
+  // Group by stage
+  const groups = {};
+  COLUMNS.forEach(c => groups[c.key] = []);
+  filtered.forEach(row => {
+    const stage = getStage(row);
+    if (groups[stage]) groups[stage].push(row);
+  });
+
+  let html = '';
+  COLUMNS.forEach(col => {
+    const items = groups[col.key];
+    html += '<div class="kanban-column">'
+      + '<div class="kanban-col-header">'
+      + '<div class="kanban-col-title"><span class="col-dot" style="background:' + col.dotColor + '"></span>' + col.title + '</div>'
+      + '<span class="kanban-col-count">' + items.length + '</span>'
+      + '</div>'
+      + '<div class="kanban-col-body">';
+
+    if (items.length === 0) {
+      html += '<div class="empty-state"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><p>No products</p></div>';
+    } else {
+      items.forEach(row => {
+        const id = row['Opportunity ID'] || '';
+        const platforms = renderCardPlatforms(row);
+        html += '<div class="kanban-card" onclick="openDrawer(\'' + escAttr(id) + '\')">'
+          + '<div class="kanban-card-name">' + escHtml(row['Product Name'] || '—') + '</div>'
+          + '<div class="kanban-card-asin">' + escHtml(row['ASIN'] || '') + '</div>'
+          + '<div class="kanban-card-stats">'
+          + '<div><div class="kc-stat-label">Unit Cost</div><div class="kc-stat-val">£' + fmt(row['Unit Cost']) + '</div></div>'
+          + '<div><div class="kc-stat-label">Sales</div><div class="kc-stat-val">£' + fmt(row['Sales']) + '</div></div>'
+          + '<div><div class="kc-stat-label">Qty</div><div class="kc-stat-val">' + (row['Sale Quantity'] || '—') + '</div></div>'
+          + '</div>'
+          + '<div class="kanban-card-platforms">' + platforms + '</div>'
+          + '</div>';
+      });
+    }
+
+    html += '</div></div>';
+  });
+
+  wrapper.innerHTML = html;
+}
+
+function renderCardPlatforms(row) {
+  let html = '';
+  const platforms = [
+    { key: 'Amazon', cls: 'amz',   icon: ICONS.amazon },
+    { key: 'eBay',   cls: 'ebay',  icon: ICONS.ebay },
+    { key: 'TikTok', cls: 'tt',    icon: ICONS.tiktok },
+    { key: 'Prime',  cls: 'prime', icon: ICONS.prime },
+  ];
+  platforms.forEach(p => {
+    const on = toBool(row[p.key]);
+    html += '<div class="kc-plat-icon ' + p.cls + (on ? '' : ' off') + '">' + p.icon + '</div>';
+  });
+  return html;
+}
+
+/* ════════ DRAWER ════════ */
+function openDrawer(id) {
+  const row = allData.find(p => (p['Opportunity ID'] || '') === id);
+  if (!row) return;
+  activeDrawerTab = 'platforms';
+  renderDrawer(row);
+  document.getElementById('detailDrawer').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('visible');
+}
+
+function closeDrawer() {
+  document.getElementById('detailDrawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('visible');
+}
+
+function renderDrawer(row) {
+  const id    = row['Opportunity ID'] || '';
+  const stage = getStage(row);
+
+  // Stage badge
+  const stageBadges = {
+    listing: '<span class="drawer-stage-badge dsb-listing">Need Listing</span>',
+    veeqo:   '<span class="drawer-stage-badge dsb-veeqo">Need Veeqo</span>',
+    ready:   '<span class="drawer-stage-badge dsb-ready">Ready to Publish</span>',
+  };
+
+  // Hero with 4 KPI cards: Unit Cost, ASIN Cost, Sale Quantity, Sales, TikTok
+  const unitCost = parseFloat(row['Unit Cost']);
+  const asinCost = parseFloat(row['ASIN Cost']);
+  const saleQty  = row['Sale Quantity'] || '—';
+  const sales    = parseFloat(row['Sales']);
+  const ttSales  = parseFloat(row['TikTok Sales']);
+
+  document.getElementById('drawerHeader').innerHTML =
+    '<div class="drawer-hero">'
+    + '<button class="drawer-hero-close" onclick="closeDrawer()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
+    + stageBadges[stage]
+    + '<div class="drawer-product-name">' + escHtml(row['Product Name'] || '—') + '</div>'
+    + '<div class="drawer-product-asin">' + escHtml(row['ASIN'] || '') + '</div>'
+    + '<div class="drawer-kpi-row">'
+    // Unit Cost
+    + '<div class="drawer-kpi"><div class="drawer-kpi-top"><div class="drawer-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#ff9900" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="drawer-kpi-label">Unit Cost</div></div><div class="drawer-kpi-val">' + (!isNaN(unitCost) ? '£' + unitCost.toFixed(2) : '—') + '</div></div>'
+    // ASIN Cost
+    + '<div class="drawer-kpi"><div class="drawer-kpi-top"><div class="drawer-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div><div class="drawer-kpi-label">ASIN Cost</div></div><div class="drawer-kpi-val">' + (!isNaN(asinCost) ? '£' + asinCost.toFixed(2) : '—') + '</div></div>'
+    // Sale Quantity
+    + '<div class="drawer-kpi"><div class="drawer-kpi-top"><div class="drawer-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div><div class="drawer-kpi-label">Sale Qty</div></div><div class="drawer-kpi-val">' + saleQty + '</div></div>'
+    // Sales + TikTok combined
+    + '<div class="drawer-kpi"><div class="drawer-kpi-top"><div class="drawer-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div><div class="drawer-kpi-label">Sales / TT</div></div><div class="drawer-kpi-val" style="font-size:12px;">' + (!isNaN(sales) ? '£' + sales.toFixed(0) : '—') + '<span style="color:rgba(255,255,255,.4);font-size:10px;margin:0 3px;">/</span>' + (!isNaN(ttSales) ? '£' + ttSales.toFixed(0) : '—') + '</div></div>'
+    + '</div></div>';
+
+  // Tabs: Platforms, Overview, Financials
+  document.getElementById('drawerTabs').innerHTML =
+    tabBtn('platforms', id, '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>', 'Platforms')
+    + tabBtn('overview', id, '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>', 'Overview')
+    + tabBtn('notes', id, '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>', 'Notes');
+
+  // Body
+  let body = '';
+
+  if (activeDrawerTab === 'platforms') {
+    const platforms = [
+      { key: 'Amazon', cls: 'amz',   label: 'Amazon',  icon: ICONS.amazon },
+      { key: 'eBay',   cls: 'ebay',  label: 'eBay',    icon: ICONS.ebay },
+      { key: 'TikTok', cls: 'tt',    label: 'TikTok',  icon: ICONS.tiktok },
+      { key: 'Prime',  cls: 'prime', label: 'Prime',   icon: ICONS.prime },
+    ];
+
+    body += '<div class="drawer-section"><div class="section-label">Marketplace Status</div>';
+    body += '<div class="platform-grid">';
+    platforms.forEach(p => {
+      const on = toBool(row[p.key]);
+      body += '<div class="plat-toggle-card ' + (on ? 'on' : '') + '" onclick="togglePlatform(\'' + escAttr(id) + '\',\'' + p.key + '\',' + !on + ')">'
+        + '<div class="plat-icon-sm ' + p.cls + '">' + p.icon + '</div>'
+        + '<div class="plat-toggle-name">' + p.label + '</div>'
+        + '<div class="plat-toggle-status">' + (on ? 'Live' : 'Off') + '</div>'
+        + '</div>';
+    });
+    body += '</div></div>';
+
+    // P.Size eBay & TT field moved here
+    body += '<div class="drawer-section"><div class="section-label">Packaging Sizes</div>';
+    body += '<div class="info-grid">';
+    body += editCard(id, 'P.Size eBay', row['P.Size eBay'] || '', 'select:Standard,Large,Oversized', 'P.Size eBay');
+    body += editCard(id, 'P.Size TT',   row['P.Size TT'] || '',   'select:Standard,Large,Oversized', 'P.Size TT');
+    body += '</div></div>';
+  }
+
+  if (activeDrawerTab === 'overview') {
+    body += '<div class="drawer-section"><div class="section-label">Product Info</div>';
+    body += '<div class="info-grid">';
+    body += editCard(id, 'Product Name', row['Product Name'] || '', 'text', 'Product Name');
+    body += editCard(id, 'ASIN',         row['ASIN'] || '',         'text', 'ASIN');
+    body += editCard(id, 'Listed',       toBool(row['Listed']) ? 'Yes' : 'No', 'select:Yes,No', 'Listed');
+    body += editCard(id, 'Veeqo',        toBool(row['Veeqo']) ? 'Yes' : 'No',  'select:Yes,No', 'Veeqo');
+    body += editCard(id, 'Warehouse',    toBool(row['Warehouse']) ? 'Yes' : 'No', 'select:Yes,No', 'Warehouse');
+    body += editCard(id, 'Arrived',      toBool(row['Arrived']) ? 'Yes' : 'No',   'select:Yes,No', 'Arrived');
+    body += editCard(id, 'Merged',       toBool(row['Merged']) ? 'Yes' : 'No',    'select:Yes,No', 'Merged');
+    body += editCard(id, 'Bundled',      toBool(row['Bundled']) ? 'Yes' : 'No',   'select:Yes,No', 'Bundled');
+    body += '</div></div>';
+
+    body += '<div class="drawer-section"><div class="section-label">Financials</div>';
+    body += '<div class="info-grid">';
+    body += editCard(id, 'Unit Cost',     row['Unit Cost'] || '',     'number', 'Unit Cost');
+    body += editCard(id, 'ASIN Cost',     row['ASIN Cost'] || '',     'number', 'ASIN Cost');
+    body += editCard(id, 'Sale Quantity', row['Sale Quantity'] || '', 'number', 'Sale Quantity');
+    body += editCard(id, 'Sales',         row['Sales'] || '',         'number', 'Sales');
+    body += editCard(id, 'TikTok Sales',  row['TikTok Sales'] || '',  'number', 'TikTok Sales');
+    body += '</div></div>';
+  }
+
+  if (activeDrawerTab === 'notes') {
+    const notes = parseJSON(row['Notes'], []);
+    const noteItems = notes.length
+      ? notes.map(n =>
+          '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;margin-bottom:6px;">'
+          + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
+          + '<div style="width:24px;height:24px;border-radius:50%;background:#dbeafe;color:#1d4ed8;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;">' + getInitials(n.name) + '</div>'
+          + '<span style="font-size:12px;font-weight:600;color:#334155;">' + escHtml(n.name) + '</span>'
+          + '<span style="font-size:10px;color:#94a3b8;margin-left:auto;">' + (n.date||'') + '</span>'
+          + '</div>'
+          + '<div style="font-size:12.5px;color:#475569;line-height:1.5;">' + escHtml(n.text) + '</div>'
+          + '</div>'
+        ).join('')
+      : '<p style="font-size:13px;color:#94a3b8;">No notes yet.</p>';
+
+    const usrOpts = users.map(u => '<option value="' + escAttr(u.name) + '">' + escHtml(u.name) + '</option>').join('');
+
+    body += '<div class="drawer-section"><div class="section-label">Notes</div>'
+      + noteItems
+      + '<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-top:10px;">'
+      + '<div style="padding:8px 12px 4px;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;">From</span><select class="edit-select" id="noteUser" style="flex:1;padding:4px 8px;font-size:12px;"><option value="">Select…</option>' + usrOpts + '</select></div>'
+      + '<textarea id="noteInput" style="width:100%;border:none;outline:none;resize:none;font-size:12.5px;font-family:inherit;color:#0f172a;min-height:44px;padding:0;" placeholder="Write your note…"></textarea></div>'
+      + '<div style="display:flex;justify-content:flex-end;padding:6px 12px;border-top:1px solid #f1f5f9;background:#fafafa;">'
+      + '<button class="btn btn-ghost btn-sm" onclick="addNote(\'' + escAttr(id) + '\')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Add</button>'
+      + '</div></div></div>';
+  }
+
+  document.getElementById('drawerBody').innerHTML = body;
+  document.getElementById('drawerFooter').innerHTML = '<span class="save-ind" id="saveInd"></span>';
+}
+
+function tabBtn(tab, id, icon, label) {
+  return '<button class="drawer-tab ' + (activeDrawerTab === tab ? 'active' : '') + '" onclick="switchTab(\'' + tab + '\',\'' + escAttr(id) + '\')">' + icon + label + '</button>';
+}
+
+function switchTab(tab, id) {
+  activeDrawerTab = tab;
+  const row = allData.find(p => (p['Opportunity ID'] || '') === id);
+  if (row) renderDrawer(row);
+}
+
+function editCard(id, label, value, type, sheetKey) {
+  const disp = (value === undefined || value === null) ? '' : String(value).trim();
+  let inp = '';
+  if (type.startsWith('select:')) {
+    const options = type.replace('select:', '').split(',');
+    const opts = options.map(o => '<option value="' + escAttr(o) + '"' + (o.toLowerCase() === disp.toLowerCase() ? ' selected' : '') + '>' + escHtml(o) + '</option>').join('');
+    inp = '<select class="edit-select" onchange="saveField(\'' + escAttr(id) + '\',\'' + escAttr(sheetKey) + '\',this.value)"><option value="">—</option>' + opts + '</select>';
+  } else if (type === 'number') {
+    const n = parseFloat(value);
+    inp = '<input type="number" class="edit-input" value="' + (isNaN(n) ? '' : n) + '" step="0.01" onblur="saveField(\'' + escAttr(id) + '\',\'' + escAttr(sheetKey) + '\',this.value)">';
+  } else {
+    inp = '<input type="text" class="edit-input" value="' + escAttr(disp) + '" onblur="saveField(\'' + escAttr(id) + '\',\'' + escAttr(sheetKey) + '\',this.value)">';
+  }
+  return '<div class="info-card"><label>' + escHtml(label) + '</label>' + inp + '</div>';
+}
+
+/* ════════ PLATFORM TOGGLE ════════ */
+async function togglePlatform(id, platform, newVal) {
+  const idx = allData.findIndex(p => (p['Opportunity ID'] || '') === id);
+  if (idx < 0) return;
+  allData[idx][platform] = newVal;
+
+  if (API_URL) {
+    showSaveInd('saving');
+    try {
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'updateListing', opportunityId: id, field: platform, value: newVal }),
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      showSaveInd('saved');
+    } catch (e) {
+      showSaveInd('error');
+    }
+  } else {
+    showSaveInd('saved');
+  }
+
+  renderDrawer(allData[idx]);
+  applyFilters();
+}
+
+/* ════════ SAVE FIELD ════════ */
+async function saveField(id, field, value) {
+  const idx = allData.findIndex(p => (p['Opportunity ID'] || '') === id);
+  if (idx < 0) return;
+
+  // Handle boolean fields
+  if (['Listed','Veeqo','Warehouse','Arrived','Merged','Bundled'].includes(field)) {
+    allData[idx][field] = value === 'Yes';
+  } else {
+    allData[idx][field] = value;
+  }
+
+  if (API_URL) {
+    showSaveInd('saving');
+    try {
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'updateListing', opportunityId: id, field, value }),
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      showSaveInd('saved');
+    } catch (e) {
+      showSaveInd('error');
+    }
+  } else {
+    showSaveInd('saved');
+  }
+
+  updateStats();
+  applyFilters();
+}
+
+/* ════════ NOTES ════════ */
+async function addNote(id) {
+  const userEl = document.getElementById('noteUser');
+  const textEl = document.getElementById('noteInput');
+  const name = userEl ? userEl.value : '';
+  const text = textEl ? textEl.value.trim() : '';
+  if (!name) { showToast('Select a user', 'error'); return; }
+  if (!text) { showToast('Write something', 'error'); return; }
+
+  const idx = allData.findIndex(p => (p['Opportunity ID'] || '') === id);
+  if (idx < 0) return;
+
+  const notes = parseJSON(allData[idx]['Notes'], []);
+  notes.push({ name, text, date: new Date().toLocaleDateString('en-GB') });
+  allData[idx]['Notes'] = JSON.stringify(notes);
+
+  if (API_URL) {
+    await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateListing', opportunityId: id, field: 'Notes', value: JSON.stringify(notes) }),
+      headers: { 'Content-Type': 'text/plain' }
+    });
+  }
+
+  showToast('Note added', 'success');
+  activeDrawerTab = 'notes';
+  renderDrawer(allData[idx]);
+}
+
+/* ════════ HELPERS ════════ */
+function toBool(val) {
+  return val === true || val === 'true' || val === 'Yes' || val === 'yes' || val === 1;
+}
+
+function fmt(val) {
+  const n = parseFloat(val);
+  return isNaN(n) ? '—' : n.toFixed(2);
+}
+
+function parseJSON(val, fallback) {
+  if (!val || val === '' || val === 'false') return fallback;
+  try { return JSON.parse(val); } catch (e) { return fallback; }
+}
+
+function getInitials(name) {
+  return (name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function escAttr(str) {
+  return String(str || '').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function showSaveInd(state) {
+  const el = document.getElementById('saveInd');
+  if (!el) return;
+  el.className = 'save-ind ' + state;
+  const labels = { saving: '<span class="spinner sm"></span> Saving…', saved: '✓ Saved', error: '✗ Error' };
+  el.innerHTML = labels[state] || '';
+  if (state === 'saved') setTimeout(() => { el.className = 'save-ind'; }, 1500);
+}
+
+function showToast(msg, type) {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type || '');
+  const icons = {
+    success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    error: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+  };
+  t.innerHTML = (icons[type] || '') + escHtml(msg);
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+/* ════════ EXPOSE & START ════════ */
+window.openDrawer       = openDrawer;
+window.closeDrawer      = closeDrawer;
+window.switchTab        = switchTab;
+window.toggleFilters    = toggleFilters;
+window.applyFilters     = applyFilters;
+window.clearFilters     = clearFilters;
+window.saveField        = saveField;
+window.togglePlatform   = togglePlatform;
+window.addNote          = addNote;
+
+init();
+})();
+</script>
+</head>
+<body></body>
+</html>
