@@ -1,11 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Listing & Fulfilment</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -616,11 +609,15 @@ const COLUMNS = [
 ];
 
 function getStage(row) {
-  const listed = toBool(row['Listed']);
-  const veeqo  = toBool(row['Veeqo']);
-  if (!listed) return 'listing';
-  if (listed && !veeqo) return 'veeqo';
+
+  const warehouse = toBool(row['Warehouse']);
+  const arrived   = toBool(row['Arrived']);
+
+  if (!warehouse) return 'listing';
+  if (warehouse && !arrived) return 'veeqo';
+
   return 'ready';
+
 }
 
 /* ════════ INIT ════════ */
@@ -730,8 +727,8 @@ function applyFilters() {
 
   filtered = allData.filter(p => {
     if (q && !(
-      (p['Product Name']||'').toLowerCase().includes(q) ||
-      (p['ASIN']||'').toLowerCase().includes(q)
+      (p['Listing Name']||'').toLowerCase().includes(q) ||
+      (p['ASINs']||'').toLowerCase().includes(q)
     )) return false;
     if (fW === 'yes' && !toBool(p['Warehouse'])) return false;
     if (fW === 'no'  &&  toBool(p['Warehouse'])) return false;
@@ -793,8 +790,8 @@ function renderKanban() {
         const id = row['Opportunity ID'] || '';
         const platforms = renderCardPlatforms(row);
         html += '<div class="kanban-card" onclick="openDrawer(\'' + escAttr(id) + '\')">'
-          + '<div class="kanban-card-name">' + escHtml(row['Product Name'] || '—') + '</div>'
-          + '<div class="kanban-card-asin">' + escHtml(row['ASIN'] || '') + '</div>'
+          + '<div class="kanban-card-name">' + escHtml(row['Listing Name'] || '—') + '</div>'
+          + '<div class="kanban-card-asin">' + escHtml(row['ASINs'] || '') + '</div>'
           + '<div class="kanban-card-stats">'
           + '<div><div class="kc-stat-label">Unit Cost</div><div class="kc-stat-val">£' + fmt(row['Unit Cost']) + '</div></div>'
           + '<div><div class="kc-stat-label">Sales</div><div class="kc-stat-val">£' + fmt(row['Sales']) + '</div></div>'
@@ -863,8 +860,8 @@ function renderDrawer(row) {
     '<div class="drawer-hero">'
     + '<button class="drawer-hero-close" onclick="closeDrawer()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
     + stageBadges[stage]
-    + '<div class="drawer-product-name">' + escHtml(row['Product Name'] || '—') + '</div>'
-    + '<div class="drawer-product-asin">' + escHtml(row['ASIN'] || '') + '</div>'
+    + '<div class="drawer-product-name">' + escHtml(row['Listing Name'] || '—') + '</div>'
+    + '<div class="drawer-product-asin">' + escHtml(row['ASINs'] || '') + '</div>'
     + '<div class="drawer-kpi-row">'
     // Unit Cost
     + '<div class="drawer-kpi"><div class="drawer-kpi-top"><div class="drawer-kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#ff9900" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div class="drawer-kpi-label">Unit Cost</div></div><div class="drawer-kpi-val">' + (!isNaN(unitCost) ? '£' + unitCost.toFixed(2) : '—') + '</div></div>'
@@ -1143,6 +1140,4 @@ window.addNote          = addNote;
 init();
 })();
 </script>
-</head>
-<body></body>
-</html>
+
