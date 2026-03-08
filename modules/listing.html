@@ -1,4 +1,3 @@
-
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
@@ -9,10 +8,10 @@ html, body {
 
 .content-wrap { overflow-x: hidden; }
   
-  .page-wrapper {
+.page-wrapper {
   padding: 5px 10px 15px 10px;
   max-width: 100%;
-  height: 100%;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -60,7 +59,7 @@ html, body {
 .kanban-col-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 7px; }
 .kanban-col-title .col-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .kanban-col-count { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 100px; background: #f1f5f9; color: #64748b; }
-.kanban-col-body { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; min-height: 40px; }
+.kanban-col-body { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
 .kanban-col-body::-webkit-scrollbar { width: 4px; }
 .kanban-col-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 .kanban-card.dragging { opacity: 0.4; }
@@ -138,16 +137,19 @@ html, body {
 .drawer-body { flex: 1; overflow-y: auto; padding: 14px 20px; min-height: 0; }
 .drawer-body::-webkit-scrollbar { width: 4px; }
 .drawer-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-.drawer-section { margin-bottom: 14px; }
-.section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #94a3b8; margin-bottom: 7px; display: flex; align-items: center; gap: 8px; }
+.drawer-section { margin-bottom: 22px; }
+.section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #94a3b8; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
 .section-label::after { content: ''; flex: 1; height: 1px; background: #f1f5f9; }
-.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-.info-card { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 10px; padding: 8px 11px; transition: border-color .15s; }
-.info-card:focus-within { border-color: #bfdbfe; background: #fafcff; }
-.info-card label { display: block; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; margin-bottom: 4px; }
+
+/* ── Revamped info-card with icon labels (request #4) ── */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.info-card { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding: 10px 13px; transition: border-color .15s, box-shadow .15s; border-left: 3px solid #e2e8f0; }
+.info-card:focus-within { border-color: #bfdbfe; background: #fafcff; box-shadow: 0 2px 8px rgba(37,99,235,0.06); border-left-color: #2563eb; }
+.info-card label { display: flex; align-items: center; gap: 6px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; margin-bottom: 6px; }
+.info-card label .field-icon { width: 14px; height: 14px; color: #94a3b8; flex-shrink: 0; opacity: 0.7; }
 .info-card .read-val { font-size: 13px; font-weight: 600; color: #0f172a; padding: 5px 0; }
-.edit-input, .edit-select { width: 100%; padding: 5px 8px; border: 1.5px solid #bfdbfe; border-radius: 6px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; transition: border-color .15s; }
-.edit-input:focus, .edit-select:focus { border-color: #2563eb; }
+.edit-input, .edit-select { width: 100%; padding: 6px 10px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; transition: border-color .15s, box-shadow .15s; }
+.edit-input:focus, .edit-select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
 .auto-val { font-size: 13px; font-weight: 700; color: #334155; padding: 5px 0; display: flex; align-items: center; gap: 6px; }
 .auto-badge { font-size: 8px; font-weight: 800; letter-spacing: .4px; color: #94a3b8; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; }
 
@@ -176,20 +178,21 @@ html, body {
 .toast.info    { background: #1e40af; }
 @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-/* TABLE MODAL */
+/* TABLE MODAL - fixed height within viewport (#2) */
 .table-modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.4); z-index: 1100; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; backdrop-filter: blur(3px); }
 .table-modal-overlay.visible { opacity: 1; pointer-events: all; }
-.table-modal { background: #fff; border-radius: 16px; box-shadow: 0 25px 60px rgba(0,0,0,.2); width: 92vw; max-width: 1100px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
+.table-modal { background: #fff; border-radius: 16px; box-shadow: 0 25px 60px rgba(0,0,0,.2); width: 92vw; max-width: 1100px; height: 75vh; display: flex; flex-direction: column; overflow: hidden; }
 .table-modal-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
 .table-modal-header h2 { font-size: 16px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; }
 .modal-count { font-size: 12px; font-weight: 700; background: #f1f5f9; color: #64748b; padding: 2px 10px; border-radius: 100px; }
 .table-modal-close { width: 32px; height: 32px; border: none; border-radius: 8px; background: #f1f5f9; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; transition: all .15s; }
 .table-modal-close:hover { background: #e2e8f0; color: #0f172a; }
-.table-modal-body { flex: 1; overflow: auto; }
+.table-modal-body { flex: 1; overflow: auto; min-height: 0; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .data-table thead { position: sticky; top: 0; z-index: 2; }
 .data-table th { background: #f8fafc; padding: 10px 12px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
 .data-table td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; white-space: nowrap; }
+.data-table tr { cursor: pointer; transition: background .1s; }
 .data-table tr:hover td { background: #fafbff; }
 .bool-yes { color: #15803d; font-weight: 700; }
 .bool-no  { color: #dc2626; font-weight: 700; }
@@ -207,7 +210,7 @@ html, body {
   .platform-grid { grid-template-columns: repeat(2, 1fr); }
   .stats-row .stat-chip span { display: none; }
   .kanban-column { min-width: 220px; flex-shrink: 0; }
-  .table-modal { width: 98vw; max-height: 90vh; border-radius: 10px; }
+  .table-modal { width: 98vw; height: 85vh; border-radius: 10px; }
 }
 </style>
 
@@ -218,20 +221,20 @@ html, body {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
         <span>Loading…</span>
       </div>
-      <div class="stat-chip orange" id="statListed" onclick="showListedTable()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      <div class="stat-chip orange" id="statNeedsListing">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         <span>Loading…</span>
       </div>
-      <div class="stat-chip blue" id="statArrived">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-        <span>Loading…</span>
-      </div>
-      <div class="stat-chip green" id="statMerged">
+      <div class="stat-chip blue" id="statNeedVeeqo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         <span>Loading…</span>
       </div>
-      <div class="stat-chip purple" id="statBundled">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+      <div class="stat-chip green" id="statAwaitingDelivery">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        <span>Loading…</span>
+      </div>
+      <div class="stat-chip purple" id="statListed" onclick="showListedTable()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         <span>Loading…</span>
       </div>
     </div>
@@ -317,7 +320,7 @@ html, body {
   </div>
 </div>
 
-    </div>
+</div>
 
 <script>
 (function () {
@@ -333,6 +336,40 @@ const ICONS = {
   ebay_sm: '<svg viewBox="0 0 2500 1000" xmlns="http://www.w3.org/2000/svg" width="20" height="8"><path d="M100 500c0-220 150-360 370-360 180 0 320 90 360 270H670c-30-100-100-150-200-150-150 0-240 110-240 240s90 240 240 240c110 0 185-55 215-165h160c-40 195-180 285-375 285C250 860 100 720 100 500z" fill="#E53238"/><path d="M870 260h155v80c50-65 120-100 215-100 170 0 275 110 275 300s-105 320-275 320c-90 0-160-35-210-95v280H870V260zm350 470c110 0 175-80 175-200s-65-195-175-195c-115 0-180 80-180 195s65 200 180 200z" fill="#0064D2"/><path d="M1620 580c5 120 80 170 210 170 80 0 150-30 175-90h155c-45 145-175 200-335 200-220 0-355-140-355-320s135-320 345-320c230 0 350 155 340 360h-335zm340-110c-10-100-75-150-185-150-105 0-155 55-165 150h350z" fill="#F5AF02"/><path d="M2235 260h170l-250 590c-60 140-115 190-260 190h-90v-120h70c80 0 105-35 130-95l-285-565h180l195 400 140-400z" fill="#86B817"/></svg>',
   tiktok_sm: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.8.1V9.01a6.22 6.22 0 0 0-.8-.05 6.27 6.27 0 0 0-6.27 6.27A6.27 6.27 0 0 0 9.49 21.5a6.27 6.27 0 0 0 6.27-6.27V8.99a8.22 8.22 0 0 0 4.83 1.55V7.1a4.83 4.83 0 0 1-1-.41z" fill="#ffffff"/></svg>'
 };
+
+/* ─── FIELD ICON MAP (request #4) ───────────────────────────────── */
+const FIELD_ICONS = {
+  'Listing Name': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>',
+  'ASINs': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+  'Warehouse Notified': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+  'Delivery Received': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
+  'QTY Purchased': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
+  'Sales': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>',
+  'Unit Cost': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+  'ASIN Cost': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>',
+  'Sale Quantity': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+  'COGs': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  'Title Clear': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  'Weight Correct': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>',
+  'Dimensions Set': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>',
+  'Merged': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>',
+  'Bundled': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
+  'Consumer Multi-buy': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  'B2B Multi-buy': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',
+  'B2B Pricing': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+  'Advertising Campaigns': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+  'Seller Toolkit (STK)': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+  'eBay Multi-buy': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>',
+  'eBay Ads': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+  'eBay Pack Size': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
+  'eBay Listing Price': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+  'TikTok Pack Size': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
+  'TikTok Listing Price': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+};
+
+function getFieldIcon(label) {
+  return FIELD_ICONS[label] ? '<span class="field-icon">' + FIELD_ICONS[label] + '</span>' : '';
+}
 
 /* ─── STATE ─────────────────────────────────────────────────────── */
 let allData = [], filtered = [];
@@ -366,17 +403,35 @@ function daysAgo(date) { if(!date) return null; return Math.floor((Date.now()-da
 function fmtDate(date) { if(!date) return ''; return date.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
 function daysAgoLabel(d) { if(d===null) return ''; if(d===0) return 'Today'; if(d===1) return '1 day ago'; return d+' days ago'; }
 
-/* ─── STAGE LOGIC ───────────────────────────────────────────────── */
-/* Awaiting Delivery = BOTH Warehouse=No AND Arrived=No
-   Need Veeqo        = Warehouse=Yes, Arrived=No
-   Listed            = BOTH Yes → removed from kanban
-   Needs Listing     = all other cases */
+/* ─── ALL YES/NO FIELDS across Overview & Marketing ────────────── */
+const ALL_BOOL_FIELDS = [
+  'Warehouse','Arrived',
+  'Title Clear','Weight Correct','Dimensions Set','Merged','Bundled',
+  'Consumer Multi-buy','B2B Multi-buy','B2B Pricing','Advertising Campaigns','Seller Toolkit (STK)',
+  'eBay Multi-buy','eBay Ads'
+];
+
+/* ─── STAGE LOGIC (request #3 — revised) ───────────────────────── */
 function getStage(row) {
-  const w=toBool(row['Warehouse']), a=toBool(row['Arrived']);
-  if (w && a)   return 'listed';   // out of kanban
-  if (w && !a)  return 'veeqo';
-  if (!w && !a) return 'ready';    // Awaiting Delivery
-  return 'listing';                // arrived but not warehouse – edge
+  const w = toBool(row['Warehouse']);
+  const a = toBool(row['Arrived']);
+
+  // Count how many of ALL bool fields are Yes (excluding Warehouse & Arrived)
+  const otherBools = ALL_BOOL_FIELDS.filter(f => f !== 'Warehouse' && f !== 'Arrived');
+  const allOtherYes = otherBools.every(f => toBool(row[f]));
+  const allOtherNo  = otherBools.every(f => !toBool(row[f]));
+
+  // If BOTH Warehouse & Arrived are Yes → fully listed, out of kanban
+  if (w && a) return 'listed';
+
+  // Awaiting Delivery: all other Yes/No fields are Yes, only Warehouse & Arrived still No
+  if (!w && !a && allOtherYes) return 'ready';
+
+  // Needs Listing: ALL Yes/No fields (including Warehouse & Arrived) are No
+  if (!w && !a && allOtherNo) return 'listing';
+
+  // Need Veeqo: Warehouse & Arrived both No, with a mix of some Yes and some No in other fields
+  return 'veeqo';
 }
 
 /* ─── AUTO-CALCULATED FIELDS (mirrors calculations.gs) ──────────── */
@@ -387,14 +442,14 @@ function applyAutoFields(row) {
   const sales = parseFloat(row['Sales'])        || 0;
   const qty   = parseFloat(row['QTY Purchased']) || 0;
 
-// List eBay / TikTok: Yes only if qty > sales
-if (qty > 0 || sales > 0) {
-  const list = (qty > sales && qty > 0) ? 'Yes' : 'No';
-  row['List eBay']   = list;
-  row['List TikTok'] = list;
-}
+  // List eBay / TikTok: Yes only if qty > sales
+  if (qty > 0 || sales > 0) {
+    const list = (qty > sales && qty > 0) ? 'Yes' : 'No';
+    row['List eBay']   = list;
+    row['List TikTok'] = list;
+  }
 
-  // Recalculate pack sizes & prices (mirrors calculations.gs)
+  // Recalculate pack sizes & prices
   const cogs = parseFloat(row['COGs']) || 0;
   const uc   = parseFloat(row['Unit Cost']) || 0;
 
@@ -455,38 +510,43 @@ async function loadData() {
   }
 }
 
-/* ─── STATS ─────────────────────────────────────────────────────── */
+/* ─── STATS (request #9 — removed Arrived/Merged/Bundled, proper Listed) ── */
 function updateStats(ds) {
-  setChip('statTotal',   ds.length+' Products');
-  setChip('statListed',  ds.filter(p=>toBool(p['Warehouse'])&&toBool(p['Arrived'])).length+' Listed');
-  setChip('statArrived', ds.filter(p=>toBool(p['Arrived'])).length+' Arrived');
-  setChip('statMerged',  ds.filter(p=>toBool(p['Merged'])).length+' Merged');
-  setChip('statBundled', ds.filter(p=>toBool(p['Bundled'])).length+' Bundled');
+  const needsListing = ds.filter(p => getStage(p)==='listing').length;
+  const needVeeqo    = ds.filter(p => getStage(p)==='veeqo').length;
+  const awaitDel     = ds.filter(p => getStage(p)==='ready').length;
+  const listed       = ds.filter(p => getStage(p)==='listed').length;
+
+  setChip('statTotal',          ds.length + ' Products');
+  setChip('statNeedsListing',   needsListing + ' Needs Listing');
+  setChip('statNeedVeeqo',      needVeeqo + ' Need Veeqo');
+  setChip('statAwaitingDelivery', awaitDel + ' Awaiting Delivery');
+  setChip('statListed',         listed + ' Fully Listed');
 }
 function setChip(id,text) {
   const el=document.getElementById(id); if(!el) return;
-  el.innerHTML=el.querySelector('svg').outerHTML+'<span>'+text+'</span>';
+  const svg = el.querySelector('svg');
+  el.innerHTML=(svg?svg.outerHTML:'')+'<span>'+text+'</span>';
 }
 
-/* ─── LISTED TABLE MODAL ─────────────────────────────────────────── */
+/* ─── LISTED TABLE MODAL (request #2 — fixed height, scrollable, editable via drawer) ── */
 function showListedTable() {
   const src = filtered.length ? filtered : allData;
-  const listed = src.filter(p=>toBool(p['Warehouse'])&&toBool(p['Arrived']));
-  document.getElementById('tableModalTitle').innerHTML='Listed Products <span class="modal-count">'+listed.length+'</span>';
-  const cols=['Listing Name','ASINs','Unit Cost','ASIN Cost','Sale Quantity','Sales','QTY Purchased','COGs','Warehouse','Arrived','Merged','Bundled','List eBay','List TikTok','eBay Pack Size','eBay Listing Price','TikTok Pack Size','TikTok Listing Price'];
+  const listed = src.filter(p=>getStage(p)==='listed');
+  document.getElementById('tableModalTitle').innerHTML='Fully Listed Products <span class="modal-count">'+listed.length+'</span>';
+  const cols=['Listing Name','ASINs','Unit Cost','ASIN Cost','Sale Quantity','Sales','QTY Purchased','COGs','List eBay','List TikTok','eBay Pack Size','eBay Listing Price','TikTok Pack Size','TikTok Listing Price'];
   let html='<table class="data-table"><thead><tr>'+cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>';
   if (!listed.length) {
-    html+='<tr><td colspan="'+cols.length+'" style="text-align:center;padding:30px;color:#94a3b8;">No listed products</td></tr>';
+    html+='<tr><td colspan="'+cols.length+'" style="text-align:center;padding:30px;color:#94a3b8;">No fully listed products</td></tr>';
   } else {
-    const boolCols=['Warehouse','Arrived','Merged','Bundled','List eBay','List TikTok'];
-    const moneyI=['Unit Cost','ASIN Cost','COGs','eBay Listing Price','TikTok Listing Price'];
-    const moneyO=['Sales'];
+    const boolCols=['List eBay','List TikTok'];
+    const moneyCols=['Unit Cost','ASIN Cost','COGs','eBay Listing Price','TikTok Listing Price'];
     listed.forEach(row=>{
-      html+='<tr>'+cols.map(c=>{
+      const rid = ea(row['Opportunity ID']||'');
+      html+='<tr onclick="closeTableModal();openDrawer(\''+rid+'\')" style="cursor:pointer;">'+cols.map(c=>{
         const v=row[c];
         if(boolCols.includes(c)){const b=toBool(v);return '<td class="'+(b?'bool-yes':'bool-no')+'">'+(b?'Yes':'No')+'</td>';}
-        if(moneyI.includes(c)){const n=parseFloat(v);return '<td>'+(isNaN(n)?'—':'£'+n.toFixed(2))+'</td>';}
-        if(moneyO.includes(c)){const n=parseFloat(v);return '<td>'+(isNaN(n)?'—':'£'+n.toFixed(0))+'</td>';}
+        if(moneyCols.includes(c)){const n=parseFloat(v);return '<td>'+(isNaN(n)?'—':'£'+n.toFixed(2))+'</td>';}
         return '<td>'+esc(v||'—')+'</td>';
       }).join('')+'</tr>';
     });
@@ -552,7 +612,7 @@ function clearFilters() {
 function renderKanban() {
   const wrapper=document.getElementById('kanbanWrapper');
   const groups={};COLUMNS.forEach(c=>groups[c.key]=[]);
-  filtered.forEach(row=>{const s=getStage(row);if(groups[s]) groups[s].push(row);/* 'listed' skipped */});
+  filtered.forEach(row=>{const s=getStage(row);if(groups[s]) groups[s].push(row);});
   wrapper.innerHTML='';
   COLUMNS.forEach(col=>{
     const items=groups[col.key];
@@ -571,9 +631,11 @@ function renderKanban() {
         const id=row['Opportunity ID']||'';
         const card=document.createElement('div');card.className='kanban-card';card.draggable=true;card.dataset.id=id;
         const rowDate=parseRowDate(row),dateStr=rowDate?fmtDate(rowDate):'';
+        const salesVal = parseFloat(row['Sales']);
+        const salesDisplay = isNaN(salesVal) ? '—' : salesVal.toFixed(0);
         card.innerHTML='<div class="kanban-card-name">'+esc(row['Listing Name']||'—')+'</div>'
           +'<div class="kanban-card-meta"><span class="kanban-card-asin">'+esc(row['ASINs']||'')+'</span>'+(dateStr?'<span class="kanban-card-date-dot"></span><span class="kanban-card-date">'+esc(dateStr)+'</span>':'')+'</div>'
-          +'<div class="kanban-card-stats"><div><div class="kc-stat-label">Unit Cost</div><div class="kc-stat-val">£'+fmt(row['Unit Cost'])+'</div></div><div><div class="kc-stat-label">Sales</div><div class="kc-stat-val">£'+fmt(row['Sales'])+'</div></div><div><div class="kc-stat-label">Qty</div><div class="kc-stat-val">'+(row['Sale Quantity']||'—')+'</div></div></div>'
+          +'<div class="kanban-card-stats"><div><div class="kc-stat-label">Unit Cost</div><div class="kc-stat-val">£'+fmt(row['Unit Cost'])+'</div></div><div><div class="kc-stat-label">Sales</div><div class="kc-stat-val">'+salesDisplay+'</div></div><div><div class="kc-stat-label">Qty</div><div class="kc-stat-val">'+(row['Sale Quantity']||'—')+'</div></div></div>'
           +'<div class="kanban-card-platforms">'+renderCardPlatforms(row)+'</div>';
         card.addEventListener('click',()=>openDrawer(id));
         card.addEventListener('dragstart',e=>{dragSrcId=id;card.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
@@ -624,10 +686,15 @@ function renderDrawer(row) {
     listing:'<span class="drawer-stage-badge dsb-listing">Need Listing</span>',
     veeqo:  '<span class="drawer-stage-badge dsb-veeqo">Need Veeqo</span>',
     ready:  '<span class="drawer-stage-badge dsb-ready">Awaiting Delivery</span>',
-    listed: '<span class="drawer-stage-badge dsb-ready">Listed</span>',
+    listed: '<span class="drawer-stage-badge dsb-ready">Fully Listed</span>',
   }[stage]||'';
-  const unitCost=parseFloat(row['Unit Cost']),asinCost=parseFloat(row['ASIN Cost']);
-  const sales=parseFloat(row['Sales']),rowDate=parseRowDate(row),dAgo=daysAgo(rowDate),dateStr=rowDate?fmtDate(rowDate):'';
+  const rowDate=parseRowDate(row),dAgo=daysAgo(rowDate),dateStr=rowDate?fmtDate(rowDate):'';
+
+  /* ── KPI row = eBay Pack Size, eBay Listing Price, TikTok Pack Size, TikTok Listing Price (request #5) ── */
+  const ebayPS  = parseFloat(row['eBay Pack Size']);
+  const ebayLP  = parseFloat(row['eBay Listing Price']);
+  const ttPS    = parseFloat(row['TikTok Pack Size']);
+  const ttLP    = parseFloat(row['TikTok Listing Price']);
 
   document.getElementById('drawerHeader').innerHTML=
     '<div class="drawer-hero">'
@@ -638,10 +705,10 @@ function renderDrawer(row) {
     +(dateStr?'<span class="drawer-meta-sep"></span><span class="drawer-product-date">'+esc(dateStr)+'</span>'+(dAgo!==null?'<span class="drawer-date-ago">'+daysAgoLabel(dAgo)+'</span>':''):'')
     +'</div>'
     +'<div class="drawer-kpi-row">'
-    +kpi('#5997e4','<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>','Unit Cost',!isNaN(unitCost)?'£'+unitCost.toFixed(2):'—')
-    +kpi('#5997e4','<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>','ASIN Cost',!isNaN(asinCost)?'£'+asinCost.toFixed(2):'—')
-    +kpi('#5997e4','<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>','Sale Qty',row['Sale Quantity']||'—')
-    +kpi('#5997e4','<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>','Sales',!isNaN(sales)?'£'+sales.toFixed(0):'—')
+    +kpi('#60a5fa','<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>','eBay Pack',!isNaN(ebayPS)?ebayPS:'—')
+    +kpi('#60a5fa','<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>','eBay Price',!isNaN(ebayLP)?'£'+ebayLP.toFixed(2):'—')
+    +kpi('#f472b6','<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>','TikTok Pack',!isNaN(ttPS)?ttPS:'—')
+    +kpi('#f472b6','<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>','TikTok Price',!isNaN(ttLP)?'£'+ttLP.toFixed(2):'—')
     +'</div></div>';
 
   document.getElementById('drawerTabs').innerHTML=
@@ -659,7 +726,7 @@ function renderDrawer(row) {
       +editCard(id,'ASINs',row['ASINs']||'','text','ASINs')
       +boolDropCard(id,'Warehouse Notified',row['Warehouse'],'Warehouse')
       +boolDropCard(id,'Delivery Received',row['Arrived'],'Arrived')
-      +'</div>'
+      +'</div></div>'
       +sec('Financials')+'<div class="info-grid">'
       +editCard(id,'QTY Purchased',row['QTY Purchased']||'','number','QTY Purchased')
       +editCard(id,'Sales',row['Sales']||'','number','Sales')
@@ -667,7 +734,7 @@ function renderDrawer(row) {
       +editCard(id,'ASIN Cost',row['ASIN Cost']||'','number','ASIN Cost')
       +editCard(id,'Sale Quantity',row['Sale Quantity']||'','number','Sale Quantity')
       +editCard(id,'COGs',row['COGs']||'','number','COGs')
-      +'</div>'
+      +'</div></div>';
   }
 
   /* ── PLATFORMS TAB ── */
@@ -677,22 +744,20 @@ function renderDrawer(row) {
       +'<div class="plat-toggle-card auto-managed '+(amzOn?'on':'')+'"><div class="plat-icon-sm amz">'+ICONS.amazon+'</div><div class="plat-toggle-name">Amazon</div><div class="plat-toggle-status">'+(amzOn?'Active':'Off')+'</div></div>'
       +'<div class="plat-toggle-card auto-managed '+(listEbay?'on':'')+'"><div class="plat-icon-sm ebay">'+ICONS.ebay+'</div><div class="plat-toggle-name">eBay</div><div class="plat-toggle-status">'+(listEbay?'Active':'Off')+'</div></div>'
       +'<div class="plat-toggle-card auto-managed '+(listTT?'on':'')+'"><div class="plat-icon-sm tt">'+ICONS.tiktok+'</div><div class="plat-toggle-name">TikTok</div><div class="plat-toggle-status">'+(listTT?'Active':'Off')+'</div></div>'
-      +'</div>'
-
-
+      +'</div></div>'
 
       +sec('eBay Details'+(listEbay?'':' — Disabled'))+'<div class="info-grid'+(listEbay?'':' grayed-out')+'">'
       +autoCard('eBay Pack Size',row['eBay Pack Size'])
       +autoCard('eBay Listing Price',row['eBay Listing Price'],'£')
-      +'</div>'
+      +'</div></div>'
 
       +sec('TikTok Details'+(listTT?'':' — Disabled'))+'<div class="info-grid'+(listTT?'':' grayed-out')+'">'
       +autoCard('TikTok Pack Size',row['TikTok Pack Size'])
       +autoCard('TikTok Listing Price',row['TikTok Listing Price'],'£')
-      +'</div>';
+      +'</div></div>';
   }
 
-  /* ── MARKETING TAB (was checklist + ebay merged here) ── */
+  /* ── MARKETING TAB (request #6 — fixed eBay section showing) ── */
   if(activeDrawerTab==='checklist') {
     body+=sec('Veeqo')+'<div class="info-grid">'
       +boolDropCard(id,'Title Clear',row['Title Clear'],'Title Clear')
@@ -700,18 +765,20 @@ function renderDrawer(row) {
       +boolDropCard(id,'Dimensions Set',row['Dimensions Set'],'Dimensions Set')
       +boolDropCard(id,'Merged',row['Merged'],'Merged')
       +boolDropCard(id,'Bundled',row['Bundled'],'Bundled')
-      +'</div>'
+      +'</div></div>'
+
       +sec('Amazon')+'<div class="info-grid">'
       +boolDropCard(id,'Consumer Multi-buy',row['Consumer Multi-buy'],'Consumer Multi-buy')
       +boolDropCard(id,'B2B Multi-buy',row['B2B Multi-buy'],'B2B Multi-buy')
       +boolDropCard(id,'B2B Pricing',row['B2B Pricing'],'B2B Pricing')
       +boolDropCard(id,'Advertising Campaigns',row['Advertising Campaigns'],'Advertising Campaigns')
       +boolDropCard(id,'Seller Toolkit (STK)',row['Seller Toolkit (STK)'],'Seller Toolkit (STK)')
-      +'</div>';
-      +sec('eBay Details'+(listEbay?'':' — Disabled'))+'<div class="info-grid'+(listEbay?'':' grayed-out')+'">'
+      +'</div></div>'
+
+      +sec('eBay'+(listEbay?'':' — Disabled'))+'<div class="info-grid'+(listEbay?'':' grayed-out')+'">'
       +boolDropCard(id,'eBay Multi-buy',row['eBay Multi-buy'],'eBay Multi-buy')
       +boolDropCard(id,'eBay Ads',row['eBay Ads'],'eBay Ads')
-      +'</div>';
+      +'</div></div>';
   }
 
   document.getElementById('drawerBody').innerHTML=body;
@@ -729,8 +796,10 @@ function tab(t,id,icon,label) {
 }
 function switchTab(t,id) { activeDrawerTab=t; const row=allData.find(p=>(p['Opportunity ID']||'')===id); if(row) renderDrawer(row); }
 
+/* ── Edit card with icon label (request #4) ── */
 function editCard(id,label,value,type,key) {
   const disp=(value===undefined||value===null)?'':String(value).trim();
+  const icon = getFieldIcon(label);
   let inp;
   if(type.startsWith('select:')) {
     const opts=type.replace('select:','').split(',').map(o=>'<option value="'+ea(o)+'"'+(o.toLowerCase()===disp.toLowerCase()?' selected':'')+'>'+esc(o)+'</option>').join('');
@@ -741,29 +810,32 @@ function editCard(id,label,value,type,key) {
   } else {
     inp='<input type="text" class="edit-input" value="'+ea(disp)+'" onblur="saveField(\''+ea(id)+'\',\''+ea(key)+'\',this.value)">';
   }
-  return '<div class="info-card"><label>'+esc(label)+'</label>'+inp+'</div>';
+  return '<div class="info-card"><label>'+icon+esc(label)+'</label>'+inp+'</div>';
 }
 
 function readCard(label,value) {
-  return '<div class="info-card"><label>'+esc(label)+'</label><div class="read-val">'+esc(String(value))+'</div></div>';
+  const icon = getFieldIcon(label);
+  return '<div class="info-card"><label>'+icon+esc(label)+'</label><div class="read-val">'+esc(String(value))+'</div></div>';
 }
 
-/* Bool field rendered as Yes/No dropdown (green/red) */
+/* Bool field rendered as Yes/No dropdown with icon label (request #4) */
 function boolDropCard(id,label,value,key) {
   const on=toBool(value);
   const cls=on?'yes':'no';
-  return '<div class="info-card"><label>'+esc(label)+'</label>'
+  const icon = getFieldIcon(label);
+  return '<div class="info-card"><label>'+icon+esc(label)+'</label>'
     +'<select class="bool-select '+cls+'" onchange="saveBoolDrop(\''+ea(id)+'\',\''+ea(key)+'\',this)">'
     +'<option value="Yes"'+(on?' selected':'')+'>Yes</option>'
     +'<option value="No"'+(!on?' selected':'')+'>No</option>'
     +'</select></div>';
 }
 
-/* Auto-calculated field (read-only display) */
+/* Auto-calculated field with icon label (request #4) */
 function autoCard(label,value,prefix) {
   const n=parseFloat(value);
-  const display=isNaN(n)?'—':(prefix||'')+n+(prefix?'':' units');
-  return '<div class="info-card"><label>'+esc(label)+'</label>'
+  const display=isNaN(n)?'—':(prefix||'')+n.toFixed(prefix?2:0)+(prefix?'':' units');
+  const icon = getFieldIcon(label);
+  return '<div class="info-card"><label>'+icon+esc(label)+'</label>'
     +'<div class="auto-val">'+esc(display)+'<span class="auto-badge">AUTO</span></div></div>';
 }
 
@@ -783,8 +855,13 @@ async function toggleBool(id,key,newBoolVal) {
   showToast('Saving…','info');
   if(API_URL){
     try{
+      // Save the bool field
       const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'updateListingField',opportunityId:id,field:key,value:v}),headers:{'Content-Type':'text/plain'}});
       const d=await res.json();if(d.success===false) throw new Error(d.message);
+
+      // Request #1: Also save auto-calculated fields to the sheet
+      await saveAutoFieldsToSheet(allData[idx]);
+
       showToast('Saved','success');
     }catch(e){console.error(e);showToast('Error saving','error');}
   }else{showToast('Saved','success');}
@@ -800,11 +877,40 @@ async function saveField(id,field,value) {
     try{
       const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'updateListingField',opportunityId:id,field,value}),headers:{'Content-Type':'text/plain'}});
       const d=await res.json();if(d.success===false) throw new Error(d.message);
+
+      // Request #1: Also save auto-calculated fields to the sheet
+      await saveAutoFieldsToSheet(allData[idx]);
+
       showToast('Saved','success');
     }catch(e){console.error(e);showToast('Error saving','error');}
   }else{showToast('Saved','success');}
   if(document.getElementById('detailDrawer').classList.contains('open')) renderDrawer(allData[idx]);
   updateStats(allData);applyFilters();
+}
+
+/* ─── Request #1: Save auto-calculated fields back to sheet ─────── */
+async function saveAutoFieldsToSheet(row) {
+  const id = row['Opportunity ID'] || '';
+  if (!id || !API_URL) return;
+
+  const autoFields = {
+    'List TikTok': row['List TikTok'] || '',
+    'TikTok Pack Size': row['TikTok Pack Size'] || '',
+    'TikTok Listing Price': row['TikTok Listing Price'] || '',
+    'List eBay': row['List eBay'] || '',
+    'eBay Pack Size': row['eBay Pack Size'] || '',
+    'eBay Listing Price': row['eBay Listing Price'] || '',
+  };
+
+  for (const [field, value] of Object.entries(autoFields)) {
+    try {
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'updateListingField', opportunityId: id, field, value: String(value) }),
+        headers: { 'Content-Type': 'text/plain' }
+      });
+    } catch (e) { console.error('Auto-save field error:', field, e); }
+  }
 }
 
 /* ─── TOAST ──────────────────────────────────────────────────────── */
@@ -826,9 +932,8 @@ window.toggleFilters=toggleFilters;window.applyFilters=applyFilters;window.clear
 window.onDatePresetChange=onDatePresetChange;window.closeDrawer=closeDrawer;window.switchTab=switchTab;
 window.saveField=saveField;window.toggleBool=toggleBool;window.saveBoolDrop=saveBoolDrop;
 window.showListedTable=showListedTable;window.closeTableModal=closeTableModal;
+window.openDrawer=openDrawer;
 
 init();
 })();
 </script>
-
-  
