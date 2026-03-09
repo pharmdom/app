@@ -433,33 +433,37 @@ function applyAutoFields(row) {
     row['List TikTok'] = list;
   }
 
-  const cogs = parseFloat(row['COGs']) || 0;
+const unitCost = parseFloat(row['Unit Cost']) || 0;
+const asinCost = parseFloat(row['ASIN Cost']) || 0;
 
-  if (cogs) {
+// Priority: Unit Cost > ASIN Cost
+const cost = unitCost || asinCost;
+
+  if (cost) {
     const minP=14, maxP=17.99;
-    const p1 = ((cogs*1.35)+3)/0.6634;
-    const p2 = ((cogs*2*1.35)+3)/0.6634;
+    const p1 = ((cost*1.35)+3)/0.6634;
+    const p2 = ((cost*2*1.35)+3)/0.6634;
     if (p1<minP) row['eBay Pack Size']=1;
     else if (p2>maxP) row['eBay Pack Size']=1;
     else row['eBay Pack Size']=Math.max(2,2*Math.ceil(((minP*0.6634)-3)/(cogs*1.35*2)));
   }
 
   const ebayPack = parseFloat(row['eBay Pack Size'])||0;
-  if (cogs && ebayPack) {
-    const raw=((cogs*ebayPack*1.35)+3)/0.6634;
+  if (cost && ebayPack) {
+    const raw=((cost*ebayPack*1.35)+3)/0.6634;
     row['eBay Listing Price']=+(Math.ceil(raw+0.01)-0.01).toFixed(2);
   }
 
-  if (cogs) {
+  if (cost) {
     const minP=14;
-    const singleP=(cogs*1.35)/0.5834;
+    const singleP=(cost*1.35)/0.5834;
     if (singleP>=minP) row['TikTok Pack Size']=1;
-    else row['TikTok Pack Size']=Math.max(1,2*Math.ceil((minP*0.5834)/(cogs*1.35*2)));
+    else row['TikTok Pack Size']=Math.max(1,2*Math.ceil((minP*0.5834)/(cost*1.35*2)));
   }
 
   const ttPack = parseFloat(row['TikTok Pack Size'])||0;
-  if (cogs && ttPack) {
-    const raw=(cogs*ttPack*1.35)/0.5834;
+  if (cost && ttPack) {
+  const raw=(cost*ttPack*1.35)/0.5834;
     row['TikTok Listing Price']=+(Math.ceil(raw+0.01)-0.01).toFixed(2);
   }
 }
@@ -714,8 +718,6 @@ function renderDrawer(row) {
       +editCard(id,'Sales',row['Sales']||'','number','Sales')
       +editCard(id,'Unit Cost',row['Unit Cost']||'','number','Unit Cost')
       +editCard(id,'ASIN Cost',row['ASIN Cost']||'','number','ASIN Cost')
-      +editCard(id,'Sale Quantity',row['Sale Quantity']||'','number','Sale Quantity')
-      +editCard(id,'COGs',row['COGs']||'','number','COGs')
       +'</div></div>';
   }
 
