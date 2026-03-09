@@ -430,11 +430,16 @@ const qty   = parseFloat(row['QTY Purchased']) || 0;
 
 // Marketplace eligibility
 if (qty > sales) {
-  row['List eBay']   = 'Yes';
-  row['List TikTok'] = 'Yes';
+
+  // Only set default if not already Active
+  if (row['List eBay'] !== 'Yes')   row['List eBay'] = 'Listing required';
+  if (row['List TikTok'] !== 'Yes') row['List TikTok'] = 'Listing required';
+
 } else {
+
   row['List eBay']   = 'No';
   row['List TikTok'] = 'No';
+
 }
 
 const unitCost = parseFloat(row['Unit Cost']) || 0;
@@ -712,8 +717,13 @@ const qty   = parseFloat(row['QTY Purchased']) || 0;
 const listEbay = qty > sales;
 const listTT   = qty > sales;
 
-const ebayActive = toBool(row['List eBay']);
-const ttActive   = toBool(row['List TikTok']);
+const ebayStatus = row['List eBay'];
+const ttStatus   = row['List TikTok'];
+
+const ebayActive = ebayStatus === 'Yes';
+const ttActive   = ttStatus === 'Yes';
+
+  
 let body='';
 
   /* ── OVERVIEW TAB ── */
@@ -757,7 +767,7 @@ if(activeDrawerTab==='platforms') {
   +'<div class="plat-icon-sm ebay">'+ICONS.ebay+'</div>'
   +'<div class="plat-toggle-name">eBay</div>'
   +'<div class="plat-toggle-status">'
-  +(listEbay ? (ebayActive?'Active':'Listing required') : 'N/a')
+  +(listEbay ? (ebayStatus === 'Yes' ? 'Active' : 'Listing required') : 'N/a')
   +'</div></div>'
 
   // TIKTOK
@@ -766,7 +776,7 @@ if(activeDrawerTab==='platforms') {
   +'<div class="plat-icon-sm tt">'+ICONS.tiktok+'</div>'
   +'<div class="plat-toggle-name">TikTok</div>'
   +'<div class="plat-toggle-status">'
-  +(listTT ? (ttActive?'Active':'Listing required') : 'N/a')
+  +(listTT ? (ttStatus === 'Yes' ? 'Active' : 'Listing required') : 'N/a')
   +'</div></div>'
 
   +'</div></div>';
