@@ -675,14 +675,53 @@ function renderCardPlatforms(row) {
 
 /* ─── DRAWER ─────────────────────────────────────────────────────── */
 function openDrawer(id) {
+
+  document.getElementById('detailDrawer').dataset.currentId = id;
+  
   const row=allData.find(p=>(p['Opportunity ID']||'')===id);if(!row) return;
   activeDrawerTab='overview';renderDrawer(row);
   document.getElementById('detailDrawer').classList.add('open');
   document.getElementById('drawerOverlay').classList.add('visible');
 }
+
+function refreshCard(id) {
+
+  const row = allData.find(p => (p['Opportunity ID'] || '') === id);
+  if (!row) return;
+
+  const card = document.querySelector('.kanban-card[data-id="'+id+'"]');
+  if (!card) return;
+
+  const rowDate = parseRowDate(row);
+  const dateStr = rowDate ? fmtDate(rowDate) : '';
+
+  const salesVal = parseFloat(row['Sales']);
+  const salesDisplay = isNaN(salesVal) ? '—' : salesVal.toFixed(0);
+
+  card.innerHTML =
+    '<div class="kanban-card-name">'+esc(row['Listing Name']||'—')+'</div>'
+    +'<div class="kanban-card-meta">'
+      +'<span class="kanban-card-asin">'+esc(row['ASINs']||'')+'</span>'
+      +(dateStr?'<span class="kanban-card-date-dot"></span><span class="kanban-card-date">'+esc(dateStr)+'</span>':'')
+    +'</div>'
+    +'<div class="kanban-card-stats">'
+      +'<div><div class="kc-stat-label">Unit Cost</div><div class="kc-stat-val">£'+fmt(row['Unit Cost'])+'</div></div>'
+      +'<div><div class="kc-stat-label">Sales</div><div class="kc-stat-val">'+salesDisplay+'</div></div>'
+      +'<div><div class="kc-stat-label">Qty</div><div class="kc-stat-val">'+(row['Sale Quantity']||'—')+'</div></div>'
+    +'</div>'
+    +'<div class="kanban-card-platforms">'+renderCardPlatforms(row)+'</div>';
+}
+  
 function closeDrawer() {
-  document.getElementById('detailDrawer').classList.remove('open');
+
+  const drawer = document.getElementById('detailDrawer');
+  const id = drawer.dataset.currentId;
+
+  drawer.classList.remove('open');
   document.getElementById('drawerOverlay').classList.remove('visible');
+
+  if(id) refreshCard(id);
+
 }
 
 function renderDrawer(row) {
