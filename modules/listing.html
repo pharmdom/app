@@ -739,6 +739,7 @@ function closeDrawer() {
 
 function renderDrawer(row) {
   const id=row['Opportunity ID']||'',stage=getStage(row);
+  const needsListing = stage === 'listing';
   const stageBadge={
     listing:'<span class="drawer-stage-badge dsb-listing">Need Listing</span>',
     veeqo:  '<span class="drawer-stage-badge dsb-veeqo">Veeqo & Marketing</span>',
@@ -783,19 +784,19 @@ document.getElementById('drawerHeader').innerHTML=
 +kpi('#f472b6','<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>','TikTok Price', marketplacesNA ? 'N/a' : (!isNaN(ttLP) ? '£'+ttLP.toFixed(2) : '—'))
 +'</div></div>';
   
- document.getElementById('drawerTabs').innerHTML=
+document.getElementById('drawerTabs').innerHTML=
   tab('overview', id,
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
     'Overview')
- +tab('platforms', id,
+ +(!needsListing ? tab('platforms', id,
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
-    'Platforms')
- +tab('checklist', id,
+    'Platforms') : '')
+ +(!needsListing ? tab('checklist', id,
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
-    'Marketing')
- +tab('veeqo', id,
+    'Marketing') : '')
+ +(!needsListing ? tab('veeqo', id,
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>',
-    'Veeqo');
+    'Veeqo') : '');
     
 let body='';
 
@@ -806,8 +807,8 @@ let body='';
       +editCard(id,'ASINs',row['ASINs']||'','text','ASINs')
       +editCard(id,'Supplier Name',row['Supplier Name']||'','text','Supplier Name')
       +editCard(id,'Code',row['Code']||'','text','Code')
-      +boolDropCard(id,'Warehouse Notified',row['Warehouse'],'Warehouse')
-      +boolDropCard(id,'Delivery Received',row['Arrived'],'Arrived')
+      +(needsListing ? '' : boolDropCard(id,'Warehouse Notified',row['Warehouse'],'Warehouse'))
+      +(needsListing ? '' : boolDropCard(id,'Delivery Received',row['Arrived'],'Arrived'))
       +'</div></div>'
       +sec('Financials')+'<div class="info-grid">'
       +editCard(id,'QTY Purchased',row['QTY Purchased']||'','number','QTY Purchased')
