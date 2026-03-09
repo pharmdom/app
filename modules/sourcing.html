@@ -435,6 +435,11 @@ col.col-agent     { width: 110px; }
   display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .7px; color: #94a3b8; margin-bottom: 9px; padding-bottom: 7px; border-bottom: 1px solid #f1f5f9;
 }
+.form-control.required-error {
+  border-color: #ef4444 !important;
+  background: #fff1f2;
+  box-shadow: 0 0 0 2px rgba(239,68,68,.15);
+}
 .form-section-title svg { width: 11px; height: 11px; flex-shrink: 0; }
 .form-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .form-grid2 .full { grid-column: 1 / -1; }
@@ -1539,7 +1544,7 @@ function formSection(icon, title, inner) {
 }
 
 
-  function validateAddProductForm() {
+function validateAddProductForm() {
 
   const requiredFields = [
     'f_productName',
@@ -1559,21 +1564,41 @@ function formSection(icon, title, inner) {
     'f_competition'
   ];
 
-  for (let id of requiredFields) {
+  let firstError = null;
+
+  requiredFields.forEach(id => {
     const el = document.getElementById(id);
-    if (!el || !el.value || el.value.trim() === '') {
-      return false;
+
+    if (!el.value || el.value.trim() === '') {
+
+      el.classList.add('required-error');
+
+      if (!firstError) firstError = el;
+
+      el.addEventListener('input', () => {
+        el.classList.remove('required-error');
+      }, { once:true });
+
+    } else {
+      el.classList.remove('required-error');
     }
+
+  });
+
+  if (firstError) {
+    firstError.scrollIntoView({ behavior:'smooth', block:'center' });
+    firstError.focus();
+    return false;
   }
 
   return true;
 }
-  
+
 
 async function saveProduct() {
 
   if (!validateAddProductForm()) {
-    showToast('Please complete all fields before saving', 'error');
+    showToast('Please complete all required fields', 'error');
     return;
   }
 
