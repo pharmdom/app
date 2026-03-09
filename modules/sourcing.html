@@ -1195,12 +1195,32 @@ function saveAsins(id) {
 }
 
 function onPurchasedChange(id, value) {
+
+  const row = allData.find(p => p['Opportunity ID'] === id);
+  if (!row) return;
+
+  const approvals = parseJSON(row['Approvals'], []);
+  const approvedCount = approvals.filter(a => a.status !== 'rejected').length;
+
+  // ❌ Block purchase if no approvals
+  if (value === 'Yes' && approvedCount === 0) {
+    showToast('This product is not approved yet.', 'error');
+
+    // reset select back to No
+    const select = document.getElementById('purchasedSelect_' + id);
+    if (select) select.value = 'No';
+
+    return;
+  }
+
   const extra = document.getElementById('purchasedExtra_' + id);
   if (extra) extra.style.display = value === 'Yes' ? 'block' : 'none';
+
   if (value === 'Yes') {
     const qtyInput = document.getElementById('qtyPurchasedInput_' + id);
     if (qtyInput && !qtyInput.value) qtyInput.focus();
   }
+
   saveField(id, 'Purchased', value);
   applyYNColors();
 }
