@@ -1121,6 +1121,14 @@ function kpiCard(label, value, cls, key) {
 
 /* ── Special info cards ── */
 function purchasedCard(id, isPurchased, qtyPurchased) {
+
+const row = allData.find(p => p['Opportunity ID'] === id);
+const approvals = parseJSON(row['Approvals'], []);
+const approvedCount = approvals.filter(a => a.status === 'approved').length;
+
+// Hide Purchased field if there are no approvals
+if (approvedCount === 0) return '';
+  
 const sel = '<select class="edit-select" id="purchasedSelect_' + escAttr(id) + '" onchange="onPurchasedChange(\'' + escAttr(id) + '\', this.value)">'
   + '<option value="">—</option>'
   + '<option value="Yes"' + (isPurchased ? ' selected' : '') + '>Yes</option>'
@@ -1200,11 +1208,11 @@ function onPurchasedChange(id, value) {
   if (!row) return;
 
   const approvals = parseJSON(row['Approvals'], []);
-  const approvedCount = approvals.filter(a => a.status !== 'rejected').length;
+  const approvedCount = approvals.filter(a => a.status === 'approved').length;
 
   // ❌ Block purchase if no approvals
   if (value === 'Yes' && approvedCount === 0) {
-    showToast('This product is not approved yet.', 'error');
+    showToast('This product is not approved.', 'error');
 
     // reset select back to No
     const select = document.getElementById('purchasedSelect_' + id);
