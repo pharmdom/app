@@ -425,16 +425,17 @@ function getStage(row) {
 /* ─── AUTO-CALCULATED FIELDS ────────────────────────────────────── */
 function applyAutoFields(row) {
 
-  row['Advertising Campaigns'] = 'Yes';
+const sales = parseFloat(row['Sales']) || 0;
+const qty   = parseFloat(row['QTY Purchased']) || 0;
 
-  const sales = parseFloat(row['Sales'])        || 0;
-  const qty   = parseFloat(row['QTY Purchased']) || 0;
-
-  if (qty > 0 || sales > 0) {
-    const list = (qty > sales && qty > 0) ? 'Yes' : 'No';
-    row['List eBay']   = list;
-    row['List TikTok'] = list;
-  }
+// Marketplace eligibility
+if (qty > sales) {
+  row['List eBay']   = 'Yes';
+  row['List TikTok'] = 'Yes';
+} else {
+  row['List eBay']   = 'No';
+  row['List TikTok'] = 'No';
+}
 
 const unitCost = parseFloat(row['Unit Cost']) || 0;
 const asinCost = parseFloat(row['ASIN Cost']) || 0;
@@ -705,8 +706,15 @@ function renderDrawer(row) {
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>',
     'Veeqo');
   
-  const listEbay=toBool(row['List eBay']),listTT=toBool(row['List TikTok']);
-  let body='';
+const sales = parseFloat(row['Sales']) || 0;
+const qty   = parseFloat(row['QTY Purchased']) || 0;
+
+const listEbay = qty > sales;
+const listTT   = qty > sales;
+
+const ebayActive = toBool(row['List eBay']);
+const ttActive   = toBool(row['List TikTok']);
+let body='';
 
   /* ── OVERVIEW TAB ── */
   if(activeDrawerTab==='overview') {
