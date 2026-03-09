@@ -1121,11 +1121,17 @@ function kpiCard(label, value, cls, key) {
 
 /* ── Special info cards ── */
 function purchasedCard(id, isPurchased, qtyPurchased) {
-  const sel = '<select class="edit-select" id="purchasedSelect_' + escAttr(id) + '" onchange="onPurchasedChange(\'' + escAttr(id) + '\', this.value)">'
-    + '<option value="">—</option>'
-    + '<option value="Yes"' + (isPurchased ? ' selected' : '') + '>Yes</option>'
-    + '<option value="No"' + (!isPurchased ? ' selected' : '') + '>No</option>'
-    + '</select>';
+const row = allData.find(p => p['Opportunity ID'] === id);
+const approvals = parseJSON(row['Approvals'], []);
+const approvedCount = approvals.filter(a => a.status !== 'rejected').length;
+
+const disabledAttr = approvedCount === 0 ? 'disabled title="Requires approval before purchase"' : '';
+
+const sel = '<select class="edit-select" id="purchasedSelect_' + escAttr(id) + '" onchange="onPurchasedChange(\'' + escAttr(id) + '\', this.value)" ' + disabledAttr + '>'
+  + '<option value="">—</option>'
+  + '<option value="Yes"' + (isPurchased ? ' selected' : '') + '>Yes</option>'
+  + '<option value="No"' + (!isPurchased ? ' selected' : '') + '>No</option>'
+  + '</select>';
   const qtySection = '<div class="purchased-extra" id="purchasedExtra_' + escAttr(id) + '" style="' + (isPurchased ? 'display:block' : 'display:none') + '">'
     + '<label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>QTY Purchased</label>'
     + '<input type="number" class="edit-input" id="qtyPurchasedInput_' + escAttr(id) + '" value="' + escAttr(String(qtyPurchased)) + '" placeholder="Enter quantity…" min="0" onblur="saveField(\'' + escAttr(id) + '\', \'QTY Purchased\', this.value)">'
