@@ -1,0 +1,471 @@
+
+<div class="card">
+
+  <div class="header-row">
+    <h2>Suppliers</h2>
+
+    <div class="header-actions">
+      <input id="searchInput" placeholder="Search suppliers..." oninput="filterSuppliers()">
+      <button onclick="openCreateSupplier()" class="primary-btn">
+        + Add Supplier
+      </button>
+    </div>
+  </div>
+
+  <div id="suppliersTable" class="table-container"></div>
+
+</div>
+
+
+<!-- MODAL -->
+<div id="supplierModal" class="modal hidden">
+  <div class="modal-content">
+
+    <div class="modal-header">
+      <h3 id="modalTitle">Create Supplier</h3>
+      <span class="close-btn" onclick="closeModal()">✕</span>
+    </div>
+
+    <input type="hidden" id="supplierId">
+
+    <div class="form-grid">
+
+      <div>
+        <label>Supplier Name</label>
+        <input id="SupplierName">
+      </div>
+
+      <div>
+        <label>Supplier Code</label>
+        <input id="SupplierCode">
+      </div>
+
+      <div>
+        <label>Rank</label>
+        <input id="Rank">
+      </div>
+
+      <div>
+        <label>Price & Relationship</label>
+        <input id="PriceRelationship">
+      </div>
+
+      <div>
+        <label>MOQ</label>
+        <input id="MOQ">
+      </div>
+
+      <div>
+        <label>Credit Account</label>
+        <input id="CreditAccount">
+      </div>
+
+      <div>
+        <label>Card</label>
+        <select id="Card">
+          <option value="">—</option>
+          <option>Yes</option>
+          <option>No</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Contact</label>
+        <input id="Contact">
+      </div>
+
+      <div>
+        <label>WhatsApp</label>
+        <input id="WhatsApp">
+      </div>
+
+      <div style="grid-column: span 2">
+        <label>Notes</label>
+        <textarea id="Notes"></textarea>
+      </div>
+
+    </div>
+
+    <div class="modal-actions">
+      <button onclick="closeModal()">Cancel</button>
+      <button onclick="saveSupplier()" class="primary-btn">Save</button>
+    </div>
+
+  </div>
+</div>
+
+
+<style>
+
+.card{
+  background:white;
+  padding:24px;
+  border-radius:12px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.08);
+}
+
+.header-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.header-actions{
+  display:flex;
+  gap:12px;
+}
+
+#searchInput{
+  padding:8px 12px;
+  border-radius:8px;
+  border:1px solid #ddd;
+}
+
+.primary-btn{
+  background:var(--blue);
+  color:white;
+  border:none;
+  padding:10px 16px;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+.table-container{
+  margin-top:20px;
+  overflow-x:auto;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+th{
+  text-align:left;
+  padding:12px;
+  background:#f1f5f9;
+  font-size:13px;
+}
+
+td{
+  padding:12px;
+  border-bottom:1px solid #eee;
+  font-size:14px;
+}
+
+tr:hover{
+  background:#f9fafb;
+  cursor:pointer;
+}
+
+.rank-pill{
+  background:#e0e7ff;
+  padding:4px 10px;
+  border-radius:20px;
+  font-size:12px;
+  font-weight:600;
+}
+
+.action-btn{
+  border:none;
+  background:none;
+  cursor:pointer;
+  font-size:16px;
+  opacity:.6;
+}
+
+.action-btn:hover{
+  opacity:1;
+}
+
+
+/* MODAL */
+
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.4);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.modal.hidden{
+  display:none;
+}
+
+.modal-content{
+  background:white;
+  padding:30px;
+  border-radius:14px;
+  width:700px;
+  max-height:90vh;
+  overflow-y:auto;
+}
+
+.modal-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.close-btn{
+  cursor:pointer;
+  font-size:18px;
+}
+
+.form-grid{
+  margin-top:20px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+}
+
+.form-grid input,
+.form-grid select,
+.form-grid textarea{
+  width:100%;
+  padding:8px;
+}
+
+.modal-actions{
+  margin-top:20px;
+  text-align:right;
+}
+
+</style>
+
+
+<script>
+
+let allSuppliers = [];
+
+
+/* LOAD SUPPLIERS */
+
+async function loadSuppliers(){
+
+  document.getElementById("suppliersTable").innerHTML="Loading...";
+
+  const res = await fetch(API_URL,{
+    method:"POST",
+    headers:{ "Content-Type":"text/plain" },
+    body:JSON.stringify({
+      action:"getSuppliers"
+    })
+  });
+
+  const result = await res.json();
+
+  if(!result.success) return;
+
+  allSuppliers = result.suppliers;
+
+  renderSuppliers(allSuppliers);
+
+}
+
+
+
+/* RENDER TABLE */
+
+function renderSuppliers(data){
+
+  let html=`
+  <table>
+  <tr>
+    <th>Name</th>
+    <th>Code</th>
+    <th>Rank</th>
+    <th>Price</th>
+    <th>MOQ</th>
+    <th>Contact</th>
+    <th>Actions</th>
+  </tr>`;
+
+  data.forEach(s=>{
+
+    html+=`
+    <tr>
+
+      <td>${s["Supplier Name"]||""}</td>
+      <td>${s["Supplier Code"]||""}</td>
+
+      <td>
+        <span class="rank-pill">
+          ${s["Rank"]||"-"}
+        </span>
+      </td>
+
+      <td>${s["Price & Relationship"]||""}</td>
+
+      <td>${s["MOQ"]||""}</td>
+
+      <td>${s["Contact"]||""}</td>
+
+      <td>
+
+        <button class="action-btn"
+        onclick='editSupplier(${JSON.stringify(s)})'>
+        ✏️
+        </button>
+
+        <button class="action-btn"
+        onclick='deleteSupplier("${s["Supplier ID"]}")'>
+        🗑
+        </button>
+
+      </td>
+
+    </tr>`;
+  });
+
+  html+="</table>";
+
+  document.getElementById("suppliersTable").innerHTML=html;
+
+}
+
+
+
+/* SEARCH */
+
+function filterSuppliers(){
+
+  const value=document
+  .getElementById("searchInput")
+  .value
+  .toLowerCase();
+
+  const filtered=allSuppliers.filter(s=>
+
+    (s["Supplier Name"]||"").toLowerCase().includes(value) ||
+    (s["Supplier Code"]||"").toLowerCase().includes(value)
+
+  );
+
+  renderSuppliers(filtered);
+
+}
+
+
+
+/* OPEN CREATE */
+
+function openCreateSupplier(){
+
+  document.getElementById("modalTitle").innerText="Create Supplier";
+
+  document.getElementById("supplierId").value="";
+
+  document.querySelectorAll("#supplierModal input, #supplierModal textarea")
+  .forEach(i=>i.value="");
+
+  document.getElementById("supplierModal")
+  .classList.remove("hidden");
+
+}
+
+
+
+/* EDIT */
+
+function editSupplier(s){
+
+  document.getElementById("modalTitle").innerText="Edit Supplier";
+
+  document.getElementById("supplierId").value=s["Supplier ID"];
+
+  document.getElementById("SupplierName").value=s["Supplier Name"]||"";
+  document.getElementById("SupplierCode").value=s["Supplier Code"]||"";
+  document.getElementById("Rank").value=s["Rank"]||"";
+  document.getElementById("PriceRelationship").value=s["Price & Relationship"]||"";
+  document.getElementById("MOQ").value=s["MOQ"]||"";
+  document.getElementById("CreditAccount").value=s["Credit Account"]||"";
+  document.getElementById("Card").value=s["Card"]||"";
+  document.getElementById("Contact").value=s["Contact"]||"";
+  document.getElementById("WhatsApp").value=s["WhatsApp"]||"";
+  document.getElementById("Notes").value=s["Notes"]||"";
+
+  document.getElementById("supplierModal")
+  .classList.remove("hidden");
+
+}
+
+
+
+/* CLOSE */
+
+function closeModal(){
+
+  document.getElementById("supplierModal")
+  .classList.add("hidden");
+
+}
+
+
+
+/* SAVE */
+
+async function saveSupplier(){
+
+  const payload={
+    action:"saveSupplier",
+
+    supplierId:document.getElementById("supplierId").value,
+
+    "Supplier Name":document.getElementById("SupplierName").value,
+    "Supplier Code":document.getElementById("SupplierCode").value,
+    "Rank":document.getElementById("Rank").value,
+    "Price & Relationship":document.getElementById("PriceRelationship").value,
+    "MOQ":document.getElementById("MOQ").value,
+    "Credit Account":document.getElementById("CreditAccount").value,
+    "Card":document.getElementById("Card").value,
+    "Contact":document.getElementById("Contact").value,
+    "WhatsApp":document.getElementById("WhatsApp").value,
+    "Notes":document.getElementById("Notes").value
+  };
+
+  const res=await fetch(API_URL,{
+    method:"POST",
+    headers:{ "Content-Type":"text/plain" },
+    body:JSON.stringify(payload)
+  });
+
+  const result=await res.json();
+
+  if(result.success){
+
+    closeModal();
+    loadSuppliers();
+
+  }
+
+}
+
+
+
+/* DELETE */
+
+async function deleteSupplier(id){
+
+  if(!confirm("Delete supplier?")) return;
+
+  await fetch(API_URL,{
+    method:"POST",
+    headers:{ "Content-Type":"text/plain" },
+    body:JSON.stringify({
+      action:"deleteSupplier",
+      supplierId:id
+    })
+  });
+
+  loadSuppliers();
+
+}
+
+
+
+loadSuppliers();
+
+</script>
