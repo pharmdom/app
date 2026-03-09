@@ -1,485 +1,588 @@
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px; color: #0f172a; background: #f8fafc;
+  line-height: 1.5; -webkit-font-smoothing: antialiased;
+}
 
-<div class="card">
+/* ─── PAGE WRAPPER ─────────────────────────────────────────────── */
+.sup-page { padding: 10px 16px 20px; max-width: 100%; min-height: 100vh; display: flex; flex-direction: column; gap: 12px; }
 
-  <div class="header-row">
+/* ─── HEADER ────────────────────────────────────────────────────── */
+.sup-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; flex-shrink: 0; }
+.sup-header-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
+/* Search */
+.sup-search-wrap { position: relative; }
+.sup-search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; width: 14px; height: 14px; pointer-events: none; }
+.sup-search-input { padding: 7px 10px 7px 32px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-family: inherit; background: #fff; color: #0f172a; outline: none; transition: border-color .15s; width: 240px; }
+.sup-search-input:focus { border-color: #2563eb; }
 
-    <div class="header-actions">
-      <input id="searchInput" placeholder="Search suppliers..." oninput="filterSuppliers()">
-      <button onclick="openCreateSupplier()" class="primary-btn">
-        + Add Supplier
+/* Add button */
+.sup-add-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: #0f172a; color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background .15s; white-space: nowrap; }
+.sup-add-btn:hover { background: #1e293b; }
+.sup-add-btn svg { width: 13px; height: 13px; }
+
+/* Stats chips */
+.sup-stats { display: flex; gap: 6px; flex-wrap: wrap; }
+.sup-chip { display: flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 100px; font-size: 12px; font-weight: 600; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; white-space: nowrap; }
+.sup-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+/* ─── TABLE CARD ─────────────────────────────────────────────────── */
+.sup-table-card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; flex: 1; }
+.sup-table-wrap { overflow-x: auto; }
+.sup-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sup-table thead { position: sticky; top: 0; z-index: 2; }
+.sup-table th { background: #f8fafc; padding: 11px 14px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+.sup-table td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; }
+.sup-table tbody tr { transition: background .1s; cursor: pointer; }
+.sup-table tbody tr:hover td { background: #f8fbff; }
+.sup-table tbody tr:last-child td { border-bottom: none; }
+
+/* Avatar / initials */
+.sup-avatar { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; letter-spacing: .3px; flex-shrink: 0; text-transform: uppercase; }
+
+/* Rank pill */
+.rank-pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.rank-1 { background: #fef9c3; color: #854d0e; }
+.rank-2 { background: #e0e7ff; color: #3730a3; }
+.rank-3 { background: #fce7f3; color: #9d174d; }
+.rank-other { background: #f1f5f9; color: #475569; }
+
+/* Bool badge */
+.bool-badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 100px; font-size: 11px; font-weight: 700; }
+.bool-yes { background: #dcfce7; color: #15803d; }
+.bool-no  { background: #fee2e2; color: #dc2626; }
+
+/* Action buttons */
+.sup-action-btns { display: flex; gap: 4px; }
+.sup-action-btn { width: 30px; height: 30px; border: 1.5px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; transition: all .15s; }
+.sup-action-btn:hover { border-color: #2563eb; color: #2563eb; background: #eff6ff; }
+.sup-action-btn.del:hover { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+.sup-action-btn svg { width: 13px; height: 13px; }
+
+/* Name cell */
+.sup-name-cell { display: flex; align-items: center; gap: 10px; }
+.sup-name-text { font-weight: 700; color: #0f172a; font-size: 13px; }
+.sup-code-text { font-size: 10px; color: #94a3b8; font-family: 'SF Mono', monospace; margin-top: 1px; }
+
+/* Empty & loading */
+.sup-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; gap: 10px; color: #94a3b8; text-align: center; }
+.sup-empty svg { opacity: .3; }
+.sup-empty p { font-size: 13px; font-weight: 600; color: #64748b; }
+.sup-empty span { font-size: 12px; }
+.spinner { display: inline-block; width: 22px; height: 22px; border: 3px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin .65s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── MODAL ──────────────────────────────────────────────────────── */
+.sup-modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.35); z-index: 900; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .22s; backdrop-filter: blur(3px); }
+.sup-modal-overlay.visible { opacity: 1; pointer-events: all; }
+.sup-modal { background: #fff; border-radius: 18px; box-shadow: 0 25px 60px rgba(0,0,0,.18); width: 660px; max-width: 96vw; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; transform: translateY(12px); transition: transform .22s; }
+.sup-modal-overlay.visible .sup-modal { transform: translateY(0); }
+
+/* Modal hero */
+.sup-modal-hero { padding: 18px 24px 16px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); position: relative; overflow: hidden; flex-shrink: 0; }
+.sup-modal-hero::before { content: ''; position: absolute; top: -40px; right: -40px; width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,.03); }
+.sup-modal-hero::after  { content: ''; position: absolute; bottom: -20px; left: 24px; width: 80px; height: 80px; border-radius: 50%; background: rgba(37,99,235,.12); }
+.sup-modal-hero-close { position: absolute; top: 14px; right: 14px; width: 28px; height: 28px; border: none; border-radius: 7px; background: rgba(255,255,255,.1); cursor: pointer; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.6); transition: background .15s; z-index: 1; }
+.sup-modal-hero-close:hover { background: rgba(255,255,255,.2); color: #fff; }
+.sup-modal-hero-close svg { width: 13px; height: 13px; }
+.sup-modal-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 100px; margin-bottom: 6px; font-size: 10px; font-weight: 700; letter-spacing: .3px; background: rgba(96,165,250,.15); border: 1px solid rgba(96,165,250,.3); color: #60a5fa; position: relative; z-index: 1; }
+.sup-modal-title { font-size: 16px; font-weight: 800; color: #fff; position: relative; z-index: 1; }
+
+/* Modal body */
+.sup-modal-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+.sup-modal-body::-webkit-scrollbar { width: 4px; }
+.sup-modal-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+
+/* Section label */
+.sup-sec-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #94a3b8; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.sup-sec-label::after { content: ''; flex: 1; height: 1px; background: #f1f5f9; }
+.sup-sec { margin-bottom: 18px; }
+
+/* Form grid */
+.sup-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sup-form-grid .span2 { grid-column: span 2; }
+
+/* Field card — sourcing style: clean border, no shadow */
+.sup-field { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 10px 13px; transition: border-color .15s; }
+.sup-field:focus-within { border-color: #93c5fd; }
+.sup-field label { display: flex; align-items: center; gap: 5px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; margin-bottom: 6px; }
+.sup-field label svg { width: 13px; height: 13px; opacity: .7; flex-shrink: 0; }
+.sup-field input, .sup-field select, .sup-field textarea { width: 100%; padding: 6px 0; border: none; outline: none; font-size: 13px; font-family: inherit; color: #0f172a; background: transparent; resize: none; }
+.sup-field select { appearance: auto; cursor: pointer; }
+.sup-field textarea { min-height: 72px; }
+.sup-field select.val-yes { color: #15803d; font-weight: 700; }
+.sup-field select.val-no  { color: #dc2626; font-weight: 700; }
+
+/* Modal footer */
+.sup-modal-footer { padding: 14px 24px; border-top: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: flex-end; gap: 8px; background: #fafafa; flex-shrink: 0; }
+.sup-cancel-btn { padding: 8px 16px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-weight: 600; font-family: inherit; color: #64748b; background: #fff; cursor: pointer; transition: all .15s; }
+.sup-cancel-btn:hover { border-color: #94a3b8; color: #334155; }
+.sup-save-btn { padding: 8px 20px; background: #0f172a; color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background .15s; display: flex; align-items: center; gap: 6px; }
+.sup-save-btn:hover { background: #1e293b; }
+.sup-save-btn svg { width: 13px; height: 13px; }
+.sup-save-btn.loading { opacity: .65; pointer-events: none; }
+
+/* Delete confirm modal */
+.sup-confirm-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.4); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .18s; backdrop-filter: blur(3px); }
+.sup-confirm-overlay.visible { opacity: 1; pointer-events: all; }
+.sup-confirm-box { background: #fff; border-radius: 14px; padding: 24px; width: 360px; max-width: 90vw; box-shadow: 0 20px 50px rgba(0,0,0,.15); }
+.sup-confirm-icon { width: 44px; height: 44px; border-radius: 12px; background: #fef2f2; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+.sup-confirm-icon svg { width: 20px; height: 20px; color: #dc2626; }
+.sup-confirm-title { font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+.sup-confirm-desc { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+.sup-confirm-btns { display: flex; gap: 8px; justify-content: flex-end; }
+.sup-confirm-cancel { padding: 8px 16px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-weight: 600; font-family: inherit; color: #64748b; background: #fff; cursor: pointer; }
+.sup-confirm-del { padding: 8px 16px; background: #dc2626; color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; }
+.sup-confirm-del:hover { background: #b91c1c; }
+
+/* TOAST */
+.sup-toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 7px; pointer-events: none; }
+.sup-toast { display: flex; align-items: center; gap: 9px; padding: 10px 14px; background: #0f172a; color: #fff; border-radius: 10px; font-size: 13px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.18); animation: toastIn .2s ease; max-width: 300px; pointer-events: auto; }
+.sup-toast.success { background: #15803d; }
+.sup-toast.error   { background: #dc2626; }
+.sup-toast.info    { background: #1e40af; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 640px) {
+  .sup-search-input { width: 160px; }
+  .sup-form-grid { grid-template-columns: 1fr; }
+  .sup-form-grid .span2 { grid-column: span 1; }
+  .sup-modal { border-radius: 12px; }
+}
+</style>
+
+<div class="sup-page">
+
+  <!-- Header -->
+  <div class="sup-header">
+    <div class="sup-header-left">
+      <div class="sup-search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="supSearchInput" class="sup-search-input" placeholder="Search suppliers…" oninput="filterSuppliers()">
+      </div>
+      <div class="sup-stats">
+        <div class="sup-chip" id="supStatTotal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Loading…</span>
+        </div>
+      </div>
+    </div>
+    <button class="sup-add-btn" onclick="openCreateSupplier()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Supplier
+    </button>
+  </div>
+
+  <!-- Table -->
+  <div class="sup-table-card">
+    <div class="sup-table-wrap">
+      <div id="suppliersTable"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- SUPPLIER MODAL -->
+<div class="sup-modal-overlay" id="supModalOverlay" onclick="handleOverlayClick(event)">
+  <div class="sup-modal" onclick="event.stopPropagation()">
+    <div class="sup-modal-hero">
+      <button class="sup-modal-hero-close" onclick="closeModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="sup-modal-badge" id="supModalBadge">New Supplier</div>
+      <div class="sup-modal-title" id="supModalTitle">Create Supplier</div>
+    </div>
+    <div class="sup-modal-body">
+      <input type="hidden" id="supplierId">
+
+      <!-- Identity -->
+      <div class="sup-sec">
+        <div class="sup-sec-label">Identity</div>
+        <div class="sup-form-grid">
+          <div class="sup-field">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>Supplier Name</label>
+            <input id="SupplierName" placeholder="e.g. Acme Ltd">
+          </div>
+          <div class="sup-field">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Supplier Code</label>
+            <input id="SupplierCode" placeholder="e.g. ACM001">
+          </div>
+          <div class="sup-field">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Rank</label>
+            <input id="Rank" placeholder="e.g. 1">
+          </div>
+          <div class="sup-field">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Price &amp; Relationship</label>
+            <input id="PriceRelationship" placeholder="e.g. Best Price">
+          </div>
+        </div>
+      </div>
+
+      <!-- Commercial -->
+      <div class="sup-sec">
+        <div class="sup-sec-label">Commercial</div>
+        <div class="sup-form-grid">
+          <div class="sup-field">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>MOQ</label>
+            <input id="MOQ" placeholder="e.g. 100">
+          </div>
+          <div class="sup-field">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Credit Account</label>
+            <input id="CreditAccount" placeholder="e.g. NET30">
+          </div>
+          <div class="sup-field">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Card</label>
+            <select id="Card" onchange="updateCardStyle()">
+              <option value="">— Select —</option>
+              <option>Yes</option>
+              <option>No</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact -->
+      <div class="sup-sec">
+        <div class="sup-sec-label">Contact</div>
+        <div class="sup-form-grid">
+          <div class="sup-field">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Contact</label>
+            <input id="Contact" placeholder="Contact name or email">
+          </div>
+          <div class="sup-field">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>WhatsApp</label>
+            <input id="WhatsApp" placeholder="+44 7700 000000">
+          </div>
+          <div class="sup-field span2">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Notes</label>
+            <textarea id="Notes" placeholder="Any additional notes…"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sup-modal-footer">
+      <button class="sup-cancel-btn" onclick="closeModal()">Cancel</button>
+      <button class="sup-save-btn" id="supSaveBtn" onclick="saveSupplier()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Save Supplier
       </button>
     </div>
   </div>
-
-  <div id="suppliersTable" class="table-container"></div>
-
 </div>
 
-
-<!-- MODAL -->
-<div id="supplierModal" class="modal hidden">
-  <div class="modal-content">
-
-    <div class="modal-header">
-      <h3 id="modalTitle">Create Supplier</h3>
-      <span class="close-btn" onclick="closeModal()">✕</span>
+<!-- DELETE CONFIRM -->
+<div class="sup-confirm-overlay" id="supConfirmOverlay">
+  <div class="sup-confirm-box">
+    <div class="sup-confirm-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
     </div>
-
-    <input type="hidden" id="supplierId">
-
-    <div class="form-grid">
-
-      <div>
-        <label>Supplier Name</label>
-        <input id="SupplierName">
-      </div>
-
-      <div>
-        <label>Supplier Code</label>
-        <input id="SupplierCode">
-      </div>
-
-      <div>
-        <label>Rank</label>
-        <input id="Rank">
-      </div>
-
-      <div>
-        <label>Price & Relationship</label>
-        <input id="PriceRelationship">
-      </div>
-
-      <div>
-        <label>MOQ</label>
-        <input id="MOQ">
-      </div>
-
-      <div>
-        <label>Credit Account</label>
-        <input id="CreditAccount">
-      </div>
-
-      <div>
-        <label>Card</label>
-        <select id="Card">
-          <option value="">—</option>
-          <option>Yes</option>
-          <option>No</option>
-        </select>
-      </div>
-
-      <div>
-        <label>Contact</label>
-        <input id="Contact">
-      </div>
-
-      <div>
-        <label>WhatsApp</label>
-        <input id="WhatsApp">
-      </div>
-
-      <div style="grid-column: span 2">
-        <label>Notes</label>
-        <textarea id="Notes"></textarea>
-      </div>
-
+    <div class="sup-confirm-title">Delete Supplier?</div>
+    <div class="sup-confirm-desc" id="supConfirmDesc">This action cannot be undone.</div>
+    <div class="sup-confirm-btns">
+      <button class="sup-confirm-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="sup-confirm-del" id="supConfirmDelBtn">Delete</button>
     </div>
-
-    <div class="modal-actions">
-      <button onclick="closeModal()">Cancel</button>
-      <button onclick="saveSupplier()" class="primary-btn">Save</button>
-    </div>
-
   </div>
 </div>
 
-
-<style>
-
-.card{
-  background:white;
-  padding:24px;
-  border-radius:12px;
-  box-shadow:0 1px 3px rgba(0,0,0,0.08);
-}
-
-.header-row{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.header-actions{
-  display:flex;
-  gap:12px;
-}
-
-#searchInput{
-  padding:8px 12px;
-  border-radius:8px;
-  border:1px solid #ddd;
-}
-
-.primary-btn{
-  background:var(--blue);
-  color:white;
-  border:none;
-  padding:10px 16px;
-  border-radius:8px;
-  cursor:pointer;
-}
-
-.table-container{
-  margin-top:20px;
-  overflow-x:auto;
-}
-
-table{
-  width:100%;
-  border-collapse:collapse;
-}
-
-th{
-  text-align:left;
-  padding:12px;
-  background:#f1f5f9;
-  font-size:13px;
-}
-
-td{
-  padding:12px;
-  border-bottom:1px solid #eee;
-  font-size:14px;
-}
-
-tr:hover{
-  background:#f9fafb;
-  cursor:pointer;
-}
-
-.rank-pill{
-  background:#e0e7ff;
-  padding:4px 10px;
-  border-radius:20px;
-  font-size:12px;
-  font-weight:600;
-}
-
-.action-btn{
-  border:none;
-  background:none;
-  cursor:pointer;
-  font-size:16px;
-  opacity:.6;
-}
-
-.action-btn:hover{
-  opacity:1;
-}
-
-
-/* MODAL */
-
-.modal{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,0.4);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.modal.hidden{
-  display:none;
-}
-
-.modal-content{
-  background:white;
-  padding:30px;
-  border-radius:14px;
-  width:700px;
-  max-height:90vh;
-  overflow-y:auto;
-}
-
-.modal-header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.close-btn{
-  cursor:pointer;
-  font-size:18px;
-}
-
-.form-grid{
-  margin-top:20px;
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:16px;
-}
-
-.form-grid input,
-.form-grid select,
-.form-grid textarea{
-  width:100%;
-  padding:8px;
-}
-
-.modal-actions{
-  margin-top:20px;
-  text-align:right;
-}
-
-</style>
-
+<!-- TOASTS -->
+<div class="sup-toast-container" id="supToastContainer"></div>
 
 <script>
-
 (function () {
-  
+
+const API_URL = window.API_URL;
+
 let allSuppliers = [];
+let pendingDeleteId = null;
 
+/* ─── AVATAR HELPERS ──────────────────────────────────────────── */
+const AVATAR_COLORS = [
+  ['#dbeafe','#1d4ed8'],['#dcfce7','#15803d'],['#fef9c3','#854d0e'],
+  ['#fce7f3','#9d174d'],['#ede9fe','#6d28d9'],['#ffedd5','#c2410c'],
+  ['#cffafe','#0e7490'],['#f1f5f9','#475569']
+];
 
-/* LOAD SUPPLIERS */
-
-async function loadSuppliers(){
-
-  document.getElementById("suppliersTable").innerHTML="Loading...";
-
-  const res = await fetch(API_URL,{
-    method:"POST",
-    headers:{ "Content-Type":"text/plain" },
-    body:JSON.stringify({
-      action:"getSuppliers"
-    })
-  });
-
-  const result = await res.json();
-
-  if(!result.success) return;
-
-  allSuppliers = result.suppliers;
-
-  renderSuppliers(allSuppliers);
-
+function getAvatarColors(name) {
+  const i = (name||'A').charCodeAt(0) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[i];
 }
 
+function getInitials(name) {
+  const parts = (name||'?').trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return (name||'?').slice(0,2).toUpperCase();
+}
 
+function avatarHTML(name) {
+  const [bg, color] = getAvatarColors(name);
+  return `<div class="sup-avatar" style="background:${bg};color:${color}">${getInitials(name)}</div>`;
+}
 
-/* RENDER TABLE */
+/* ─── RANK PILL ───────────────────────────────────────────────── */
+function rankPill(rank) {
+  if (!rank) return '<span style="color:#94a3b8;font-size:12px;">—</span>';
+  const cls = rank==='1'?'rank-1':rank==='2'?'rank-2':rank==='3'?'rank-3':'rank-other';
+  return `<span class="rank-pill ${cls}">#${rank}</span>`;
+}
 
-function renderSuppliers(data){
+/* ─── BOOL BADGE ──────────────────────────────────────────────── */
+function boolBadge(val) {
+  if (!val) return '<span style="color:#94a3b8;font-size:12px;">—</span>';
+  const yes = val==='Yes';
+  return `<span class="bool-badge ${yes?'bool-yes':'bool-no'}">${val}</span>`;
+}
 
-  let html=`
-  <table>
-  <tr>
-    <th>Name</th>
-    <th>Code</th>
-    <th>Rank</th>
-    <th>Price</th>
-    <th>MOQ</th>
-    <th>Contact</th>
-    <th>Actions</th>
-  </tr>`;
+/* ─── LOAD ────────────────────────────────────────────────────── */
+async function loadSuppliers() {
+  document.getElementById('suppliersTable').innerHTML =
+    '<div class="sup-empty"><span class="spinner"></span><p>Loading suppliers…</p></div>';
 
-  data.forEach(s=>{
+  if (!API_URL) {
+    document.getElementById('suppliersTable').innerHTML =
+      '<div class="sup-empty"><p>Set window.API_URL to load data.</p></div>';
+    return;
+  }
 
-    html+=`
-    <tr>
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST', headers: {'Content-Type':'text/plain'},
+      body: JSON.stringify({action:'getSuppliers'})
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error('Failed');
+    allSuppliers = result.suppliers || [];
+    renderSuppliers(allSuppliers);
+    updateStats(allSuppliers);
+  } catch(e) {
+    document.getElementById('suppliersTable').innerHTML =
+      '<div class="sup-empty"><p>Failed to load suppliers.</p><span>Check API_URL and CORS settings.</span></div>';
+    showToast('Failed to load suppliers','error');
+  }
+}
 
-      <td>${s["Supplier Name"]||""}</td>
-      <td>${s["Supplier Code"]||""}</td>
+/* ─── STATS ───────────────────────────────────────────────────── */
+function updateStats(data) {
+  const el = document.getElementById('supStatTotal');
+  if (!el) return;
+  const svg = el.querySelector('svg');
+  el.innerHTML = (svg ? svg.outerHTML : '') + `<span>${data.length} Supplier${data.length!==1?'s':''}</span>`;
+}
 
+/* ─── RENDER TABLE ────────────────────────────────────────────── */
+function renderSuppliers(data) {
+  if (!data.length) {
+    document.getElementById('suppliersTable').innerHTML =
+      '<div class="sup-empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><p>No suppliers found</p><span>Add your first supplier to get started</span></div>';
+    return;
+  }
+
+  let html = `<table class="sup-table">
+    <thead><tr>
+      <th style="width:42px"></th>
+      <th>Supplier</th>
+      <th>Rank</th>
+      <th>Price & Relationship</th>
+      <th>MOQ</th>
+      <th>Card</th>
+      <th>Contact</th>
+      <th>WhatsApp</th>
+      <th style="width:80px">Actions</th>
+    </tr></thead><tbody>`;
+
+  data.forEach(s => {
+    const name = s['Supplier Name'] || '';
+    const sid  = esc(s['Supplier ID'] || '');
+    const sj   = escJ(s);
+    html += `<tr onclick='editSupplier(${sj})'>
+      <td>${avatarHTML(name)}</td>
       <td>
-        <span class="rank-pill">
-          ${s["Rank"]||"-"}
-        </span>
+        <div class="sup-name-cell">
+          <div>
+            <div class="sup-name-text">${esc(name)}</div>
+            <div class="sup-code-text">${esc(s['Supplier Code']||'')}</div>
+          </div>
+        </div>
       </td>
-
-      <td>${s["Price & Relationship"]||""}</td>
-
-      <td>${s["MOQ"]||""}</td>
-
-      <td>${s["Contact"]||""}</td>
-
-      <td>
-
-        <button class="action-btn"
-        onclick='editSupplier(${JSON.stringify(s)})'>
-        ✏️
-        </button>
-
-        <button class="action-btn"
-        onclick='deleteSupplier("${s["Supplier ID"]}")'>
-        🗑
-        </button>
-
+      <td>${rankPill(s['Rank'])}</td>
+      <td>${esc(s['Price & Relationship']||'—')}</td>
+      <td>${esc(s['MOQ']||'—')}</td>
+      <td>${boolBadge(s['Card'])}</td>
+      <td>${esc(s['Contact']||'—')}</td>
+      <td>${esc(s['WhatsApp']||'—')}</td>
+      <td onclick="event.stopPropagation()">
+        <div class="sup-action-btns">
+          <button class="sup-action-btn" onclick='editSupplier(${sj})' title="Edit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="sup-action-btn del" onclick="confirmDelete('${sid}','${esc(name)}')" title="Delete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+          </button>
+        </div>
       </td>
-
     </tr>`;
   });
 
-  html+="</table>";
-
-  document.getElementById("suppliersTable").innerHTML=html;
-
+  html += '</tbody></table>';
+  document.getElementById('suppliersTable').innerHTML = html;
 }
 
-
-
-/* SEARCH */
-
-function filterSuppliers(){
-
-  const value=document
-  .getElementById("searchInput")
-  .value
-  .toLowerCase();
-
-  const filtered=allSuppliers.filter(s=>
-
-    (s["Supplier Name"]||"").toLowerCase().includes(value) ||
-    (s["Supplier Code"]||"").toLowerCase().includes(value)
-
+/* ─── SEARCH ──────────────────────────────────────────────────── */
+function filterSuppliers() {
+  const q = document.getElementById('supSearchInput').value.toLowerCase();
+  const filtered = allSuppliers.filter(s =>
+    (s['Supplier Name']||'').toLowerCase().includes(q) ||
+    (s['Supplier Code']||'').toLowerCase().includes(q) ||
+    (s['Contact']||'').toLowerCase().includes(q)
   );
-
   renderSuppliers(filtered);
-
 }
 
-
-
-/* OPEN CREATE */
-
-function openCreateSupplier(){
-
-  document.getElementById("modalTitle").innerText="Create Supplier";
-
-  document.getElementById("supplierId").value="";
-
-  document.querySelectorAll("#supplierModal input, #supplierModal textarea")
-  .forEach(i=>i.value="");
-
-  document.getElementById("supplierModal")
-  .classList.remove("hidden");
-
+/* ─── OPEN CREATE ─────────────────────────────────────────────── */
+function openCreateSupplier() {
+  document.getElementById('supModalBadge').textContent = 'New Supplier';
+  document.getElementById('supModalTitle').textContent = 'Create Supplier';
+  document.getElementById('supplierId').value = '';
+  document.querySelectorAll('#supModalOverlay input:not([type=hidden]), #supModalOverlay textarea').forEach(i => i.value = '');
+  document.getElementById('Card').value = '';
+  updateCardStyle();
+  document.getElementById('supModalOverlay').classList.add('visible');
 }
 
-
-
-/* EDIT */
-
-function editSupplier(s){
-
-  document.getElementById("modalTitle").innerText="Edit Supplier";
-
-  document.getElementById("supplierId").value=s["Supplier ID"];
-
-  document.getElementById("SupplierName").value=s["Supplier Name"]||"";
-  document.getElementById("SupplierCode").value=s["Supplier Code"]||"";
-  document.getElementById("Rank").value=s["Rank"]||"";
-  document.getElementById("PriceRelationship").value=s["Price & Relationship"]||"";
-  document.getElementById("MOQ").value=s["MOQ"]||"";
-  document.getElementById("CreditAccount").value=s["Credit Account"]||"";
-  document.getElementById("Card").value=s["Card"]||"";
-  document.getElementById("Contact").value=s["Contact"]||"";
-  document.getElementById("WhatsApp").value=s["WhatsApp"]||"";
-  document.getElementById("Notes").value=s["Notes"]||"";
-
-  document.getElementById("supplierModal")
-  .classList.remove("hidden");
-
+/* ─── EDIT ────────────────────────────────────────────────────── */
+function editSupplier(s) {
+  document.getElementById('supModalBadge').textContent = 'Edit Supplier';
+  document.getElementById('supModalTitle').textContent = s['Supplier Name'] || 'Edit Supplier';
+  document.getElementById('supplierId').value           = s['Supplier ID']||'';
+  document.getElementById('SupplierName').value         = s['Supplier Name']||'';
+  document.getElementById('SupplierCode').value         = s['Supplier Code']||'';
+  document.getElementById('Rank').value                 = s['Rank']||'';
+  document.getElementById('PriceRelationship').value    = s['Price & Relationship']||'';
+  document.getElementById('MOQ').value                  = s['MOQ']||'';
+  document.getElementById('CreditAccount').value        = s['Credit Account']||'';
+  document.getElementById('Card').value                 = s['Card']||'';
+  document.getElementById('Contact').value              = s['Contact']||'';
+  document.getElementById('WhatsApp').value             = s['WhatsApp']||'';
+  document.getElementById('Notes').value                = s['Notes']||'';
+  updateCardStyle();
+  document.getElementById('supModalOverlay').classList.add('visible');
 }
 
-
-
-/* CLOSE */
-
-function closeModal(){
-
-  document.getElementById("supplierModal")
-  .classList.add("hidden");
-
+/* ─── CLOSE MODAL ─────────────────────────────────────────────── */
+function closeModal() {
+  document.getElementById('supModalOverlay').classList.remove('visible');
+}
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('supModalOverlay')) closeModal();
 }
 
+/* ─── CARD SELECT STYLE ───────────────────────────────────────── */
+function updateCardStyle() {
+  const sel = document.getElementById('Card');
+  sel.className = sel.value==='Yes'?'val-yes':sel.value==='No'?'val-no':'';
+}
 
+/* ─── SAVE ────────────────────────────────────────────────────── */
+async function saveSupplier() {
+  const btn = document.getElementById('supSaveBtn');
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="spinner" style="width:13px;height:13px;border-width:2px"></span> Saving…';
 
-/* SAVE */
-
-async function saveSupplier(){
-
-  const payload={
-    action:"saveSupplier",
-
-    supplierId:document.getElementById("supplierId").value,
-
-    "Supplier Name":document.getElementById("SupplierName").value,
-    "Supplier Code":document.getElementById("SupplierCode").value,
-    "Rank":document.getElementById("Rank").value,
-    "Price & Relationship":document.getElementById("PriceRelationship").value,
-    "MOQ":document.getElementById("MOQ").value,
-    "Credit Account":document.getElementById("CreditAccount").value,
-    "Card":document.getElementById("Card").value,
-    "Contact":document.getElementById("Contact").value,
-    "WhatsApp":document.getElementById("WhatsApp").value,
-    "Notes":document.getElementById("Notes").value
+  const payload = {
+    action: 'saveSupplier',
+    supplierId:               document.getElementById('supplierId').value,
+    'Supplier Name':          document.getElementById('SupplierName').value,
+    'Supplier Code':          document.getElementById('SupplierCode').value,
+    'Rank':                   document.getElementById('Rank').value,
+    'Price & Relationship':   document.getElementById('PriceRelationship').value,
+    'MOQ':                    document.getElementById('MOQ').value,
+    'Credit Account':         document.getElementById('CreditAccount').value,
+    'Card':                   document.getElementById('Card').value,
+    'Contact':                document.getElementById('Contact').value,
+    'WhatsApp':               document.getElementById('WhatsApp').value,
+    'Notes':                  document.getElementById('Notes').value,
   };
 
-  const res=await fetch(API_URL,{
-    method:"POST",
-    headers:{ "Content-Type":"text/plain" },
-    body:JSON.stringify(payload)
-  });
-
-  const result=await res.json();
-
-  if(result.success){
-
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST', headers: {'Content-Type':'text/plain'},
+      body: JSON.stringify(payload)
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.message||'Save failed');
     closeModal();
+    showToast('Supplier saved','success');
     loadSuppliers();
-
+  } catch(e) {
+    showToast('Error saving supplier','error');
+  } finally {
+    btn.classList.remove('loading');
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><polyline points="20 6 9 17 4 12"/></svg> Save Supplier';
   }
-
 }
 
-
-
-/* DELETE */
-
-async function deleteSupplier(id){
-
-  if(!confirm("Delete supplier?")) return;
-
-  await fetch(API_URL,{
-    method:"POST",
-    headers:{ "Content-Type":"text/plain" },
-    body:JSON.stringify({
-      action:"deleteSupplier",
-      supplierId:id
-    })
-  });
-
-  loadSuppliers();
-
+/* ─── DELETE CONFIRM ──────────────────────────────────────────── */
+function confirmDelete(id, name) {
+  pendingDeleteId = id;
+  document.getElementById('supConfirmDesc').textContent =
+    `"${name}" will be permanently deleted. This action cannot be undone.`;
+  document.getElementById('supConfirmOverlay').classList.add('visible');
+  document.getElementById('supConfirmDelBtn').onclick = () => executeDelete(id);
+}
+function closeConfirm() {
+  document.getElementById('supConfirmOverlay').classList.remove('visible');
+  pendingDeleteId = null;
 }
 
+async function executeDelete(id) {
+  closeConfirm();
+  try {
+    await fetch(API_URL, {
+      method: 'POST', headers: {'Content-Type':'text/plain'},
+      body: JSON.stringify({action:'deleteSupplier', supplierId: id})
+    });
+    showToast('Supplier deleted','success');
+    loadSuppliers();
+  } catch(e) {
+    showToast('Error deleting supplier','error');
+  }
+}
 
+/* ─── TOAST ───────────────────────────────────────────────────── */
+function showToast(msg, type) {
+  const c = document.getElementById('supToastContainer');
+  const t = document.createElement('div');
+  t.className = 'sup-toast ' + (type||'');
+  const icons = {
+    success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    error:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    info:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+  };
+  t.innerHTML = (icons[type]||'') + msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+/* ─── ESCAPE HELPERS ──────────────────────────────────────────── */
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escJ(obj) { return JSON.stringify(obj).replace(/'/g,'&#39;'); }
+
+/* ─── EXPOSE GLOBALS ──────────────────────────────────────────── */
+window.loadSuppliers      = loadSuppliers;
+window.filterSuppliers    = filterSuppliers;
+window.openCreateSupplier = openCreateSupplier;
+window.editSupplier       = editSupplier;
+window.saveSupplier       = saveSupplier;
+window.closeModal         = closeModal;
+window.handleOverlayClick = handleOverlayClick;
+window.updateCardStyle    = updateCardStyle;
+window.confirmDelete      = confirmDelete;
+window.closeConfirm       = closeConfirm;
 
 loadSuppliers();
 
-  /* ─── EXPOSE GLOBALS ─────────────────────────────────────────────── */
-
-window.loadSuppliers = loadSuppliers;
-window.filterSuppliers = filterSuppliers;
-window.openCreateSupplier = openCreateSupplier;
-window.editSupplier = editSupplier;
-window.saveSupplier = saveSupplier;
-window.deleteSupplier = deleteSupplier;
-window.closeModal = closeModal;
-
-  
-  })();
+})();
 </script>
