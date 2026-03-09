@@ -192,6 +192,30 @@ html, body {
   100% { background: #ffffff; border-color: #e2e8f0; }
 }
 
+.stage-move-btn {
+  margin-top: 12px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1.5px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.stage-move-btn:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+}
   
 /* TOAST */
 .toast-container {
@@ -428,6 +452,37 @@ function daysAgo(date) { if(!date) return null; return Math.floor((Date.now()-da
 function fmtDate(date) { if(!date) return ''; return date.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
 function daysAgoLabel(d) { if(d===null) return ''; if(d===0) return 'Today'; if(d===1) return '1 day ago'; return d+' days ago'; }
 
+
+async function moveToVeeqo(id){
+
+  const row = allData.find(p => (p['Opportunity ID']||'') === id);
+  if(!row) return;
+
+  // Ensure at least one marketing field is YES
+  if(!toBool(row['Advertising Campaigns'])){
+    row['Advertising Campaigns'] = 'Yes';
+
+    if(API_URL){
+      await fetch(API_URL,{
+        method:'POST',
+        headers:{'Content-Type':'text/plain'},
+        body:JSON.stringify({
+          action:'updateListingField',
+          opportunityId:id,
+          field:'Advertising Campaigns',
+          value:'Yes'
+        })
+      });
+    }
+  }
+
+  // Move stage
+  await moveCardToStage(id,'veeqo');
+
+  // Refresh drawer
+  renderDrawer(row);
+}
+  
 /* ─── STAGE LOGIC ───────────────────────────────────────────────── */
 function getStage(row) {
   const w = toBool(row['Warehouse']);
@@ -868,6 +923,17 @@ if(activeDrawerTab==='platforms') {
 +'<div class="plat-toggle-status '+(listTT ? (ttStatus === 'Yes' ? 'active' : 'required') : 'na')+'">'
 +(listTT ? (ttStatus === 'Yes' ? 'Active' : 'Listing required') : 'N/a')
 +'</div></div>';
+
++'</div>'
+
++(stage==='listing'
+  ? '<button class="stage-move-btn" onclick="moveToVeeqo(\''+ea(id)+'\')">'
+    +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
+    +'Move to Veeqo & Marketing'
+  +'</button>'
+  : '')
+
++'</div>';
 }
 
   /* ── MARKETING TAB ── */
