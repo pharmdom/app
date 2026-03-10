@@ -747,6 +747,25 @@ function fillSupplierCode(){
   codeInput.value = code;
 
 }
+
+  function onDrawerSupplierChange(id, select){
+
+  const selected = select.options[select.selectedIndex];
+
+  if(!selected) return;
+
+  const code = selected.getAttribute('data-code') || '';
+
+  const row = allData.find(p => p['Opportunity ID'] === id);
+  if(!row) return;
+
+  saveField(id,'Supplier Name',select.value);
+
+  if(code){
+    saveField(id,'Code',code);
+  }
+
+}
   
 /* ══ STATS ══ */
 function updateStats() {
@@ -1285,9 +1304,18 @@ function editCard(id, label, value, type, sheetKey) {
   let inp = '';
 
   if (type === 'supplier') {
-    const opts = suppliers.map(s => '<option value="' + escAttr(s.name) + '"' + (s.name === value ? ' selected' : '') + '>' + escHtml(s.name) + '</option>').join('');
-    inp = '<select class="edit-select" onchange="saveField(\'' + escAttr(id) + '\',\'' + escAttr(sheetKey) + '\',this.value);applyYNColors()"><option value="">—</option>' + opts + '</select>';
-  } else if (type === 'user') {
+
+  const opts = suppliers.map(s =>
+    '<option value="' + escAttr(s.name) + '" data-code="' + escAttr(s.code) + '"' +
+    (s.name === value ? ' selected' : '') + '>' + escHtml(s.name) + '</option>'
+  ).join('');
+
+  inp =
+    '<select class="edit-select" onchange="onDrawerSupplierChange(\'' + escAttr(id) + '\', this)">'
+    + '<option value="">—</option>'
+    + opts
+    + '</select>';
+} else if (type === 'user') {
     const opts = users.map(u => '<option value="' + escAttr(u.name) + '"' + (u.name === value ? ' selected' : '') + '>' + escHtml(u.name) + '</option>').join('');
     inp = '<select class="edit-select" onchange="saveField(\'' + escAttr(id) + '\',\'' + escAttr(sheetKey) + '\',this.value)"><option value="">—</option>' + opts + '</select>';
   } else if (type.startsWith('select:')) {
