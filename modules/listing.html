@@ -563,19 +563,30 @@ const asinCost = parseFloat(row['ASIN Cost']) || 0;
 // Priority: Unit Cost > ASIN Cost
 const cost = unitCost || asinCost;
 
-/* ── PACK SIZE CALCULATION (TikTok = master, eBay copies it) ── */
+/* ── PACK SIZE CALCULATION (Google Sheet logic) ── */
 
 if (cost) {
 
-  const minP = 14;
-  const singleP = (cost*1.35)/0.5834;
+  let chosenPack = null;
 
-  if (singleP >= minP)
-    row['TikTok Pack Size'] = 1;
-  else
-    row['TikTok Pack Size'] = Math.max(1,2*Math.ceil((minP*0.5834)/(cost*1.35*2)));
+  const packs = [1];
 
-  /* eBay uses TikTok pack size */
+  for (let i = 2; i <= 200; i += 2) packs.push(i);
+
+  for (let pack of packs) {
+
+    const rawPrice = (((cost * pack) * 1.35) + 3) / 0.6634;
+
+    const finalPrice = Math.ceil(rawPrice + 0.01) - 0.01;
+
+    if (finalPrice >= 14 && finalPrice <= 17.99) {
+      chosenPack = pack;
+      break;
+    }
+
+  }
+
+  row['TikTok Pack Size'] = chosenPack || '';
   row['eBay Pack Size'] = row['TikTok Pack Size'];
 
 }
