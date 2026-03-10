@@ -515,29 +515,28 @@ async function moveToVeeqo(id){
   
 /* ─── STAGE LOGIC ───────────────────────────────────────────────── */
 function getStage(row) {
+
   const w = toBool(row['Warehouse']);
   const a = toBool(row['Arrived']);
-
-  // Fully Listed: both Warehouse & Arrived = Yes
-  if (w && a) return 'listed';
 
   const allCheckYes = STAGE_CHECK_FIELDS.every(f => toBool(row[f]));
   const allCheckNo  = STAGE_CHECK_FIELDS.every(f => !toBool(row[f]));
 
-  // All three kanban buckets require Warehouse=No AND Arrived=No
-  if (!w && !a) {
-    // Awaiting Delivery: all 9 check fields = Yes, but Warehouse+Arrived still No
-    if (allCheckYes) return 'ready';
-    // Needs Listing: ALL fields including Warehouse+Arrived = No (brand new product)
-    if (allCheckNo)  return 'listing';
-    // Veeqo & Marketing: Warehouse+Arrived both No, mixed progress on check fields
-    return 'veeqo';
-  }
+  /* ── Fully Listed ── */
+  if (w && a) return 'listed';
 
-  // Edge case (e.g. Warehouse=Yes but Arrived=No) → Veeqo & Marketing
+  /* ── Awaiting Delivery (sticky once all 9 fields complete) ── */
+  if (allCheckYes) return 'ready';
+
+  /* ── Needs Listing ── */
+  if (!w && !a && allCheckNo) return 'listing';
+
+  /* ── Everything else ── */
   return 'veeqo';
 }
 
+
+  
 /* ─── AUTO-CALCULATED FIELDS ────────────────────────────────────── */
 function applyAutoFields(row) {
 
@@ -1077,22 +1076,69 @@ async function saveBoolDrop(id,key,selectEl) {
 }
 
 async function toggleBool(id,key,newBoolVal) {
-  const idx=allData.findIndex(p=>(p['Opportunity ID']||'')===id);if(idx<0) return;
-  const v=newBoolVal?'Yes':'No';
-  allData[idx][key]=v;
-  applyAutoFields(allData[idx]);
+
+  const idx = allData.findIndex(p => (p['Opportunity ID'] || '') === id);
+  if (idx < 0) return;
+
+  const row = allData[idx];
+
+  /* ── BLOCK Warehouse / Arrived if checklist incomplete ── */
+
+  if ((key === 'Warehouse' || key === 'Arrived') && newBoolVal === true) {
+
+    const allChecklistDone = STAGE_CHECK_FIELDS.every(f => toBool(row[f]));
+
+    if (!allChecklistDone) {
+      showToast('Complete Veeqo checklist first','error');
+      renderDrawer(row); // revert dropdown visually
+      return;
+    }
+
+  }
+
+  const v = newBoolVal ? 'Yes' : 'No';
+
+  row[key] = v;
+
+  applyAutoFields(row);
+
   showToast('Saving…','info');
-  if(API_URL){
-    try{
-      const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'updateListingField',opportunityId:id,field:key,value:v}),headers:{'Content-Type':'text/plain'}});
-      const d=await res.json();if(d.success===false) throw new Error(d.message);
-      await saveAutoFieldsToSheet(allData[idx]);
+
+  if (API_URL) {
+    try {
+
+      const res = await fetch(API_URL,{
+        method:'POST',
+        body:JSON.stringify({
+          action:'updateListingField',
+          opportunityId:id,
+          field:key,
+          value:v
+        }),
+        headers:{'Content-Type':'text/plain'}
+      });
+
+      const d = await res.json();
+      if (d.success === false) throw new Error(d.message);
+
+      await saveAutoFieldsToSheet(row);
+
       showToast('Saved','success');
-    }catch(e){console.error(e);showToast('Error saving','error');}
-  }else{showToast('Saved','success');}
+
+    } catch(e) {
+
+      console.error(e);
+      showToast('Error saving','error');
+
+    }
+  } else {
+    showToast('Saved','success');
+  }
+
   updatePlatformCardUI(key, newBoolVal);
   applyFilters();
   updateStats(allData);
+
 }
 
 
