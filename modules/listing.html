@@ -458,27 +458,37 @@ async function moveToVeeqo(id){
   const row = allData.find(p => (p['Opportunity ID']||'') === id);
   if(!row) return;
 
-  showToast('Saving…','info');
+  const sales = parseFloat(row['Sales']) || 0;
+  const qty   = parseFloat(row['QTY Purchased']) || 0;
 
-  // Ensure Amazon is Active
-  if(!toBool(row['Advertising Campaigns'])){
-    row['Advertising Campaigns'] = 'Yes';
+  const listEbay = qty > sales;
+  const listTT   = qty > sales;
 
-    if(API_URL){
-      await fetch(API_URL,{
-        method:'POST',
-        headers:{'Content-Type':'text/plain'},
-        body:JSON.stringify({
-          action:'updateListingField',
-          opportunityId:id,
-          field:'Advertising Campaigns',
-          value:'Yes'
-        })
-      });
-    }
+  const amzActive  = toBool(row['Advertising Campaigns']);
+  const ebayStatus = row['List eBay'];
+  const ttStatus   = row['List TikTok'];
+
+  /* ── VALIDATION ───────────────────────── */
+
+  if(!amzActive){
+    showToast('Amazon must be Active first','error');
+    return;
   }
 
-  // Start marketing progress (moves stage automatically)
+  if(listEbay && ebayStatus !== 'Yes'){
+    showToast('eBay must be Active first','error');
+    return;
+  }
+
+  if(listTT && ttStatus !== 'Yes'){
+    showToast('TikTok must be Active first','error');
+    return;
+  }
+
+  /* ── MOVE PRODUCT ─────────────────────── */
+
+  showToast('Saving…','info');
+
   row['Title Clear'] = 'Yes';
 
   if(API_URL){
