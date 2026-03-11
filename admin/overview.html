@@ -1,4 +1,800 @@
-<div class="card">
-  <h2>Admin Overview</h2>
-  <p>System control centre.</p>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px; color: #0f172a; background: #f1f5f9;
+  height: 100%; overflow: hidden; -webkit-font-smoothing: antialiased;
+}
+
+/* ─── PAGE (scrollable) ── */
+.ov-page { height: 100vh; overflow-y: auto; overflow-x: hidden; }
+.ov-page::-webkit-scrollbar { width: 5px; }
+.ov-page::-webkit-scrollbar-thumb { background: #c1c9d4; border-radius: 10px; }
+
+/* ─── HERO ── */
+.ov-hero {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  padding: 20px 28px 0; position: relative; overflow: visible;
+}
+.ov-hero::before { content: ''; position: absolute; top: -60px; right: -60px; width: 260px; height: 260px; border-radius: 50%; background: rgba(255,255,255,.025); pointer-events: none; }
+.ov-hero::after  { content: ''; position: absolute; bottom: -30px; left: 60px; width: 160px; height: 160px; border-radius: 50%; background: rgba(37,99,235,.07); pointer-events: none; }
+
+.ov-hero-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; position: relative; z-index: 1; gap: 16px; }
+.ov-greeting { font-size: 22px; font-weight: 800; color: #fff; line-height: 1.2; }
+.ov-subgreeting { font-size: 12px; color: rgba(255,255,255,.4); margin-top: 3px; }
+.ov-hero-date { text-align: right; flex-shrink: 0; }
+.ov-date-str { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.45); }
+.ov-time-str { font-size: 26px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; line-height: 1.1; }
+
+/* KPI row — floats out of hero */
+.ov-kpi-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; position: relative; z-index: 2; transform: translateY(22px); }
+.ov-kpi-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 13px; padding: 14px 16px 12px; box-shadow: 0 2px 12px rgba(0,0,0,.07); }
+.ov-kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.ov-kpi-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.ov-kpi-icon svg { width: 15px; height: 15px; }
+.ov-kpi-icon.blue   { background: #eff6ff; }
+.ov-kpi-icon.green  { background: #f0fdf4; }
+.ov-kpi-icon.amber  { background: #fffbeb; }
+.ov-kpi-icon.purple { background: #faf5ff; }
+.ov-kpi-icon.slate  { background: #f8fafc; }
+.ov-kpi-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 100px; }
+.ov-kpi-badge.green  { background: #dcfce7; color: #16a34a; }
+.ov-kpi-badge.amber  { background: #fef9c3; color: #92400e; }
+.ov-kpi-badge.red    { background: #fee2e2; color: #dc2626; }
+.ov-kpi-badge.blue   { background: #dbeafe; color: #1d4ed8; }
+.ov-kpi-badge.slate  { background: #f1f5f9; color: #64748b; }
+.ov-kpi-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; }
+.ov-kpi-val   { font-size: 28px; font-weight: 800; color: #0f172a; line-height: 1.1; margin: 4px 0 2px; }
+.ov-kpi-sub   { font-size: 11px; color: #94a3b8; }
+.ov-kpi-accent { height: 3px; border-radius: 100px; margin-top: 12px; }
+
+/* ─── BODY ── */
+.ov-body { padding: 44px 28px 32px; display: flex; flex-direction: column; gap: 22px; }
+
+/* Section header */
+.ov-sec-hdr { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: #64748b; margin-bottom: 12px; display: flex; align-items: center; gap: 7px; }
+.ov-sec-hdr svg { width: 12px; height: 12px; flex-shrink: 0; }
+.ov-sec-hdr::after { content: ''; flex: 1; height: 1px; background: #e2e8f0; }
+
+/* ─── ACTION ITEMS ── */
+.ov-actions { display: flex; flex-direction: column; gap: 7px; }
+.ov-action-item { display: flex; align-items: center; gap: 13px; padding: 12px 16px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; transition: box-shadow .12s, border-color .12s; }
+.ov-action-item:hover { box-shadow: 0 4px 14px rgba(0,0,0,.07); border-color: #cbd5e1; }
+.ov-action-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.ov-action-dot.urgent  { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,.12); }
+.ov-action-dot.warning { background: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,.12); }
+.ov-action-dot.info    { background: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+.ov-action-body { flex: 1; min-width: 0; }
+.ov-action-title { font-size: 13px; font-weight: 700; color: #0f172a; }
+.ov-action-desc  { font-size: 11.5px; color: #64748b; margin-top: 1px; }
+.ov-action-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 100px; white-space: nowrap; flex-shrink: 0; }
+.ov-action-badge.urgent  { background: #fef2f2; color: #dc2626; }
+.ov-action-badge.warning { background: #fffbeb; color: #d97706; }
+.ov-action-badge.info    { background: #eff6ff; color: #2563eb; }
+.ov-all-clear { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 16px; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 12px; font-size: 13px; font-weight: 700; color: #15803d; }
+
+/* ─── GRID ── */
+.ov-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ov-grid-sup { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
+
+/* ─── CARD ── */
+.ov-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; }
+.ov-card-hdr { padding: 14px 18px 12px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
+.ov-card-title { font-size: 13px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 7px; }
+.ov-card-title svg { width: 14px; height: 14px; color: #64748b; }
+.ov-card-count { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 100px; background: #f1f5f9; color: #64748b; }
+.ov-card-body { padding: 16px 18px; }
+.ov-card-body.no-pad { padding: 0; }
+
+/* ─── PIPELINE ── */
+.ov-pipeline-list { display: flex; flex-direction: column; gap: 13px; }
+.ov-pipeline-stage { display: flex; align-items: center; gap: 10px; }
+.ov-pipeline-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.ov-pipeline-name { font-size: 12px; font-weight: 600; color: #334155; width: 148px; flex-shrink: 0; }
+.ov-pipeline-bar-wrap { flex: 1; background: #f1f5f9; border-radius: 100px; height: 7px; overflow: hidden; }
+.ov-pipeline-bar { height: 100%; border-radius: 100px; min-width: 4px; transition: width .5s ease; }
+.ov-pipeline-num { font-size: 13px; font-weight: 700; color: #0f172a; min-width: 22px; text-align: right; flex-shrink: 0; }
+.ov-pipeline-pct { font-size: 10px; font-weight: 600; color: #94a3b8; min-width: 32px; text-align: right; flex-shrink: 0; }
+
+/* ─── MARKETPLACE ── */
+.ov-mkt-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+.ov-mkt-card { border-radius: 11px; padding: 13px 8px; display: flex; flex-direction: column; align-items: center; gap: 5px; border: 1.5px solid; text-align: center; }
+.ov-mkt-card.amz  { background: #fffbeb; border-color: #fde68a; }
+.ov-mkt-card.ebay { background: #eff6ff; border-color: #bfdbfe; }
+.ov-mkt-card.tt   { background: #fdf4ff; border-color: #e9d5ff; }
+.ov-mkt-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+.ov-mkt-icon.amz  { background: #ff9900; }
+.ov-mkt-icon.ebay { background: #fff; border: 1.5px solid #e2e8f0; }
+.ov-mkt-icon.tt   { background: #010101; }
+.ov-mkt-num   { font-size: 24px; font-weight: 800; color: #0f172a; line-height: 1; }
+.ov-mkt-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .4px; }
+.ov-mkt-sub   { font-size: 10px; color: #94a3b8; }
+
+/* ─── SUPPLIER TABLE ── */
+.ov-sup-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ov-sup-table th { padding: 9px 16px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; border-bottom: 1.5px solid #f1f5f9; white-space: nowrap; }
+.ov-sup-table td { padding: 10px 16px; border-bottom: 1px solid #f8fafc; color: #334155; }
+.ov-sup-table tr:last-child td { border-bottom: none; }
+.ov-sup-table tbody tr:hover td { background: #fafbff; cursor: default; }
+
+/* Shared pills */
+.dp { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 700; }
+.dp.good    { background: #dcfce7; color: #15803d; }
+.dp.warning { background: #fef9c3; color: #854d0e; }
+.dp.overdue { background: #fee2e2; color: #dc2626; }
+.rp { display: inline-flex; padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 700; }
+.rp-1 { background: #fef9c3; color: #854d0e; }
+.rp-2 { background: #e0e7ff; color: #3730a3; }
+.rp-3 { background: #fce7f3; color: #9d174d; }
+.rp-n { background: #f1f5f9; color: #475569; }
+.sp { display: inline-flex; padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.sp-listing { background: #fef9c3; color: #92400e; }
+.sp-veeqo   { background: #dbeafe; color: #1e40af; }
+.sp-ready   { background: #dcfce7; color: #14532d; }
+.sp-listed  { background: #ede9fe; color: #4c1d95; }
+.bool-yes { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 700; background: #dcfce7; color: #15803d; }
+.bool-no  { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 700; background: #fee2e2; color: #dc2626; }
+
+/* Avatar */
+.ov-av { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; flex-shrink: 0; }
+
+/* ─── RECENT PRODUCTS ── */
+.ov-prod-row { display: flex; align-items: center; gap: 12px; padding: 10px 18px; border-bottom: 1px solid #f8fafc; transition: background .1s; }
+.ov-prod-row:last-child { border-bottom: none; }
+.ov-prod-row:hover { background: #fafbff; }
+.ov-prod-name { font-size: 12.5px; font-weight: 600; color: #0f172a; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-prod-asin { font-size: 10px; color: #94a3b8; font-family: 'SF Mono', monospace; }
+.ov-prod-date { font-size: 10px; color: #94a3b8; white-space: nowrap; }
+.ov-check-dots { display: flex; gap: 2.5px; }
+.cd { width: 5.5px; height: 5.5px; border-radius: 50%; }
+.cd.on  { background: #22c55e; }
+.cd.off { background: #e2e8f0; }
+
+/* ─── FINANCIAL STATS ── */
+.ov-fstat { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #f8fafc; }
+.ov-fstat:last-child { border-bottom: none; }
+.ov-fstat-label { font-size: 12.5px; font-weight: 600; color: #334155; }
+.ov-fstat-sub   { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+.ov-fstat-val   { font-size: 14px; font-weight: 800; color: #0f172a; }
+.ov-fstat-val.red { color: #dc2626; }
+.ov-fstat-val.green { color: #15803d; }
+
+/* Progress bar */
+.ov-progress-wrap { flex: 1; background: #f1f5f9; border-radius: 100px; height: 6px; overflow: hidden; margin: 0 8px; }
+.ov-progress-bar  { height: 100%; border-radius: 100px; }
+
+/* Spinner */
+.spinner { display: inline-block; width: 22px; height: 22px; border: 3px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin .65s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.ov-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px; gap: 12px; }
+
+/* ─── RESPONSIVE ── */
+@media (max-width: 1100px) { .ov-kpi-row { grid-template-columns: repeat(3,1fr); } }
+@media (max-width: 860px) {
+  .ov-grid-2, .ov-grid-sup { grid-template-columns: 1fr; }
+  .ov-kpi-row { grid-template-columns: repeat(2,1fr); }
+  .ov-body { padding: 38px 16px 24px; }
+  .ov-hero { padding: 16px 16px 0; }
+  .ov-hero-top { flex-direction: column; gap: 8px; }
+  .ov-hero-date { text-align: left; }
+}
+@media (max-width: 540px) {
+  .ov-kpi-row { grid-template-columns: 1fr 1fr; }
+  .ov-mkt-grid { grid-template-columns: 1fr; gap: 6px; }
+}
+</style>
+
+<div class="ov-page">
+
+  <!-- ── HERO ── -->
+  <div class="ov-hero">
+    <div class="ov-hero-top">
+      <div>
+        <div class="ov-greeting" id="ovGreeting"></div>
+        <div class="ov-subgreeting">Here's your business at a glance</div>
+      </div>
+      <div class="ov-hero-date">
+        <div class="ov-date-str" id="ovDateEl"></div>
+        <div class="ov-time-str" id="ovClock"></div>
+      </div>
+    </div>
+    <div class="ov-kpi-row" id="ovKpiRow">
+      <div class="ov-kpi-card" style="opacity:.4"><div style="height:8px;background:#f1f5f9;border-radius:4px;width:60%;margin-bottom:10px"></div><div style="height:26px;background:#f1f5f9;border-radius:4px;width:40%"></div></div>
+      <div class="ov-kpi-card" style="opacity:.4"><div style="height:8px;background:#f1f5f9;border-radius:4px;width:60%;margin-bottom:10px"></div><div style="height:26px;background:#f1f5f9;border-radius:4px;width:40%"></div></div>
+      <div class="ov-kpi-card" style="opacity:.4"><div style="height:8px;background:#f1f5f9;border-radius:4px;width:60%;margin-bottom:10px"></div><div style="height:26px;background:#f1f5f9;border-radius:4px;width:40%"></div></div>
+      <div class="ov-kpi-card" style="opacity:.4"><div style="height:8px;background:#f1f5f9;border-radius:4px;width:60%;margin-bottom:10px"></div><div style="height:26px;background:#f1f5f9;border-radius:4px;width:40%"></div></div>
+      <div class="ov-kpi-card" style="opacity:.4"><div style="height:8px;background:#f1f5f9;border-radius:4px;width:60%;margin-bottom:10px"></div><div style="height:26px;background:#f1f5f9;border-radius:4px;width:40%"></div></div>
+    </div>
+  </div>
+
+  <!-- ── BODY ── -->
+  <div class="ov-body" id="ovBody">
+    <div class="ov-loading">
+      <span class="spinner"></span>
+      <span style="font-size:13px;font-weight:600;color:#64748b">Loading overview…</span>
+    </div>
+  </div>
+
 </div>
+
+<script>
+(function () {
+
+const API_URL = window.API_URL;
+
+let products  = [];
+let suppliers = [];
+
+/* ─── ICONS (inline SVG strings) ── */
+const ICO_AMZ  = '<svg viewBox="0 0 603 183" xmlns="http://www.w3.org/2000/svg" width="26" height="8"><path d="M373 143c-32 22-77 34-116 34-55 0-104-20-141-53-3-3 0-6 3-4 40 23 89 37 140 37 34 0 72-7 107-22 5-2 9 3 7 8z" fill="#FF9900"/><path d="M346 20V7c0-2 1-3 3-3h55c2 0 3 1 3 3v11c0 2-1 4-3 7l-28 40c11 0 22 1 31 7 2 1 3 3 3 5v14c0 2-2 4-4 3-17-9-40-10-58 0-2 1-4-1-4-3V78c0-2 1-5 3-7l33-47h-28c-2 0-3-1-3-3v-1zM456 5c21 0 33 18 33 41 0 22-13 40-33 40-21 0-32-18-32-41 0-23 11-40 32-40zm0 15c-11 0-11 14-11 23s0 29 11 29c11 0 12-16 12-25 0-6 0-14-2-19-2-5-5-8-10-8z" fill="#221F1F"/></svg>';
+const ICO_EBAY = '<svg viewBox="0 0 2500 1000" xmlns="http://www.w3.org/2000/svg" width="32" height="13"><path d="M100 500c0-220 150-360 370-360 180 0 320 90 360 270H670c-30-100-100-150-200-150-150 0-240 110-240 240s90 240 240 240c110 0 185-55 215-165h160c-40 195-180 285-375 285C250 860 100 720 100 500z" fill="#E53238"/><path d="M870 260h155v80c50-65 120-100 215-100 170 0 275 110 275 300s-105 320-275 320c-90 0-160-35-210-95v280H870V260zm350 470c110 0 175-80 175-200s-65-195-175-195c-115 0-180 80-180 195s65 200 180 200z" fill="#0064D2"/><path d="M1620 580c5 120 80 170 210 170 80 0 150-30 175-90h155c-45 145-175 200-335 200-220 0-355-140-355-320s135-320 345-320c230 0 350 155 340 360h-335zm340-110c-10-100-75-150-185-150-105 0-155 55-165 150h350z" fill="#F5AF02"/><path d="M2235 260h170l-250 590c-60 140-115 190-260 190h-90v-120h70c80 0 105-35 130-95l-285-565h180l195 400 140-400z" fill="#86B817"/></svg>';
+const ICO_TT   = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.8.1V9.01a6.22 6.22 0 0 0-.8-.05 6.27 6.27 0 0 0-6.27 6.27A6.27 6.27 0 0 0 9.49 21.5a6.27 6.27 0 0 0 6.27-6.27V8.99a8.22 8.22 0 0 0 4.83 1.55V7.1a4.83 4.83 0 0 1-1-.41z" fill="#fff"/></svg>';
+
+/* ─── CONSTANTS ── */
+const CHECKLIST = [
+  'Title Clear','Weight Correct','Dimensions Set','Merged','Bundled',
+  'Consumer Multi-buy','B2B Multi-buy','B2B Pricing','Seller Toolkit (STK)'
+];
+const AVATAR_PALETTE = [
+  ['#dbeafe','#1d4ed8'],['#dcfce7','#15803d'],['#fef9c3','#854d0e'],
+  ['#fce7f3','#9d174d'],['#ede9fe','#6d28d9'],['#ffedd5','#c2410c'],
+  ['#cffafe','#0e7490'],['#f1f5f9','#475569'],['#fef08a','#713f12'],
+  ['#bbf7d0','#065f46']
+];
+
+/* ─── UTILS ── */
+const toBool  = v => v===true||v==='true'||v==='Yes'||v==='yes'||v===1||v==='TRUE';
+const esc     = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const fmt£    = n => isNaN(parseFloat(n)) ? '—' : '£'+parseFloat(n).toFixed(2);
+const fmtN    = n => isNaN(parseFloat(n)) ? '—' : parseFloat(n).toLocaleString();
+const avatarColors = name => AVATAR_PALETTE[(name||'A').charCodeAt(0) % AVATAR_PALETTE.length];
+const getInitials  = name => { const p=(name||'?').trim().split(/\s+/); return p.length>=2?(p[0][0]+p[1][0]).toUpperCase():(name||'?').slice(0,2).toUpperCase(); };
+
+function getStage(row) {
+  const w = toBool(row['Warehouse']), a = toBool(row['Arrived']);
+  const allYes = CHECKLIST.every(f => toBool(row[f]));
+  const allNo  = CHECKLIST.every(f => !toBool(row[f]));
+  if (w && a) return 'listed';
+  if (allYes) return 'ready';
+  if (!w && !a && allNo) return 'listing';
+  return 'veeqo';
+}
+
+function calcDaysSince(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr); if (isNaN(d.getTime())) return null;
+  const t = new Date(); t.setHours(0,0,0,0); d.setHours(0,0,0,0);
+  return Math.max(0, Math.floor((t-d)/86400000));
+}
+
+function parseRowDate(row) {
+  const raw = row['Date']; if (!raw) return null;
+  const d = new Date(raw); return isNaN(d.getTime()) ? null : d;
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+}
+
+function fmtDateShort(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr); if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+}
+
+function dpClass(days) {
+  if (days===null) return '';
+  return days<=7?'good':days<=30?'warning':'overdue';
+}
+
+function daysLabel(days) {
+  if (days===null) return '—';
+  if (days===0) return 'Today';
+  if (days===1) return '1 day';
+  return days+' days';
+}
+
+/* ─── CLOCK ── */
+function startClock() {
+  function tick() {
+    const now = new Date();
+    const cl = document.getElementById('ovClock'); if (cl) cl.textContent = now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    const dl = document.getElementById('ovDateEl'); if (dl) dl.textContent = now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    const gr = document.getElementById('ovGreeting');
+    if (gr && !gr.textContent) {
+      const h = now.getHours();
+      gr.textContent = h<12 ? 'Good morning' : h<17 ? 'Good afternoon' : 'Good evening';
+    }
+  }
+  tick(); setInterval(tick, 1000);
+}
+
+/* ─── LOAD ── */
+async function init() {
+  startClock();
+  if (!API_URL) { renderErr('Set window.API_URL to load data.'); return; }
+  try {
+    const [pRes, sRes] = await Promise.all([
+      fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getListing'})}),
+      fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getSuppliers'})})
+    ]);
+    const pData = await pRes.json();
+    const sData = await sRes.json();
+    products  = Array.isArray(pData) ? pData : (pData.data || []);
+    suppliers = sData.success ? (sData.suppliers || []) : [];
+    render();
+  } catch(e) {
+    renderErr('Failed to load data. Check API_URL and CORS.');
+  }
+}
+
+function renderErr(msg) {
+  document.getElementById('ovBody').innerHTML =
+    '<div class="ov-loading"><p style="color:#dc2626;font-weight:600;font-size:13px">'+esc(msg)+'</p></div>';
+}
+
+/* ─── COMPUTE STATS ── */
+function computeStats() {
+  const stageCounts = {listing:0,veeqo:0,ready:0,listed:0};
+  products.forEach(p => stageCounts[getStage(p)]++);
+
+  let amzActive=0, ebayActive=0, ttActive=0;
+  products.forEach(p => {
+    if (toBool(p['Advertising Campaigns'])) amzActive++;
+    if (p['List eBay']==='Yes') ebayActive++;
+    if (p['List TikTok']==='Yes') ttActive++;
+  });
+
+  const missingCost = products.filter(p => isNaN(parseFloat(p['Unit Cost'])) && isNaN(parseFloat(p['ASIN Cost']))).length;
+
+  const stuckListing = products.filter(p => {
+    if (getStage(p)!=='listing') return false;
+    const d=parseRowDate(p); if (!d) return false;
+    return Math.floor((Date.now()-d.getTime())/86400000)>7;
+  }).length;
+
+  const stuckVeeqo = products.filter(p => {
+    if (getStage(p)!=='veeqo') return false;
+    const d=parseRowDate(p); if (!d) return false;
+    return Math.floor((Date.now()-d.getTime())/86400000)>14;
+  }).length;
+
+  const overdueSuppliers  = suppliers.filter(s => { const d=calcDaysSince(s['Last Completion']||''); return d!==null&&d>30; }).length;
+  const neverCompleted    = suppliers.filter(s => !s['Last Completion']).length;
+
+  let totalCOGs=0, costSum=0, costCount=0, totalSales=0, totalQty=0;
+  products.forEach(p => {
+    const c=parseFloat(p['COGs']); if (!isNaN(c)) totalCOGs+=c;
+    const uc=parseFloat(p['Unit Cost']); if (!isNaN(uc)) { costSum+=uc; costCount++; }
+    const s=parseFloat(p['Sales']); if (!isNaN(s)) totalSales+=s;
+    const q=parseFloat(p['QTY Purchased']); if (!isNaN(q)) totalQty+=q;
+  });
+  const avgUnitCost = costCount>0 ? costSum/costCount : 0;
+
+  let checklistPct = 0;
+  const veeqoProds = products.filter(p=>getStage(p)==='veeqo');
+  if (veeqoProds.length) {
+    veeqoProds.forEach(p => {
+      checklistPct += CHECKLIST.filter(f=>toBool(p[f])).length/CHECKLIST.length;
+    });
+    checklistPct = checklistPct/veeqoProds.length;
+  }
+
+  const recentProducts = [...products]
+    .filter(p=>parseRowDate(p))
+    .sort((a,b)=>parseRowDate(b)-parseRowDate(a))
+    .slice(0,10);
+
+  const rankedSuppliers = [...suppliers]
+    .sort((a,b)=>(parseInt(a['Rank'])||9999)-(parseInt(b['Rank'])||9999))
+    .slice(0,8);
+
+  const withCard   = suppliers.filter(s=>s['Card']==='Yes').length;
+  const withCredit = suppliers.filter(s=>s['Credit Account']&&s['Credit Account'].trim()).length;
+
+  return {
+    stageCounts, totalProducts:products.length,
+    fullyListed:stageCounts.listed, inPipeline:stageCounts.listing+stageCounts.veeqo+stageCounts.ready,
+    amzActive, ebayActive, ttActive,
+    missingCost, stuckListing, stuckVeeqo,
+    overdueSuppliers, neverCompleted,
+    totalCOGs, avgUnitCost, totalSales, totalQty,
+    checklistPct, recentProducts, rankedSuppliers,
+    totalSuppliers:suppliers.length, withCard, withCredit,
+    awaitingDelivery:stageCounts.ready
+  };
+}
+
+/* ─── RENDER ALL ── */
+function render() {
+  const s = computeStats();
+  renderKPIs(s);
+
+  let html = '';
+  html += renderActions(s);
+  html += '<div class="ov-grid-2">';
+  html += renderPipeline(s);
+  html += renderMarketplace(s);
+  html += '</div>';
+  html += '<div class="ov-grid-sup">';
+  html += renderSuppliers(s);
+  html += renderFinancials(s);
+  html += '</div>';
+  html += renderRecentProducts(s);
+
+  document.getElementById('ovBody').innerHTML = html;
+}
+
+/* ─── KPIs ── */
+function renderKPIs(s) {
+  const listedPct = s.totalProducts>0 ? Math.round((s.fullyListed/s.totalProducts)*100) : 0;
+  const kpis = [
+    {
+      label:'Total Products', val:s.totalProducts, sub:'In system',
+      icon:'blue', accent:'#3b82f6',
+      badge:s.inPipeline>0?{text:s.inPipeline+' in pipeline',cls:'blue'}:null,
+      svg:'<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>'
+    },
+    {
+      label:'Fully Listed', val:s.fullyListed, sub:listedPct+'% of total',
+      icon:'green', accent:'#22c55e',
+      badge:{text:listedPct+'% listed',cls:listedPct>=50?'green':'amber'},
+      svg:'<polyline points="20 6 9 17 4 12"/>'
+    },
+    {
+      label:'Awaiting Delivery', val:s.awaitingDelivery, sub:'Ready to receive',
+      icon:'amber', accent:'#f59e0b',
+      badge:s.awaitingDelivery>0?{text:'Action needed',cls:'amber'}:{text:'Clear',cls:'green'},
+      svg:'<rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>'
+    },
+    {
+      label:'Active Suppliers', val:s.totalSuppliers, sub:s.overdueSuppliers>0?s.overdueSuppliers+' overdue':'All up to date',
+      icon:'purple', accent:'#8b5cf6',
+      badge:s.overdueSuppliers>0?{text:s.overdueSuppliers+' overdue',cls:'red'}:{text:'Healthy',cls:'green'},
+      svg:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'
+    },
+    {
+      label:'Amazon Active', val:s.amzActive, sub:'Listings running ads',
+      icon:'slate', accent:'#ff9900',
+      badge:s.ebayActive>0||s.ttActive>0?{text:s.ebayActive+' eBay · '+s.ttActive+' TT',cls:'slate'}:null,
+      svg:'<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>'
+    },
+  ];
+
+  let html = '';
+  kpis.forEach(k => {
+    html += `<div class="ov-kpi-card">
+      <div class="ov-kpi-top">
+        <div class="ov-kpi-icon ${k.icon}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:${k.accent}">${k.svg}</svg>
+        </div>
+        ${k.badge ? `<span class="ov-kpi-badge ${k.badge.cls}">${esc(k.badge.text)}</span>` : ''}
+      </div>
+      <div class="ov-kpi-label">${esc(k.label)}</div>
+      <div class="ov-kpi-val">${k.val}</div>
+      <div class="ov-kpi-sub">${esc(k.sub)}</div>
+      <div class="ov-kpi-accent" style="background:${k.accent}"></div>
+    </div>`;
+  });
+  document.getElementById('ovKpiRow').innerHTML = html;
+}
+
+/* ─── ACTION ITEMS ── */
+function renderActions(s) {
+  const actions = [];
+
+  if (s.stuckListing > 0) actions.push({
+    level:'urgent',
+    title:`${s.stuckListing} product${s.stuckListing>1?'s':''} stuck in "Needs Listing" for 7+ days`,
+    desc:'These products haven\'t started the listing process. Assign to a team member immediately.',
+    badge:s.stuckListing+' products'
+  });
+  if (s.overdueSuppliers > 0) actions.push({
+    level:'urgent',
+    title:`${s.overdueSuppliers} supplier${s.overdueSuppliers>1?'s':''} overdue — Last Completion 30+ days ago`,
+    desc:'Schedule a re-order review and update the Last Completion date after contact.',
+    badge:s.overdueSuppliers+' suppliers'
+  });
+  if (s.missingCost > 0) actions.push({
+    level:'warning',
+    title:`${s.missingCost} product${s.missingCost>1?'s':''} missing cost data`,
+    desc:'Unit Cost and ASIN Cost are both empty. eBay & TikTok pricing calculations will be inaccurate.',
+    badge:s.missingCost+' products'
+  });
+  if (s.stuckVeeqo > 0) actions.push({
+    level:'warning',
+    title:`${s.stuckVeeqo} product${s.stuckVeeqo>1?'s':''} in Veeqo & Marketing for 14+ days`,
+    desc:'Check the Veeqo checklist — some items may be outstanding or waiting on a team member.',
+    badge:s.stuckVeeqo+' products'
+  });
+  if (s.neverCompleted > 0) actions.push({
+    level:'info',
+    title:`${s.neverCompleted} supplier${s.neverCompleted>1?'s':''} with no Last Completion date`,
+    desc:'Set a Last Completion date in the Suppliers page to track engagement cadence.',
+    badge:s.neverCompleted+' suppliers'
+  });
+  if (s.awaitingDelivery > 0) actions.push({
+    level:'info',
+    title:`${s.awaitingDelivery} product${s.awaitingDelivery>1?'s':''} awaiting delivery`,
+    desc:'Veeqo checklist is complete. Mark Warehouse Notified and Delivery Received when stock arrives.',
+    badge:s.awaitingDelivery+' products'
+  });
+
+  const urgentCount = actions.filter(a=>a.level==='urgent').length;
+  const warnCount   = actions.filter(a=>a.level==='warning').length;
+
+  let html = `<div class="ov-sec-hdr">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    Action Items`;
+  if (urgentCount>0) html += ` <span style="background:#fee2e2;color:#dc2626;border-radius:100px;padding:1px 8px;font-size:10px;font-weight:700;text-transform:none;letter-spacing:0">${urgentCount} urgent</span>`;
+  if (warnCount>0)   html += ` <span style="background:#fef9c3;color:#92400e;border-radius:100px;padding:1px 8px;font-size:10px;font-weight:700;text-transform:none;letter-spacing:0">${warnCount} warning</span>`;
+  html += '</div>';
+
+  if (!actions.length) {
+    html += `<div class="ov-all-clear">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      All clear — no action items right now
+    </div>`;
+    return html;
+  }
+
+  html += '<div class="ov-actions">';
+  actions.forEach(a => {
+    html += `<div class="ov-action-item">
+      <div class="ov-action-dot ${a.level}"></div>
+      <div class="ov-action-body">
+        <div class="ov-action-title">${esc(a.title)}</div>
+        <div class="ov-action-desc">${esc(a.desc)}</div>
+      </div>
+      <span class="ov-action-badge ${a.level}">${esc(a.badge)}</span>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+/* ─── PIPELINE ── */
+function renderPipeline(s) {
+  const total = s.totalProducts || 1;
+  const stages = [
+    {label:'Needs Listing',      color:'#fbbf24', count:s.stageCounts.listing},
+    {label:'Veeqo & Marketing',  color:'#60a5fa', count:s.stageCounts.veeqo},
+    {label:'Awaiting Delivery',  color:'#4ade80', count:s.stageCounts.ready},
+    {label:'Fully Listed',       color:'#a78bfa', count:s.stageCounts.listed},
+  ];
+
+  let html = `<div class="ov-card">
+    <div class="ov-card-hdr">
+      <div class="ov-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+        Product Pipeline
+      </div>
+      <span class="ov-card-count">${s.totalProducts} total</span>
+    </div>
+    <div class="ov-card-body">
+      <div class="ov-pipeline-list">`;
+
+  stages.forEach(st => {
+    const pct = Math.round((st.count/total)*100);
+    html += `<div class="ov-pipeline-stage">
+      <div class="ov-pipeline-dot" style="background:${st.color}"></div>
+      <div class="ov-pipeline-name">${esc(st.label)}</div>
+      <div class="ov-pipeline-bar-wrap"><div class="ov-pipeline-bar" style="width:${pct}%;background:${st.color}"></div></div>
+      <div class="ov-pipeline-num">${st.count}</div>
+      <div class="ov-pipeline-pct">${pct}%</div>
+    </div>`;
+  });
+
+  // Veeqo checklist progress
+  const cpct = Math.round(s.checklistPct*100);
+  html += `</div>
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid #f1f5f9;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Avg Veeqo Checklist Progress</span>
+          <span style="font-size:12px;font-weight:800;color:#0f172a">${cpct}%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="ov-progress-wrap" style="margin:0;height:8px"><div class="ov-progress-bar" style="width:${cpct}%;background:#60a5fa"></div></div>
+        </div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:5px">${s.stageCounts.veeqo} product${s.stageCounts.veeqo!==1?'s':''} currently in Veeqo &amp; Marketing</div>
+      </div>
+    </div>
+  </div>`;
+  return html;
+}
+
+/* ─── MARKETPLACE ── */
+function renderMarketplace(s) {
+  const total = s.totalProducts || 1;
+  const amzPct  = Math.round((s.amzActive/total)*100);
+  const ebayPct = Math.round((s.ebayActive/total)*100);
+  const ttPct   = Math.round((s.ttActive/total)*100);
+
+  return `<div class="ov-card">
+    <div class="ov-card-hdr">
+      <div class="ov-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        Marketplace Activity
+      </div>
+    </div>
+    <div class="ov-card-body">
+      <div class="ov-mkt-grid">
+        <div class="ov-mkt-card amz">
+          <div class="ov-mkt-icon amz">${ICO_AMZ}</div>
+          <div class="ov-mkt-num">${s.amzActive}</div>
+          <div class="ov-mkt-label">Amazon</div>
+          <div class="ov-mkt-sub">${amzPct}% of products</div>
+        </div>
+        <div class="ov-mkt-card ebay">
+          <div class="ov-mkt-icon ebay">${ICO_EBAY}</div>
+          <div class="ov-mkt-num">${s.ebayActive}</div>
+          <div class="ov-mkt-label">eBay</div>
+          <div class="ov-mkt-sub">${ebayPct}% of products</div>
+        </div>
+        <div class="ov-mkt-card tt">
+          <div class="ov-mkt-icon tt">${ICO_TT}</div>
+          <div class="ov-mkt-num">${s.ttActive}</div>
+          <div class="ov-mkt-label">TikTok</div>
+          <div class="ov-mkt-sub">${ttPct}% of products</div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
+        ${mktBar('Amazon','#ff9900',s.amzActive,total)}
+        ${mktBar('eBay','#0064d2',s.ebayActive,total)}
+        ${mktBar('TikTok','#010101',s.ttActive,total)}
+      </div>
+    </div>
+  </div>`;
+}
+
+function mktBar(name, color, count, total) {
+  const pct = total>0 ? Math.round((count/total)*100) : 0;
+  return `<div style="display:flex;align-items:center;gap:10px;">
+    <span style="font-size:11px;font-weight:600;color:#64748b;width:48px;flex-shrink:0">${esc(name)}</span>
+    <div class="ov-progress-wrap"><div class="ov-progress-bar" style="width:${pct}%;background:${color}"></div></div>
+    <span style="font-size:11px;font-weight:700;color:#0f172a;flex-shrink:0;width:28px;text-align:right">${count}</span>
+    <span style="font-size:10px;color:#94a3b8;flex-shrink:0;width:28px">${pct}%</span>
+  </div>`;
+}
+
+/* ─── SUPPLIER HEALTH ── */
+function renderSuppliers(s) {
+  let html = `<div class="ov-card">
+    <div class="ov-card-hdr">
+      <div class="ov-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Supplier Health
+      </div>
+      <span class="ov-card-count">${s.totalSuppliers} total</span>
+    </div>
+    <div class="ov-card-body no-pad">`;
+
+  if (!s.rankedSuppliers.length) {
+    html += '<div style="padding:28px;text-align:center;color:#94a3b8;font-size:13px">No suppliers found</div>';
+  } else {
+    html += `<table class="ov-sup-table">
+      <thead><tr>
+        <th></th><th>Supplier</th><th>Rank</th><th>MOQ</th><th>Card</th><th>Last Completion</th><th>Days Since</th>
+      </tr></thead><tbody>`;
+
+    s.rankedSuppliers.forEach(sup => {
+      const name = sup['Supplier Name'] || '';
+      const [bg, color] = avatarColors(name);
+      const rank = sup['Rank'] || '';
+      const rankCls = rank==='1'?'rp-1':rank==='2'?'rp-2':rank==='3'?'rp-3':'rp-n';
+      const days = calcDaysSince(sup['Last Completion']||'');
+      const dc = dpClass(days);
+      const hasCard = sup['Card']==='Yes';
+      const lcStr = sup['Last Completion'] ? fmtDateShort(sup['Last Completion']) : '';
+
+      html += `<tr>
+        <td style="padding:8px 16px"><div class="ov-av" style="background:${bg};color:${color}">${getInitials(name)}</div></td>
+        <td><span style="font-size:12.5px;font-weight:700;color:#0f172a">${esc(name)}</span></td>
+        <td>${rank?`<span class="rp ${rankCls}">#${esc(rank)}</span>`:'<span style="color:#94a3b8;font-size:11px">—</span>'}</td>
+        <td style="font-size:12px;color:#64748b">${esc(sup['MOQ']||'—')}</td>
+        <td>${hasCard?`<span class="bool-yes"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Yes</span>`:`<span class="bool-no"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>No</span>`}</td>
+        <td style="font-size:12px;color:#64748b">${lcStr?esc(lcStr):'<span style="color:#cbd5e1;font-style:italic">Not set</span>'}</td>
+        <td>${days!==null?`<span class="dp ${dc}">${daysLabel(days)}</span>`:'<span style="color:#94a3b8;font-size:11px">—</span>'}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+  }
+  html += '</div></div>';
+  return html;
+}
+
+/* ─── FINANCIALS ── */
+function renderFinancials(s) {
+  const withCardPct   = s.totalSuppliers>0 ? Math.round((s.withCard/s.totalSuppliers)*100)   : 0;
+  const withCreditPct = s.totalSuppliers>0 ? Math.round((s.withCredit/s.totalSuppliers)*100) : 0;
+  const costCoverage  = s.totalProducts>0  ? Math.round(((s.totalProducts-s.missingCost)/s.totalProducts)*100) : 0;
+
+  return `<div class="ov-card">
+    <div class="ov-card-hdr">
+      <div class="ov-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Financial Snapshot
+      </div>
+    </div>
+    <div class="ov-card-body">
+      <div style="display:flex;flex-direction:column;">
+        ${fstat('Total COGs', s.totalCOGs>0?fmt£(s.totalCOGs):'—', 'Across all products')}
+        ${fstat('Avg Unit Cost', s.avgUnitCost>0?fmt£(s.avgUnitCost):'—', 'Products with cost set')}
+        ${fstat('Cost Coverage', costCoverage+'%', `${s.totalProducts-s.missingCost}/${s.totalProducts} products`, s.missingCost>0?'amber':'')}
+        ${fstat('Suppliers w/ Card', s.withCard+' / '+s.totalSuppliers, withCardPct+'% of supplier base')}
+        ${fstat('Credit Accounts', s.withCredit+' / '+s.totalSuppliers, withCreditPct+'% of suppliers')}
+        ${fstat('Listing Stage Spread', s.stageCounts.listing+' / '+s.stageCounts.veeqo+' / '+s.stageCounts.ready, 'Needs Listing / Veeqo / Awaiting')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function fstat(label, value, sub, valColor) {
+  const cls = valColor==='amber'?'ov-fstat-val amber-val':valColor==='red'?'ov-fstat-val red':'ov-fstat-val';
+  const style = valColor==='amber'?'color:#d97706':valColor==='red'?'color:#dc2626':'';
+  return `<div class="ov-fstat">
+    <div>
+      <div class="ov-fstat-label">${esc(label)}</div>
+      <div class="ov-fstat-sub">${esc(sub)}</div>
+    </div>
+    <div class="ov-fstat-val" style="${style}">${esc(String(value))}</div>
+  </div>`;
+}
+
+/* ─── RECENT PRODUCTS ── */
+function renderRecentProducts(s) {
+  if (!s.recentProducts.length) return '';
+
+  const stageMap = {
+    listing:'<span class="sp sp-listing">Needs Listing</span>',
+    veeqo:  '<span class="sp sp-veeqo">Veeqo</span>',
+    ready:  '<span class="sp sp-ready">Awaiting</span>',
+    listed: '<span class="sp sp-listed">Listed</span>',
+  };
+
+  let html = `<div class="ov-card">
+    <div class="ov-card-hdr">
+      <div class="ov-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Recently Added Products
+      </div>
+      <span class="ov-card-count">Last ${s.recentProducts.length}</span>
+    </div>
+    <div class="ov-card-body no-pad">`;
+
+  s.recentProducts.forEach(p => {
+    const stage = getStage(p);
+    const rowDate = parseRowDate(p);
+    const dateStr = rowDate ? fmtDate(rowDate) : '';
+    const checksDone = CHECKLIST.filter(f=>toBool(p[f])).length;
+    const uc = parseFloat(p['Unit Cost']);
+
+    html += `<div class="ov-prod-row">
+      <div style="min-width:0;flex:1">
+        <div class="ov-prod-name">${esc(p['Listing Name']||'—')}</div>
+        <div style="display:flex;align-items:center;gap:7px;margin-top:2px">
+          <span class="ov-prod-asin">${esc(p['ASINs']||'')}</span>
+          ${dateStr?`<span style="width:3px;height:3px;border-radius:50%;background:#cbd5e1;flex-shrink:0"></span><span class="ov-prod-date">${esc(dateStr)}</span>`:''}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+        ${!isNaN(uc)?`<span style="font-size:12px;font-weight:700;color:#334155">£${uc.toFixed(2)}</span>`:''}
+        <div style="display:flex;align-items:center;gap:5px">
+          <div class="ov-check-dots">${CHECKLIST.map((_,i)=>`<div class="cd ${i<checksDone?'on':'off'}"></div>`).join('')}</div>
+          <span style="font-size:10px;font-weight:600;color:#64748b">${checksDone}/9</span>
+        </div>
+        ${stageMap[stage]||''}
+      </div>
+    </div>`;
+  });
+
+  html += '</div></div>';
+  return html;
+}
+
+init();
+})();
+</script>
