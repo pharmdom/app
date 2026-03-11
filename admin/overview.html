@@ -316,32 +316,52 @@ function startClock() {
 
 /* ─── LOAD ── */
 async function init() {
+
   startClock();
-  if (!API_URL) { renderErr('Set window.API_URL to load data.'); return; }
+
+  if (!API_URL) {
+    renderErr('API URL missing.');
+    return;
+  }
+
   try {
-      const [pRes, sRes] = await Promise.all([
-        fetch(API_URL,{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({action:'getListing'})
-        }),
-        fetch(API_URL,{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({action:'getSuppliers'})
-        })
-      ]);
-      
+
+    const [pRes, sRes] = await Promise.all([
+      fetch(API_URL,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'getListing'})
+      }),
+      fetch(API_URL,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'getSuppliers'})
+      })
+    ]);
+
     const pData = await pRes.json();
     const sData = await sRes.json();
-    products  = Array.isArray(pData) ? pData : (pData.data || []);
-    suppliers = sData.success ? (sData.suppliers || []) : [];
+
+    products = Array.isArray(pData)
+      ? pData
+      : (pData.data || []);
+
+    suppliers = Array.isArray(sData)
+      ? sData
+      : (sData.suppliers || []);
+
     render();
+
   } catch(e) {
-    renderErr('Failed to load data. Check API_URL and CORS.');
+
+    console.error(e);
+    renderErr('Failed to load data. Check API or network.');
+
   }
+
 }
 
+  
 function renderErr(msg) {
   document.getElementById('ovBody').innerHTML =
     '<div class="ov-loading"><p style="color:#dc2626;font-weight:600;font-size:13px">'+esc(msg)+'</p></div>';
