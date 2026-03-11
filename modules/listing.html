@@ -570,25 +570,36 @@ row['eBay Pack Size'] = '';
 
 if (cost) {
 
-  let chosenPack = null;
-
   const packs = [1, ...Array.from({length:100}, (_,i)=>2*(i+1))];
+
+  let chosenPack = null;
+  let closestPack = null;
+  let closestDiff = Infinity;
 
   for (let pack of packs) {
 
     const rawPrice = (((cost * pack) * 1.35) + 3) / 0.6634;
-
     const finalPrice = Math.ceil(rawPrice + 0.01) - 0.01;
 
+    /* perfect range */
     if (finalPrice >= 14 && finalPrice <= 17.99) {
       chosenPack = pack;
       break;
     }
 
+    /* track closest price */
+    const diff = Math.abs(finalPrice - 17.99);
+    if (diff < closestDiff) {
+      closestDiff = diff;
+      closestPack = pack;
+    }
+
   }
 
-  row['TikTok Pack Size'] = chosenPack || '';
-  row['eBay Pack Size'] = chosenPack || '';
+  const finalPack = chosenPack || closestPack;
+
+  row['TikTok Pack Size'] = finalPack;
+  row['eBay Pack Size'] = finalPack;
 
 }
 
