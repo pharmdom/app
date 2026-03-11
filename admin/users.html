@@ -1,22 +1,16 @@
-<!-- ═══════════════════════════════════════════
-     STAFF MANAGEMENT — PharmDomestic
-     Assumes: API_URL is defined in your main
-     layout/script (pointing to your Apps Script)
-     Your sheet columns: userId | firstName | lastName | email | password | role | status | permissions | lastLogin
-═══════════════════════════════════════════ -->
 <div class="ov-page">
-     
+
 <div id="staffApp">
 
   <!-- HEADER -->
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
     <div>
-      <h2 style="font-size:18px;font-weight:700;color:#0f172a;letter-spacing:-0.3px;margin:0;"></h2>
+      <h2 style="font-size:18px;font-weight:700;color:#0f172a;letter-spacing:-0.3px;margin:0;">Staff Management</h2>
       <p style="font-size:12px;color:#94a3b8;margin:3px 0 0;">Manage team members, roles &amp; module access</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
-      <button class="pd-btn pd-btn-ghost pd-btn-sm" onclick="loadStaff()">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      <button class="pd-btn pd-btn-ghost pd-btn-sm" id="smRefreshBtn" onclick="loadStaff()">
+        <svg id="smRefreshIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         Refresh
       </button>
       <button class="pd-btn pd-btn-primary pd-btn-sm" onclick="smOpenAddModal()">
@@ -58,13 +52,10 @@
 </div>
 
 
-
 <!-- ═══════════════════ DRAWER ═══════════════════ -->
 <div id="smDrawerOverlay" onclick="smCloseDrawer()" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.3);backdrop-filter:blur(4px);z-index:1000;opacity:0;transition:opacity .25s;"></div>
 
 <div id="smDrawer" style="position:fixed;top:0;right:0;width:520px;max-width:97vw;height:100%;background:#fff;box-shadow:-4px 0 40px rgba(0,0,0,0.12);z-index:1001;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s cubic-bezier(.16,1,.3,1);">
-
-  <!-- Drawer Hero -->
   <div style="background:linear-gradient(135deg,#1e293b,#0f172a);padding:24px;position:relative;overflow:hidden;flex-shrink:0;">
     <div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.04);"></div>
     <div style="position:absolute;bottom:-20px;left:20px;width:60px;height:60px;border-radius:50%;background:rgba(59,130,246,0.08);"></div>
@@ -79,26 +70,19 @@
         <div id="smDrawerEmail" style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:3px;"></div>
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
           <div id="smDrawerRole" style="padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600;"></div>
-          <div id="smDrawerJoined" style="padding:4px 10px;border-radius:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.45);font-size:11px;"></div>
+          <div id="smDrawerTenure" style="padding:4px 10px;border-radius:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.45);font-size:11px;"></div>
         </div>
       </div>
     </div>
   </div>
-
-  <!-- Drawer Body -->
   <div id="smDrawerBody" style="flex:1;overflow-y:auto;padding:20px 24px;"></div>
-
-  <!-- Drawer Footer -->
   <div id="smDrawerFooter" style="padding:12px 20px;border-top:1px solid #f1f5f9;display:flex;align-items:center;gap:8px;background:#fafafa;flex-shrink:0;"></div>
-
 </div>
 
 
 <!-- ═══════════════════ MODAL ═══════════════════ -->
 <div id="smModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);backdrop-filter:blur(4px);z-index:1002;align-items:center;justify-content:center;padding:16px;">
   <div style="background:#fff;border-radius:18px;width:100%;max-width:540px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,0.15);overflow:hidden;">
-
-    <!-- Modal Header -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #f1f5f9;background:linear-gradient(to right,#f8fafc,#fff);flex-shrink:0;">
       <div style="display:flex;align-items:center;gap:12px;">
         <div style="width:36px;height:36px;border-radius:10px;background:#eff6ff;display:flex;align-items:center;justify-content:center;color:#2563eb;">
@@ -113,42 +97,22 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-
-    <!-- Modal Body -->
     <div style="flex:1;overflow-y:auto;padding:20px;">
       <input type="hidden" id="smEditId">
-
-      <!-- Personal Info -->
       <div class="sm-form-section">
         <div class="sm-section-label">Personal Information</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div>
-            <label class="sm-label">First Name *</label>
-            <input id="smFN" class="pd-input" placeholder="John">
-          </div>
-          <div>
-            <label class="sm-label">Last Name *</label>
-            <input id="smLN" class="pd-input" placeholder="Smith">
-          </div>
+          <div><label class="sm-label">First Name *</label><input id="smFN" class="pd-input" placeholder="John"></div>
+          <div><label class="sm-label">Last Name *</label><input id="smLN" class="pd-input" placeholder="Smith"></div>
         </div>
       </div>
-
-      <!-- Credentials -->
       <div class="sm-form-section">
         <div class="sm-section-label">Login Credentials</div>
         <div style="display:grid;gap:12px;">
-          <div>
-            <label class="sm-label">Email *</label>
-            <input id="smEmail" class="pd-input" type="email" placeholder="john@pharmdomestic.com">
-          </div>
-          <div>
-            <label id="smPwdLabel" class="sm-label">Password *</label>
-            <input id="smPwd" class="pd-input" type="password" placeholder="••••••••">
-          </div>
+          <div><label class="sm-label">Email *</label><input id="smEmail" class="pd-input" type="email" placeholder="john@pharmdomestic.com"></div>
+          <div><label id="smPwdLabel" class="sm-label">Password *</label><input id="smPwd" class="pd-input" type="password" placeholder="••••••••"></div>
         </div>
       </div>
-
-      <!-- Role & Status -->
       <div class="sm-form-section">
         <div class="sm-section-label">Role &amp; Status</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -169,15 +133,11 @@
           </div>
         </div>
       </div>
-
-      <!-- Modules -->
       <div class="sm-form-section">
         <div class="sm-section-label">Module Access</div>
         <div id="smModuleGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
       </div>
     </div>
-
-    <!-- Modal Footer -->
     <div style="padding:12px 20px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:8px;background:#fafafa;flex-shrink:0;">
       <button class="pd-btn pd-btn-ghost pd-btn-sm" onclick="smCloseModal()">Cancel</button>
       <button id="smSaveBtn" class="pd-btn pd-btn-primary pd-btn-sm" onclick="smSaveStaff()">
@@ -185,18 +145,16 @@
         <span id="smSaveLbl">Add Staff Member</span>
       </button>
     </div>
-
   </div>
 </div>
 
-     
-</div>
+</div><!-- end .ov-page -->
+
 
 <!-- ═══════════════════ STYLES ═══════════════════ -->
 <style>
 
-/* ─── PAGE (scrollable) ── */
-.ov-page {  
+.ov-page {
   padding: 5px 10px 1px 10px;
   height: 100vh;
   display: flex; flex-direction: column; overflow: hidden;
@@ -206,30 +164,21 @@
 html, body {
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 14px; color: #0f172a; background: #f8fafc;
-  line-height: 1.5; height: 100%; overflow: hidden; -webkit-font-smoothing: antialiased;
+  line-height: 1.5; height: 100%; -webkit-font-smoothing: antialiased;
 }
-.content-wrap { overflow-x: hidden; }
 
 /* ── Staff Card ── */
 .sm-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 16px;
-  cursor: pointer;
-  transition: all .2s ease;
-  position: relative;
-  animation: smCardIn .25s ease both;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+  padding: 16px; cursor: pointer; transition: all .2s ease;
+  position: relative; animation: smCardIn .25s ease both;
 }
-.sm-card:hover {
-  border-color: #cbd5e1;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0,0,0,0.07);
-}
+.sm-card:hover { border-color: #cbd5e1; transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.07); }
+
 .sm-avatar {
-  width: 40px; height: 40px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700; flex-shrink: 0; border: 2px solid transparent;
+  width:40px; height:40px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:700; flex-shrink:0; border:2px solid transparent;
 }
 .sm-avatar.admin     { background:#dbeafe; color:#1d4ed8; border-color:#bfdbfe; }
 .sm-avatar.dops      { background:#ede9fe; color:#6d28d9; border-color:#ddd6fe; }
@@ -239,115 +188,100 @@ html, body {
 .sm-status-dot.active    { background:#22c55e; }
 .sm-status-dot.suspended { background:#ef4444; }
 
-.sm-role-badge {
-  display:inline-flex; align-items:center; gap:4px;
-  padding:3px 9px; border-radius:100px; font-size:11px; font-weight:600;
-}
+.sm-role-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:100px; font-size:11px; font-weight:600; }
 .sm-role-badge.admin     { background:#dbeafe; color:#1d4ed8; }
 .sm-role-badge.dops      { background:#ede9fe; color:#6d28d9; }
 .sm-role-badge.warehouse { background:#fef3c7; color:#b45309; }
 
-.sm-perm-pill {
-  padding:2px 8px; border-radius:100px; font-size:10px; font-weight:500;
-  background:#f1f5f9; color:#64748b; text-transform:capitalize;
-}
+.sm-perm-pill { padding:2px 8px; border-radius:100px; font-size:10px; font-weight:500; background:#f1f5f9; color:#64748b; text-transform:capitalize; }
 
 /* ── Stat Chips ── */
 .sm-chip {
   display:inline-flex; align-items:center; gap:6px;
   padding:5px 12px; border-radius:100px; font-size:12px; font-weight:600;
-  border:1.5px solid; cursor:pointer; transition:all .15s;
-  font-family: inherit;
+  border:1.5px solid; cursor:pointer; transition:all .15s; font-family:inherit;
 }
-.sm-chip:hover { transform: translateY(-1px); }
-.sm-chip.active { box-shadow: 0 0 0 2px rgba(255,255,255,0.8), 0 0 0 4px currentColor; }
+.sm-chip:hover { transform:translateY(-1px); }
+.sm-chip.active { box-shadow:0 0 0 2px rgba(255,255,255,0.8),0 0 0 4px currentColor; }
 .sm-chip.gray   { background:#f8fafc; color:#475569; border-color:#e2e8f0; }
 .sm-chip.blue   { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
 .sm-chip.purple { background:#f5f3ff; color:#6d28d9; border-color:#ddd6fe; }
 .sm-chip.amber  { background:#fffbeb; color:#b45309; border-color:#fde68a; }
 .sm-chip.red    { background:#fef2f2; color:#dc2626; border-color:#fecaca; }
 
-/* ── Detail view inside drawer ── */
+/* ── Drawer detail ── */
 .sm-detail-label {
   font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px;
   color:#94a3b8; margin-bottom:10px; display:flex; align-items:center; gap:8px;
 }
 .sm-detail-label::after { content:''; flex:1; height:1px; background:#f1f5f9; }
-.sm-detail-card {
-  background:#f8fafc; border:1px solid #f1f5f9; border-radius:10px; padding:10px 13px;
-}
-.sm-field-label {
-  font-size:10px; font-weight:700; color:#94a3b8; text-transform:uppercase;
-  letter-spacing:.5px; margin-bottom:4px;
-}
+.sm-detail-card { background:#f8fafc; border:1px solid #f1f5f9; border-radius:10px; padding:10px 13px; }
+.sm-field-label { font-size:10px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
 .sm-field-value { font-size:13px; color:#1e293b; font-weight:500; }
+
 .sm-mod-on  { padding:4px 10px; border-radius:100px; font-size:11px; font-weight:600; background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; text-transform:capitalize; }
 .sm-mod-off { padding:4px 10px; border-radius:100px; font-size:11px; font-weight:600; background:#f1f5f9; color:#94a3b8; border:1px solid #e2e8f0; text-decoration:line-through; text-transform:capitalize; }
 
 /* ── Drawer role/status badges ── */
-.sm-drawer-role.admin     { background:rgba(59,130,246,.1); color:#93c5fd; border:1px solid rgba(59,130,246,.2); border-radius:8px; }
-.sm-drawer-role.dops      { background:rgba(139,92,246,.1); color:#c4b5fd; border:1px solid rgba(139,92,246,.2); border-radius:8px; }
-.sm-drawer-role.warehouse { background:rgba(245,158,11,.1); color:#fcd34d; border:1px solid rgba(245,158,11,.2); border-radius:8px; }
-.sm-status-badge-active   { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;background:rgba(34,197,94,.15);color:#86efac;border:1px solid rgba(34,197,94,.25); }
-.sm-status-badge-suspended{ display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.25); }
+.sm-drawer-role.admin     { background:rgba(59,130,246,.1);  color:#93c5fd; border:1px solid rgba(59,130,246,.2);  border-radius:8px; }
+.sm-drawer-role.dops      { background:rgba(139,92,246,.1);  color:#c4b5fd; border:1px solid rgba(139,92,246,.2);  border-radius:8px; }
+.sm-drawer-role.warehouse { background:rgba(245,158,11,.1);  color:#fcd34d; border:1px solid rgba(245,158,11,.2);  border-radius:8px; }
+.sm-status-badge-active    { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;background:rgba(34,197,94,.15);color:#86efac;border:1px solid rgba(34,197,94,.25); }
+.sm-status-badge-suspended { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.25); }
 
-/* ── Module toggles in modal ── */
+/* ── Module toggles ── */
 .sm-mod-btn {
   padding:8px 12px; border:1.5px solid #e2e8f0; border-radius:8px;
   font-size:12px; font-weight:600; font-family:inherit; color:#94a3b8;
-  background:#f8fafc; cursor:pointer; transition:all .15s; text-transform:capitalize;
-  text-align:center;
+  background:#f8fafc; cursor:pointer; transition:all .15s; text-transform:capitalize; text-align:center;
 }
-.sm-mod-btn:hover { border-color:#94a3b8; }
+.sm-mod-btn:hover  { border-color:#94a3b8; }
 .sm-mod-btn.active { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
 
 /* ── Form helpers ── */
 .sm-form-section { margin-bottom:18px; }
-.sm-section-label {
-  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px;
-  color:#94a3b8; margin-bottom:10px;
-}
-.sm-label {
-  display:block; font-size:10px; font-weight:600; color:#64748b;
-  text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px;
-}
+.sm-section-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#94a3b8; margin-bottom:10px; }
+.sm-label { display:block; font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; }
 
-/* ── Base buttons / inputs ── */
-.pd-btn {
-  display:inline-flex; align-items:center; gap:6px; font-family:inherit;
-  font-weight:600; border-radius:8px; border:none; cursor:pointer; transition:all .15s;
-}
+/* ── Buttons & Inputs ── */
+.pd-btn { display:inline-flex; align-items:center; gap:6px; font-family:inherit; font-weight:600; border-radius:8px; border:none; cursor:pointer; transition:all .15s; }
+.pd-btn:disabled { opacity:.6; cursor:not-allowed; }
 .pd-btn-primary { background:#2563eb; color:#fff; }
-.pd-btn-primary:hover { background:#1d4ed8; }
+.pd-btn-primary:hover:not(:disabled) { background:#1d4ed8; }
 .pd-btn-ghost   { background:transparent; color:#64748b; border:1px solid #e2e8f0; }
-.pd-btn-ghost:hover { background:#f8fafc; }
+.pd-btn-ghost:hover:not(:disabled)  { background:#f8fafc; }
 .pd-btn-danger  { background:transparent; color:#dc2626; border:1px solid #fecaca; }
-.pd-btn-danger:hover { background:#fef2f2; }
+.pd-btn-danger:hover:not(:disabled) { background:#fef2f2; }
 .pd-btn-outline { background:#fff; color:#334155; border:1px solid #e2e8f0; }
-.pd-btn-outline:hover { border-color:#94a3b8; background:#f8fafc; }
+.pd-btn-outline:hover:not(:disabled){ border-color:#94a3b8; background:#f8fafc; }
+.pd-btn-success { background:#16a34a; color:#fff; border:none; }
+.pd-btn-caution { background:#d97706; color:#fff; border:none; }
 .pd-btn-sm  { padding:6px 12px; font-size:12px; }
 .pd-btn-md  { padding:8px 16px; font-size:13px; }
 
-.pd-input {
-  width:100%; padding:8px 11px; border:1px solid #e2e8f0; border-radius:8px;
-  font-size:13px; font-family:inherit; color:#0f172a; outline:none;
-  background:#fff; transition:border-color .15s; box-sizing:border-box;
-}
+.pd-input { width:100%; padding:8px 11px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; font-family:inherit; color:#0f172a; outline:none; background:#fff; transition:border-color .15s; box-sizing:border-box; }
 .pd-input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
 .pd-input.error { border-color:#ef4444; background:#fef2f2; }
 .pd-select { appearance:none; cursor:pointer; }
 
-.pd-spinner {
-  width:14px; height:14px; border:2px solid rgba(0,0,0,0.1);
-  border-top-color:#2563eb; border-radius:50%; animation:smSpin .6s linear infinite; display:inline-block;
-}
+/* ── Spinner ── */
+.pd-spinner { width:14px; height:14px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:smSpin .6s linear infinite; display:inline-block; vertical-align:middle; }
+.pd-spinner-dark { border:2px solid rgba(0,0,0,0.1); border-top-color:#2563eb; }
 
-@keyframes smSpin    { to { transform: rotate(360deg); } }
-@keyframes smCardIn  { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+/* ── Tenure badge ── */
+.sm-tenure-new    { background:rgba(34,197,94,.15);  color:#86efac; border:1px solid rgba(34,197,94,.25);  padding:4px 10px; border-radius:8px; font-size:11px; }
+.sm-tenure-mid    { background:rgba(59,130,246,.12); color:#93c5fd; border:1px solid rgba(59,130,246,.2);  padding:4px 10px; border-radius:8px; font-size:11px; }
+.sm-tenure-senior { background:rgba(245,158,11,.12); color:#fcd34d; border:1px solid rgba(245,158,11,.2);  padding:4px 10px; border-radius:8px; font-size:11px; }
 
-@media (max-width: 640px) {
-  #smGrid { grid-template-columns: 1fr !important; }
-  #smModuleGrid { grid-template-columns: repeat(2,1fr) !important; }
+/* ── Card tenure label ── */
+.sm-card-tenure { font-size:10px; color:#94a3b8; margin-top:6px; display:flex; align-items:center; gap:4px; }
+
+@keyframes smSpin   { to { transform:rotate(360deg); } }
+@keyframes smCardIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+@media (max-width:640px) {
+  #smGrid { grid-template-columns:1fr !important; }
+  #smModuleGrid { grid-template-columns:repeat(2,1fr) !important; }
 }
 
 </style>
@@ -355,42 +289,65 @@ html, body {
 
 <!-- ═══════════════════ SCRIPT ═══════════════════ -->
 <script>
-
 (function () {
-// ─────────────────────────────────────
-// CONFIG — adjust to match your sheet
-// ─────────────────────────────────────
-// API_URL should already be defined globally in your main layout.
-// If not, uncomment and set it:
-// const API_URL = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
 
-const SM_MODULES = ["sourcing", "listing", "suppliers", "rota", "inventory", "analytics"];
-let smAllStaff = [];
-let smFilter = "all";
+const SM_MODULES = ["sourcing","listing","suppliers","rota","inventory","analytics"];
+let smAllStaff   = [];
+let smFilter     = "all";
 let smCurrentStaff = null;
 
-// ─────────────────────────────────────
-// INIT
-// ─────────────────────────────────────
+// ── VISIBILITY: reload data when tab becomes visible again ──
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && smAllStaff.length === 0) loadStaff();
+});
+// Also reload when page comes into view inside a SPA iframe
+if (typeof IntersectionObserver !== "undefined") {
+  const el = document.getElementById("staffApp");
+  if (el) {
+    new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && smAllStaff.length === 0) loadStaff();
+    }, { threshold: 0.1 }).observe(el);
+  }
+}
+
+// ── INIT ──
 loadStaff();
 smBuildModuleGrid();
 
 // ─────────────────────────────────────
-// LOAD DATA
+// TENURE HELPER
+// ─────────────────────────────────────
+function smTenure(dateStr) {
+  if (!dateStr) return null;
+  const start = new Date(dateStr);
+  if (isNaN(start)) return null;
+  const now   = new Date();
+  const days  = Math.floor((now - start) / 86400000);
+  if (days < 30)  return { label: days + "d",  cls: "sm-tenure-new" };
+  const months = Math.floor(days / 30.44);
+  if (months < 12) return { label: months + "mo", cls: "sm-tenure-mid" };
+  const years  = Math.floor(months / 12);
+  const rem    = months % 12;
+  return { label: years + "yr" + (rem ? " " + rem + "mo" : ""), cls: "sm-tenure-senior" };
+}
+
+// ─────────────────────────────────────
+// LOAD
 // ─────────────────────────────────────
 async function loadStaff() {
-  document.getElementById("smLoading").style.display = "block";
-  document.getElementById("smGrid").style.display = "none";
-  document.getElementById("smEmpty").style.display = "none";
+  // Spinner on refresh button
+  const refreshIcon = document.getElementById("smRefreshIcon");
+  if (refreshIcon) refreshIcon.style.animation = "smSpin .6s linear infinite";
 
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify({ action: "getUsers" })
-  });
+  document.getElementById("smLoading").style.display = "block";
+  document.getElementById("smGrid").style.display    = "none";
+  document.getElementById("smEmpty").style.display   = "none";
+
+  const res  = await fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify({ action:"getUsers" }) });
   const data = await res.json();
 
   document.getElementById("smLoading").style.display = "none";
+  if (refreshIcon) refreshIcon.style.animation = "";
 
   if (data.success) {
     smAllStaff = data.users;
@@ -403,26 +360,26 @@ async function loadStaff() {
 // STAT CHIPS
 // ─────────────────────────────────────
 function smRenderChips() {
-  const total   = smAllStaff.length;
-  const admins  = smAllStaff.filter(s => s.role === "Admin").length;
-  const dops    = smAllStaff.filter(s => s.role === "Digital Ops").length;
-  const wh      = smAllStaff.filter(s => s.role === "Warehouse").length;
-  const susp    = smAllStaff.filter(s => s.status === "Suspended").length;
+  const total  = smAllStaff.length;
+  const admins = smAllStaff.filter(s => s.role === "Admin").length;
+  const dops   = smAllStaff.filter(s => s.role === "Digital Ops").length;
+  const wh     = smAllStaff.filter(s => s.role === "Warehouse").length;
+  const susp   = smAllStaff.filter(s => s.status === "Suspended").length;
 
   const chips = [
-    { key:"all",         label:"All Staff",   count:total,  cls:"gray"   },
-    { key:"Admin",       label:"Admin",        count:admins, cls:"blue"   },
-    { key:"Digital Ops", label:"Digital Ops",  count:dops,   cls:"purple" },
-    { key:"Warehouse",   label:"Warehouse",    count:wh,     cls:"amber"  },
-    { key:"Suspended",   label:"Suspended",    count:susp,   cls:"red"    },
+    { key:"all",         label:"All Staff",  count:total,  cls:"gray"   },
+    { key:"Admin",       label:"Admin",       count:admins, cls:"blue"   },
+    { key:"Digital Ops", label:"Digital Ops", count:dops,   cls:"purple" },
+    { key:"Warehouse",   label:"Warehouse",   count:wh,     cls:"amber"  },
+    { key:"Suspended",   label:"Suspended",   count:susp,   cls:"red"    },
   ];
 
   document.getElementById("smStatChips").innerHTML = chips.map(c => `
-    <button class="sm-chip ${c.cls} ${smFilter === c.key ? "active" : ""}" onclick="smSetFilter('${c.key}')">
+    <button class="sm-chip ${c.cls} ${smFilter===c.key?"active":""}" onclick="smSetFilter('${c.key}')">
       ${c.label}
       <span style="background:rgba(255,255,255,0.7);border-radius:100px;padding:1px 6px;font-size:10px;font-weight:700;">${c.count}</span>
-    </button>
-  `).join("");
+    </button>`
+  ).join("");
 }
 
 function smSetFilter(key) {
@@ -435,24 +392,23 @@ function smSetFilter(key) {
 // RENDER CARDS
 // ─────────────────────────────────────
 function smRenderCards() {
-  const q = (document.getElementById("smSearch").value || "").toLowerCase().trim();
-  let list = smAllStaff;
+  const q    = (document.getElementById("smSearch").value||"").toLowerCase().trim();
+  let list   = smAllStaff;
 
-  if (smFilter === "Suspended")      list = list.filter(s => s.status === "Suspended");
-  else if (smFilter !== "all")       list = list.filter(s => s.role === smFilter);
+  if (smFilter === "Suspended")  list = list.filter(s => s.status === "Suspended");
+  else if (smFilter !== "all")   list = list.filter(s => s.role   === smFilter);
   if (q) list = list.filter(s =>
-    (s.firstName + " " + s.lastName).toLowerCase().includes(q) ||
-    s.email.toLowerCase().includes(q)
+    (s.firstName+" "+s.lastName).toLowerCase().includes(q) || s.email.toLowerCase().includes(q)
   );
 
   const grid  = document.getElementById("smGrid");
   const empty = document.getElementById("smEmpty");
 
   if (!list.length) {
-    grid.style.display = "none";
+    grid.style.display  = "none";
     empty.style.display = "block";
-    document.getElementById("smEmptyTitle").textContent = (q || smFilter !== "all") ? "No staff match your search" : "No staff members yet";
-    document.getElementById("smEmptySub").textContent   = (q || smFilter !== "all") ? "Try adjusting your search or filters" : "Add your first team member to get started";
+    document.getElementById("smEmptyTitle").textContent = (q||smFilter!=="all") ? "No staff match your search"  : "No staff members yet";
+    document.getElementById("smEmptySub").textContent   = (q||smFilter!=="all") ? "Try adjusting your search or filters" : "Add your first team member to get started";
     return;
   }
 
@@ -463,8 +419,10 @@ function smRenderCards() {
     const initials = ((s.firstName||"")[0]||"") + ((s.lastName||"")[0]||"");
     const rKey     = smRoleKey(s.role);
     const sKey     = s.status === "Active" ? "active" : "suspended";
-    const perms    = (s.permissions || []).slice(0,3).map(p => `<span class="sm-perm-pill">${p}</span>`).join("");
+    const perms    = (s.permissions||[]).slice(0,3).map(p=>`<span class="sm-perm-pill">${p}</span>`).join("");
     const extra    = (s.permissions||[]).length > 3 ? `<span style="font-size:10px;color:#94a3b8;font-weight:500;">+${s.permissions.length-3}</span>` : "";
+    const tenure   = smTenure(s.createdDate || s.created_date || s.joinDate);
+    const tenureHtml = tenure ? `<div class="sm-card-tenure"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${tenure.label} with the team</div>` : "";
 
     return `
       <div class="sm-card" style="animation-delay:${i*0.04}s;" onclick='smOpenDrawer(${JSON.stringify(s).replace(/'/g,"&apos;")})'>
@@ -480,7 +438,7 @@ function smRenderCards() {
               <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.email}</span>
             </div>
           </div>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;transition:color .15s;" class="sm-card-chevron"><polyline points="9 18 15 12 9 6"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:12px;">
           <span class="sm-role-badge ${rKey}">
@@ -489,8 +447,8 @@ function smRenderCards() {
           </span>
           ${perms}${extra}
         </div>
-      </div>
-    `;
+        ${tenureHtml}
+      </div>`;
   }).join("");
 }
 
@@ -499,20 +457,19 @@ function smRenderCards() {
 // ─────────────────────────────────────
 function smOpenDrawer(staff) {
   smCurrentStaff = staff;
-  const rKey = smRoleKey(staff.role);
+  const rKey     = smRoleKey(staff.role);
   const isActive = staff.status === "Active";
 
-  // Avatar
-  const avatarStyle = {
+  const avatarColors = {
     admin:     "background:#dbeafe;color:#1d4ed8;",
     dops:      "background:#ede9fe;color:#6d28d9;",
     warehouse: "background:#fef3c7;color:#b45309;"
-  }[rKey] || "background:#f1f5f9;color:#475569;";
+  };
   const initials = ((staff.firstName||"")[0]||"") + ((staff.lastName||"")[0]||"");
-  document.getElementById("smDrawerAvatar").style.cssText += avatarStyle;
-  document.getElementById("smDrawerAvatar").textContent = initials.toUpperCase();
+  const av = document.getElementById("smDrawerAvatar");
+  av.style.cssText = `width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;flex-shrink:0;${avatarColors[rKey]||"background:#f1f5f9;color:#475569;"}`;
+  av.textContent = initials.toUpperCase();
 
-  // Status badge
   document.getElementById("smDrawerStatus").innerHTML = isActive
     ? `<span class="sm-status-badge-active"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Active</span>`
     : `<span class="sm-status-badge-suspended"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Suspended</span>`;
@@ -520,15 +477,31 @@ function smOpenDrawer(staff) {
   document.getElementById("smDrawerName").textContent  = staff.firstName + " " + staff.lastName;
   document.getElementById("smDrawerEmail").textContent = staff.email;
 
-  document.getElementById("smDrawerRole").className   = `sm-drawer-role ${rKey}`;
-  document.getElementById("smDrawerRole").innerHTML   = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> ${staff.role}`;
+  const dr = document.getElementById("smDrawerRole");
+  dr.className   = `sm-drawer-role ${rKey}`;
+  dr.innerHTML   = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> ${staff.role}`;
 
-  const joined = staff.lastLogin ? new Date(staff.lastLogin).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}) : "—";
-  document.getElementById("smDrawerJoined").innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Last login: ${joined}`;
+  // Tenure in drawer hero
+  const tenure = smTenure(staff.createdDate || staff.created_date || staff.joinDate);
+  const dt = document.getElementById("smDrawerTenure");
+  if (tenure) {
+    dt.className   = tenure.cls;
+    dt.innerHTML   = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:3px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${tenure.label} tenure`;
+  } else {
+    dt.className = "";
+    dt.style.cssText = "padding:4px 10px;border-radius:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.45);font-size:11px;";
+    dt.textContent = "No join date";
+  }
 
-  // Body
+  // Body details
   const perms = staff.permissions || [];
-  const modsHtml = SM_MODULES.map(m => `<span class="${perms.includes(m) ? "sm-mod-on" : "sm-mod-off"}">${perms.includes(m) ? "✓ " : ""}${m}</span>`).join("");
+  const modsHtml = SM_MODULES.map(m => `<span class="${perms.includes(m)?"sm-mod-on":"sm-mod-off"}">${perms.includes(m)?"✓ ":""}${m}</span>`).join("");
+
+  // Colour-coded status card
+  const statusCardStyle = isActive
+    ? "background:#f0fdf4;border:1px solid #bbf7d0;"
+    : "background:#fef2f2;border:1px solid #fecaca;";
+  const statusTextStyle = isActive ? "color:#15803d;" : "color:#dc2626;";
 
   document.getElementById("smDrawerBody").innerHTML = `
     <div class="sm-detail-label">Staff Details</div>
@@ -537,29 +510,36 @@ function smOpenDrawer(staff) {
       <div class="sm-detail-card"><div class="sm-field-label">Last Name</div><div class="sm-field-value">${staff.lastName}</div></div>
       <div class="sm-detail-card" style="grid-column:1/-1;"><div class="sm-field-label">Email</div><div class="sm-field-value">${staff.email}</div></div>
       <div class="sm-detail-card"><div class="sm-field-label">Role</div><div class="sm-field-value">${staff.role}</div></div>
-      <div class="sm-detail-card"><div class="sm-field-label">Status</div><div class="sm-field-value">${staff.status}</div></div>
+      <div class="sm-detail-card" style="${statusCardStyle}border-radius:10px;padding:10px 13px;">
+        <div class="sm-field-label">Status</div>
+        <div class="sm-field-value" style="${statusTextStyle}font-weight:700;">${staff.status}</div>
+      </div>
+      ${tenure ? `<div class="sm-detail-card" style="grid-column:1/-1;"><div class="sm-field-label">Time with Team</div><div class="sm-field-value">${tenure.label}</div></div>` : ""}
     </div>
     <div class="sm-detail-label">Module Access</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;">${modsHtml}</div>
   `;
 
   // Footer
-  document.getElementById("smDrawerFooter").innerHTML = `
-    <button class="pd-btn pd-btn-outline pd-btn-sm" onclick="event.stopPropagation(); smStartEdit();">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      Edit
-    </button>
-    <button class="pd-btn pd-btn-danger pd-btn-sm" onclick="event.stopPropagation(); smConfirmDelete()" style="margin-left:auto;">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-      Remove
-    </button>
-  `;
+  smResetDrawerFooter();
 
   // Show
   const overlay = document.getElementById("smDrawerOverlay");
   const drawer  = document.getElementById("smDrawer");
   overlay.style.display = "block";
   setTimeout(() => { overlay.style.opacity = "1"; drawer.style.transform = "translateX(0)"; }, 10);
+}
+
+function smResetDrawerFooter() {
+  document.getElementById("smDrawerFooter").innerHTML = `
+    <button class="pd-btn pd-btn-outline pd-btn-sm" onclick="event.stopPropagation();smStartEdit();">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Edit
+    </button>
+    <button class="pd-btn pd-btn-danger pd-btn-sm" onclick="event.stopPropagation();smConfirmDelete()" style="margin-left:auto;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      Remove
+    </button>`;
 }
 
 function smCloseDrawer() {
@@ -572,8 +552,9 @@ function smCloseDrawer() {
 
 function smStartEdit() {
   if (!smCurrentStaff) return;
+  const staffCopy = Object.assign({}, smCurrentStaff); // snapshot before close clears it
   smCloseDrawer();
-  setTimeout(() => smOpenEditModal(smCurrentStaff), 320);
+  setTimeout(() => smOpenEditModal(staffCopy), 320);
 }
 
 function smConfirmDelete() {
@@ -582,18 +563,15 @@ function smConfirmDelete() {
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       Confirm removal?
     </div>
-    <button class="pd-btn pd-btn-danger pd-btn-sm" onclick="smDeleteStaff()" style="margin-left:auto;">Yes, Remove</button>
-    <button class="pd-btn pd-btn-ghost pd-btn-sm" onclick="smOpenDrawer(smCurrentStaff)">Cancel</button>
-  `;
+    <button class="pd-btn pd-btn-danger pd-btn-sm" id="smDeleteConfirmBtn" onclick="smDeleteStaff()" style="margin-left:auto;">Yes, Remove</button>
+    <button class="pd-btn pd-btn-ghost pd-btn-sm" onclick="smResetDrawerFooter()">Cancel</button>`;
 }
 
 async function smDeleteStaff() {
   if (!smCurrentStaff) return;
-  await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify({ action: "deleteUser", userId: smCurrentStaff.userId })
-  });
+  const btn = document.getElementById("smDeleteConfirmBtn");
+  if (btn) { btn.disabled = true; btn.innerHTML = `<span class="pd-spinner"></span> Removing...`; }
+  await fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify({ action:"deleteUser", userId:smCurrentStaff.userId }) });
   smCloseDrawer();
   smShowToast("Staff member removed", "success");
   loadStaff();
@@ -648,7 +626,7 @@ function smCloseModal() {
 }
 
 async function smSaveStaff() {
-  const isEdit   = !!document.getElementById("smEditId").value;
+  const isEdit    = !!document.getElementById("smEditId").value;
   const firstName = document.getElementById("smFN").value.trim();
   const lastName  = document.getElementById("smLN").value.trim();
   const email     = document.getElementById("smEmail").value.trim();
@@ -657,49 +635,36 @@ async function smSaveStaff() {
   const status    = document.getElementById("smStatus").value;
   const perms     = Array.from(document.querySelectorAll(".sm-mod-btn.active")).map(b => b.dataset.mod);
 
-  // Validate
   let valid = true;
   [["smFN",firstName],["smLN",lastName],["smEmail",email]].forEach(([id,val]) => {
     if (!val) { document.getElementById(id).classList.add("error"); valid = false; }
-    else document.getElementById(id).classList.remove("error");
+    else      { document.getElementById(id).classList.remove("error"); }
   });
   if (!isEdit && !password) { document.getElementById("smPwd").classList.add("error"); valid = false; }
   else document.getElementById("smPwd").classList.remove("error");
   if (!valid) return;
 
-  // Disable button
-  const btn = document.getElementById("smSaveBtn");
-  const lbl = document.getElementById("smSaveLbl");
+  const btn  = document.getElementById("smSaveBtn");
+  const lbl  = document.getElementById("smSaveLbl");
   const orig = lbl.textContent;
   btn.disabled = true;
   lbl.innerHTML = `<span class="pd-spinner"></span> ${isEdit ? "Saving..." : "Adding..."}`;
 
-  const payload = {
-    action: "saveUser",
-    userId: document.getElementById("smEditId").value || "",
-    firstName, lastName, email, password, role, status,
-    permissions: perms.join(",")
-  };
+  const payload = { action:"saveUser", userId:document.getElementById("smEditId").value||"", firstName, lastName, email, password, role, status, permissions:perms.join(",") };
 
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify(payload)
-  });
+  const res  = await fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify(payload) });
   const data = await res.json();
 
   btn.disabled = false;
   lbl.textContent = orig;
 
   if (data.success) {
-    // Send welcome email for new staff
     if (!isEdit) {
-      smSendWelcomeEmail({ firstName, lastName, email, password, role, permissions: perms });
+      smSendWelcomeEmail({ firstName, lastName, email, password, role, permissions:perms });
     } else {
-      // Status / role change emails
-      const oldStaff = smAllStaff.find(s => s.userId === payload.userId);
-      if (oldStaff && oldStaff.status !== status) smSendStatusEmail({ firstName, email, newStatus: status });
-      if (oldStaff && oldStaff.role !== role)     smSendRoleEmail({ firstName, email, oldRole: oldStaff.role, newRole: role });
+      const old = smAllStaff.find(s => s.userId === payload.userId);
+      if (old && old.status !== status) smSendStatusEmail({ firstName, email, newStatus:status });
+      if (old && old.role   !== role)   smSendRoleEmail({ firstName, email, oldRole:old.role, newRole:role });
     }
     smCloseModal();
     smShowToast(isEdit ? "Staff member updated" : "Staff member added & welcome email sent", "success");
@@ -710,42 +675,162 @@ async function smSaveStaff() {
 }
 
 // ─────────────────────────────────────
-// EMAILS (sent via Apps Script)
+// EMAILS — Outlook/Exchange-safe, fully branded
 // ─────────────────────────────────────
-function smSendWelcomeEmail({ firstName, lastName, email, password, role, permissions }) {
-  const modulesList = permissions.map(p => `<li style="padding:4px 0;text-transform:capitalize;color:#334155;">${p}</li>`).join("");
-  const body = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f1f5f9;font-family:'Inter',system-ui,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 20px;"><tr><td align="center"><table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);"><tr><td style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);padding:32px 40px;text-align:center;"><h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">PharmDomestic</h1><p style="margin:6px 0 0;color:rgba(255,255,255,0.5);font-size:12px;letter-spacing:1px;text-transform:uppercase;">Staff Portal</p></td></tr><tr><td style="padding:36px 40px;"><h2 style="margin:0 0 6px;color:#0f172a;font-size:18px;font-weight:700;">Welcome aboard, ${firstName}! </h2><p style="margin:0 0 24px;color:#64748b;font-size:14px;line-height:1.6;">Your account has been created on the PharmDomestic platform. Below are your login details.</p><table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:24px;"><tr><td style="padding:20px 24px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:6px 0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Email</td><td style="padding:6px 0;font-size:14px;color:#0f172a;font-weight:600;text-align:right;">${email}</td></tr><tr><td style="padding:6px 0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Password</td><td style="padding:6px 0;font-size:14px;color:#0f172a;font-weight:600;text-align:right;font-family:monospace;">${password}</td></tr><tr><td style="padding:6px 0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Role</td><td style="padding:6px 0;text-align:right;"><span style="background:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:100px;font-size:12px;font-weight:600;">${role}</span></td></tr></table></td></tr></table>${modulesList ? `<p style="margin:0 0 8px;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Modules Assigned</p><ul style="margin:0 0 24px;padding-left:18px;font-size:13px;line-height:1.8;">${modulesList}</ul>` : ""}<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 0;"><a href="app.pharmdomestic.com/login" style="display:inline-block;background:#2563eb;color:#ffffff;padding:14px 36px;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;letter-spacing:-0.2px;">Login to Your Account →</a></td></tr></table></td></tr><tr><td style="padding:20px 40px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;"><p style="margin:0;color:#94a3b8;font-size:11px;">This is an automated message from PharmDomestic. Please do not reply.</p></td></tr></table></td></tr></table></body></html>`;
+const SM_LOGO = "https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png";
+const SM_LOGIN_URL = "https://app.pharmdomestic.com/login";
 
-  fetch(API_URL, {
-    method:"POST", headers:{"Content-Type":"text/plain"},
-    body: JSON.stringify({ action:"sendEmail", to:email, subject:"Welcome to PharmDomestic — Your Account is Ready", body })
-  }).catch(()=>{});
+function smEmailHeader() {
+  return `
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0f172a;">
+      <tr>
+        <td align="center" style="padding:28px 40px;">
+          <img src="${SM_LOGO}" alt="PharmDomestic" width="180" style="display:block;max-width:180px;height:auto;border:0;" />
+          <p style="margin:8px 0 0 0;color:rgba(255,255,255,0.45);font-size:11px;letter-spacing:1px;text-transform:uppercase;font-family:Arial,sans-serif;">Staff Portal</p>
+        </td>
+      </tr>
+    </table>`;
+}
+
+function smEmailFooter() {
+  return `
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8fafc;border-top:1px solid #e2e8f0;">
+      <tr>
+        <td align="center" style="padding:18px 40px;">
+          <p style="margin:0;color:#94a3b8;font-size:11px;font-family:Arial,sans-serif;">This is an automated message from PharmDomestic. Please do not reply.</p>
+          <p style="margin:6px 0 0;color:#cbd5e1;font-size:10px;font-family:Arial,sans-serif;">&#169; PharmDomestic ${new Date().getFullYear()}</p>
+        </td>
+      </tr>
+    </table>`;
+}
+
+function smEmailWrapper(bodyContent) {
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PharmDomestic</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f1f5f9;">
+  <tr>
+    <td align="center" style="padding:40px 20px;">
+      <!--[if mso]><table width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+      <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0;">
+        ${smEmailHeader()}
+        ${bodyContent}
+        ${smEmailFooter()}
+      </table>
+      <!--[if mso]></td></tr></table><![endif]-->
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+}
+
+function smSendWelcomeEmail({ firstName, lastName, email, password, role, permissions }) {
+  const moduleRows = permissions.length
+    ? permissions.map(p => `<tr><td style="padding:4px 0;font-size:13px;color:#334155;font-family:Arial,sans-serif;text-transform:capitalize;">&#8226; ${p}</td></tr>`).join("")
+    : `<tr><td style="padding:4px 0;font-size:13px;color:#94a3b8;font-family:Arial,sans-serif;">No modules assigned</td></tr>`;
+
+  const body = smEmailWrapper(`
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td style="padding:36px 40px 24px;">
+        <h2 style="margin:0 0 8px 0;color:#0f172a;font-size:20px;font-weight:700;font-family:Arial,sans-serif;">Welcome aboard, ${firstName}! &#127881;</h2>
+        <p style="margin:0 0 24px 0;color:#64748b;font-size:14px;line-height:1.6;font-family:Arial,sans-serif;">Your account has been created on the PharmDomestic platform. Here are your login details.</p>
+
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:24px;">
+          <tr><td style="padding:20px 24px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding:7px 0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;font-family:Arial,sans-serif;width:40%;">Email</td>
+                <td style="padding:7px 0;font-size:14px;color:#0f172a;font-weight:600;font-family:Arial,sans-serif;text-align:right;">${email}</td>
+              </tr>
+              <tr><td colspan="2" style="border-top:1px solid #e2e8f0;font-size:0;height:1px;"></td></tr>
+              <tr>
+                <td style="padding:7px 0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;font-family:Arial,sans-serif;">Password</td>
+                <td style="padding:7px 0;font-size:14px;color:#0f172a;font-weight:600;font-family:Courier New,monospace;text-align:right;">${password}</td>
+              </tr>
+              <tr><td colspan="2" style="border-top:1px solid #e2e8f0;font-size:0;height:1px;"></td></tr>
+              <tr>
+                <td style="padding:7px 0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;font-family:Arial,sans-serif;">Role</td>
+                <td style="padding:7px 0;text-align:right;">
+                  <span style="background-color:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:700;font-family:Arial,sans-serif;">${role}</span>
+                </td>
+              </tr>
+            </table>
+          </td></tr>
+        </table>
+
+        ${permissions.length ? `
+        <p style="margin:0 0 8px 0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;font-family:Arial,sans-serif;">Modules Assigned</p>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">${moduleRows}</table>` : ""}
+
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr><td align="center" style="padding:8px 0 0 0;">
+            <a href__="${SM_LOGIN_URL}" style="display:inline-block;background-color:#2563eb;color:#ffffff;padding:14px 36px;border-radius:6px;font-size:14px;font-weight:700;text-decoration:none;font-family:Arial,sans-serif;mso-padding-alt:14px 36px;">Login to Your Account &#8594;</a>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>`);
+
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify({ action:"sendEmail", to:email, subject:"Welcome to PharmDomestic — Your Account is Ready", body }) }).catch(()=>{});
 }
 
 function smSendStatusEmail({ firstName, email, newStatus }) {
   const isActive = newStatus === "Active";
-  const body = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f1f5f9;font-family:'Inter',system-ui,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 20px;"><tr><td align="center"><table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);"><tr><td style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);padding:28px 40px;text-align:center;"><h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">PharmDomestic</h1></td></tr><tr><td style="padding:36px 40px;text-align:center;"><h2 style="margin:0 0 8px;color:#0f172a;font-size:18px;font-weight:700;">Account ${newStatus}</h2><p style="margin:0 0 24px;color:#64748b;font-size:14px;line-height:1.6;">Hi ${firstName}, your PharmDomestic account has been <strong>${isActive?"reactivated":"suspended"}</strong>. ${isActive?"You can now login and access your modules.":"Please contact an administrator if you believe this is an error."}</p>${isActive?`<a href="app.pharmdomestic.com/login" style="display:inline-block;background:#2563eb;color:#ffffff;padding:12px 32px;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;">Login Now →</a>`:""}</td></tr><tr><td style="padding:16px 40px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;"><p style="margin:0;color:#94a3b8;font-size:11px;">Automated message from PharmDomestic</p></td></tr></table></td></tr></table></body></html>`;
+  const accentBg = isActive ? "#dcfce7" : "#fee2e2";
+  const accentTx = isActive ? "#15803d" : "#dc2626";
+  const icon     = isActive ? "&#10003;" : "&#10005;";
 
-  fetch(API_URL, {
-    method:"POST", headers:{"Content-Type":"text/plain"},
-    body: JSON.stringify({ action:"sendEmail", to:email, subject:`PharmDomestic — Account ${newStatus}`, body })
-  }).catch(()=>{});
+  const body = smEmailWrapper(`
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td style="padding:40px 40px 32px;text-align:center;">
+        <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 20px auto;">
+          <tr><td align="center" style="width:56px;height:56px;border-radius:28px;background-color:${accentBg};font-size:24px;color:${accentTx};font-family:Arial,sans-serif;font-weight:700;padding:12px;">${icon}</td></tr>
+        </table>
+        <h2 style="margin:0 0 10px 0;color:#0f172a;font-size:20px;font-weight:700;font-family:Arial,sans-serif;">Account ${newStatus}</h2>
+        <p style="margin:0 0 28px 0;color:#64748b;font-size:14px;line-height:1.6;font-family:Arial,sans-serif;">
+          Hi ${firstName}, your PharmDomestic account has been <strong>${isActive?"reactivated":"suspended"}</strong>.<br/>
+          ${isActive?"You can now log in and access your assigned modules.":"Please contact an administrator if you believe this is an error."}
+        </p>
+        ${isActive ? `<a href__="${SM_LOGIN_URL}" style="display:inline-block;background-color:#2563eb;color:#ffffff;padding:13px 32px;border-radius:6px;font-size:14px;font-weight:700;text-decoration:none;font-family:Arial,sans-serif;">Login Now &#8594;</a>` : ""}
+      </td></tr>
+    </table>`);
+
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify({ action:"sendEmail", to:email, subject:`PharmDomestic — Account ${newStatus}`, body }) }).catch(()=>{});
 }
 
 function smSendRoleEmail({ firstName, email, oldRole, newRole }) {
-  const body = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f1f5f9;font-family:'Inter',system-ui,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 20px;"><tr><td align="center"><table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);"><tr><td style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);padding:28px 40px;text-align:center;"><h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">PharmDomestic</h1></td></tr><tr><td style="padding:36px 40px;text-align:center;"><h2 style="margin:0 0 8px;color:#0f172a;font-size:18px;font-weight:700;">Role Updated</h2><p style="margin:0 0 24px;color:#64748b;font-size:14px;line-height:1.6;">Hi ${firstName}, your role has been changed from <strong>${oldRole}</strong> to <strong>${newRole}</strong>. Your module access may have been updated accordingly.</p><a href="app.pharmdomestic.com/login" style="display:inline-block;background:#2563eb;color:#ffffff;padding:12px 32px;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;">Login to See Changes →</a></td></tr><tr><td style="padding:16px 40px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;"><p style="margin:0;color:#94a3b8;font-size:11px;">Automated message from PharmDomestic</p></td></tr></table></td></tr></table></body></html>`;
+  const body = smEmailWrapper(`
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td style="padding:40px 40px 32px;text-align:center;">
+        <h2 style="margin:0 0 10px 0;color:#0f172a;font-size:20px;font-weight:700;font-family:Arial,sans-serif;">Role Updated</h2>
+        <p style="margin:0 0 24px 0;color:#64748b;font-size:14px;line-height:1.6;font-family:Arial,sans-serif;">Hi ${firstName}, your role has been updated.</p>
 
-  fetch(API_URL, {
-    method:"POST", headers:{"Content-Type":"text/plain"},
-    body: JSON.stringify({ action:"sendEmail", to:email, subject:"PharmDomestic — Your Role Has Been Updated", body })
-  }).catch(()=>{});
+        <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 28px auto;">
+          <tr>
+            <td style="background-color:#fee2e2;color:#dc2626;padding:8px 18px;border-radius:4px;font-size:13px;font-weight:700;font-family:Arial,sans-serif;">${oldRole}</td>
+            <td style="padding:0 14px;color:#94a3b8;font-size:18px;font-family:Arial,sans-serif;">&#8594;</td>
+            <td style="background-color:#dcfce7;color:#15803d;padding:8px 18px;border-radius:4px;font-size:13px;font-weight:700;font-family:Arial,sans-serif;">${newRole}</td>
+          </tr>
+        </table>
+
+        <p style="margin:0 0 28px 0;color:#64748b;font-size:13px;line-height:1.6;font-family:Arial,sans-serif;">Your module access may have been updated accordingly. Log in to see your new permissions.</p>
+        <a href__="${SM_LOGIN_URL}" style="display:inline-block;background-color:#2563eb;color:#ffffff;padding:13px 32px;border-radius:6px;font-size:14px;font-weight:700;text-decoration:none;font-family:Arial,sans-serif;">Login to See Changes &#8594;</a>
+      </td></tr>
+    </table>`);
+
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify({ action:"sendEmail", to:email, subject:"PharmDomestic — Your Role Has Been Updated", body }) }).catch(()=>{});
 }
 
 // ─────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────
 function smRoleKey(role) {
-  if (role === "Admin") return "admin";
+  if (role === "Admin")       return "admin";
   if (role === "Digital Ops") return "dops";
   return "warehouse";
 }
@@ -755,39 +840,36 @@ function smShowToast(msg, type) {
   if (!tc) {
     tc = document.createElement("div");
     tc.className = "pd-toast-container";
-    tc.style.cssText = "position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;";
+    tc.style.cssText = "position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;";
     document.body.appendChild(tc);
   }
+  const colors = {
+    success: { bg:"#f0fdf4", color:"#15803d", border:"#bbf7d0", icon:'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>' },
+    error:   { bg:"#fef2f2", color:"#dc2626", border:"#fecaca", icon:'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>' },
+    warning: { bg:"#fffbeb", color:"#b45309", border:"#fde68a", icon:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
+  };
+  const c = colors[type] || colors.success;
   const t = document.createElement("div");
-  t.style.cssText = `display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:500;font-family:'Inter',system-ui,sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.12);animation:smCardIn .2s ease;background:${type==="success"?"#f0fdf4":type==="error"?"#fef2f2":"#f8fafc"};color:${type==="success"?"#15803d":type==="error"?"#dc2626":"#334155"};border:1px solid ${type==="success"?"#bbf7d0":type==="error"?"#fecaca":"#e2e8f0"};`;
-  t.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${type==="success"?'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>':'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'}</svg> ${msg}`;
+  t.style.cssText = `display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:500;font-family:'Inter',system-ui,sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.12);background:${c.bg};color:${c.color};border:1px solid ${c.border};pointer-events:auto;`;
+  t.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${c.icon}</svg> ${msg}`;
   tc.appendChild(t);
-  setTimeout(() => { t.style.opacity = "0"; t.style.transition = "opacity .3s"; setTimeout(() => t.remove(), 300); }, 3500);
+  setTimeout(() => { t.style.transition="opacity .3s"; t.style.opacity="0"; setTimeout(()=>t.remove(),300); }, 3500);
 }
 
-/******************************************************************
-EXPOSE FUNCTIONS TO HTML
--------------------------------------------------------------------
-Because the entire script runs inside an IIFE, functions are not
-global. HTML onclick handlers need them on window.
-******************************************************************/
-
-window.loadStaff = loadStaff;
-window.smSetFilter = smSetFilter;
-window.smRenderCards = smRenderCards;
-
-window.smOpenDrawer = smOpenDrawer;
-window.smCloseDrawer = smCloseDrawer;
-window.smStartEdit = smStartEdit;
+// ── EXPOSE globals ──
+window.loadStaff       = loadStaff;
+window.smSetFilter     = smSetFilter;
+window.smRenderCards   = smRenderCards;
+window.smOpenDrawer    = smOpenDrawer;
+window.smCloseDrawer   = smCloseDrawer;
+window.smStartEdit     = smStartEdit;
 window.smConfirmDelete = smConfirmDelete;
-window.smDeleteStaff = smDeleteStaff;
-
-window.smOpenAddModal = smOpenAddModal;
+window.smDeleteStaff   = smDeleteStaff;
+window.smResetDrawerFooter = smResetDrawerFooter;
+window.smOpenAddModal  = smOpenAddModal;
 window.smOpenEditModal = smOpenEditModal;
-window.smCloseModal = smCloseModal;
-window.smSaveStaff = smSaveStaff;
+window.smCloseModal    = smCloseModal;
+window.smSaveStaff     = smSaveStaff;
 
-     })();
-
+})();
 </script>
-
