@@ -383,7 +383,8 @@ body { overflow: hidden; }
 /* ══ CONFIG ══════════════════════════════════════════════════════════════════ */
 const API = window.API_URL ||
   'https://script.google.com/macros/s/AKfycbwS9c4pGnAiXNAlhdttTKZeKNOP8b_tSONjY7S-D_DOgiicflimtvrNVaRReuX7EN3hHg/exec';
-
+console.log("Planner API:", API);
+  
 /* ══ TIME CONFIG ════════════════════════════════════════════════════════════ */
 const H_START = 8, H_END = 18;
 const TOTAL_MINS = (H_END - H_START) * 60;
@@ -559,7 +560,9 @@ function renderGrid() {
       </td>`);
 
     dates.forEach(date => {
-      const dayShifts = S.schedule.filter(s => s.employeeId === emp.id && s.date === date);
+      const dayShifts = S.schedule.filter(
+        s => String(s.employeeId) === String(emp.id) && String(s.date) === String(date)
+      );
 
       if (isDayView) {
         /* ── DAY view cell ── */
@@ -731,6 +734,7 @@ async function saveShift() {
     const i = S.schedule.findIndex(s => s.id === payload.id);
     if (i > -1) S.schedule[i] = payload;
   } else {
+    S.schedule = S.schedule.filter(s => s.id !== payload.id);
     S.schedule.push(payload);
     S.pending.add(payload.id);
   }
