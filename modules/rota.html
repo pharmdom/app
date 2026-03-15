@@ -424,23 +424,35 @@ const S = {
 
 /* ══ BOOT ═══════════════════════════════════════════════════════════════════ */
 async function init() {
+
+  const grid = document.getElementById('gridContent');
+  if (!grid) {
+    console.error("gridContent not found");
+    return;
+  }
+
   try {
     const res = await fetch(API, {
       method: 'POST',
       body: JSON.stringify({ action: 'getData' }),
       headers: { 'Content-Type': 'text/plain' }
     });
+
     if (!res.ok) throw new Error(res.status);
+
     const d = await res.json();
+
     S.employees   = d.employees   || [];
     S.tasks       = d.tasks       || [];
     S.schedule    = d.schedule    || [];
     S.workingDays = d.workingDays || [1,2,3,4,5];
+
     S.loaded = true;
     renderAll();
+
   } catch (e) {
-    document.getElementById('gridContent').innerHTML =
-      '<p style="color:#dc2626;font-size:13px;padding:40px;text-align:center">Failed to load. Check API URL and CORS.</p>';
+    grid.innerHTML =
+      '<p style="color:#dc2626;font-size:13px;padding:40px;text-align:center">Failed to load data</p>';
   }
 }
 
