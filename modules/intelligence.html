@@ -311,25 +311,29 @@ function todaySched()   { return allSchedule.filter(s=>s.date===todayStr()); }
 /* ── LOAD DATA ── */
 async function loadData() {
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'getData' })
+    const res = await fetch(API_URL, { 
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({action:'getData'})
     });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+
     const data = await res.json();
-    employees    = Array.isArray(data.employees) ? data.employees : [];
-    tasks        = Array.isArray(data.tasks)     ? data.tasks     : [];
-    allSchedule  = (Array.isArray(data.schedule) ? data.schedule : []).map(s => ({
+
+    employees = data.employees || [];
+    tasks = data.tasks || [];
+
+    allSchedule = (data.schedule || []).map(s => ({
       ...s,
-      start: normalizeTime(s.start) || '00:00',
-      end:   normalizeTime(s.end)   || '00:00',
+      start: normalizeTime(s.start),
+      end: normalizeTime(s.end)
     }));
-  } catch(err) {
-    console.warn('API unavailable, using demo data:', err.message);
-    loadDemoData();
+
+    renderAll();
+
+  } catch(e) {
+    useDemoData();
+    renderAll();
   }
-  renderAll();
 }
 
 function loadDemoData() {
