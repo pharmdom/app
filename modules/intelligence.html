@@ -208,7 +208,8 @@ async function loadData() {
     const data = await res.json();
     employees = data.employees || [];
     tasks = data.tasks || [];
-    schedule = data.schedule || [];
+    const today = new Date().toISOString().slice(0,10);
+    schedule = (data.schedule || []).filter(s => s.date === today);
     renderAll({ demo: false });
   } catch(e) {
     document.getElementById('warningsBanner').innerHTML =
@@ -291,7 +292,10 @@ function renderWarnings() {
 }
 
 function renderMetrics() {
-  const pickingStaff = new Set(schedule.filter(s=>s.taskId==='pick-pack').map(s=>s.employeeId)).size;
+  const pickingStaff = new Set(
+  schedule.filter(s => tasks.find(t => t.id === s.taskId)?.name === 'Pick & Pack')
+  .map(s=>s.employeeId)
+  ).size;
   const packingStaff = new Set(schedule.filter(s=>s.taskId==='packing').map(s=>s.employeeId)).size;
   const totalHours = schedule.reduce((acc,s)=>acc+getDuration(s.start,s.end),0);
   const avgUtil = employees.length
@@ -433,6 +437,7 @@ function renderSuggestions() {
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+setInterval(loadData, 30000);
 loadData();
 })();
 </script>
