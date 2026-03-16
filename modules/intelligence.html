@@ -260,16 +260,22 @@ function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 
 function todayStr() { return new Date().toISOString().slice(0,10); }
 
-function normalizeTime(t) {
-  const m = String(t||'').trim().match(/^(\d{1,2}):(\d{2})/);
-  return m ? String(m[1]).padStart(2,'0')+':'+m[2] : null;
+function normalizeTime(t){
+  if(!t) return '00:00'
+  const m = String(t).match(/(\d{1,2}):(\d{2})/)
+  return m ? m[1].padStart(2,'0') + ':' + m[2] : '00:00'
 }
+  
+function getDuration(s,e) {
+  s = normalizeTime(s)
+  e = normalizeTime(e)
 
-function getDuration(s, e) {
-  const ns = normalizeTime(s), ne = normalizeTime(e);
-  if (!ns || !ne) return 0;
-  const [sh,sm] = ns.split(':').map(Number), [eh,em] = ne.split(':').map(Number);
-  return Math.max(0, (eh*60+em - sh*60-sm) / 60);
+  const [sh,sm] = s.split(':').map(Number)
+  const [eh,em] = e.split(':').map(Number)
+
+  if(isNaN(sh) || isNaN(eh)) return 0
+
+  return Math.max(0,(eh*60+em-sh*60-sm)/60)
 }
 
 function mkDay(d) {
