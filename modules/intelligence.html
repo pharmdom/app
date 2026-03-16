@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Business Intelligence</title>
+<link href__="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px; color: #0f172a; background: #f8fafc;
+  line-height: 1.5; -webkit-font-smoothing: antialiased;
+  min-height: 100%;
+}
+
+.intel-page {
+  padding: 16px 20px 40px 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ─── HEADER ── */
+.intel-header { margin-bottom: 16px; }
+.intel-header h1 { font-size: 20px; font-weight: 800; color: #0f172a; margin-bottom: 2px; }
+.intel-header p { font-size: 12px; color: #64748b; }
+
+/* ─── WARNINGS BANNER ── */
+.warnings-banner { margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+.warning-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 100px; font-size: 12px; font-weight: 600; }
+.warning-chip.error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.warning-chip.warn  { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+.warning-chip.ok    { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.warning-chip svg   { width: 13px; height: 13px; flex-shrink: 0; }
+
+/* ─── METRICS GRID ── */
+.metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
+@media (min-width: 900px) { .metrics-grid { grid-template-columns: repeat(4, 1fr); } }
+.metric-card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; padding: 16px 18px; }
+.metric-card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+.metric-card-icon { width: 38px; height: 38px; border-radius: 10px; background: #eff6ff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.metric-card-icon svg { width: 18px; height: 18px; color: #2563eb; }
+.metric-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; margin-bottom: 4px; }
+.metric-value { font-size: 24px; font-weight: 800; color: #0f172a; line-height: 1; margin-bottom: 4px; }
+.metric-subtitle { font-size: 11px; color: #94a3b8; }
+.metric-trend { font-size: 11px; font-weight: 600; margin-top: 6px; }
+.metric-trend.up   { color: #15803d; }
+.metric-trend.down { color: #dc2626; }
+
+/* ─── CHARTS GRID ── */
+.charts-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 16px; }
+@media (min-width: 900px) { .charts-grid { grid-template-columns: 1fr 1fr; } }
+.chart-card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; padding: 16px 18px; }
+.chart-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 14px; }
+
+/* ─── BAR CHART ── */
+.bar-chart { display: flex; flex-direction: column; gap: 8px; }
+.bar-row { display: flex; align-items: center; gap: 8px; }
+.bar-row-label { font-size: 11px; font-weight: 600; color: #475569; width: 64px; flex-shrink: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar-row-track { flex: 1; background: #f1f5f9; border-radius: 100px; height: 20px; position: relative; overflow: hidden; }
+.bar-row-fill { height: 100%; border-radius: 100px; transition: width .5s ease; display: flex; align-items: center; }
+.bar-row-pct { font-size: 10px; font-weight: 700; color: #fff; padding: 0 8px; white-space: nowrap; }
+
+/* Task Distribution */
+.task-bars { display: flex; flex-direction: column; gap: 8px; }
+.task-bar-row { display: flex; align-items: center; gap: 8px; }
+.task-bar-label { font-size: 11px; font-weight: 600; color: #475569; width: 72px; flex-shrink: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task-bar-track { flex: 1; background: #f1f5f9; border-radius: 100px; height: 18px; overflow: hidden; }
+.task-bar-fill { height: 100%; border-radius: 100px; display: flex; align-items: center; }
+.task-bar-val { font-size: 10px; font-weight: 700; color: #fff; padding: 0 8px; }
+
+.chart-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: #64748b; }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* ─── HEATMAP ── */
+.heatmap-card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; padding: 16px 18px; margin-bottom: 16px; }
+.heatmap-scroll { overflow-x: auto; }
+.heatmap-scroll::-webkit-scrollbar { height: 4px; }
+.heatmap-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+.heatmap-table { border-collapse: collapse; font-size: 11px; width: 100%; min-width: 600px; }
+.heatmap-table th { padding: 6px 4px; text-align: center; font-size: 10px; font-weight: 600; color: #94a3b8; }
+.heatmap-table th.task-col { text-align: left; padding-right: 10px; min-width: 100px; }
+.heatmap-table td { padding: 3px 4px; }
+.heatmap-table td.task-name { padding-right: 10px; white-space: nowrap; }
+.task-name-inner { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: #334155; }
+.task-name-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.heat-cell { width: 32px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; margin: 0 auto; }
+.heat-0 { background: #f1f5f9; color: #cbd5e1; }
+.heat-1 { background: #d1fae5; color: #059669; }
+.heat-2 { background: #fef3c7; color: #b45309; }
+.heat-3 { background: #fee2e2; color: #dc2626; }
+.heatmap-legend { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 10px; color: #94a3b8; flex-wrap: wrap; }
+.heatmap-legend-swatch { width: 20px; height: 14px; border-radius: 4px; }
+
+/* ─── SUGGESTIONS ── */
+.suggestions-card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; padding: 16px 18px; }
+.suggestions-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+.suggestions-title svg { width: 15px; height: 15px; color: #2563eb; }
+.suggestion-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 10px; background: #f8fafc; margin-bottom: 8px; }
+.suggestion-item:last-child { margin-bottom: 0; }
+.suggestion-icon { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+.suggestion-icon.high   { color: #dc2626; }
+.suggestion-icon.medium { color: #b45309; }
+.suggestion-icon.low    { color: #94a3b8; }
+.suggestion-text { font-size: 12px; color: #334155; line-height: 1.5; }
+
+.spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin .65s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="intel-page">
+
+  <div class="intel-header">
+    <h1>Business Intelligence</h1>
+    <p>Operational insights and workforce analytics</p>
+  </div>
+
+  <div class="warnings-banner" id="warningsBanner">
+    <div style="padding:8px;color:#64748b;font-size:12px;display:flex;align-items:center;gap:6px"><span class="spinner"></span> Loading…</div>
+  </div>
+
+  <div class="metrics-grid" id="metricsGrid">
+    <!-- filled by JS -->
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">Staff Utilization</div>
+      <div class="bar-chart" id="utilizationChart"></div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>80%+ Optimal</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div>60–79% Moderate</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>&lt;60% Low</div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Task Distribution (Hours)</div>
+      <div class="task-bars" id="taskDistChart"></div>
+    </div>
+  </div>
+
+  <div class="heatmap-card">
+    <div class="chart-title">Staffing Heatmap</div>
+    <div class="heatmap-scroll">
+      <div id="heatmapContent"></div>
+    </div>
+    <div class="heatmap-legend">
+      <span>Staff count:</span>
+      <div class="legend-item"><div class="heatmap-legend-swatch heat-0"></div>0</div>
+      <div class="legend-item"><div class="heatmap-legend-swatch heat-1"></div>1</div>
+      <div class="legend-item"><div class="heatmap-legend-swatch heat-2"></div>2</div>
+      <div class="legend-item"><div class="heatmap-legend-swatch heat-3"></div>3+</div>
+    </div>
+  </div>
+
+  <div class="suggestions-card">
+    <div class="suggestions-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+      Workload Balancing Suggestions
+    </div>
+    <div id="suggestionsContent"></div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+
+const API_URL = window.API_URL || 'YOUR_APPS_SCRIPT_URL_HERE';
+
+const TIME_SLOTS = Array.from({length: 20}, (_,i) => {
+  const h = Math.floor(i/2)+8;
+  const m = i%2===0?'00':'30';
+  return `${String(h).padStart(2,'0')}:${m}`;
+});
+const HOUR_SLOTS = TIME_SLOTS.filter((_,i) => i%2===0);
+
+const TASK_COLORS = {
+  'pick-pack':     '#EF4444',
+  'packing':       '#EC4899',
+  'pre-pack':      '#8B5CF6',
+  'fba-prep':      '#10B981',
+  'warehouse-org': '#F97316',
+  'deliveries':    '#3B82F6',
+  'returns':       '#6366F1',
+  'cleaning':      '#64748B',
+  'fill-station':  '#0EA5E9',
+};
+const KEY_TASKS = ['pick-pack','packing','fba-prep','deliveries','warehouse-org'];
+
+let employees = [];
+let tasks = [];
+let schedule = [];
+
+async function loadData() {
+  if (!API_URL || API_URL.includes('YOUR_APPS')) {
+    renderAll({ demo: true });
+    return;
+  }
+  try {
+    const res = await fetch(`${API_URL}?action=getData`);
+    const data = await res.json();
+    employees = data.employees || [];
+    tasks = data.tasks || [];
+    schedule = data.schedule || [];
+    renderAll({ demo: false });
+  } catch(e) {
+    document.getElementById('warningsBanner').innerHTML =
+      '<div class="warning-chip error"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Failed to load data – check API_URL</div>';
+  }
+}
+
+function getDuration(start, end) {
+  const [sh,sm] = start.split(':').map(Number);
+  const [eh,em] = end.split(':').map(Number);
+  return (eh*60+em-sh*60-sm)/60;
+}
+
+function getUtilization(empId) {
+  const shifts = schedule.filter(s => s.employeeId===empId);
+  const totalMins = shifts.reduce((acc,s) => acc + getDuration(s.start,s.end)*60, 0);
+  return Math.round((totalMins/(10*60))*100);
+}
+
+function getTaskCoverage(slot) {
+  const [h,m] = slot.split(':').map(Number);
+  const slotMin = h*60+m;
+  const counts = {};
+  schedule.forEach(s => {
+    const [sh,sm] = s.start.split(':').map(Number);
+    const [eh,em] = s.end.split(':').map(Number);
+    if (slotMin >= sh*60+sm && slotMin < eh*60+em) {
+      counts[s.taskId] = (counts[s.taskId]||0)+1;
+    }
+  });
+  return counts;
+}
+
+function utilColor(v) {
+  if (v>=80) return '#10b981';
+  if (v>=60) return '#f97316';
+  return '#ef4444';
+}
+
+function renderAll() {
+  renderWarnings();
+  renderMetrics();
+  renderUtilizationChart();
+  renderTaskDistChart();
+  renderHeatmap();
+  renderSuggestions();
+}
+
+function renderWarnings() {
+  const banner = document.getElementById('warningsBanner');
+  if (!schedule.length) {
+    banner.innerHTML = '<div class="warning-chip ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>No schedule data loaded</div>';
+    return;
+  }
+  const warnings = [];
+  const MIN = {'pick-pack':2,'packing':1,'fba-prep':1};
+  HOUR_SLOTS.forEach(slot => {
+    const cov = getTaskCoverage(slot);
+    Object.entries(MIN).forEach(([taskId,min]) => {
+      const count = cov[taskId]||0;
+      if (count < min) {
+        const t = tasks.find(t=>t.id===taskId);
+        const name = t?.name||taskId;
+        const key = `${taskId}-low`;
+        if (!warnings.find(w=>w.key===key)) warnings.push({key, msg:`${name} understaffed at ${slot}`, type:'warn'});
+      }
+    });
+  });
+  if (!warnings.length) {
+    banner.innerHTML = '<div class="warning-chip ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>All coverage requirements met</div>';
+  } else {
+    banner.innerHTML = warnings.slice(0,3).map(w =>
+      `<div class="warning-chip ${w.type}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        ${esc(w.msg)}
+      </div>`
+    ).join('');
+  }
+}
+
+function renderMetrics() {
+  const pickingStaff = new Set(schedule.filter(s=>s.taskId==='pick-pack').map(s=>s.employeeId)).size;
+  const packingStaff = new Set(schedule.filter(s=>s.taskId==='packing').map(s=>s.employeeId)).size;
+  const totalHours = schedule.reduce((acc,s)=>acc+getDuration(s.start,s.end),0);
+  const avgUtil = employees.length
+    ? Math.round(employees.reduce((acc,e)=>acc+getUtilization(e.id),0)/employees.length)
+    : 0;
+
+  const metrics = [
+    {
+      label: 'Orders Capacity', value: '~120/hr',
+      subtitle: `${pickingStaff} pickers · ${packingStaff} packers`,
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
+      trend: '↑ 8% vs yesterday', trendUp: true
+    },
+    {
+      label: 'Active Staff', value: `${employees.length}`,
+      subtitle: 'All departments',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+      trend: '↑ Full coverage', trendUp: true
+    },
+    {
+      label: 'Avg Utilization', value: `${avgUtil}%`,
+      subtitle: 'Across all staff',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+      trend: avgUtil>=70 ? '↑ Healthy' : '↓ Below target', trendUp: avgUtil>=70
+    },
+    {
+      label: 'Total Hours', value: `${totalHours}h`,
+      subtitle: 'Scheduled today',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+      trend: '↑ On track', trendUp: true
+    }
+  ];
+
+  document.getElementById('metricsGrid').innerHTML = metrics.map(m => `
+    <div class="metric-card">
+      <div class="metric-card-top">
+        <div>
+          <div class="metric-label">${esc(m.label)}</div>
+          <div class="metric-value">${esc(m.value)}</div>
+          <div class="metric-subtitle">${esc(m.subtitle)}</div>
+        </div>
+        <div class="metric-card-icon">${m.icon}</div>
+      </div>
+      <div class="metric-trend ${m.trendUp?'up':'down'}">${esc(m.trend)}</div>
+    </div>
+  `).join('');
+}
+
+function renderUtilizationChart() {
+  if (!employees.length) {
+    document.getElementById('utilizationChart').innerHTML = '<p style="color:#94a3b8;font-size:12px;text-align:center;padding:20px">No employee data</p>';
+    return;
+  }
+  const data = employees.map(e => ({ name: e.name||e.initials, pct: getUtilization(e.id) }));
+  const max = Math.max(...data.map(d=>d.pct), 100);
+  document.getElementById('utilizationChart').innerHTML = data.map(d => `
+    <div class="bar-row">
+      <div class="bar-row-label" title="${esc(d.name)}">${esc(d.name.split(' ')[0])}</div>
+      <div class="bar-row-track">
+        <div class="bar-row-fill" style="width:${(d.pct/max*100).toFixed(1)}%;background:${utilColor(d.pct)}">
+          <span class="bar-row-pct">${d.pct}%</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderTaskDistChart() {
+  const taskColors = {};
+  tasks.forEach(t => { taskColors[t.id] = t.color || TASK_COLORS[t.id] || '#94a3b8'; });
+
+  const taskData = tasks.map(t => {
+    const hrs = schedule.filter(s=>s.taskId===t.id).reduce((acc,s)=>acc+getDuration(s.start,s.end),0);
+    return { name: t.shortName||t.name, hours: hrs, color: taskColors[t.id] };
+  }).filter(d=>d.hours>0).sort((a,b)=>b.hours-a.hours);
+
+  if (!taskData.length) {
+    document.getElementById('taskDistChart').innerHTML = '<p style="color:#94a3b8;font-size:12px;text-align:center;padding:20px">No schedule data</p>';
+    return;
+  }
+  const maxH = taskData[0].hours;
+  document.getElementById('taskDistChart').innerHTML = taskData.map(d => `
+    <div class="task-bar-row">
+      <div class="task-bar-label" title="${esc(d.name)}">${esc(d.name)}</div>
+      <div class="task-bar-track">
+        <div class="task-bar-fill" style="width:${(d.hours/maxH*100).toFixed(1)}%;background:${d.color}">
+          <span class="task-bar-val">${d.hours}h</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderHeatmap() {
+  const keyTaskDefs = KEY_TASKS.map(id => {
+    const t = tasks.find(t=>t.id===id);
+    return { id, name: t?.shortName||t?.name||id, color: t?.color || TASK_COLORS[id]||'#94a3b8' };
+  });
+
+  let html = `<table class="heatmap-table">
+    <thead><tr>
+      <th class="task-col">Task</th>
+      ${HOUR_SLOTS.map(s=>`<th>${s}</th>`).join('')}
+    </tr></thead>
+    <tbody>`;
+
+  keyTaskDefs.forEach(task => {
+    html += `<tr>
+      <td class="task-name">
+        <div class="task-name-inner">
+          <div class="task-name-dot" style="background:${task.color}"></div>
+          ${esc(task.name)}
+        </div>
+      </td>`;
+    HOUR_SLOTS.forEach(slot => {
+      const cov = getTaskCoverage(slot);
+      const count = cov[task.id]||0;
+      const cls = count===0?'heat-0':count===1?'heat-1':count===2?'heat-2':'heat-3';
+      html += `<td><div class="heat-cell ${cls}">${count||''}</div></td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('heatmapContent').innerHTML = html;
+}
+
+function renderSuggestions() {
+  const suggestions = [
+    { text: 'Consider shifting a packer to Pick & Pack between 14:00–16:00 to cover understaffing', severity: 'high' },
+    { text: 'FBA Prep has only 1 staff member — risk of delays if that person is absent', severity: 'medium' },
+    { text: 'Check for idle gaps around 13:00 — staff could assist with Packing', severity: 'low' },
+  ];
+  const iconSvg = (cls) => `<svg class="suggestion-icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+  document.getElementById('suggestionsContent').innerHTML = suggestions.map(s =>
+    `<div class="suggestion-item">${iconSvg(s.severity)}<span class="suggestion-text">${esc(s.text)}</span></div>`
+  ).join('');
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+loadData();
+})();
+</script>
+</body>
+</html>
