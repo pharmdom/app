@@ -331,6 +331,13 @@ function offsetDate(days) {
   const d = new Date(); d.setDate(d.getDate() - days);
   return d.toISOString().slice(0,10);
 }
+
+function normalizeTime(t){
+  if(!t) return '00:00'
+  const m = String(t).match(/(\d{1,2}):(\d{2})/)
+  return m ? m[1].padStart(2,'0') + ':' + m[2] : '00:00'
+}
+  
 function getDaysInRange(range) {
   const today = new Date();
   const days = [];
@@ -364,7 +371,11 @@ async function loadData() {
   try {
     const res = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({action:'getData'}) });
     const data = await res.json();
-    employees = data.employees || []; tasks = data.tasks || []; allSchedule = data.schedule || [];
+    employees = data.employees || []; tasks = data.tasks || []; allSchedule = (data.schedule || []).map(s => ({
+      ...s,
+      start: normalizeTime(s.start),
+      end: normalizeTime(s.end)
+    }));
     renderAll();
   } catch(e) { useDemoData(); renderAll(); }
 }
@@ -398,11 +409,18 @@ function useDemoData() {
 }
 
 function getDuration(s,e) {
-  if(!s||!e) return 0;
-  const [sh,sm]=s.split(':').map(Number),[eh,em]=e.split(':').map(Number);
-  if(isNaN(sh)||isNaN(eh)) return 0;
-  return Math.max(0,(eh*60+em-sh*60-sm)/60);
+  s = normalizeTime(s)
+  e = normalizeTime(e)
+
+  const [sh,sm] = s.split(':').map(Number)
+  const [eh,em] = e.split(':').map(Number)
+
+  if(isNaN(sh) || isNaN(eh)) return 0
+
+  return Math.max(0,(eh*60+em-sh*60-sm)/60)
 }
+
+  
 function todaySched() { return allSchedule.filter(s=>s.date===todayStr()); }
 function allTimeSched() { return allSchedule; }
 function getStaffAtSlot(sched,slot) {
