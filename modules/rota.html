@@ -498,11 +498,22 @@ function normalizeShift(s) {
 }
 
 function normalizeTime(t) {
+
   if (!t) return '00:00';
+
+  // If Apps Script sent a Date object string
+  if (t instanceof Date) {
+    return pad(t.getHours()) + ':' + pad(t.getMinutes());
+  }
+
   const s = String(t).trim();
-  // handles "8:00", "08:00", "8:00:00"
-  const parts = s.split(':');
-  return pad(parseInt(parts[0], 10)) + ':' + (parts[1] || '00').slice(0, 2);
+
+  // Handles formats like "8:30", "08:30", "08:30:00"
+  const match = s.match(/(\d{1,2}):(\d{2})/);
+
+  if (!match) return '00:00';
+
+  return pad(match[1]) + ':' + match[2];
 }
 
 /* ══ DATES ══════════════════════════════════════════════════════════════════ */
