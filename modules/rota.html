@@ -1130,14 +1130,27 @@ function showConfirm(title, msg, okLabel, okClass) {
     const okBtn = document.getElementById('confirmOkBtn');
     okBtn.textContent = okLabel || 'Confirm';
     okBtn.className = okClass || 'confirm-btn-danger';
-    okBtn.onclick = () => { closeConfirm(); resolve(true); };
+    // Clone to remove any stale listeners
+    const newBtn = okBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newBtn, okBtn);
+    newBtn.textContent = okLabel || 'Confirm';
+    newBtn.className = okClass || 'confirm-btn-danger';
+    newBtn.addEventListener('click', () => {
+      document.getElementById('confirmOverlay').classList.remove('visible');
+      _confirmResolve = null;
+      resolve(true);
+    });
     document.getElementById('confirmOverlay').classList.add('visible');
   });
 }
 
 function closeConfirm() {
   document.getElementById('confirmOverlay').classList.remove('visible');
-  if (_confirmResolve) { _confirmResolve(false); _confirmResolve = null; }
+  if (_confirmResolve) {
+    const r = _confirmResolve;
+    _confirmResolve = null;
+    r(false);
+  }
 }
 
 async function deleteShift(id) {
