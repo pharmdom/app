@@ -18,16 +18,18 @@ body { overflow: hidden; }
 .planner-title h1 { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 2px; }
 .planner-title p { font-size: 12px; color: #64748b; }
 .planner-header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.planner-nav { display: flex; align-items: center; gap: 1px; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 9px; padding: 1px; }
+.planner-nav { display: flex; align-items: center; gap: 1px; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 9px; padding: 1px; position: relative; }
 .planner-nav button { padding: 7px; background: none; border: none; cursor: pointer; border-radius: 7px; transition: background .15s; display: flex; align-items: center; justify-content: center; }
 .planner-nav button:hover { background: #f1f5f9; }
-.planner-date-label { padding: 0 10px; font-size: 12px; font-weight: 600; color: #0f172a; white-space: nowrap; cursor: pointer; border-radius: 6px; transition: background .15s; }
+.planner-date-label { padding: 0 10px; font-size: 12px; font-weight: 600; color: #0f172a; white-space: nowrap; cursor: pointer; border-radius: 6px; transition: background .15s; user-select: none; }
 .planner-date-label:hover { background: #f1f5f9; }
 .planner-view-select { padding: 7px 10px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 12px; font-family: inherit; background: #fff; color: #0f172a; cursor: pointer; outline: none; }
 .planner-add-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: #0f172a; color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; white-space: nowrap; }
 .planner-add-btn:hover { background: #1e293b; }
 .planner-team-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: #fff; color: #0f172a; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; }
 .planner-team-btn:hover { border-color: #94a3b8; background: #f8fafc; }
+.planner-closed-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: #fff; color: #64748b; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.planner-closed-btn:hover { border-color: #f59e0b; color: #d97706; background: #fffbeb; }
 
 /* ── GRID CARD ── */
 .planner-grid-card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; flex: 1; display: flex; flex-direction: column; min-height: 0; }
@@ -41,10 +43,12 @@ body { overflow: hidden; }
 .planner-th-emp { width: 180px; min-width: 140px; padding: 11px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; border-right: 1px solid #e2e8f0; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
 .planner-th-day { border-right: 1px solid #e2e8f0; border-bottom: 2px solid #e2e8f0; vertical-align: top; }
 .planner-th-day:last-child { border-right: none; }
+.planner-th-day.is-closed { background: #fef9ee; }
 
-.day-col-header { padding: 6px 6px 0; }
+.day-col-header { padding: 6px 6px 0; position: relative; }
 .day-col-header .day-name { font-size: 10px; color: #94a3b8; text-align: center; }
 .day-col-header .day-date { font-size: 12px; font-weight: 700; color: #334155; text-align: center; margin-bottom: 4px; }
+.closed-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 700; color: #d97706; background: #fef3c7; border-radius: 100px; padding: 1px 6px; margin-bottom: 3px; }
 
 .time-header-row { display: flex; height: 28px; border-top: 1px solid #f1f5f9; overflow: hidden; }
 .time-header-slot { flex: 1; position: relative; border-right: 1px solid #e2e8f0; font-size: 8.5px; color: #94a3b8; font-weight: 600; }
@@ -67,18 +71,23 @@ body { overflow: hidden; }
 /* ── DAY CELL ── */
 .planner-td-day { border-right: 1px solid #e2e8f0; vertical-align: top; padding: 0; }
 .planner-td-day:last-child { border-right: none; }
+.planner-td-day.is-closed { background: repeating-linear-gradient(45deg,#fef9ee,#fef9ee 6px,#fffbf0 6px,#fffbf0 12px); }
 .day-cell-inner { position: relative; height: 64px; }
 .time-col-grid { display: flex; position: absolute; inset: 0; }
 .time-col { flex: 1; border-right: 1px solid #e2e8f0; cursor: pointer; position: relative; }
 .time-col.hour { border-right-color: #cbd5e1; }
 .time-col:last-child { border-right: none; }
 .time-col:hover::after { content: '+'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(239,246,255,.85); color: #2563eb; font-size: 16px; font-weight: 700; border-radius: 4px; }
+.closed-cell-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 4; }
+.closed-cell-label { font-size: 9px; font-weight: 700; color: #d97706; background: #fef3c7; border-radius: 100px; padding: 2px 8px; }
 
 /* ── SHIFT BLOCK ── */
 .shift-block { position: absolute; top: 4px; bottom: 4px; border-radius: 7px; border: 1.5px solid; overflow: hidden; cursor: pointer; z-index: 3; transition: transform .12s, box-shadow .12s, opacity .3s; }
 .shift-block:hover { transform: scale(1.025); box-shadow: 0 4px 12px rgba(0,0,0,.12); z-index: 6; }
 .shift-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
-.shift-content { padding: 5px 22px 5px 10px; height: 100%; display: flex; flex-direction: column; justify-content: center; }
+.shift-content { padding: 4px 22px 4px 10px; height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
+.shift-label-row { display: flex; align-items: center; gap: 4px; }
+.shift-icon { flex-shrink: 0; opacity: .75; }
 .shift-name { font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .shift-time { font-size: 9px; color: #64748b; white-space: nowrap; }
 .shift-del { position: absolute; top: 3px; right: 3px; width: 16px; height: 16px; background: #fee2e2; border-radius: 4px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .12s; cursor: pointer; z-index: 10; border: none; }
@@ -89,13 +98,15 @@ body { overflow: hidden; }
 /* ── WEEK CELL ── */
 .planner-td-week { border-right: 1px solid #e2e8f0; vertical-align: top; padding: 0; }
 .planner-td-week:last-child { border-right: none; }
+.planner-td-week.is-closed { background: repeating-linear-gradient(45deg,#fef9ee,#fef9ee 6px,#fffbf0 6px,#fffbf0 12px); }
 .week-cell-inner { padding: 4px; cursor: pointer; position: relative; min-height: 36px; }
 .week-cell-inner:hover { background: rgba(37,99,235,.03); }
 .week-cell-empty { min-height: 36px; cursor: pointer; }
 .week-cell-empty:hover { background: rgba(37,99,235,.03); }
+.week-closed-pill { display: flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 700; color: #d97706; background: #fef3c7; border-radius: 4px; padding: 3px 7px; margin: 2px; }
 
 /* Week shift pill */
-.week-shift-pill { border-radius: 5px; padding: 3px 24px 3px 8px; margin-bottom: 3px; font-size: 10px; font-weight: 700; border-left: 3px solid; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; position: relative; display: block; transition: opacity .15s; }
+.week-shift-pill { border-radius: 5px; padding: 3px 24px 3px 6px; margin-bottom: 3px; font-size: 10px; font-weight: 700; border-left: 3px solid; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; position: relative; display: flex; align-items: center; gap: 4px; transition: opacity .15s; }
 .week-shift-pill:hover { opacity: .85; }
 .week-shift-pill:hover .pill-del { opacity: 1; }
 .pill-del { position: absolute; top: 1px; right: 2px; width: 14px; height: 14px; background: #fee2e2; border-radius: 3px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .12s; cursor: pointer; z-index: 5; border: none; }
@@ -127,12 +138,19 @@ body { overflow: hidden; }
 .field input:focus, .field select:focus { border-color: #2563eb; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
+.conflict-banner { background: #fff7ed; border: 1.5px solid #fed7aa; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; display: none; }
+.conflict-banner.visible { display: block; }
+.conflict-banner-title { font-size: 12px; font-weight: 700; color: #c2410c; margin-bottom: 3px; }
+.conflict-banner-msg { font-size: 11px; color: #9a3412; }
+
 .btn-cancel { padding: 7px 14px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-weight: 600; font-family: inherit; color: #64748b; background: #fff; cursor: pointer; }
 .btn-cancel:hover { border-color: #94a3b8; }
 .btn-save { padding: 7px 14px; background: #0f172a; color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: 5px; }
 .btn-save:hover { background: #1e293b; }
 .btn-save:disabled { opacity: .6; cursor: not-allowed; }
 .btn-save svg { width: 12px; height: 12px; }
+.btn-replace { padding: 7px 14px; background: #f59e0b; color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+.btn-replace:hover { background: #d97706; }
 
 /* ── DRAWER ── */
 .drawer-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.3); z-index: 900; opacity: 0; pointer-events: none; transition: opacity .25s; backdrop-filter: blur(2px); }
@@ -161,7 +179,7 @@ body { overflow: hidden; }
 .shift-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; border: 1.5px solid; margin-bottom: 5px; }
 .shift-item:last-child { margin-bottom: 0; }
 .shift-bar { width: 4px; height: 30px; border-radius: 10px; flex-shrink: 0; }
-.shift-item-name { font-size: 12px; font-weight: 700; }
+.shift-item-name { font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
 .shift-item-meta { font-size: 10px; color: #64748b; }
 .shift-item-dur { font-size: 10px; font-weight: 700; color: #64748b; white-space: nowrap; margin-left: auto; }
 
@@ -173,28 +191,39 @@ body { overflow: hidden; }
 .team-modal-header { padding: 14px 20px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
 .team-modal-title { font-size: 15px; font-weight: 800; color: #0f172a; }
 .team-modal-body { flex: 1; overflow-y: auto; padding: 16px 20px; min-height: 0; }
-.teammate-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 8px; background: #fafafa; }
+.teammate-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 8px; background: #fafafa; transition: opacity .2s; }
+.teammate-row.hidden-emp { opacity: .45; }
 .teammate-row:last-child { margin-bottom: 0; }
 .team-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; flex-shrink: 0; }
 .teammate-name { font-size: 13px; font-weight: 700; color: #0f172a; }
 .teammate-dept { font-size: 11px; color: #94a3b8; }
-.remove-teammate-btn { margin-left: auto; padding: 5px 10px; border: 1.5px solid #fecdd3; border-radius: 7px; background: #fff1f2; color: #be123c; font-size: 11.5px; font-weight: 600; font-family: inherit; cursor: pointer; transition: all .15s; flex-shrink: 0; }
-.remove-teammate-btn:hover { background: #fee2e2; }
-.add-teammate-form { margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 14px; }
-.add-teammate-form h4 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; margin-bottom: 10px; }
-.add-teammate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-.add-teammate-grid input, .add-teammate-grid select { padding: 8px 10px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; width: 100%; }
-.add-teammate-grid input:focus, .add-teammate-grid select:focus { border-color: #2563eb; }
-.avatar-color-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
-.avatar-color-row label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; white-space: nowrap; }
-.color-swatch { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform .1s; flex-shrink: 0; }
-.color-swatch:hover { transform: scale(1.15); }
-.color-swatch.selected { border-color: #0f172a; }
-.btn-add-teammate { width: 100%; padding: 8px; background: #0f172a; color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; }
-.btn-add-teammate:hover { background: #1e293b; }
+.toggle-vis-btn { margin-left: auto; padding: 5px 10px; border: 1.5px solid #e2e8f0; border-radius: 7px; background: #fff; color: #475569; font-size: 11.5px; font-weight: 600; font-family: inherit; cursor: pointer; transition: all .15s; flex-shrink: 0; }
+.toggle-vis-btn:hover { border-color: #94a3b8; background: #f8fafc; }
+.toggle-vis-btn.hidden-state { border-color: #bfdbfe; background: #eff6ff; color: #2563eb; }
+
+/* ── CLOSED DAYS MODAL ── */
+.closed-modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 1070; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; backdrop-filter: blur(3px); padding: 16px; }
+.closed-modal-overlay.visible { opacity: 1; pointer-events: all; }
+.closed-modal-box { background: #fff; border-radius: 16px; box-shadow: 0 25px 60px rgba(0,0,0,.22); width: 380px; max-width: 100%; max-height: calc(100vh - 32px); display: flex; flex-direction: column; transform: translateY(10px); transition: transform .2s; }
+.closed-modal-overlay.visible .closed-modal-box { transform: translateY(0); }
+.closed-modal-header { padding: 14px 20px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.closed-modal-title { font-size: 15px; font-weight: 800; color: #0f172a; }
+.closed-modal-body { flex: 1; overflow-y: auto; padding: 16px 20px; min-height: 0; }
+.closed-day-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid #fde68a; border-radius: 10px; margin-bottom: 8px; background: #fefce8; }
+.closed-day-info { font-size: 13px; font-weight: 600; color: #92400e; }
+.closed-day-label { font-size: 11px; color: #b45309; }
+.remove-closed-btn { padding: 4px 10px; border: 1.5px solid #fcd34d; border-radius: 7px; background: #fff; color: #b45309; font-size: 11px; font-weight: 600; font-family: inherit; cursor: pointer; }
+.remove-closed-btn:hover { background: #fef3c7; }
+.add-closed-form { margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 14px; }
+.add-closed-form h4 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; margin-bottom: 10px; }
+.closed-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.closed-form-row input { padding: 8px 10px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; width: 100%; }
+.closed-form-row input:focus { border-color: #f59e0b; }
+.btn-add-closed { width: 100%; padding: 8px; background: #f59e0b; color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; }
+.btn-add-closed:hover { background: #d97706; }
 
 /* ── CALENDAR PICKER ── */
-.cal-popup { position: fixed; z-index: 2000; background: #fff; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.18); padding: 16px; width: 280px; opacity: 0; transform: translateY(-8px); transition: opacity .18s, transform .18s; pointer-events: none; }
+.cal-popup { position: fixed; z-index: 2000; background: #fff; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.18); padding: 16px; opacity: 0; transform: translateY(-8px); transition: opacity .18s, transform .18s; pointer-events: none; }
 .cal-popup.visible { opacity: 1; transform: translateY(0); pointer-events: all; }
 .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .cal-month-label { font-size: 13px; font-weight: 800; color: #0f172a; }
@@ -203,11 +232,14 @@ body { overflow: hidden; }
 .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
 .cal-dow { font-size: 9px; font-weight: 700; color: #94a3b8; text-align: center; padding: 4px 0; text-transform: uppercase; }
 .cal-day { font-size: 12px; font-weight: 500; text-align: center; padding: 6px 2px; border-radius: 7px; cursor: pointer; color: #0f172a; transition: background .12s, color .12s; }
-.cal-day:hover { background: #f1f5f9; }
+.cal-day:hover:not(.empty) { background: #f1f5f9; }
 .cal-day.today { background: #eff6ff; color: #2563eb; font-weight: 700; }
-.cal-day.selected { background: #0f172a; color: #fff; font-weight: 700; }
-.cal-day.other-month { color: #cbd5e1; }
+.cal-day.selected { background: #0f172a !important; color: #fff !important; font-weight: 700; }
+.cal-day.in-range { background: #e0e7ff; color: #3730a3; }
+.cal-day.range-start { background: #0f172a !important; color: #fff !important; border-radius: 7px 0 0 7px; }
+.cal-day.range-end { background: #0f172a !important; color: #fff !important; border-radius: 0 7px 7px 0; }
 .cal-day.empty { cursor: default; }
+.cal-range-hint { font-size: 10px; color: #64748b; text-align: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
 
 /* ── CONFIRM DIALOG ── */
 .confirm-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 2100; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .18s; backdrop-filter: blur(3px); padding: 16px; }
@@ -217,11 +249,13 @@ body { overflow: hidden; }
 .confirm-icon { width: 44px; height: 44px; border-radius: 50%; background: #fef2f2; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
 .confirm-title { font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
 .confirm-msg { font-size: 13px; color: #64748b; margin-bottom: 20px; }
-.confirm-btns { display: flex; gap: 8px; justify-content: center; }
+.confirm-btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .confirm-btn-cancel { padding: 8px 20px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-weight: 600; font-family: inherit; color: #64748b; background: #fff; cursor: pointer; }
 .confirm-btn-cancel:hover { border-color: #94a3b8; }
-.confirm-btn-danger { padding: 8px 20px; background: #dc2626; color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.confirm-btn-danger { padding: 8px 20px; background: #dc2626; color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; }
 .confirm-btn-danger:hover { background: #b91c1c; }
+.confirm-btn-warn { padding: 8px 20px; background: #f59e0b; color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; }
+.confirm-btn-warn:hover { background: #d97706; }
 
 /* ── TOAST ── */
 .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 7px; pointer-events: none; }
@@ -229,12 +263,9 @@ body { overflow: hidden; }
 .toast.success { background: #15803d; }
 .toast.error   { background: #dc2626; }
 .toast.info    { background: #2563eb; }
+.toast.warn    { background: #d97706; }
 @keyframes toastIn { from { opacity: 0; transform: translateY(12px) scale(.92); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes toastOut { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(6px) scale(.95); } }
-
-/* Shimmer loading */
-.shimmer { background: linear-gradient(90deg,#f0f4f8 25%,#e2e8f0 50%,#f0f4f8 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; }
-@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
 .spinner { display: inline-block; width: 16px; height: 16px; border: 2.5px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .65s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -243,17 +274,22 @@ body { overflow: hidden; }
 @media (max-width: 900px) { .planner-title p { display: none; } }
 @media (max-width: 768px) {
   .planner-page { padding: 4px 6px; }
-  .planner-th-emp, .planner-td-emp { width: 110px; min-width: 90px; padding: 8px; }
+  .planner-th-emp, .planner-td-emp { width: 100px; min-width: 80px; padding: 6px 8px; }
   .emp-dept { display: none; }
+  .emp-avatar { width: 26px; height: 26px; font-size: 9px; }
+  .emp-name { font-size: 11px; }
   .planner-drawer { width: 100%; max-width: 100%; }
-  .team-modal-box { width: 100%; }
-  .add-teammate-grid { grid-template-columns: 1fr; }
+  .team-modal-box, .closed-modal-box { width: 100%; }
+  .closed-form-row { grid-template-columns: 1fr; }
+  .cal-popup { width: calc(100vw - 16px); left: 8px !important; }
 }
 @media (max-width: 520px) {
-  .planner-header-right { gap: 5px; }
-  .planner-date-label { font-size: 11px; padding: 0 6px; }
-  .planner-view-select { padding: 6px 7px; font-size: 11px; }
-  .planner-add-btn, .planner-team-btn { padding: 7px 10px; font-size: 12px; }
+  .planner-header { gap: 6px; }
+  .planner-header-right { gap: 4px; }
+  .planner-date-label { font-size: 10px; padding: 0 5px; }
+  .planner-view-select { padding: 6px 6px; font-size: 10px; }
+  .planner-add-btn, .planner-team-btn, .planner-closed-btn { padding: 6px 8px; font-size: 11px; gap: 4px; }
+  .planner-add-btn span, .planner-team-btn span, .planner-closed-btn span { display: none; }
 }
 </style>
 
@@ -278,18 +314,21 @@ body { overflow: hidden; }
         <option value="week">Week</option>
         <option value="2weeks">2 Weeks</option>
       </select>
+      <button class="planner-closed-btn" onclick="openClosedModal()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+        <span>Closures</span>
+      </button>
       <button class="planner-team-btn" onclick="openTeamModal()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Team
+        <span>Team</span>
       </button>
       <button class="planner-add-btn" onclick="openShiftModal()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Add Shift
+        <span>Add Shift</span>
       </button>
     </div>
   </div>
 
-  <!-- GRID (no legend) -->
   <div class="planner-grid-card">
     <div class="planner-grid-scroll" id="gridScroll">
       <div id="gridContent" style="padding:50px;text-align:center">
@@ -312,6 +351,7 @@ body { overflow: hidden; }
     </button>
   </div>
   <div class="cal-grid" id="calGrid"></div>
+  <div class="cal-range-hint" id="calRangeHint" style="display:none"></div>
 </div>
 
 <!-- SHIFT MODAL -->
@@ -324,6 +364,10 @@ body { overflow: hidden; }
       <div class="modal-title" id="modalTitle">Add Shift</div>
     </div>
     <div class="modal-body">
+      <div id="conflictBanner" class="conflict-banner">
+        <div class="conflict-banner-title">⚠️ Time Conflict Detected</div>
+        <div class="conflict-banner-msg" id="conflictBannerMsg"></div>
+      </div>
       <div class="type-toggle">
         <button class="type-btn active" id="btnTask" onclick="switchType('task')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -336,7 +380,7 @@ body { overflow: hidden; }
       </div>
       <div class="field">
         <label>Employee</label>
-        <select id="empSelect"></select>
+        <select id="empSelect" onchange="checkConflict()"></select>
       </div>
       <div class="field" id="taskFieldWrap">
         <label>Task</label>
@@ -344,16 +388,16 @@ body { overflow: hidden; }
       </div>
       <div class="field">
         <label>Date</label>
-        <input type="date" id="dateInput">
+        <input type="date" id="dateInput" onchange="checkConflict()">
       </div>
       <div class="field-row">
         <div class="field">
           <label>Start Time</label>
-          <input type="time" id="startInput" step="1800">
+          <input type="time" id="startInput" step="1800" onchange="checkConflict()">
         </div>
         <div class="field">
           <label>End Time</label>
-          <input type="time" id="endInput" step="1800">
+          <input type="time" id="endInput" step="1800" onchange="checkConflict()">
         </div>
       </div>
       <div class="field" id="notesFieldWrap">
@@ -363,7 +407,8 @@ body { overflow: hidden; }
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeShiftModal()">Cancel</button>
-      <button class="btn-save" id="saveShiftBtn" onclick="saveShift()">
+      <button class="btn-replace" id="replaceShiftBtn" onclick="saveShift(true)" style="display:none">Replace</button>
+      <button class="btn-save" id="saveShiftBtn" onclick="saveShift(false)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         Save
       </button>
@@ -394,20 +439,28 @@ body { overflow: hidden; }
   </div>
 </div>
 
+<!-- CLOSED DAYS MODAL -->
+<div class="closed-modal-overlay" id="closedModal">
+  <div class="closed-modal-box">
+    <div class="closed-modal-header">
+      <div class="closed-modal-title">📅 Manage Closures</div>
+      <button class="btn-cancel" onclick="closeClosedModal()">Close</button>
+    </div>
+    <div class="closed-modal-body" id="closedModalBody"></div>
+  </div>
+</div>
+
 <!-- CONFIRM DIALOG -->
 <div class="confirm-overlay" id="confirmOverlay">
   <div class="confirm-box">
-    <div class="confirm-icon">
+    <div class="confirm-icon" id="confirmIcon">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
     </div>
-    <div class="confirm-title" id="confirmTitle">Delete shift?</div>
-    <div class="confirm-msg" id="confirmMsg">This action cannot be undone.</div>
-    <div class="confirm-btns">
+    <div class="confirm-title" id="confirmTitle">Confirm</div>
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-btns" id="confirmBtns">
       <button class="confirm-btn-cancel" onclick="closeConfirm()">Cancel</button>
-      <button class="confirm-btn-danger" id="confirmOkBtn">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-        Delete
-      </button>
+      <button class="confirm-btn-danger" id="confirmOkBtn">Confirm</button>
     </div>
   </div>
 </div>
@@ -422,6 +475,31 @@ body { overflow: hidden; }
 const API = window.API_URL ||
   'https://script.google.com/macros/s/AKfycbwS9c4pGnAiXNAlhdttTKZeKNOP8b_tSONjY7S-D_DOgiicflimtvrNVaRReuX7EN3hHg/exec';
 
+/* ══ TASK ICONS ═════════════════════════════════════════════════════════════ */
+const TASK_ICONS = {
+  'pick & pack':   '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+  'picking':       '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+  'packing':       '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
+  'pre pack':      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
+  'cleaning':      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+  'full station & brush': '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+  'deliveries':    '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
+  'cardboard':     '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>',
+  'returns':       '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>',
+  'warehouse org': '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+  'fba':           '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>',
+  'holiday':       '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
+  'trial':         '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+  'break':         '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>',
+};
+
+function getTaskIcon(name) {
+  if (!name) return '';
+  const key = name.toLowerCase().trim();
+  return TASK_ICONS[key] || '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+}
+
+/* ══ TIME CONFIG ════════════════════════════════════════════════════════════ */
 const H_START = 8, H_END = 18;
 const TOTAL_MINS = (H_END - H_START) * 60;
 const SLOTS = [];
@@ -453,11 +531,14 @@ function isoDate(d) {
 /* ══ STATE ══════════════════════════════════════════════════════════════════ */
 const S = {
   employees: [], tasks: [], schedule: [], workingDays: [1,2,3,4,5],
+  closedDays: [],       // [{date, label}]
+  hiddenEmployees: [],  // employee ids hidden from planner
   currentDate: isoDate(new Date()),
   view: 'day', loaded: false,
   editingId: null, shiftType: 'task',
   drawerEmpId: null, expandedDays: {},
   pending: new Set(),
+  conflictIds: [],      // ids of conflicting shifts for current modal
 };
 
 /* ══ BOOT ═══════════════════════════════════════════════════════════════════ */
@@ -476,6 +557,10 @@ async function init() {
     S.tasks       = (d.tasks       || []).map(t => ({...t, id: String(t.id)}));
     S.schedule    = (d.schedule    || []).map(normalizeShift);
     S.workingDays = d.workingDays  || [1,2,3,4,5];
+
+    // Load persisted closed days & hidden employees from localStorage
+    S.closedDays = JSON.parse(localStorage.getItem('rota_closedDays') || '[]');
+    S.hiddenEmployees = JSON.parse(localStorage.getItem('rota_hiddenEmps') || '[]');
 
     S.loaded = true;
     renderAll();
@@ -498,28 +583,27 @@ function normalizeShift(s) {
 }
 
 function normalizeTime(t) {
-
   if (!t) return '00:00';
-
-  // If Apps Script sent a Date object string
-  if (t instanceof Date) {
-    return pad(t.getHours()) + ':' + pad(t.getMinutes());
-  }
-
+  if (t instanceof Date) return pad(t.getHours()) + ':' + pad(t.getMinutes());
   const s = String(t).trim();
-
-  // Handles formats like "8:30", "08:30", "08:30:00"
   const match = s.match(/(\d{1,2}):(\d{2})/);
-
   if (!match) return '00:00';
-
   return pad(match[1]) + ':' + match[2];
+}
+
+function isDateClosed(dateStr) {
+  return S.closedDays.some(c => c.date === dateStr);
+}
+
+function visibleEmployees() {
+  return S.employees.filter(e => !S.hiddenEmployees.includes(e.id));
 }
 
 /* ══ DATES ══════════════════════════════════════════════════════════════════ */
 function getDates() {
   const d = new Date(S.currentDate + 'T00:00');
   if (S.view === 'day') return [S.currentDate];
+  // Always show full 7 days (Mon–Sun) regardless of workingDays filter
   const monday = new Date(d);
   monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   const count = S.view === '2weeks' ? 14 : 7;
@@ -527,8 +611,7 @@ function getDates() {
   for (let i = 0; i < count; i++) {
     const day = new Date(monday);
     day.setDate(monday.getDate() + i);
-    if (S.workingDays.includes(day.getDay()))
-      out.push(isoDate(day));
+    out.push(isoDate(day));
   }
   return out;
 }
@@ -564,17 +647,21 @@ function renderGrid() {
   const dates = getDates();
   const tm = buildTaskMap();
   const isDayView = S.view === 'day';
+  const emps = visibleEmployees();
   const f = [];
 
   f.push('<table class="planner-table"><thead><tr>');
   f.push('<th class="planner-th-emp">EMPLOYEE</th>');
 
   dates.forEach(date => {
-    f.push('<th class="planner-th-day">');
+    const closed = isDateClosed(date);
+    f.push(`<th class="planner-th-day${closed ? ' is-closed' : ''}">`);
     if (!isDayView) {
+      const closedInfo = S.closedDays.find(c => c.date === date);
       f.push(`<div class="day-col-header">
         <div class="day-name">${fmtDate(date, { weekday:'short' })}</div>
         <div class="day-date">${fmtDate(date, { month:'short', day:'numeric' })}</div>
+        ${closed ? `<div style="text-align:center"><span class="closed-badge">🔒 ${esc(closedInfo?.label || 'Closed')}</span></div>` : ''}
       </div>`);
     } else {
       f.push('<div class="time-header-row">');
@@ -589,7 +676,7 @@ function renderGrid() {
 
   f.push('</tr></thead><tbody>');
 
-  S.employees.forEach(emp => {
+  emps.forEach(emp => {
     f.push(`<tr>
       <td class="planner-td-emp" onclick="openDrawer('${esc(emp.id)}')">
         <div class="emp-row">
@@ -602,63 +689,79 @@ function renderGrid() {
       </td>`);
 
     dates.forEach(date => {
+      const closed = isDateClosed(date);
       const dayShifts = S.schedule.filter(
         s => s.employeeId === String(emp.id) && s.date === date
       );
 
       if (isDayView) {
-        f.push('<td class="planner-td-day"><div class="day-cell-inner">');
-        f.push('<div class="time-col-grid">');
-        SLOTS.forEach((slot, i) => {
-          const isHour = i % 2 === 0;
-          f.push(`<div class="time-col${isHour ? ' hour' : ''}" onclick="openShiftModal('${esc(emp.id)}','${date}','${slot}')"></div>`);
-        });
-        f.push('</div>');
-        dayShifts.forEach(shift => {
-          const task = tm[shift.taskId];
-          const isBreak = shift.type === 'break';
-          const left = pct(shift.start);
-          const width = Math.max(pct(shift.end) - left, 1);
-          const bg = isBreak ? '#f1f5f9' : (task?.lightColor || '#f8fafc');
-          const border = isBreak ? '#94a3b8' : (task?.color || '#cbd5e1');
-          const accent = isBreak ? '#64748b' : (task?.color || '#94a3b8');
-          const label = isBreak ? '☕ Break' : esc(task?.name || 'Task');
-          const opacity = S.pending.has(shift.id) ? '.5' : '1';
-          f.push(`<div class="shift-block" style="left:${left}%;width:${width}%;background:${bg};border-color:${border};opacity:${opacity}"
-            onclick="event.stopPropagation();editShift('${esc(shift.id)}')">
-            <div class="shift-accent" style="background:${accent}"></div>
-            <div class="shift-content">
-              <div class="shift-name" style="color:${accent}">${label}</div>
-              <div class="shift-time">${shift.start}–${shift.end}</div>
-            </div>
-            <button class="shift-del" onclick="event.stopPropagation();deleteShift('${esc(shift.id)}')">
-              ${trashIcon()}
-            </button>
-          </div>`);
-        });
+        f.push(`<td class="planner-td-day${closed ? ' is-closed' : ''}"><div class="day-cell-inner">`);
+        if (closed) {
+          const closedInfo = S.closedDays.find(c => c.date === date);
+          f.push(`<div class="closed-cell-overlay"><span class="closed-cell-label">🔒 ${esc(closedInfo?.label || 'Closed')}</span></div>`);
+        } else {
+          f.push('<div class="time-col-grid">');
+          SLOTS.forEach((slot, i) => {
+            const isHour = i % 2 === 0;
+            f.push(`<div class="time-col${isHour ? ' hour' : ''}" onclick="openShiftModal('${esc(emp.id)}','${date}','${slot}')"></div>`);
+          });
+          f.push('</div>');
+          dayShifts.forEach(shift => {
+            const task = tm[shift.taskId];
+            const isBreak = shift.type === 'break';
+            const left = pct(shift.start);
+            const width = Math.max(pct(shift.end) - left, 1);
+            const bg = isBreak ? '#f1f5f9' : (task?.lightColor || '#f8fafc');
+            const border = isBreak ? '#94a3b8' : (task?.color || '#cbd5e1');
+            const accent = isBreak ? '#64748b' : (task?.color || '#94a3b8');
+            const taskName = isBreak ? 'Break' : (task?.name || 'Task');
+            const icon = isBreak ? TASK_ICONS['break'] : getTaskIcon(taskName);
+            const opacity = S.pending.has(shift.id) ? '.5' : '1';
+            f.push(`<div class="shift-block" style="left:${left}%;width:${width}%;background:${bg};border-color:${border};opacity:${opacity}"
+              onclick="event.stopPropagation();editShift('${esc(shift.id)}')">
+              <div class="shift-accent" style="background:${accent}"></div>
+              <div class="shift-content">
+                <div class="shift-label-row">
+                  <span class="shift-icon" style="color:${accent}">${icon}</span>
+                  <span class="shift-name" style="color:${accent}">${esc(taskName)}</span>
+                </div>
+                <div class="shift-time">${shift.start}–${shift.end}</div>
+              </div>
+              <button class="shift-del" onclick="event.stopPropagation();deleteShift('${esc(shift.id)}')">
+                ${trashIcon()}
+              </button>
+            </div>`);
+          });
+        }
         f.push('</div></td>');
       } else {
-        // Week/2-week: only render cell if there are shifts
-        if (dayShifts.length > 0) {
-          f.push(`<td class="planner-td-week"><div class="week-cell-inner" onclick="openShiftModal('${esc(emp.id)}','${date}','08:00')">`);
+        f.push(`<td class="planner-td-week${closed ? ' is-closed' : ''}">`);
+        if (closed) {
+          const closedInfo = S.closedDays.find(c => c.date === date);
+          f.push(`<div class="week-closed-pill">🔒 ${esc(closedInfo?.label || 'Closed')}</div>`);
+        } else if (dayShifts.length > 0) {
+          f.push(`<div class="week-cell-inner" onclick="openShiftModal('${esc(emp.id)}','${date}','08:00')">`);
           dayShifts.forEach(shift => {
             const task = tm[shift.taskId];
             const isBreak = shift.type === 'break';
             const color = isBreak ? '#64748b' : (task?.color || '#64748b');
             const bg = isBreak ? '#f1f5f9' : (task?.lightColor || '#f8fafc');
+            const taskName = isBreak ? 'Break' : (task?.name || '');
+            const icon = isBreak ? TASK_ICONS['break'] : getTaskIcon(taskName);
             f.push(`<div class="week-shift-pill" style="color:${color};background:${bg};border-left-color:${color}"
               onclick="event.stopPropagation();editShift('${esc(shift.id)}')">
-              ${isBreak ? '☕' : esc(task?.name || '')} ${shift.start}–${shift.end}
+              <span style="opacity:.7;flex-shrink:0">${icon}</span>
+              <span style="overflow:hidden;text-overflow:ellipsis">${esc(taskName)} ${shift.start}–${shift.end}</span>
               <button class="pill-del" onclick="event.stopPropagation();deleteShift('${esc(shift.id)}')">
                 ${trashIcon(8)}
               </button>
             </div>`);
           });
-          f.push('</div></td>');
+          f.push('</div>');
         } else {
-          // Empty cell — still clickable to add, but minimal
-          f.push(`<td class="planner-td-week"><div class="week-cell-empty" onclick="openShiftModal('${esc(emp.id)}','${date}','08:00')"></div></td>`);
+          f.push(`<div class="week-cell-empty" onclick="openShiftModal('${esc(emp.id)}','${date}','08:00')"></div>`);
         }
+        f.push('</td>');
       }
     });
 
@@ -685,6 +788,13 @@ function navigate(dir) {
 
 function changeView() {
   S.view = document.getElementById('viewSelect').value;
+  // When switching to week/2weeks, snap to start of that week
+  if (S.view !== 'day') {
+    const d = new Date(S.currentDate + 'T00:00');
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    S.currentDate = isoDate(monday);
+  }
   updateDateLabel();
   renderGrid();
 }
@@ -692,16 +802,23 @@ function changeView() {
 /* ══ CALENDAR POPUP ═════════════════════════════════════════════════════════ */
 let calViewDate = new Date();
 let calOpen = false;
+let calRangeStart = null; // for week/2week range picking
 
 function toggleCalendar(e) {
   e.stopPropagation();
   if (calOpen) { closeCalendar(); return; }
   calViewDate = new Date(S.currentDate + 'T00:00');
+  calRangeStart = null;
   renderCalendar();
   const popup = document.getElementById('calPopup');
   const rect = document.getElementById('dateLabel').getBoundingClientRect();
+  const popW = 300;
+  let left = rect.left - 60;
+  if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+  if (left < 8) left = 8;
   popup.style.top = (rect.bottom + 8) + 'px';
-  popup.style.left = Math.max(8, rect.left - 80) + 'px';
+  popup.style.left = left + 'px';
+  popup.style.width = popW + 'px';
   popup.classList.add('visible');
   calOpen = true;
 }
@@ -709,14 +826,25 @@ function toggleCalendar(e) {
 function closeCalendar() {
   document.getElementById('calPopup').classList.remove('visible');
   calOpen = false;
+  calRangeStart = null;
 }
 
 function calNav(dir) {
-  calViewDate.setMonth(calViewDate.getMonth() + dir);
+  calViewDate = new Date(calViewDate.getFullYear(), calViewDate.getMonth() + dir, 1);
   renderCalendar();
 }
 
+function getWeekRange(dateStr) {
+  const d = new Date(dateStr + 'T00:00');
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  return { start: isoDate(mon), end: isoDate(sun) };
+}
+
 function renderCalendar() {
+  const isDayView = S.view === 'day';
   const DAYS = ['Mo','Tu','We','Th','Fr','Sa','Su'];
   const y = calViewDate.getFullYear();
   const m = calViewDate.getMonth();
@@ -725,44 +853,127 @@ function renderCalendar() {
 
   const firstDay = new Date(y, m, 1);
   const lastDay = new Date(y, m + 1, 0);
-  // Monday-based offset
   const startOffset = (firstDay.getDay() + 6) % 7;
   const todayStr = isoDate(new Date());
 
-  let html = DAYS.map(d => `<div class="cal-dow">${d}</div>`).join('');
+  // For range views, determine highlighted week range
+  let rangeStart = null, rangeEnd = null;
+  if (!isDayView) {
+    const wr = getWeekRange(S.currentDate);
+    if (S.view === 'week') { rangeStart = wr.start; rangeEnd = wr.end; }
+    else {
+      // 2 weeks: current week + next
+      rangeStart = wr.start;
+      const end2 = new Date(wr.end + 'T00:00');
+      end2.setDate(end2.getDate() + 7);
+      rangeEnd = isoDate(end2);
+    }
+  }
 
-  // Empty cells before first day
+  let html = DAYS.map(d => `<div class="cal-dow">${d}</div>`).join('');
   for (let i = 0; i < startOffset; i++) html += '<div class="cal-day empty"></div>';
 
   for (let day = 1; day <= lastDay.getDate(); day++) {
     const dateStr = `${y}-${pad(m + 1)}-${pad(day)}`;
     let cls = 'cal-day';
     if (dateStr === todayStr) cls += ' today';
-    if (dateStr === S.currentDate) cls += ' selected';
+    if (isDayView) {
+      if (dateStr === S.currentDate) cls += ' selected';
+    } else {
+      if (rangeStart && rangeEnd) {
+        if (dateStr === rangeStart) cls += ' range-start';
+        else if (dateStr === rangeEnd) cls += ' range-end';
+        else if (dateStr > rangeStart && dateStr < rangeEnd) cls += ' in-range';
+      }
+    }
     html += `<div class="${cls}" onclick="calSelectDate('${dateStr}')">${day}</div>`;
   }
 
   document.getElementById('calGrid').innerHTML = html;
+
+  const hint = document.getElementById('calRangeHint');
+  if (!isDayView) {
+    hint.style.display = 'block';
+    hint.textContent = 'Click any day to jump to that week';
+  } else {
+    hint.style.display = 'none';
+  }
 }
 
 function calSelectDate(dateStr) {
-  S.currentDate = dateStr;
+  if (S.view === 'day') {
+    S.currentDate = dateStr;
+  } else {
+    // Snap to Monday of selected week
+    const d = new Date(dateStr + 'T00:00');
+    const mon = new Date(d);
+    mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    S.currentDate = isoDate(mon);
+  }
   closeCalendar();
   updateDateLabel();
   renderGrid();
 }
 
-// Close calendar on outside click
 document.addEventListener('click', function(e) {
-  if (calOpen && !document.getElementById('calPopup').contains(e.target)) {
-    closeCalendar();
-  }
+  if (calOpen && !document.getElementById('calPopup').contains(e.target)) closeCalendar();
 });
+
+/* ══ CONFLICT DETECTION ═════════════════════════════════════════════════════ */
+function getConflicts(empId, date, start, end, excludeId) {
+  return S.schedule.filter(s =>
+    s.employeeId === String(empId) &&
+    s.date === date &&
+    s.id !== String(excludeId || '') &&
+    s.start < end &&
+    s.end > start
+  );
+}
+
+function checkConflict() {
+  const empId = document.getElementById('empSelect').value;
+  const date  = document.getElementById('dateInput').value;
+  const start = document.getElementById('startInput').value;
+  const end   = document.getElementById('endInput').value;
+  const banner = document.getElementById('conflictBanner');
+  const replaceBtn = document.getElementById('replaceShiftBtn');
+
+  if (!empId || !date || !start || !end || start >= end) {
+    banner.classList.remove('visible');
+    replaceBtn.style.display = 'none';
+    S.conflictIds = [];
+    return;
+  }
+
+  const conflicts = getConflicts(empId, date, start, end, S.editingId);
+  S.conflictIds = conflicts.map(c => c.id);
+
+  if (conflicts.length) {
+    const tm = buildTaskMap();
+    const names = conflicts.map(c => {
+      const t = tm[c.taskId];
+      return `${c.type === 'break' ? 'Break' : (t?.name || 'Task')} (${c.start}–${c.end})`;
+    }).join(', ');
+    document.getElementById('conflictBannerMsg').textContent =
+      `This overlaps with: ${names}. Click Replace to remove the existing and save the new shift.`;
+    banner.classList.add('visible');
+    replaceBtn.style.display = 'flex';
+  } else {
+    banner.classList.remove('visible');
+    replaceBtn.style.display = 'none';
+    S.conflictIds = [];
+  }
+}
 
 /* ══ SHIFT MODAL ════════════════════════════════════════════════════════════ */
 function openShiftModal(empId, date, time) {
+  // Block if day is closed
+  if (isDateClosed(date)) {
+    showToast('This day is marked as closed', 'warn'); return;
+  }
   S.editingId = null;
   S.shiftType = 'task';
+  S.conflictIds = [];
   const st = time || '08:00';
   const [h] = st.split(':').map(Number);
   const et = pad(Math.min(h + 2, 17)) + ':' + st.split(':')[1];
@@ -776,15 +987,19 @@ function openShiftModal(empId, date, time) {
   document.getElementById('endInput').value   = et;
   document.getElementById('notesInput').value = '';
   document.getElementById('modalTitle').textContent = 'Add Shift';
+  document.getElementById('conflictBanner').classList.remove('visible');
+  document.getElementById('replaceShiftBtn').style.display = 'none';
   setSaveState(false);
   switchType('task');
   document.getElementById('shiftModal').classList.add('visible');
+  setTimeout(checkConflict, 50);
 }
 
 function editShift(id) {
   const shift = S.schedule.find(s => s.id === String(id));
   if (!shift) return;
   S.editingId = id;
+  S.conflictIds = [];
   document.getElementById('empSelect').innerHTML =
     S.employees.map(e => `<option value="${esc(e.id)}"${String(e.id) === String(shift.employeeId) ? ' selected' : ''}>${esc(e.name)}</option>`).join('');
   document.getElementById('taskSelect').innerHTML =
@@ -794,13 +1009,17 @@ function editShift(id) {
   document.getElementById('endInput').value   = shift.end;
   document.getElementById('notesInput').value = shift.notes || '';
   document.getElementById('modalTitle').textContent = 'Edit Shift';
+  document.getElementById('conflictBanner').classList.remove('visible');
+  document.getElementById('replaceShiftBtn').style.display = 'none';
   setSaveState(false);
   switchType(shift.type || 'task');
   document.getElementById('shiftModal').classList.add('visible');
+  setTimeout(checkConflict, 50);
 }
 
 function closeShiftModal() {
   document.getElementById('shiftModal').classList.remove('visible');
+  S.conflictIds = [];
 }
 
 function switchType(type) {
@@ -819,7 +1038,7 @@ function setSaveState(loading) {
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg> Save';
 }
 
-async function saveShift() {
+async function saveShift(replaceConflicts) {
   const payload = {
     id:         S.editingId || ('s' + Date.now()),
     employeeId: document.getElementById('empSelect').value,
@@ -838,8 +1057,19 @@ async function saveShift() {
     showToast('End time must be after start time', 'error'); return;
   }
 
+  // Re-check conflicts at save time
+  const liveConflicts = getConflicts(payload.employeeId, payload.date, payload.start, payload.end, S.editingId);
+  if (liveConflicts.length && !replaceConflicts) {
+    checkConflict();
+    return;
+  }
+
   const isEdit = !!S.editingId;
   const prev = [...S.schedule];
+
+  // Remove conflicting shifts if replacing
+  const removedIds = replaceConflicts ? liveConflicts.map(c => c.id) : [];
+  S.schedule = S.schedule.filter(s => !removedIds.includes(s.id));
 
   if (isEdit) {
     const i = S.schedule.findIndex(s => s.id === String(payload.id));
@@ -853,6 +1083,14 @@ async function saveShift() {
   renderGrid();
   if (S.drawerEmpId) renderDrawerBody();
   setSaveState(true);
+
+  // Delete replaced shifts from backend
+  for (const rid of removedIds) {
+    fetch(API, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'deleteShift', id: rid }),
+    }).catch(() => {});
+  }
 
   try {
     const res = await fetch(API, {
@@ -869,7 +1107,7 @@ async function saveShift() {
     S.pending.delete(payload.id);
     renderGrid();
     if (S.drawerEmpId) renderDrawerBody();
-    showToast(isEdit ? 'Shift updated ✓' : 'Shift saved ✓', 'success');
+    showToast(isEdit ? 'Shift updated ✓' : (replaceConflicts ? 'Replaced & saved ✓' : 'Shift saved ✓'), 'success');
   } catch (err) {
     S.schedule = prev;
     S.pending.delete(payload.id);
@@ -881,15 +1119,18 @@ async function saveShift() {
   }
 }
 
-/* ══ DELETE WITH CONFIRM DIALOG ═════════════════════════════════════════════ */
+/* ══ DELETE ═════════════════════════════════════════════════════════════════ */
 let _confirmResolve = null;
 
-function showConfirm(title, msg) {
+function showConfirm(title, msg, okLabel, okClass) {
   return new Promise(resolve => {
     _confirmResolve = resolve;
     document.getElementById('confirmTitle').textContent = title;
     document.getElementById('confirmMsg').textContent = msg;
-    document.getElementById('confirmOkBtn').onclick = () => { closeConfirm(); resolve(true); };
+    const okBtn = document.getElementById('confirmOkBtn');
+    okBtn.textContent = okLabel || 'Confirm';
+    okBtn.className = okClass || 'confirm-btn-danger';
+    okBtn.onclick = () => { closeConfirm(); resolve(true); };
     document.getElementById('confirmOverlay').classList.add('visible');
   });
 }
@@ -900,19 +1141,18 @@ function closeConfirm() {
 }
 
 async function deleteShift(id) {
-  const ok = await showConfirm('Delete this shift?', 'This action cannot be undone.');
+  const ok = await showConfirm('Delete this shift?', 'This action cannot be undone.', 'Delete', 'confirm-btn-danger');
   if (!ok) return;
 
   const prev = [...S.schedule];
   S.schedule = S.schedule.filter(s => s.id !== String(id));
   renderGrid();
   if (S.drawerEmpId) renderDrawerBody();
-  showToast('Deleting shift…', 'info');
+  showToast('Deleting…', 'info');
 
   try {
     const res = await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'deleteShift', id }),
     });
     if (!res.ok) throw new Error(res.status);
@@ -925,28 +1165,8 @@ async function deleteShift(id) {
   }
 }
 
-async function removeEmployee(id) {
-  const emp = S.employees.find(e => e.id === id);
-  if (!emp) return;
-  const ok = await showConfirm(`Remove ${emp.name}?`, 'Their shifts will remain in the data.');
-  if (!ok) return;
-  S.employees = S.employees.filter(e => e.id !== id);
-  renderGrid();
-  renderTeamModal();
-  showToast(emp.name + ' removed', 'success');
-  fetch(API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'deleteEmployee', id }),
-  }).catch(() => {});
-}
-
-document.getElementById('shiftModal').addEventListener('click', function (e) {
-  if (e.target === this) closeShiftModal();
-});
-document.getElementById('confirmOverlay').addEventListener('click', function(e) {
-  if (e.target === this) closeConfirm();
-});
+document.getElementById('shiftModal').addEventListener('click', function (e) { if (e.target === this) closeShiftModal(); });
+document.getElementById('confirmOverlay').addEventListener('click', function(e) { if (e.target === this) closeConfirm(); });
 
 /* ══ DRAWER ═════════════════════════════════════════════════════════════════ */
 function openDrawer(empId) {
@@ -1002,7 +1222,7 @@ function renderDrawerBody() {
         <div class="day-shifts${exp ? ' open' : ''}">${ds.map(s => shiftItemHTML(s, tm)).join('')}</div>
       </div>`);
     });
-    if (!any) f.push('<p style="color:#94a3b8;font-size:13px;text-align:center;padding:20px 0">No shifts scheduled this period</p>');
+    if (!any) f.push('<p style="color:#94a3b8;font-size:13px;text-align:center;padding:20px 0">No shifts this period</p>');
   }
   document.getElementById('drawerBody').innerHTML = f.join('');
 }
@@ -1014,10 +1234,12 @@ function shiftItemHTML(s, tm) {
   const bg = isBreak ? '#f1f5f9' : (task?.lightColor || '#f8fafc');
   const border = isBreak ? '#94a3b8' : (task?.color || '#cbd5e1');
   const color = isBreak ? '#64748b' : (task?.color || '#475569');
+  const taskName = isBreak ? 'Break' : (task?.name || 'Task');
+  const icon = isBreak ? TASK_ICONS['break'] : getTaskIcon(taskName);
   return `<div class="shift-item" style="background:${bg};border-color:${border}">
     <div class="shift-bar" style="background:${color}"></div>
     <div style="flex:1;min-width:0">
-      <div class="shift-item-name" style="color:${color}">${isBreak ? '☕ Break' : esc(task?.name || 'Task')}</div>
+      <div class="shift-item-name" style="color:${color}">${icon} ${esc(taskName)}</div>
       <div class="shift-item-meta">${s.start} – ${s.end}</div>
     </div>
     <div class="shift-item-dur">${d.toFixed(1)}h</div>
@@ -1035,10 +1257,7 @@ function toggleDay(date) {
   renderDrawerBody();
 }
 
-/* ══ TEAM MODAL ═════════════════════════════════════════════════════════════ */
-const AVATAR_COLORS = ['#6366f1','#ef4444','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'];
-let selectedAvatarColor = AVATAR_COLORS[0];
-
+/* ══ TEAM MODAL (visibility toggle, no delete, no avatar colour) ═══════════ */
 function openTeamModal() {
   renderTeamModal();
   document.getElementById('teamModal').classList.add('visible');
@@ -1049,69 +1268,100 @@ function closeTeamModal() {
 }
 
 function renderTeamModal() {
-  const swatches = AVATAR_COLORS.map(c =>
-    `<div class="color-swatch${c === selectedAvatarColor ? ' selected' : ''}" style="background:${c}" onclick="selectAvatarColor('${c}')"></div>`
-  ).join('');
-
   document.getElementById('teamModalBody').innerHTML =
     `<div style="margin-bottom:4px">
-      ${S.employees.map(emp => `
-        <div class="teammate-row">
+      ${S.employees.map(emp => {
+        const hidden = S.hiddenEmployees.includes(emp.id);
+        return `<div class="teammate-row${hidden ? ' hidden-emp' : ''}">
           <div class="team-avatar" style="background:${esc(emp.avatar)}">${esc(emp.initials)}</div>
           <div>
             <div class="teammate-name">${esc(emp.name)}</div>
             <div class="teammate-dept">${esc(emp.department)}</div>
           </div>
-          <button class="remove-teammate-btn" onclick="removeEmployee('${esc(emp.id)}')">Remove</button>
-        </div>
-      `).join('')}
-    </div>
-    <div class="add-teammate-form">
-      <h4>Add Teammate</h4>
-      <div class="add-teammate-grid">
-        <input type="text" id="newEmpName" placeholder="Full name *">
-        <input type="text" id="newEmpDept" placeholder="Department">
-      </div>
-      <div class="avatar-color-row">
-        <label>Avatar colour</label>
-        ${swatches}
-      </div>
-      <button class="btn-add-teammate" onclick="addEmployee()">Add Teammate</button>
+          <button class="toggle-vis-btn${hidden ? ' hidden-state' : ''}" onclick="toggleEmployeeVisibility('${esc(emp.id)}')">
+            ${hidden ? 'Show' : 'Hide'}
+          </button>
+        </div>`;
+      }).join('')}
     </div>`;
 }
 
-function selectAvatarColor(color) {
-  selectedAvatarColor = color;
-  renderTeamModal();
-}
-
-function addEmployee() {
-  const nameEl = document.getElementById('newEmpName');
-  const deptEl = document.getElementById('newEmpDept');
-  const name = nameEl.value.trim();
-  if (!name) { showToast('Name is required', 'error'); nameEl.focus(); return; }
-  const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-  const emp = {
-    id: 'e' + Date.now(),
-    name,
-    initials,
-    department: deptEl.value.trim() || '',
-    avatar: selectedAvatarColor,
-  };
-  S.employees.push(emp);
+function toggleEmployeeVisibility(id) {
+  const idx = S.hiddenEmployees.indexOf(id);
+  if (idx > -1) {
+    S.hiddenEmployees.splice(idx, 1);
+    showToast('Employee shown on planner', 'success');
+  } else {
+    S.hiddenEmployees.push(id);
+    showToast('Employee hidden from planner', 'info');
+  }
+  localStorage.setItem('rota_hiddenEmps', JSON.stringify(S.hiddenEmployees));
   renderGrid();
   renderTeamModal();
-  showToast(name + ' added ✓', 'success');
-  fetch(API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ action: 'saveEmployee', data: emp }),
-  }).catch(() => showToast('Could not sync to server', 'error'));
 }
 
-document.getElementById('teamModal').addEventListener('click', function (e) {
-  if (e.target === this) closeTeamModal();
-});
+document.getElementById('teamModal').addEventListener('click', function (e) { if (e.target === this) closeTeamModal(); });
+
+/* ══ CLOSED DAYS MODAL ══════════════════════════════════════════════════════ */
+function openClosedModal() {
+  renderClosedModal();
+  document.getElementById('closedModal').classList.add('visible');
+}
+
+function closeClosedModal() {
+  document.getElementById('closedModal').classList.remove('visible');
+}
+
+function renderClosedModal() {
+  const list = S.closedDays.length
+    ? S.closedDays.map(c => `
+        <div class="closed-day-row">
+          <div>
+            <div class="closed-day-info">${fmtDate(c.date, { weekday:'short', month:'short', day:'numeric', year:'numeric' })}</div>
+            <div class="closed-day-label">${esc(c.label || 'Closed')}</div>
+          </div>
+          <button class="remove-closed-btn" onclick="removeClosed('${c.date}')">Remove</button>
+        </div>`).join('')
+    : '<p style="color:#94a3b8;font-size:13px;text-align:center;padding:12px 0">No closures set</p>';
+
+  document.getElementById('closedModalBody').innerHTML = `
+    ${list}
+    <div class="add-closed-form">
+      <h4>Mark Day as Closed</h4>
+      <div class="closed-form-row">
+        <input type="date" id="closedDateInput" value="${S.currentDate}">
+        <input type="text" id="closedLabelInput" placeholder="Reason (e.g. Bank Holiday)">
+      </div>
+      <button class="btn-add-closed" onclick="addClosed()">
+        🔒 Mark as Closed
+      </button>
+    </div>`;
+}
+
+function addClosed() {
+  const date = document.getElementById('closedDateInput').value;
+  const label = document.getElementById('closedLabelInput').value.trim() || 'Closed';
+  if (!date) { showToast('Please select a date', 'error'); return; }
+  if (S.closedDays.some(c => c.date === date)) {
+    showToast('This date is already marked as closed', 'warn'); return;
+  }
+  S.closedDays.push({ date, label });
+  S.closedDays.sort((a, b) => a.date.localeCompare(b.date));
+  localStorage.setItem('rota_closedDays', JSON.stringify(S.closedDays));
+  renderGrid();
+  renderClosedModal();
+  showToast(`${fmtDate(date, { month:'short', day:'numeric' })} marked as closed`, 'success');
+}
+
+function removeClosed(date) {
+  S.closedDays = S.closedDays.filter(c => c.date !== date);
+  localStorage.setItem('rota_closedDays', JSON.stringify(S.closedDays));
+  renderGrid();
+  renderClosedModal();
+  showToast('Closure removed', 'success');
+}
+
+document.getElementById('closedModal').addEventListener('click', function(e) { if (e.target === this) closeClosedModal(); });
 
 /* ══ TOAST ══════════════════════════════════════════════════════════════════ */
 function showToast(msg, type) {
@@ -1122,36 +1372,40 @@ function showToast(msg, type) {
     success: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
     error:   '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
     info:    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+    warn:    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
   };
-  el.innerHTML = (icons[type] || '') + esc(msg);
+  el.innerHTML = (icons[type] || '') + ' ' + esc(msg);
   c.appendChild(el);
   setTimeout(() => {
     el.style.animation = 'toastOut .2s ease forwards';
-    setTimeout(() => el.remove(), 200);
-  }, 3000);
+    setTimeout(() => el.remove(), 220);
+  }, 3200);
 }
 
 /* ══ GLOBALS ════════════════════════════════════════════════════════════════ */
-window.navigate        = navigate;
-window.changeView      = changeView;
-window.toggleCalendar  = toggleCalendar;
-window.calNav          = calNav;
-window.calSelectDate   = calSelectDate;
-window.openShiftModal  = openShiftModal;
-window.closeShiftModal = closeShiftModal;
-window.switchType      = switchType;
-window.saveShift       = saveShift;
-window.deleteShift     = deleteShift;
-window.editShift       = editShift;
-window.openDrawer      = openDrawer;
-window.closeDrawer     = closeDrawer;
-window.toggleDay       = toggleDay;
-window.openTeamModal   = openTeamModal;
-window.closeTeamModal  = closeTeamModal;
-window.addEmployee     = addEmployee;
-window.removeEmployee  = removeEmployee;
-window.selectAvatarColor = selectAvatarColor;
-window.closeConfirm    = closeConfirm;
+window.navigate               = navigate;
+window.changeView             = changeView;
+window.toggleCalendar         = toggleCalendar;
+window.calNav                 = calNav;
+window.calSelectDate          = calSelectDate;
+window.openShiftModal         = openShiftModal;
+window.closeShiftModal        = closeShiftModal;
+window.switchType             = switchType;
+window.saveShift              = saveShift;
+window.checkConflict          = checkConflict;
+window.deleteShift            = deleteShift;
+window.editShift              = editShift;
+window.openDrawer             = openDrawer;
+window.closeDrawer            = closeDrawer;
+window.toggleDay              = toggleDay;
+window.openTeamModal          = openTeamModal;
+window.closeTeamModal         = closeTeamModal;
+window.toggleEmployeeVisibility = toggleEmployeeVisibility;
+window.openClosedModal        = openClosedModal;
+window.closeClosedModal       = closeClosedModal;
+window.addClosed              = addClosed;
+window.removeClosed           = removeClosed;
+window.closeConfirm           = closeConfirm;
 
 requestAnimationFrame(init);
 })();
