@@ -699,7 +699,9 @@ let currentDrawerId = null; // track open drawer product
 
 /* ══ INIT ══ */
 async function init() {
-  await Promise.all([loadData(), loadUsers(), loadSuppliers()]);
+  await loadUsers();      // 👈 FIRST
+  await loadSuppliers();  // 👈 SECOND
+  await loadData();       // 👈 LAST (renders UI)
 }
 
 /* ══ DATA ══ */
@@ -735,7 +737,9 @@ async function loadUsers() {
         name: (u.firstName + ' ' + u.lastName).trim()
       }));
 
-  } catch (e) {}
+} catch (e) {
+  console.error("Failed to load users", e);
+  users = [];
 }
 
 async function loadSuppliers() {
