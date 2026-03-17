@@ -403,40 +403,27 @@ async function loadData() {
 
     renderAll();
 
-  } catch(e) {
-    useDemoData();
-    renderAll();
-  }
+  } 
+  
+catch(e) {
+  console.error('Failed to load data:', e);
+  showEmptyState();
+}
 }
 
-function loadDemoData() {
-  tasks = [
-    {id:'pick-pack',  name:'Pick & Pack',   shortName:'Pick & Pack', color:'#EF4444'},
-    {id:'packing',    name:'Packing',        shortName:'Packing',     color:'#EC4899'},
-    {id:'fba-prep',   name:'FBA Prep',       shortName:'FBA Prep',    color:'#10B981'},
-    {id:'warehouse-org',name:'Warehouse Org',shortName:'Warehouse',   color:'#F97316'},
-    {id:'deliveries', name:'Deliveries',     shortName:'Deliveries',  color:'#3B82F6'},
-    {id:'returns',    name:'Returns',        shortName:'Returns',     color:'#6366F1'},
-  ];
-  employees = ['Sarah M.','James K.','Priya D.','Carlos R.','Emma T.','Liam W.','Nina S.','Oliver B.']
-    .map((n,i)=>({id:'e'+i, name:n, initials:n.split(' ').map(x=>x[0]).join('')}));
-  allSchedule = [];
-  getDaysInRange('30d').forEach(day => {
-    employees.forEach(emp => {
-      const ti = Math.floor(Math.random()*tasks.length);
-      const sh = 8+Math.floor(Math.random()*2);
-      const eh = Math.min(18, sh+4+Math.floor(Math.random()*5));
-      allSchedule.push({employeeId:emp.id,taskId:tasks[ti].id,date:day.date,
-        start:String(sh).padStart(2,'0')+':00',end:String(eh).padStart(2,'0')+':00'});
-      if (Math.random()>.55) {
-        const t2 = tasks[(ti+1+Math.floor(Math.random()*3))%tasks.length];
-        allSchedule.push({employeeId:emp.id,taskId:t2.id,date:day.date,
-          start:String(sh+2).padStart(2,'0')+':00',end:String(Math.min(sh+5,18)).padStart(2,'0')+':00'});
-      }
-    });
-  });
+function showEmptyState() {
+  document.getElementById('mainPage').style.visibility = 'visible';
+  document.getElementById('loadingOverlay').classList.add('hidden');
+
+  document.getElementById('metricTotalHours').textContent = '—';
+  document.getElementById('metricActiveStaff').textContent = '—';
+  document.getElementById('metricEfficiency').textContent = '—';
+
+  document.getElementById('staffList').innerHTML =
+    '<div class="empty-state">Unable to load data. Please try again.</div>';
 }
 
+  
 /* ── RENDER ALL ── */
 function renderAll() {
   document.getElementById('headerDate').textContent =
