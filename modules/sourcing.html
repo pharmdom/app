@@ -1134,10 +1134,9 @@ function renderDrawer(row) {
 
   document.getElementById('drawerBody').innerHTML = body;
   document.getElementById('drawerFooter').innerHTML =
-  '<button class="btn btn-danger" style="margin-left:auto" onclick="deleteProduct(\'' + escAttr(id) + '\')">'
-  + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>'
-  + 'Delete Product</button>';
-  applyYNColors();
+    '<button class="btn btn-danger" id="deleteProductBtn" style="margin-left:auto" onclick="showDeleteConfirm(\'' + escAttr(id) + '\')">'
+    + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>'
+    + 'Delete Product</button>';
 }
 
 /* ── KPI card builder ── */
@@ -1301,7 +1300,6 @@ function closeDrawer() {
 }
 
 async function deleteProduct(id) {
-  if (!confirm('Delete this product? This cannot be undone.')) return;
   const toastId = showToast('Deleting…', 'loading', 0);
   try {
     await fetch(API_URL, {
@@ -1325,6 +1323,17 @@ async function deleteProduct(id) {
     removeToast(toastId);
     showToast('Failed to delete', 'error');
   }
+}
+
+
+function showDeleteConfirm(id) {
+  const footer = document.getElementById('drawerFooter');
+  footer.innerHTML =
+    '<span style="font-size:12.5px;color:#64748b;margin-right:auto;align-self:center">Are you sure? This cannot be undone.</span>'
+    + '<button class="btn btn-ghost btn-sm" onclick="renderDrawer(allData.find(p=>p[\'Opportunity ID\']=== \'' + escAttr(id) + '\'))">Cancel</button>'
+    + '<button class="btn btn-danger btn-sm" onclick="deleteProduct(\'' + escAttr(id) + '\')">'
+    + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>'
+    + 'Yes, Delete</button>';
 }
   
 /* ── Editable Cards ── */
@@ -1843,6 +1852,7 @@ window.removeModalAsin     = removeModalAsin;
 window.onPurchasedChange   = onPurchasedChange;
 window.applyYNColors       = applyYNColors;
 window.deleteProduct = deleteProduct;
+window.showDeleteConfirm = showDeleteConfirm;
   
 init();
 })();
