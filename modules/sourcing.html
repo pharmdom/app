@@ -718,9 +718,23 @@ async function loadData() {
 
 async function loadUsers() {
   try {
-    const res  = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getUsers' }), headers: { 'Content-Type': 'text/plain' } });
+    const res  = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'getUsers' }),
+      headers: { 'Content-Type': 'text/plain' }
+    });
+
     const data = await res.json();
-    users = (data.users || []).map(u => ({ id: u.userId, name: (u.firstName + ' ' + u.lastName).trim() }));
+
+    const allowedIds = ['USR-0006', 'USR-0007', 'USR-0008'];
+
+    users = (data.users || [])
+      .filter(u => allowedIds.includes(u.userId))
+      .map(u => ({
+        id: u.userId,
+        name: (u.firstName + ' ' + u.lastName).trim()
+      }));
+
   } catch (e) {}
 }
 
