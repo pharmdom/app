@@ -8,6 +8,37 @@ body { background: #f1f5f9; color: #0f172a; min-height: 100vh; line-height: 1.5;
 .page { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
 @media (max-width: 600px) { .page { padding: 18px 14px 48px; } }
 
+
+  /* ── NAV DROPDOWN ── */
+.nav-dropdown-wrap { position: relative; display: inline-block; }
+.nav-dropdown-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border: 1.5px solid #94a3b8; border-radius: 9px;
+  background: #fff; color: #0f172a; font-size: 12px; font-weight: 600;
+  font-family: inherit; cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.nav-dropdown-btn:hover { border-color: #325dd1; background: #f8fafc; }
+.nav-dropdown-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+.nav-dropdown-btn .chevron { transition: transform .15s; }
+.nav-dropdown-btn.open .chevron { transform: rotate(180deg); }
+.nav-dropdown-menu {
+  position: absolute; top: calc(100% + 6px); left: 0;
+  background: #fff; border: 1.5px solid #e2e8f0; border-radius: 11px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.1); min-width: 160px;
+  z-index: 500; padding: 5px; opacity: 0; pointer-events: none;
+  transform: translateY(-6px); transition: opacity .15s, transform .15s;
+}
+.nav-dropdown-menu.open { opacity: 1; pointer-events: all; transform: translateY(0); }
+.nav-dropdown-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 7px; font-size: 13px; font-weight: 600;
+  color: #0f172a; text-decoration: none; cursor: pointer; transition: background .12s;
+}
+.nav-dropdown-item:hover { background: #f1f5f9; }
+.nav-dropdown-item.active { background: #eff6ff; color: #2563eb; }
+.nav-dropdown-item svg { width: 13px; height: 13px; flex-shrink: 0; opacity: .6; }
+
+  
 /* ── HEADER ── */
 .header { margin-bottom: 24px; }
 .header-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #3b82f6; margin-bottom: 3px; }
@@ -272,6 +303,19 @@ let employees = [], tasks = [], allSchedule = [];
 let chartRange = '7d';
 
 /* ── HELPERS ── */
+function toggleNavDrop(e) {
+  e.stopPropagation();
+  const btn = document.getElementById('navDropBtn');
+  const menu = document.getElementById('navDropMenu');
+  const open = menu.classList.toggle('open');
+  btn.classList.toggle('open', open);
+}
+document.addEventListener('click', function() {
+  document.getElementById('navDropMenu')?.classList.remove('open');
+  document.getElementById('navDropBtn')?.classList.remove('open');
+});
+
+  
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function todayStr() { return new Date().toISOString().slice(0,10); }
@@ -281,7 +325,8 @@ function normalizeTime(t){
   const m = String(t).match(/(\d{1,2}):(\d{2})/)
   return m ? m[1].padStart(2,'0') + ':' + m[2] : '00:00'
 }
-  
+
+
 function getDuration(s,e) {
   s = normalizeTime(s)
   e = normalizeTime(e)
