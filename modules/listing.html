@@ -856,33 +856,6 @@ function closeDrawer() {
 
 }
 
-async function deleteProduct(id) {
-  if (!confirm('Delete this product? This cannot be undone.')) return;
-  const toastId = showToast('Deleting…', 'loading', 0);
-  try {
-    await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'deleteSourcing', opportunityId: id }),
-      headers: { 'Content-Type': 'text/plain' }
-    });
-    removeToast(toastId);
-    showToast('Product deleted', 'success');
-    // Animate the table row out before closing
-    const rows = document.querySelectorAll('#tableBody tr');
-    rows.forEach(r => { r.style.transition = 'opacity .3s, transform .3s'; r.style.opacity = '0'; r.style.transform = 'translateX(30px)'; });
-    setTimeout(() => {
-      closeDrawer();
-      allData = allData.filter(p => p['Opportunity ID'] !== id);
-      applyFilters();
-      updateStats();
-      renderTable();
-    }, 300);
-  } catch (e) {
-    removeToast(toastId);
-    showToast('Failed to delete', 'error');
-  }
-}
-  
 function renderDrawer(row) {
   const id=row['Opportunity ID']||'',stage=getStage(row);
   const needsListing = stage === 'listing';
@@ -1062,10 +1035,7 @@ if(activeDrawerTab==='veeqo') {
 }
 
   document.getElementById('drawerBody').innerHTML=body;
-  document.getElementById('drawerFooter').innerHTML =
-  '<button class="btn btn-danger" style="margin-left:auto" onclick="deleteProduct(\'' + escAttr(id) + '\')">'
-  + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>'
-  + 'Delete Product</button>';
+  document.getElementById('drawerFooter').innerHTML='<span style="font-size:11px;color:#94a3b8;">Changes auto-save</span>';
 }
 
 /* ─── DRAWER COMPONENT HELPERS ───────────────────────────────────── */
@@ -1283,7 +1253,6 @@ window.onDatePresetChange=onDatePresetChange;window.closeDrawer=closeDrawer;wind
 window.saveField=saveField;window.toggleBool=toggleBool;window.saveBoolDrop=saveBoolDrop;
 window.showListedTable=showListedTable;window.closeTableModal=closeTableModal;
 window.openDrawer=openDrawer;window.moveToVeeqo = moveToVeeqo;
-window.deleteProduct = deleteProduct;
 
 init();
 })();
