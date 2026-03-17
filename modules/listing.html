@@ -16,6 +16,51 @@ html, body {
   flex-direction: column;
   overflow: hidden;
 }
+
+.delete-btn {
+  margin-left: auto;
+  padding: 7px 14px;
+  border-radius: 9px;
+  border: 1.5px solid #fecaca;
+  background: #fff;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.delete-btn:hover { background: #fee2e2; border-color: #fca5a5; }
+.delete-btn.confirming {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+  animation: deletePulse .4s ease;
+}
+@keyframes deletePulse {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+.delete-btn.deleting {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+  opacity: 0.7;
+  pointer-events: none;
+}
+.kanban-card.card-deleting {
+  animation: cardDelete .4s ease forwards;
+}
+@keyframes cardDelete {
+  0%   { opacity: 1; transform: scale(1); }
+  50%  { opacity: 0.3; transform: scale(0.95); }
+  100% { opacity: 0; transform: scale(0.9); max-height: 0; padding: 0; margin: 0; border: none; }
+}
+  
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
 .stats-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .stat-chip { display: flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 100px; font-size: 12px; font-weight: 600; border: 1px solid transparent; white-space: nowrap; cursor: pointer; transition: all .15s; user-select: none; }
@@ -512,6 +557,67 @@ async function moveToVeeqo(id){
   showToast('Moved to Veeqo & Marketing','success');
 }
   
+
+let deleteConfirmTimer = null;
+
+async function deleteProduct(id) {
+  const btn = document.getElementById('deleteProductBtn');
+  if (!btn) return;
+
+  // First click → ask for confirmation
+  if (!btn.classList.contains('confirming')) {
+    btn.classList.add('confirming');
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Confirm Delete';
+    deleteConfirmTimer = setTimeout(() => {
+      if (btn) {
+        btn.classList.remove('confirming');
+        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete Product';
+      }
+    }, 3000);
+    return;
+  }
+
+  // Second click → confirmed, delete
+  clearTimeout(deleteConfirmTimer);
+  btn.classList.remove('confirming');
+  btn.classList.add('deleting');
+  btn.innerHTML = '<span class="spinner sm"></span>Deleting…';
+
+  // Animate card out
+  const card = document.querySelector('.kanban-card[data-id="' + id + '"]');
+  if (card) card.classList.add('card-deleting');
+
+  if (API_URL) {
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'deleteListing', opportunityId: id })
+      });
+      const d = await res.json();
+      if (d.success === false) throw new Error(d.message);
+    } catch(e) {
+      console.error(e);
+      showToast('Error deleting product', 'error');
+      if (card) card.classList.remove('card-deleting');
+      btn.classList.remove('deleting');
+      btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete Product';
+      return;
+    }
+  }
+
+  // Remove from local data
+  const idx = allData.findIndex(p => (p['Opportunity ID'] || '') === id);
+  if (idx > -1) allData.splice(idx, 1);
+
+  setTimeout(() => {
+    closeDrawer();
+    applyFilters();
+    updateStats(allData);
+    showToast('Product deleted', 'success');
+  }, 420);
+}
+
   
 /* ─── STAGE LOGIC ───────────────────────────────────────────────── */
 function getStage(row) {
@@ -1035,7 +1141,11 @@ if(activeDrawerTab==='veeqo') {
 }
 
   document.getElementById('drawerBody').innerHTML=body;
-  document.getElementById('drawerFooter').innerHTML='<span style="font-size:11px;color:#94a3b8;">Changes auto-save</span>';
+  document.getElementById('drawerFooter').innerHTML=
+  '<span style="font-size:11px;color:#94a3b8;">Changes auto-save</span>'
+  +'<button id="deleteProductBtn" class="delete-btn" onclick="deleteProduct(\''+ea(id)+'\')">'
+  +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>'
+  +'Delete Product</button>';
 }
 
 /* ─── DRAWER COMPONENT HELPERS ───────────────────────────────────── */
@@ -1253,6 +1363,7 @@ window.onDatePresetChange=onDatePresetChange;window.closeDrawer=closeDrawer;wind
 window.saveField=saveField;window.toggleBool=toggleBool;window.saveBoolDrop=saveBoolDrop;
 window.showListedTable=showListedTable;window.closeTableModal=closeTableModal;
 window.openDrawer=openDrawer;window.moveToVeeqo = moveToVeeqo;
+window.deleteProduct = deleteProduct;
 
 init();
 })();
