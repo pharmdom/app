@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Admin | Pharm & Dom</title>
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href__="https://fonts.googleapis.com">
+  <link rel="preconnect" href__="https://fonts.gstatic.com" crossorigin>
+  <link href__="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sidebar-w: 256px;
+      --topbar-h: 64px;
+      --blue: #3b6ef8;
+      --blue-h: #4c7df9;
+      --blue-soft: rgba(59,110,248,0.12);
+      --blue-glow: rgba(59,110,248,0.28);
+      --bg: #f5f6fa;
+      --white: #ffffff;
+      --text-primary: #0d0f14;
+      --text-2: #374151;
+      --text-3: #6b7280;
+      --text-4: #9ca3af;
+      --border: #e5e7eb;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.1);
+      --success: #22c55e;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 20;
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      overflow: hidden;
+      /* Deep navy matching login page */
+      background: linear-gradient(160deg, #0b0f1e 0%, #060912 100%);
+    }
+
+    /* Blue orb top-left — matches login left panel */
+    .sidebar-orb-1 {
+      position: absolute;
+      width: 320px; height: 320px;
+      background: radial-gradient(circle, rgba(59,110,248,0.22), transparent 70%);
+      top: -100px; left: -100px;
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(40px);
+      animation: orbDrift 18s ease-in-out infinite;
+    }
+
+    .sidebar-orb-2 {
+      position: absolute;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(99,60,240,0.15), transparent 70%);
+      bottom: 60px; right: -60px;
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(50px);
+      animation: orbDrift 22s ease-in-out infinite reverse;
+      animation-delay: -8s;
+    }
+
+    @keyframes orbDrift {
+      0%, 100% { transform: translate(0, 0); }
+      33% { transform: translate(15px, -20px); }
+      66% { transform: translate(-10px, 15px); }
+    }
+
+    /* Subtle grid mesh — matches login */
+    .sidebar-mesh {
+      position: absolute;
+      inset: 0;
+      opacity: 0.25;
+      background-image:
+        linear-gradient(rgba(59,110,248,0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,110,248,0.07) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: radial-gradient(ellipse 90% 90% at 30% 40%, black 20%, transparent 80%);
+      pointer-events: none;
+    }
+
+    /* Thin blue top border accent */
+    .sidebar::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(59,110,248,0.6), transparent);
+      z-index: 3;
+    }
+
+    /* Right edge fade */
+    .sidebar::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0; bottom: 0;
+      width: 1px;
+      background: linear-gradient(180deg, transparent, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.06) 80%, transparent);
+      z-index: 3;
+    }
+
+    .sidebar-header {
+      padding: 20px 16px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .sidebar-logo {
+      width: 32px; height: 32px;
+      object-fit: contain;
+      border-radius: 8px;
+      flex-shrink: 0;
+      filter: brightness(1.1);
+    }
+
+    .sidebar-brand-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+    }
+
+    .sidebar-brand-sub {
+      font-size: 10px;
+      color: rgba(255,255,255,0.28);
+      letter-spacing: 0.7px;
+      text-transform: uppercase;
+      margin-top: 1px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 10px;
+      scrollbar-width: none;
+      position: relative;
+      z-index: 2;
+    }
+
+    .sidebar-nav::-webkit-scrollbar { display: none; }
+
+    .nav-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.2);
+      padding: 12px 8px 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.18s ease;
+      color: rgba(255,255,255,0.48);
+      font-size: 13.5px;
+      font-weight: 500;
+      margin-bottom: 2px;
+      user-select: none;
+    }
+
+    .nav-item:hover {
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.85);
+    }
+
+    .nav-item.active {
+      background: rgba(59,110,248,0.82);
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(59,110,248,0.38);
+    }
+
+    .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.65; transition: opacity 0.18s; }
+    .nav-item:hover svg, .nav-item.active svg { opacity: 1; }
+    .nav-item-label { flex: 1; }
+
+    /* Group */
+    .nav-group-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.18s ease;
+      color: rgba(255,255,255,0.48);
+      font-size: 13.5px;
+      font-weight: 500;
+      user-select: none;
+    }
+
+    .nav-group-header:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
+    .nav-group-header svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.65; }
+    .nav-group-header:hover svg { opacity: 1; }
+    .nav-group-label { flex: 1; }
+
+    .nav-chevron {
+      width: 14px !important; height: 14px !important;
+      opacity: 0.7 !important;
+      transition: transform 0.25s ease !important;
+    }
+
+    .nav-chevron.open { transform: rotate(90deg); opacity: 1 !important; }
+
+    .nav-children {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1);
+      padding-left: 14px;
+    }
+
+    .nav-children.open { max-height: 400px; }
+
+    /* Sidebar footer */
+    .sidebar-footer {
+      padding: 10px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+      z-index: 2;
+    }
+
+    .sidebar-user-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+    }
+
+    .sidebar-avatar {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue) 0%, #7c3aed 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .sidebar-user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.65);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sidebar-user-role {
+      font-size: 11px;
+      color: rgba(255,255,255,0.22);
+      margin-top: 1px;
+    }
+
+    /* ── MAIN ── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      height: var(--topbar-h);
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      flex-shrink: 0;
+      box-shadow: var(--shadow);
+      z-index: 10;
+      position: relative;
+    }
+
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+
+    .page-title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      color: var(--text-primary);
+    }
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-4);
+      margin-top: 2px;
+    }
+
+    .breadcrumb span { color: var(--text-3); }
+    .breadcrumb svg { width: 12px; height: 12px; }
+
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+    .topbar-btn {
+      width: 36px; height: 36px;
+      border-radius: var(--radius-sm);
+      background: none;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-3);
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .topbar-btn:hover { background: var(--bg); border-color: #d1d5db; color: var(--text-2); }
+    .topbar-btn svg { width: 16px; height: 16px; }
+
+    .notif-dot {
+      position: absolute;
+      top: 7px; right: 7px;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--blue);
+      border: 2px solid var(--white);
+    }
+
+    /* User dropdown */
+    .user-menu-wrap { position: relative; }
+
+    .topbar-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px 5px 5px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: var(--white);
+      user-select: none;
+    }
+
+    .topbar-user:hover { border-color: #d1d5db; background: var(--bg); }
+
+    .topbar-avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue) 0%, #7c3aed 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .topbar-user-name { font-size: 13px; font-weight: 500; color: var(--text-2); }
+
+    .topbar-chevron {
+      width: 14px; height: 14px;
+      color: var(--text-4);
+      transition: transform 0.25s ease;
+    }
+
+    .topbar-user.open .topbar-chevron { transform: rotate(180deg); }
+
+    /* ── DROPDOWN ── */
+    .user-dropdown {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      width: 230px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-md);
+      z-index: 100;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(-8px) scale(0.97);
+      pointer-events: none;
+      transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
+      transform-origin: top right;
+    }
+
+    .user-dropdown.open {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .dropdown-header {
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dropdown-avatar-lg {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue) 0%, #7c3aed 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .dropdown-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .dropdown-role {
+      font-size: 11px;
+      color: var(--text-4);
+      margin-top: 2px;
+    }
+
+    .dropdown-body { padding: 6px; }
+
+    .dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-2);
+      transition: all 0.15s ease;
+    }
+
+    .dropdown-item:hover { background: var(--bg); color: var(--text-primary); }
+    .dropdown-item svg { width: 15px; height: 15px; color: var(--text-4); flex-shrink: 0; }
+    .dropdown-item:hover svg { color: var(--text-2); }
+
+    .dropdown-divider { height: 1px; background: var(--border); margin: 4px 6px; }
+
+    .dropdown-item.danger { color: #dc2626; }
+    .dropdown-item.danger:hover { background: #fef2f2; color: #b91c1c; }
+    .dropdown-item.danger svg { color: #dc2626; }
+
+    /* ── CONTENT ── */
+    .content-wrap { flex: 1; overflow-y: auto; position: relative; }
+
+    .content {
+      padding: 15px;
+      min-height: 100%;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .content.show { opacity: 1; transform: translateY(0); }
+
+    .page-loader {
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .page-loader.active { opacity: 1; pointer-events: auto; }
+
+    .loader-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+
+    .loader-ring {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    .loader-text { font-size: 13px; color: var(--text-4); font-weight: 500; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Mobile */
+    .sidebar-toggle {
+      display: none;
+      width: 36px; height: 36px;
+      border-radius: var(--radius-sm);
+      background: none;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-3);
+    }
+
+    .sidebar-toggle svg { width: 16px; height: 16px; }
+
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 40;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar { position: fixed; top: 0; left: 0; bottom: 0; transform: translateX(-100%); z-index: 50; }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-toggle { display: flex; }
+      .sidebar-overlay.active { display: block; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <!-- Decorative elements -->
+    <div class="sidebar-orb-1"></div>
+    <div class="sidebar-orb-2"></div>
+    <div class="sidebar-mesh"></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <div>
+          <div class="page-title" id="pageTitle">Overview</div>
+          <div class="breadcrumb">
+            <span>Admin</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <span id="breadcrumbPage">Overview</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <button class="topbar-btn" title="Notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <div class="notif-dot"></div>
+        </button>
+
+        <div class="user-menu-wrap">
+          <div class="topbar-user" id="topbarUser" onclick="toggleDropdown()">
+            <div class="topbar-avatar" id="topbarAvatar">AD</div>
+            <span class="topbar-user-name" id="topbarName">Admin</span>
+            <svg class="topbar-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
+
+          <div class="user-dropdown" id="userDropdown">
+            <div class="dropdown-header">
+              <div class="dropdown-avatar-lg" id="dropdownAvatar">AD</div>
+              <div>
+                <div class="dropdown-name" id="dropdownName">Admin User</div>
+                <div class="dropdown-role">Administrator</div>
+              </div>
+            </div>
+            <div class="dropdown-body">
+
+              <!-- Users -->
+              <div class="dropdown-item" onclick="loadPageFromDropdown('users')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                Team Management
+              </div>
+
+              <!-- Settings -->
+              <div class="dropdown-item" onclick="loadPageFromDropdown('settings')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                Settings
+              </div>
+
+              <div class="dropdown-divider"></div>
+
+              <!-- Sign out -->
+              <div class="dropdown-item danger" onclick="logout()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Sign out
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="content-wrap">
+      <div class="page-loader" id="pageLoader">
+        <div class="loader-wrap">
+          <div class="loader-ring"></div>
+          <div class="loader-text">Loading…</div>
+        </div>
+      </div>
+      <div class="content" id="content"></div>
+    </div>
+  </div>
+
+  <script>
+    /* ── AUTH ── */
+    window.API_URL = "https://script.google.com/macros/s/AKfycbyQd6XQKxJWaB0mXXup70-4H6UbxZ84DvajP0JmieIR3q6taqFXvMABFKtrexyhIeVoUg/exec";
+    const user = JSON.parse(sessionStorage.getItem("user"));
+    if (!user || user.role !== "Admin") window.location.href = "../login";
+
+    const fullName = ((user.firstName || "") + " " + (user.lastName || "")).trim() || "Admin";
+    const initials = ((user.firstName || "?")[0] + (user.lastName || "?")[0]).toUpperCase();
+
+    document.getElementById("topbarName").textContent = fullName;
+    document.getElementById("topbarAvatar").textContent = initials;
+    document.getElementById("dropdownAvatar").textContent = initials;
+    document.getElementById("dropdownName").textContent = fullName;
+
+    function hasPermission(p) { return user.permissions && user.permissions.includes(p); }
+
+    /* ── NAV CONFIG ── */
+    const pages = {
+      overview: { title: "Overview", section: "Admin", file: "overview.html" },
+      users:    { title: "Team Management",    section: "Admin", file: "users.html" },
+      settings: { title: "Settings", section: "Admin", file: "settings.html" }
+    };
+
+const modules = {
+  sourcing: { navTitle: "Sourcing", pageTitle: "Sourcing", section: "Modules", permission: "sourcing", file: "../modules/sourcing.html" },
+  listing:  { navTitle: "Listing & Veeqo", pageTitle: "Listing & Veeqo", section: "Modules", permission: "listing",  file: "../modules/listing.html" },
+  suppliers:{ navTitle: "Suppliers", pageTitle: "Suppliers", section: "Modules", permission: "suppliers", file: "../modules/suppliers.html" },
+  rota:     { navTitle: "Rota", pageTitle: "Rota", section: "Modules", permission: "rota", file: "../modules/rota.html" }
+};
+
+    /* ── ICONS ── */
+    const ic = {
+      overview: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
+      sourcing: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+      listing:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
+      suppliers: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>`,
+      rota: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+      products: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
+      chevron:  `<svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`
+    };
+
+    /* ── BUILD SIDEBAR (only overview + modules) ── */
+    function buildSidebar() {
+      const s = document.getElementById("sidebar");
+
+      // Keep decorative divs, append nav content
+      s.insertAdjacentHTML("beforeend", `
+        <div class="sidebar-header">
+          <img class="sidebar-logo" src="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png" alt="Logo">
+          <div>
+            <div class="sidebar-brand-name">Pharm & Dom</div>
+          </div>
+        </div>
+        <nav class="sidebar-nav" id="sidebarNav"></nav>
+        <div class="sidebar-footer">
+          <div class="sidebar-user-card">
+            <div class="sidebar-avatar">${initials}</div>
+            <div>
+              <div class="sidebar-user-name">${fullName}</div>
+              <div class="sidebar-user-role">Administrator</div>
+            </div>
+          </div>
+        </div>
+      `);
+
+      const nav = document.getElementById("sidebarNav");
+      let html = `<div class="nav-section-label">Admin</div>`;
+
+      // Only overview in sidebar
+      html += `
+        <div class="nav-item" id="nav-overview" onclick="loadPage('overview')">
+          ${ic.overview}
+          <span class="nav-item-label">Overview</span>
+        </div>`;
+
+      const hasSourcing = hasPermission("sourcing");
+      const hasListing  = hasPermission("listing");
+      const hasSuppliers = hasPermission("suppliers");
+      const hasRota = hasPermission("rota");
+
+if (hasSourcing || hasListing || hasSuppliers || hasRota) {
+
+  html += `<div class="nav-section-label">Modules</div>`;
+
+  // PRODUCTS GROUP
+  if (hasSourcing || hasListing) {
+
+    html += `<div class="nav-group">
+      <div class="nav-group-header" onclick="toggleGroup('products')">
+        ${ic.products}
+        <span class="nav-group-label">Products</span>
+        <span id="chevron-products">${ic.chevron}</span>
+      </div>
+      <div class="nav-children" id="children-products">`;
+
+    if (hasSourcing) html += `
+      <div class="nav-item" id="nav-sourcing" onclick="loadModule('sourcing')">
+        ${ic.sourcing}
+        <span class="nav-item-label">${modules.sourcing.navTitle}</span>
+      </div>`;
+
+    if (hasListing) html += `
+      <div class="nav-item" id="nav-listing" onclick="loadModule('listing')">
+        ${ic.listing}
+        <span class="nav-item-label">${modules.listing.navTitle}</span>
+      </div>`;
+
+    html += `</div></div>`;
+  }
+
+  // SUPPLIERS (separate item)
+  if (hasSuppliers) html += `
+    <div class="nav-item" id="nav-suppliers" onclick="loadModule('suppliers')">
+      ${ic.suppliers}
+      <span class="nav-item-label">${modules.suppliers.navTitle}</span>
+    </div>`;
+}
+
+      // ROTA
+if (hasRota) html += `
+  <div class="nav-item" id="nav-rota" onclick="loadModule('rota')">
+    ${ic.rota}
+    <span class="nav-item-label">${modules.rota.navTitle}</span>
+  </div>`;
+
+      nav.innerHTML = html;
+    }
+
+    function toggleGroup(id) {
+      const children = document.getElementById(`children-${id}`);
+      const chevron  = document.getElementById(`chevron-${id}`)?.querySelector(".nav-chevron");
+      if (!children) return;
+      children.classList.toggle("open");
+      if (chevron) chevron.classList.toggle("open");
+    }
+
+    /* ── DROPDOWN ── */
+    function toggleDropdown() {
+      const trigger  = document.getElementById("topbarUser");
+      const dropdown = document.getElementById("userDropdown");
+      const isOpen   = dropdown.classList.contains("open");
+      dropdown.classList.toggle("open", !isOpen);
+      trigger.classList.toggle("open", !isOpen);
+    }
+
+    function loadPageFromDropdown(key) {
+      document.getElementById("userDropdown").classList.remove("open");
+      document.getElementById("topbarUser").classList.remove("open");
+      loadPage(key);
+    }
+
+    document.addEventListener("click", e => {
+      const wrap = document.querySelector(".user-menu-wrap");
+      if (wrap && !wrap.contains(e.target)) {
+        document.getElementById("userDropdown").classList.remove("open");
+        document.getElementById("topbarUser").classList.remove("open");
+      }
+    });
+
+    /* ── PAGE LOADING ── */
+    let currentKey = null;
+
+    async function loadPage(key) {
+      if (currentKey === key) return;
+      currentKey = key;
+      setActiveNav(`nav-${key}`);
+      updateHeader(pages[key].title);
+      await fetchAndRender(pages[key].file);
+      closeSidebar();
+    }
+
+    async function loadModule(key) {
+      if (!modules[key] || !hasPermission(modules[key].permission)) return;
+      if (currentKey === key) return;
+      currentKey = key;
+      setActiveNav(`nav-${key}`);
+      updateHeader(modules[key].pageTitle);
+      await fetchAndRender(modules[key].file);
+      closeSidebar();
+    }
+
+    async function fetchAndRender(file) {
+      const loader  = document.getElementById("pageLoader");
+      const content = document.getElementById("content");
+      content.classList.remove("show");
+      loader.classList.add("active");
+      try {
+        const res  = await fetch(file);
+        const html = await res.text();
+        await new Promise(r => setTimeout(r, 180));
+        content.innerHTML = html;
+        content.querySelectorAll("script").forEach(old => {
+          const s = document.createElement("script");
+          s.textContent = old.textContent;
+          document.body.appendChild(s);
+          document.body.removeChild(s);
+        });
+        loader.classList.remove("active");
+        requestAnimationFrame(() => content.classList.add("show"));
+      } catch {
+        loader.classList.remove("active");
+        content.innerHTML = `<div style="padding:60px;text-align:center;color:#9ca3af;font-size:14px;">Failed to load page.</div>`;
+        content.classList.add("show");
+      }
+    }
+
+    function updateHeader(title) {
+      document.getElementById("pageTitle").textContent = title;
+      document.getElementById("breadcrumbPage").textContent = title;
+    }
+
+    function setActiveNav(id) {
+      document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
+      const el = document.getElementById(id);
+      if (el) el.classList.add("active");
+    }
+
+    /* ── MOBILE ── */
+    function toggleSidebar() {
+      document.getElementById("sidebar").classList.toggle("open");
+      document.getElementById("sidebarOverlay").classList.toggle("active");
+    }
+
+    function closeSidebar() {
+      document.getElementById("sidebar").classList.remove("open");
+      document.getElementById("sidebarOverlay").classList.remove("active");
+    }
+
+    function logout() {
+      sessionStorage.removeItem("user");
+      window.location.href = "../login";
+    }
+
+    /* ── INIT ── */
+    buildSidebar();
+    loadPage("overview");
+  </script>
+</body>
+</html>
