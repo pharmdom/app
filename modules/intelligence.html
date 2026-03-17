@@ -745,3 +745,672 @@ setInterval(loadData, 30000);
 
 })();
 </script>
+Here's the complete updated intelligence.html with a single global date range selector in the header controlling everything, defaulting to 7 days, and with the thismonth fix:
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-family: 'Inter', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+body { background: #f1f5f9; color: #0f172a; min-height: 100vh; line-height: 1.5; }
+
+.page { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; position: relative; overflow-x: hidden; }
+@media (max-width: 600px) { .page { padding: 18px 14px 48px; } }
+
+/* ── NAV DROPDOWN ── */
+.nav-dropdown-wrap { display: inline-block; position: relative; z-index: 1000; }
+.nav-dropdown-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border: 1.5px solid #94a3b8; border-radius: 9px;
+  background: #fff; color: #0f172a; font-size: 12px; font-weight: 600;
+  font-family: inherit; cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.nav-dropdown-btn:hover { border-color: #325dd1; background: #f8fafc; }
+.nav-dropdown-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+.nav-dropdown-btn .chevron { transition: transform .15s; }
+.nav-dropdown-btn.open .chevron { transform: rotate(180deg); }
+.nav-dropdown-menu {
+  position: absolute; top: calc(100% + 6px); left: 0;
+  background: #fff; border: 1.5px solid #e2e8f0; border-radius: 11px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.1); min-width: 160px;
+  z-index: 2000; padding: 5px; opacity: 0; pointer-events: none;
+  transform: translateY(-6px); transition: opacity .15s, transform .15s;
+}
+.nav-dropdown-menu.open { opacity: 1; pointer-events: all; transform: translateY(0); }
+.nav-dropdown-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 7px; font-size: 13px; font-weight: 600;
+  color: #0f172a; text-decoration: none; cursor: pointer; transition: background .12s;
+}
+.nav-dropdown-item:hover { background: #f1f5f9; }
+.nav-dropdown-item.active { background: #eff6ff; color: #2563eb; }
+.nav-dropdown-item svg { width: 13px; height: 13px; flex-shrink: 0; opacity: .6; }
+
+/* ── HEADER ── */
+.header { margin-bottom: 24px; position: relative; z-index: 50; }
+.header h1 { font-size: 22px; font-weight: 700; color: #0f172a; letter-spacing: -0.5px; line-height: 1.2; }
+.header-date { font-size: 12px; color: #94a3b8; font-weight: 500; margin-top: 2px; margin-bottom: 10px; }
+.header-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.global-range-group { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+.gr-pill {
+  font-size: 11px; font-weight: 600; color: #64748b;
+  padding: 5px 12px; border-radius: 100px; border: 1.5px solid #e2e8f0;
+  background: #fff; cursor: pointer; transition: all .15s ease; white-space: nowrap;
+  font-family: inherit;
+}
+.gr-pill:hover { border-color: #3b82f6; color: #3b82f6; }
+.gr-pill.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+
+/* ── METRICS ROW ── */
+.metrics-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+@media (max-width: 640px) { .metrics-row { grid-template-columns: 1fr; gap: 10px; } }
+
+.m-card {
+  background: #fff; border: 1px solid #e8ecf2; border-radius: 16px;
+  padding: 14px 14px 10px; position: relative; overflow: hidden;
+  transition: transform .2s ease, box-shadow .2s ease; z-index: 1;
+}
+.m-card:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(15,23,42,.07); }
+.m-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  border-radius: 16px 16px 0 0;
+}
+.m-card.blue::before   { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.m-card.emerald::before { background: linear-gradient(90deg, #10b981, #34d399); }
+.m-card.violet::before { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+
+.m-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+.m-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.m-icon.blue { background: #eff6ff; } .m-icon.emerald { background: #ecfdf5; } .m-icon.violet { background: #f5f3ff; }
+.m-icon svg { width: 17px; height: 17px; }
+.m-icon.blue svg { color: #3b82f6; } .m-icon.emerald svg { color: #10b981; } .m-icon.violet svg { color: #8b5cf6; }
+.m-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #94a3b8; margin-bottom: 4px; }
+.m-value { font-size: 28px; font-weight: 700; color: #0f172a; line-height: 1; letter-spacing: -1px; }
+.m-sub { font-size: 11px; color: #94a3b8; font-weight: 500; margin-top: 3px; }
+.m-trend { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; margin-top: 10px; padding: 3px 8px; border-radius: 100px; }
+.m-trend.up { background: #ecfdf5; color: #059669; } .m-trend.down { background: #fef2f2; color: #dc2626; }
+.m-trend svg { width: 11px; height: 11px; }
+.m-sparkline { margin-top: 12px; }
+.m-sparkline canvas { width: 100%; height: 38px; display: block; }
+
+/* ── CHART CARD ── */
+.chart-card { background: #fff; border: 1px solid #e8ecf2; border-radius: 16px; padding: 20px 20px 16px; margin-bottom: 16px; position: relative; z-index: 1; }
+.chart-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+.chart-title { font-size: 14px; font-weight: 800; color: #0f172a; letter-spacing: -0.2px; }
+.chart-subtitle { font-size: 11px; color: #94a3b8; font-weight: 500; margin-top: 2px; }
+
+.chart-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.legend-item {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10.5px; font-weight: 600; color: #64748b;
+  background: #f8fafc; border: 1px solid #e2e8f0;
+  padding: 3px 9px; border-radius: 100px;
+}
+.legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+.chart-canvas-wrap { position: relative; width: 100%; overflow: hidden; }
+.chart-canvas-wrap canvas { width: 100% !important; display: block; }
+
+.chart-tooltip {
+  position: absolute; pointer-events: none;
+  background: #0f172a; color: #fff; font-size: 11px; font-weight: 600;
+  padding: 8px 12px; border-radius: 10px; line-height: 1.7;
+  white-space: nowrap; opacity: 0; transition: opacity .12s ease;
+  box-shadow: 0 4px 16px rgba(0,0,0,.2); z-index: 10;
+}
+.chart-tooltip.visible { opacity: 1; }
+
+/* ── STAFF CARD ── */
+.staff-card { background: #fff; border: 1px solid #e8ecf2; border-radius: 16px; padding: 18px 20px; position: relative; z-index: 1; }
+.staff-card-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.staff-card-title { font-size: 12px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 7px; }
+.staff-card-title svg { width: 14px; height: 14px; color: #3b82f6; flex-shrink: 0; }
+
+.staff-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 300px));
+  gap: 10px; justify-content: start;
+}
+@media (max-width: 500px) { .staff-grid { grid-template-columns: 1fr; } }
+
+.staff-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 12px; background: #f8f9fc;
+  transition: background .2s ease;
+}
+.staff-row:hover { background: #f1f4f9; }
+.staff-avatar {
+  width: 32px; height: 32px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: #fff; flex-shrink: 0;
+}
+.staff-info { flex: 1; min-width: 0; }
+.staff-name { font-size: 12px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.staff-task { font-size: 10px; font-weight: 500; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.staff-right { text-align: right; flex-shrink: 0; }
+.staff-hours { font-size: 13px; font-weight: 800; color: #0f172a; }
+.staff-hrs-label { font-size: 10px; font-weight: 500; color: #94a3b8; }
+.pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: #10b981; flex-shrink: 0; }
+
+/* ── EMPTY STATE ── */
+.empty-state { padding: 40px 20px; text-align: center; color: #94a3b8; font-size: 13px; font-weight: 500; }
+
+/* ── LOADING ── */
+.loading-overlay {
+  position: fixed; inset: 0; background: #f1f5f9;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 1000; transition: opacity .4s ease;
+}
+.loading-overlay.hidden { opacity: 0; pointer-events: none; }
+.loader { width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { margin-top: 12px; font-size: 12px; font-weight: 600; color: #94a3b8; }
+
+/* ── FADE UP ── */
+.fade-up { opacity: 0; transform: translateY(12px); animation: fadeUp .45s ease forwards; }
+@keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+.d1 { animation-delay: .08s; } .d2 { animation-delay: .16s; } .d3 { animation-delay: .24s; }
+
+@media (max-width: 520px) {
+  .header-controls { flex-direction: column; align-items: flex-start; }
+  .global-range-group { gap: 4px; }
+  .gr-pill { font-size: 10px; padding: 4px 9px; }
+}
+</style>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loader"></div>
+  <div class="loading-text">Loading…</div>
+</div>
+
+<div class="page" id="mainPage" style="visibility:hidden">
+
+  <div class="header fade-up">
+    <h1>Business Intelligence</h1>
+    <div class="header-date" id="headerDate">—</div>
+    <div class="header-controls">
+      <!-- Global date range -->
+      <div class="global-range-group" id="globalRangeGroup">
+        <button class="gr-pill" data-range="today">Today</button>
+        <button class="gr-pill active" data-range="7d">Last 7 days</button>
+        <button class="gr-pill" data-range="14d">14 days</button>
+        <button class="gr-pill" data-range="30d">30 days</button>
+        <button class="gr-pill" data-range="thismonth">This month</button>
+      </div>
+      <!-- Nav dropdown -->
+      <div class="nav-dropdown-wrap">
+        <button class="nav-dropdown-btn" id="navDropBtn" onclick="toggleNavDrop(event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+          Pages
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="nav-dropdown-menu" id="navDropMenu">
+          <a class="nav-dropdown-item" onclick="loadModule('rota')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Rota
+          </a>
+          <a class="nav-dropdown-item active" onclick="loadModule('intelligence')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+            Intelligence
+          </a>
+          <a class="nav-dropdown-item" onclick="loadModule('paycheck')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Paycheck
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- METRICS -->
+  <div class="metrics-row fade-up d1">
+    <div class="m-card blue">
+      <div class="m-top">
+        <div>
+          <div class="m-label">Total Hours</div>
+          <div class="m-value" id="metricTotalHours">—</div>
+          <div class="m-sub" id="metricTotalHoursSub">—</div>
+        </div>
+        <div class="m-icon blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+      </div>
+      <div class="m-trend up" id="metricTotalHoursTrend" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 2 17"/></svg>
+        <span id="metricTotalHoursTrendText"></span>
+      </div>
+      <div class="m-sparkline"><canvas id="sparkTotalHours"></canvas></div>
+    </div>
+
+    <div class="m-card emerald">
+      <div class="m-top">
+        <div>
+          <div class="m-label">Active Staff</div>
+          <div class="m-value" id="metricActiveStaff">—</div>
+          <div class="m-sub" id="metricActiveStaffSub">—</div>
+        </div>
+        <div class="m-icon emerald">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+      </div>
+      <div class="m-trend up" id="metricActiveStaffTrend" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span id="metricActiveStaffTrendText"></span>
+      </div>
+      <div class="m-sparkline"><canvas id="sparkActiveStaff"></canvas></div>
+    </div>
+
+    <div class="m-card violet">
+      <div class="m-top">
+        <div>
+          <div class="m-label">Efficiency Score</div>
+          <div class="m-value" id="metricEfficiency">—</div>
+          <div class="m-sub">Avg utilization rate</div>
+        </div>
+        <div class="m-icon violet">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+      </div>
+      <div class="m-trend up" id="metricEfficiencyTrend" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 2 17"/></svg>
+        <span id="metricEfficiencyTrendText"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TASK DISTRIBUTION CHART -->
+  <div class="chart-card fade-up d2">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Task Distribution</div>
+        <div class="chart-subtitle">Hours per task · <span id="chartRangeLabel">Last 7 days</span></div>
+      </div>
+    </div>
+    <div class="chart-canvas-wrap">
+      <canvas id="trendChart"></canvas>
+      <div class="chart-tooltip" id="trendTooltip"></div>
+    </div>
+    <div class="chart-legend" id="trendLegend"></div>
+  </div>
+
+  <!-- STAFF BREAKDOWN -->
+  <div class="staff-card fade-up d3">
+    <div class="staff-card-header">
+      <div class="staff-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Staff Breakdown
+        <span id="staffRangeLabel" style="font-size:11px;font-weight:500;color:#94a3b8;margin-left:2px">— Last 7 days</span>
+      </div>
+    </div>
+    <div class="staff-grid" id="staffList"></div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+
+const API_URL = 'https://script.google.com/macros/s/AKfycbwS9c4pGnAiXNAlhdttTKZeKNOP8b_tSONjY7S-D_DOgiicflimtvrNVaRReuX7EN3hHg/exec';
+const TASK_COLORS = {
+  'pick-pack':'#EF4444','packing':'#EC4899','pre-pack':'#8B5CF6',
+  'fba-prep':'#10B981','warehouse-org':'#F97316','deliveries':'#3B82F6',
+  'returns':'#6366F1','cleaning':'#64748B','fill-station':'#0EA5E9',
+};
+const AVATAR_COLORS = ['#3b82f6','#10b981','#8b5cf6','#f97316','#ec4899','#ef4444','#06b6d4','#f59e0b'];
+const RANGE_LABELS = { today:'Today', '7d':'Last 7 days', '14d':'Last 14 days', '30d':'Last 30 days', 'thismonth':'This month' };
+
+let employees = [], tasks = [], allSchedule = [];
+let globalRange = '7d';
+
+/* ── NAV ── */
+function toggleNavDrop(e) {
+  e.stopPropagation();
+  const btn = document.getElementById('navDropBtn');
+  const menu = document.getElementById('navDropMenu');
+  const open = menu.classList.toggle('open');
+  btn.classList.toggle('open', open);
+}
+document.addEventListener('click', function() {
+  document.getElementById('navDropMenu')?.classList.remove('open');
+  document.getElementById('navDropBtn')?.classList.remove('open');
+});
+
+/* ── HELPERS ── */
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function normalizeTime(t){
+  if(!t) return '00:00';
+  const m = String(t).match(/(\d{1,2}):(\d{2})/);
+  return m ? m[1].padStart(2,'0') + ':' + m[2] : '00:00';
+}
+
+function getDuration(s,e) {
+  s = normalizeTime(s); e = normalizeTime(e);
+  const [sh,sm] = s.split(':').map(Number);
+  const [eh,em] = e.split(':').map(Number);
+  if(isNaN(sh)||isNaN(eh)) return 0;
+  return Math.max(0,(eh*60+em-sh*60-sm)/60);
+}
+
+function localDateStr(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function mkDay(d) {
+  return {
+    date: localDateStr(d),
+    label: d.toLocaleDateString('en-GB',{weekday:'short',month:'short',day:'numeric'}),
+    short: d.toLocaleDateString('en-GB',{weekday:'short'}),
+    dayNum: d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})
+  };
+}
+
+function getDaysInRange(range) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const days = [];
+  if (range === 'today') {
+    days.push(mkDay(today));
+  } else if (range === '7d') {
+    for (let i=6;i>=0;i--){const d=new Date(today);d.setDate(d.getDate()-i);days.push(mkDay(d));}
+  } else if (range === '14d') {
+    for (let i=13;i>=0;i--){const d=new Date(today);d.setDate(d.getDate()-i);days.push(mkDay(d));}
+  } else if (range === '30d') {
+    for (let i=29;i>=0;i--){const d=new Date(today);d.setDate(d.getDate()-i);days.push(mkDay(d));}
+  } else if (range === 'thismonth') {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const cur = new Date(start);
+    while (cur <= today) { days.push(mkDay(new Date(cur))); cur.setDate(cur.getDate()+1); }
+  }
+  return days;
+}
+
+function getScheduleForRange(range) {
+  const days = getDaysInRange(range);
+  const dateSet = new Set(days.map(d => d.date));
+  return allSchedule.filter(s => dateSet.has(s.date));
+}
+
+/* ── LOAD DATA ── */
+async function loadData() {
+  try {
+    const res = await fetch(API_URL, {
+      method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({action:'getData'})
+    });
+    const data = await res.json();
+    employees = data.employees || [];
+    tasks = data.tasks || [];
+    allSchedule = (data.schedule || []).map(s => ({
+      ...s, start: normalizeTime(s.start), end: normalizeTime(s.end)
+    }));
+    renderAll();
+  } catch(e) {
+    console.error('Failed to load data:', e);
+    document.getElementById('mainPage').style.visibility = 'visible';
+    document.getElementById('loadingOverlay').classList.add('hidden');
+    document.getElementById('metricTotalHours').textContent = '—';
+    document.getElementById('metricActiveStaff').textContent = '—';
+    document.getElementById('metricEfficiency').textContent = '—';
+    document.getElementById('staffList').innerHTML = '<div class="empty-state">Unable to load data. Please try again.</div>';
+  }
+}
+
+/* ── RENDER ALL ── */
+function renderAll() {
+  document.getElementById('headerDate').textContent =
+    new Date().toLocaleDateString('en-GB', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  const range = globalRange;
+  renderMetrics(range);
+  renderTrendChart(range);
+  renderStaffList(range);
+  document.getElementById('mainPage').style.visibility = 'visible';
+  document.getElementById('loadingOverlay').classList.add('hidden');
+}
+
+/* ── METRICS ── */
+function renderMetrics(range) {
+  const sched = getScheduleForRange(range);
+  const days = getDaysInRange(range);
+  const label = RANGE_LABELS[range] || range;
+
+  // Total Hours
+  const totalHrs = sched.reduce((a,s)=>a+getDuration(s.start,s.end),0);
+  document.getElementById('metricTotalHours').textContent = Math.round(totalHrs)+'h';
+  document.getElementById('metricTotalHoursSub').textContent = sched.length+' shifts · '+label;
+
+  const sparkDays = days.length > 14 ? getDaysInRange('7d') : days;
+  const sparkHrs = sparkDays.map(d => allSchedule.filter(s=>s.date===d.date).reduce((a,s)=>a+getDuration(s.start,s.end),0));
+  drawSparkline('sparkTotalHours', sparkHrs, '#3b82f6');
+
+  const half = Math.max(1, Math.floor(days.length/2));
+  const firstH = days.slice(0,half).reduce((a,d)=>a+allSchedule.filter(s=>s.date===d.date).reduce((aa,s)=>aa+getDuration(s.start,s.end),0),0);
+  const secondH = days.slice(half).reduce((a,d)=>a+allSchedule.filter(s=>s.date===d.date).reduce((aa,s)=>aa+getDuration(s.start,s.end),0),0);
+  const trendH = document.getElementById('metricTotalHoursTrend');
+  if (firstH > 0) {
+    const pct = Math.round(((secondH-firstH)/firstH)*100);
+    trendH.style.display='inline-flex'; trendH.className='m-trend '+(pct>=0?'up':'down');
+    document.getElementById('metricTotalHoursTrendText').textContent=(pct>=0?'+':'')+pct+'% vs prior period';
+  } else { trendH.style.display='none'; }
+
+  // Active Staff
+  const uniqueStaff = new Set(sched.map(s=>s.employeeId)).size;
+  document.getElementById('metricActiveStaff').textContent = uniqueStaff || '0';
+  document.getElementById('metricActiveStaffSub').textContent = employees.length+' on roster · '+label;
+  const sparkStaff = sparkDays.map(d=>new Set(allSchedule.filter(s=>s.date===d.date).map(s=>s.employeeId)).size);
+  drawSparkline('sparkActiveStaff', sparkStaff, '#10b981');
+  const todayActive = new Set(allSchedule.filter(s=>s.date===todayStr()).map(s=>s.employeeId)).size;
+  const trendS = document.getElementById('metricActiveStaffTrend');
+  trendS.style.display='inline-flex';
+  trendS.className='m-trend '+(todayActive>=employees.length&&employees.length>0?'up':'down');
+  document.getElementById('metricActiveStaffTrendText').textContent =
+    employees.length>0&&todayActive>=employees.length?'Full coverage today':todayActive+' active today';
+
+  // Efficiency
+  const dayTotals = {};
+  sched.forEach(s=>{ dayTotals[s.date]=(dayTotals[s.date]||0)+getDuration(s.start,s.end); });
+  const vals = Object.values(dayTotals), maxPerDay = employees.length*10;
+  const avgUtil = vals.length&&maxPerDay>0
+    ? Math.round(vals.reduce((a,v)=>a+Math.min(v,maxPerDay),0)/(vals.length*maxPerDay)*100) : 0;
+  document.getElementById('metricEfficiency').textContent = avgUtil+'%';
+  const trendE = document.getElementById('metricEfficiencyTrend');
+  trendE.style.display='inline-flex'; trendE.className='m-trend '+(avgUtil>=70?'up':'down');
+  document.getElementById('metricEfficiencyTrendText').textContent = (avgUtil>=70?'Healthy':'Below target')+' · '+label;
+}
+
+/* ── SPARKLINE ── */
+function drawSparkline(id, data, color) {
+  const canvas = document.getElementById(id);
+  if (!canvas || !data.length) return;
+  const dpr=window.devicePixelRatio||1, h=38;
+  const w = canvas.closest('.m-card').clientWidth - 36 || 200;
+  canvas.width=w*dpr; canvas.height=h*dpr;
+  canvas.style.width='100%'; canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  const max=Math.max(...data)||1, min=Math.min(...data), rng=max-min||1, pad=4;
+  const pts=data.map((v,i)=>({
+    x: data.length>1 ? pad+(i/(data.length-1))*(w-pad*2) : w/2,
+    y: pad+(1-(v-min)/rng)*(h-pad*2)
+  }));
+  const grad=ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0,color+'28'); grad.addColorStop(1,color+'00');
+  ctx.beginPath(); ctx.moveTo(pts[0].x,h);
+  pts.forEach(p=>ctx.lineTo(p.x,p.y));
+  ctx.lineTo(pts[pts.length-1].x,h); ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
+  ctx.beginPath(); pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+  ctx.strokeStyle=color; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.lineCap='round'; ctx.stroke();
+  const last=pts[pts.length-1];
+  ctx.beginPath(); ctx.arc(last.x,last.y,3,0,Math.PI*2); ctx.fillStyle=color; ctx.fill();
+}
+
+/* ── TREND CHART ── */
+function renderTrendChart(range) {
+  const rangeDays = getDaysInRange(range);
+  const dateSet = new Set(rangeDays.map(d=>d.date));
+  const rangeSchedule = allSchedule.filter(s=>dateSet.has(s.date));
+  const usedTaskIds = new Set(rangeSchedule.filter(s=>s.taskId).map(s=>s.taskId));
+  const usedTasks = tasks.filter(t=>usedTaskIds.has(t.id));
+
+  document.getElementById('chartRangeLabel').textContent = RANGE_LABELS[range]||range;
+
+  const canvas=document.getElementById('trendChart');
+  const tooltip=document.getElementById('trendTooltip');
+  const dpr=window.devicePixelRatio||1;
+  const w=canvas.parentElement.clientWidth||600;
+  const h=Math.min(240, Math.max(160, 160+(rangeDays.length>7?40:0)));
+  canvas.width=w*dpr; canvas.height=h*dpr;
+  canvas.style.width=w+'px'; canvas.style.height=h+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
+
+  if (!usedTasks.length) {
+    ctx.fillStyle='#94a3b8'; ctx.font='13px Inter,system-ui'; ctx.textAlign='center';
+    ctx.fillText('No task data for this period', w/2, h/2);
+    document.getElementById('trendLegend').innerHTML='';
+    return;
+  }
+
+  const pad={top:14,right:14,bottom:34,left:42};
+  const cw=w-pad.left-pad.right, ch=h-pad.top-pad.bottom;
+
+  const dayData=rangeDays.map(d=>{
+    const ds=allSchedule.filter(s=>s.date===d.date);
+    const taskHours={};
+    usedTasks.forEach(t=>{ taskHours[t.id]=ds.filter(s=>s.taskId===t.id).reduce((a,s)=>a+getDuration(s.start,s.end),0); });
+    return {...d,taskHours};
+  });
+
+  const stacked=dayData.map(d=>{
+    let cum=0;
+    return usedTasks.map(t=>{
+      const val=d.taskHours[t.id]||0; cum+=val;
+      return {taskId:t.id,bottom:cum-val,top:cum,val};
+    });
+  });
+  const maxY=Math.max(...stacked.map(s=>s.length?s[s.length-1].top:0),1);
+
+  const xScale=i=>pad.left+(rangeDays.length>1?(i/(dayData.length-1))*cw:cw/2);
+  const yScale=v=>pad.top+(1-v/maxY)*ch;
+
+  ctx.strokeStyle='#f1f5f9'; ctx.lineWidth=1;
+  [0,1,2,3,4].forEach(i=>{
+    const y=pad.top+(i/4)*ch;
+    ctx.beginPath(); ctx.moveTo(pad.left,y); ctx.lineTo(w-pad.right,y); ctx.stroke();
+    ctx.fillStyle='#94a3b8'; ctx.font='500 10px Inter,system-ui'; ctx.textAlign='right';
+    ctx.fillText(Math.round(maxY-(i/4)*maxY)+'h',pad.left-6,y+3.5);
+  });
+
+  ctx.textAlign='center'; ctx.fillStyle='#94a3b8'; ctx.font='600 10px Inter,system-ui';
+  const skip=rangeDays.length>14?Math.ceil(rangeDays.length/10):1;
+  dayData.forEach((d,i)=>{
+    if(i%skip!==0&&i!==dayData.length-1) return;
+    ctx.fillText(rangeDays.length<=7?d.short:d.dayNum, xScale(i), h-pad.bottom+14);
+  });
+
+  usedTasks.forEach((task,ti)=>{
+    const color=task.color||TASK_COLORS[task.id]||'#94a3b8';
+    ctx.beginPath();
+    for(let i=0;i<dayData.length;i++){const x=xScale(i),y=yScale(stacked[i][ti].top);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+    for(let i=dayData.length-1;i>=0;i--){ctx.lineTo(xScale(i),yScale(stacked[i][ti].bottom));}
+    ctx.closePath(); ctx.fillStyle=color+'28'; ctx.fill();
+    ctx.beginPath();
+    for(let i=0;i<dayData.length;i++){const x=xScale(i),y=yScale(stacked[i][ti].top);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}
+    ctx.strokeStyle=color; ctx.lineWidth=1.5; ctx.lineJoin='round'; ctx.stroke();
+  });
+
+  if(rangeDays.length<=14){
+    dayData.forEach((_,i)=>{
+      usedTasks.forEach((task,ti)=>{
+        const color=task.color||TASK_COLORS[task.id]||'#94a3b8';
+        ctx.beginPath(); ctx.arc(xScale(i),yScale(stacked[i][ti].top),2.5,0,Math.PI*2); ctx.fillStyle=color; ctx.fill();
+      });
+    });
+  }
+
+  document.getElementById('trendLegend').innerHTML = usedTasks.map(t=>{
+    const c=t.color||TASK_COLORS[t.id]||'#94a3b8';
+    return `<div class="legend-item"><div class="legend-dot" style="background:${c}"></div>${esc(t.shortName||t.name)}</div>`;
+  }).join('');
+
+  function showTooltip(mx, my) {
+    let ni=0,nd=Infinity;
+    dayData.forEach((_,i)=>{const dd=Math.abs(xScale(i)-mx);if(dd<nd){nd=dd;ni=i;}});
+    if(nd>50){tooltip.classList.remove('visible');return;}
+    const day=dayData[ni];
+    let html=`<strong>${day.label}</strong><br>`;
+    usedTasks.forEach((t,ti)=>{
+      const val=stacked[ni][ti].val;
+      if(val>0){const c=t.color||TASK_COLORS[t.id]||'#94a3b8';html+=`<span style="color:${c}">●</span> ${esc(t.shortName||t.name)}: ${val.toFixed(1)}h<br>`;}
+    });
+    tooltip.innerHTML=html; tooltip.classList.add('visible');
+    const tx=Math.min(w-190,Math.max(6,xScale(ni)-80));
+    tooltip.style.left=tx+'px'; tooltip.style.top=Math.max(6,(my||10)-75)+'px';
+  }
+  canvas.onmousemove=e=>{const r=canvas.getBoundingClientRect();showTooltip(e.clientX-r.left,e.clientY-r.top);};
+  canvas.onmouseleave=()=>tooltip.classList.remove('visible');
+  canvas.ontouchmove=e=>{if(e.touches.length!==1)return;e.preventDefault();const r=canvas.getBoundingClientRect();showTooltip(e.touches[0].clientX-r.left,null);};
+  canvas.ontouchend=()=>tooltip.classList.remove('visible');
+}
+
+/* ── STAFF LIST ── */
+function renderStaffList(range) {
+  const sched = getScheduleForRange(range);
+  document.getElementById('staffRangeLabel').textContent = '— ' + (RANGE_LABELS[range]||range);
+
+  if (!employees.length) {
+    document.getElementById('staffList').innerHTML='<div class="empty-state">No staff data available</div>';
+    return;
+  }
+
+  const staffData = employees.map((emp,i)=>{
+    const es = sched.filter(s=>s.employeeId===emp.id);
+    const hours = es.reduce((a,s)=>a+getDuration(s.start,s.end),0);
+    const taskNames = [...new Set(es.map(s=>s.taskId))].map(tid=>{
+      const t=tasks.find(t=>t.id===tid); return t?(t.shortName||t.name):null;
+    }).filter(Boolean);
+    return {...emp, hours, taskNames, color:AVATAR_COLORS[i%AVATAR_COLORS.length], isActive:hours>0};
+  }).sort((a,b)=>b.hours-a.hours);
+
+  document.getElementById('staffList').innerHTML = staffData.map(s=>`
+    <div class="staff-row">
+      <div class="staff-avatar" style="background:${s.color}">${esc(s.initials||s.name.split(' ').map(x=>x[0]).join(''))}</div>
+      <div class="staff-info">
+        <div class="staff-name">${esc(s.name)}</div>
+        <div class="staff-task">${s.taskNames.length?esc(s.taskNames.join(', ')):'No tasks'}</div>
+      </div>
+      ${s.isActive?'<div class="pulse-dot"></div>':''}
+      <div class="staff-right">
+        <div class="staff-hours">${s.hours.toFixed(1)}</div>
+        <div class="staff-hrs-label">hrs</div>
+      </div>
+    </div>`).join('');
+}
+
+/* ── GLOBAL RANGE PILLS ── */
+document.getElementById('globalRangeGroup').addEventListener('click', e => {
+  const pill = e.target.closest('.gr-pill'); if(!pill) return;
+  document.querySelectorAll('.gr-pill').forEach(p=>p.classList.remove('active'));
+  pill.classList.add('active');
+  globalRange = pill.dataset.range;
+  renderMetrics(globalRange);
+  renderTrendChart(globalRange);
+  renderStaffList(globalRange);
+});
+
+/* ── RESIZE ── */
+let rt;
+window.addEventListener('resize',()=>{
+  clearTimeout(rt); rt=setTimeout(()=>{
+    renderMetrics(globalRange);
+    renderTrendChart(globalRange);
+  },150);
+});
+
+/* ── INIT ── */
+loadData();
+setInterval(loadData, 30000);
+
+})();
+</script>
