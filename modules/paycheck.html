@@ -9,49 +9,100 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
     body {
       font-family: 'Inter', system-ui, sans-serif;
       font-size: 14px;
       color: #0f172a;
       background: #f8fafc;
       line-height: 1.5;
-      min-height: 100vh;
-      overflow-x: hidden;
     }
 
+    /* ── PAGE LAYOUT: fixed header, scrollable list only ── */
     .page-wrapper {
-      padding: 20px 16px 40px;
-      max-width: 720px;
-      margin: 0 auto;
-      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      padding: 0;
     }
 
-    /* ── HEADER ── */
+    .page-fixed {
+      flex-shrink: 0;
+      padding: 5px 10px 0 10px;
+    }
+
+    .page-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 10px 30px 10px;
+    }
+    .page-scroll::-webkit-scrollbar { width: 4px; }
+    .page-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+
+    /* ── HEADER ROW ── */
+    .page-header {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-top: 10px;
+    }
+
     .page-title {
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 700;
       color: #0f172a;
-      margin-bottom: 4px;
+      white-space: nowrap;
+      margin-right: 6px;
     }
-    .page-subtitle {
-      font-size: 13px;
-      color: #94a3b8;
-      margin-bottom: 20px;
+
+    /* ── STAT CHIPS (header) ── */
+    .stat-chips {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
     }
+    .stat-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid transparent;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all .15s;
+      font-family: inherit;
+    }
+    .stat-chip:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,.1); }
+    .stat-chip.active-filter { box-shadow: 0 0 0 3px rgba(0,0,0,.12); }
+    .stat-chip.orange { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+    .stat-chip.blue   { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+    .stat-chip.green  { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+    .stat-chip svg    { width: 12px; height: 12px; flex-shrink: 0; }
 
     /* ── DATE FILTER BAR ── */
     .date-filter-bar {
       display: flex;
       align-items: center;
       gap: 6px;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
       flex-wrap: wrap;
     }
     .date-chip {
-      padding: 6px 14px;
+      padding: 6px 13px;
       border-radius: 100px;
       border: 1.5px solid #e2e8f0;
-      font-size: 12.5px;
+      font-size: 12px;
       font-weight: 600;
       font-family: inherit;
       cursor: pointer;
@@ -61,36 +112,26 @@
       white-space: nowrap;
     }
     .date-chip:hover { border-color: #94a3b8; color: #334155; }
-    .date-chip.active {
-      background: #0f172a;
-      color: #fff;
-      border-color: #0f172a;
-    }
+    .date-chip.active { background: #0f172a; color: #fff; border-color: #0f172a; }
     .date-chip-sep {
-      width: 1px;
-      height: 20px;
-      background: #e2e8f0;
-      margin: 0 2px;
-      flex-shrink: 0;
+      width: 1px; height: 18px; background: #e2e8f0; margin: 0 2px; flex-shrink: 0;
     }
+
+    /* ── CUSTOM DATE ROW ── */
     .custom-date-row {
       display: none;
       align-items: center;
       gap: 8px;
-      margin-bottom: 18px;
+      margin-bottom: 10px;
       flex-wrap: wrap;
     }
     .custom-date-row.visible { display: flex; }
-    .custom-date-row label {
-      font-size: 12px;
-      font-weight: 600;
-      color: #64748b;
-    }
+    .custom-date-row label { font-size: 12px; font-weight: 600; color: #64748b; }
     .custom-date-input {
-      padding: 7px 10px;
+      padding: 6px 10px;
       border: 1.5px solid #e2e8f0;
-      border-radius: 9px;
-      font-size: 13px;
+      border-radius: 8px;
+      font-size: 12.5px;
       font-family: inherit;
       color: #0f172a;
       background: #fff;
@@ -99,342 +140,181 @@
     }
     .custom-date-input:focus { border-color: #2563eb; }
     .custom-apply-btn {
-      padding: 7px 14px;
-      border-radius: 9px;
-      border: none;
-      background: #2563eb;
-      color: #fff;
-      font-size: 12.5px;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      transition: background .15s;
+      padding: 6px 13px; border-radius: 8px; border: none;
+      background: #2563eb; color: #fff; font-size: 12px;
+      font-weight: 600; font-family: inherit; cursor: pointer; transition: background .15s;
     }
     .custom-apply-btn:hover { background: #1d4ed8; }
     .custom-clear-btn {
-      padding: 7px 14px;
-      border-radius: 9px;
-      border: 1.5px solid #e2e8f0;
-      background: #fff;
-      color: #64748b;
-      font-size: 12.5px;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      transition: all .15s;
+      padding: 6px 13px; border-radius: 8px; border: 1.5px solid #e2e8f0;
+      background: #fff; color: #64748b; font-size: 12px;
+      font-weight: 600; font-family: inherit; cursor: pointer; transition: all .15s;
     }
     .custom-clear-btn:hover { border-color: #94a3b8; color: #334155; }
 
     /* ── SUMMARY BANNER ── */
     .summary-banner {
       background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-      border-radius: 14px;
-      padding: 16px 20px;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1px;
-      margin-bottom: 24px;
-      position: relative;
-      overflow: hidden;
+      border-radius: 14px; padding: 14px 18px;
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 1px; margin-bottom: 14px;
+      position: relative; overflow: hidden;
     }
     .summary-banner::before {
-      content: '';
-      position: absolute;
-      top: -40px;
-      right: -40px;
-      width: 150px;
-      height: 150px;
-      border-radius: 50%;
-      background: rgba(255,255,255,.04);
+      content: ''; position: absolute; top: -40px; right: -40px;
+      width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,.04);
     }
     .summary-banner::after {
-      content: '';
-      position: absolute;
-      bottom: -30px;
-      left: 60px;
-      width: 100px;
-      height: 100px;
-      border-radius: 50%;
-      background: rgba(37,99,235,.12);
+      content: ''; position: absolute; bottom: -25px; left: 50px;
+      width: 90px; height: 90px; border-radius: 50%; background: rgba(37,99,235,.12);
     }
-    .summary-kpi { padding: 8px 16px; position: relative; z-index: 1; }
+    .summary-kpi { padding: 6px 14px; position: relative; z-index: 1; }
     .summary-kpi + .summary-kpi { border-left: 1px solid rgba(255,255,255,.08); }
     .summary-kpi-label {
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .6px;
-      color: rgba(255,255,255,.45);
-      margin-bottom: 4px;
+      font-size: 9.5px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .6px; color: rgba(255,255,255,.45); margin-bottom: 3px;
     }
-    .summary-kpi-value { font-size: 22px; font-weight: 700; color: #fff; }
+    .summary-kpi-value { font-size: 20px; font-weight: 700; color: #fff; }
     .summary-kpi-value.green  { color: #4ade80; }
     .summary-kpi-value.yellow { color: #fbbf24; }
 
     /* ── EMPLOYEE LIST ── */
     .emp-list {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-      background: #e2e8f0;
-      border-radius: 14px;
-      overflow: hidden;
-      border: 1px solid #e2e8f0;
+      display: flex; flex-direction: column; gap: 1px;
+      background: #e2e8f0; border-radius: 14px;
+      overflow: hidden; border: 1px solid #e2e8f0;
     }
 
     .emp-row {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 14px 18px;
-      background: #fff;
-      cursor: pointer;
-      transition: background .12s;
-      position: relative;
+      display: flex; align-items: center; gap: 12px;
+      padding: 13px 16px; background: #fff;
+      cursor: pointer; transition: background .12s; position: relative;
     }
-    .emp-row:hover { background: #f8fafc; }
+    .emp-row:hover  { background: #f8fafc; }
     .emp-row:active { background: #f1f5f9; }
 
     .emp-avatar {
-      width: 38px;
-      height: 38px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12.5px;
-      font-weight: 700;
-      color: #fff;
-      flex-shrink: 0;
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+      background: #334155;
     }
 
-    .emp-info {
-      flex: 1;
-      min-width: 0;
-    }
+    .emp-info { flex: 1; min-width: 0; }
     .emp-name {
-      font-size: 14px;
-      font-weight: 600;
-      color: #0f172a;
-      line-height: 1.3;
+      font-size: 13.5px; font-weight: 600; color: #0f172a;
+      line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .emp-meta {
-      font-size: 12px;
-      color: #94a3b8;
-      margin-top: 1px;
-    }
+    .emp-meta { font-size: 11.5px; color: #94a3b8; margin-top: 1px; }
 
     .emp-right {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 3px;
-      flex-shrink: 0;
+      display: flex; flex-direction: column; align-items: flex-end;
+      gap: 3px; flex-shrink: 0;
     }
-    .emp-amount {
-      font-size: 14.5px;
-      font-weight: 700;
-      color: #0f172a;
-    }
+    .emp-amount { font-size: 14px; font-weight: 700; color: #0f172a; }
     .emp-status-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
-      border-radius: 100px;
-      font-size: 10.5px;
-      font-weight: 600;
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 7px; border-radius: 100px; font-size: 10.5px; font-weight: 600;
     }
-    .emp-status-tag.pending {
-      background: #fef3c7;
-      color: #92400e;
-    }
-    .emp-status-tag.allpaid {
-      background: #dcfce7;
-      color: #15803d;
-    }
+    .emp-status-tag.pending { background: #fef3c7; color: #92400e; }
+    .emp-status-tag.allpaid { background: #dcfce7; color: #15803d; }
 
-    .emp-row-chevron {
-      color: #cbd5e1;
-      flex-shrink: 0;
-      transition: color .12s;
-    }
+    .emp-row-chevron { color: #cbd5e1; flex-shrink: 0; transition: color .12s; }
     .emp-row:hover .emp-row-chevron { color: #94a3b8; }
 
     /* ── DRAWER OVERLAY ── */
     .drawer-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(15,23,42,.35);
-      z-index: 900;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .25s;
-      backdrop-filter: blur(3px);
+      position: fixed; inset: 0; background: rgba(15,23,42,.35);
+      z-index: 900; opacity: 0; pointer-events: none;
+      transition: opacity .25s; backdrop-filter: blur(3px);
     }
     .drawer-overlay.visible { opacity: 1; pointer-events: all; }
 
     /* ── DRAWER ── */
     .drawer {
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: 520px;
-      max-width: 97vw;
-      transform: translateX(100%);
-      height: 100%;
-      background: #fff;
-      box-shadow: -8px 0 40px rgba(0,0,0,.14);
-      z-index: 1000;
-      display: flex;
-      flex-direction: column;
+      position: fixed; top: 0; right: 0; width: 520px; max-width: 100vw;
+      transform: translateX(100%); height: 100%; background: #fff;
+      box-shadow: -8px 0 40px rgba(0,0,0,.14); z-index: 1000;
+      display: flex; flex-direction: column;
       transition: transform .28s cubic-bezier(.4,0,.2,1);
     }
     .drawer.open { transform: translateX(0); }
 
     /* Drawer Hero */
     .drawer-hero {
-      padding: 22px 24px 20px;
+      padding: 20px 24px 18px;
       background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-      position: relative;
-      overflow: hidden;
-      flex-shrink: 0;
+      position: relative; overflow: hidden; flex-shrink: 0;
     }
     .drawer-hero::before {
-      content: '';
-      position: absolute;
-      top: -40px;
-      right: -40px;
-      width: 140px;
-      height: 140px;
-      border-radius: 50%;
-      background: rgba(255,255,255,.04);
+      content: ''; position: absolute; top: -40px; right: -40px;
+      width: 140px; height: 140px; border-radius: 50%; background: rgba(255,255,255,.04);
     }
     .drawer-close-btn {
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      width: 30px;
-      height: 30px;
-      border: none;
-      border-radius: 8px;
-      background: rgba(255,255,255,.1);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: rgba(255,255,255,.65);
-      transition: background .15s;
-      z-index: 1;
+      position: absolute; top: 14px; right: 14px;
+      width: 28px; height: 28px; border: none; border-radius: 7px;
+      background: rgba(255,255,255,.1); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,.65); transition: background .15s; z-index: 1;
     }
     .drawer-close-btn:hover { background: rgba(255,255,255,.2); color: #fff; }
 
     .drawer-hero-top {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      margin-bottom: 20px;
-      position: relative;
-      z-index: 1;
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px; position: relative; z-index: 1;
     }
     .drawer-avatar {
-      width: 46px;
-      height: 46px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 15px;
-      font-weight: 700;
-      color: #fff;
-      flex-shrink: 0;
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0;
       border: 2px solid rgba(255,255,255,.2);
+      background: #334155;
     }
-    .drawer-emp-name { font-size: 18px; font-weight: 700; color: #fff; }
+    .drawer-emp-name { font-size: 17px; font-weight: 700; color: #fff; }
     .drawer-emp-id   { font-size: 12px; color: rgba(255,255,255,.4); margin-top: 2px; }
 
     /* ── DRAWER KPI ROW ── */
     .drawer-kpi-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      position: relative;
-      z-index: 1;
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 8px; position: relative; z-index: 1;
     }
     .drawer-kpi {
       background: rgba(255,255,255,.06);
       border: 1px solid rgba(255,255,255,.08);
-      border-radius: 12px;
-      padding: 12px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+      border-radius: 11px; padding: 11px 12px;
+      display: flex; flex-direction: column; gap: 6px;
     }
-    .drawer-kpi-top {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+    .drawer-kpi-top { display: flex; align-items: center; gap: 6px; }
     .drawer-kpi-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+      width: 26px; height: 26px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
-    .drawer-kpi-icon.total { background: rgba(99,102,241,.2); }
+    .drawer-kpi-icon.total { background: rgba(99,102,241,.22); }
     .drawer-kpi-icon.paid  { background: rgba(34,197,94,.2); }
     .drawer-kpi-icon.due   { background: rgba(245,158,11,.2); }
-    .drawer-kpi-icon svg { width: 14px; height: 14px; }
-
+    .drawer-kpi-icon svg   { width: 13px; height: 13px; }
     .drawer-kpi-label {
-      font-size: 9.5px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .6px;
-      color: rgba(255,255,255,.4);
+      font-size: 9px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .6px; color: rgba(255,255,255,.4);
     }
-    .drawer-kpi-value {
-      font-size: 19px;
-      font-weight: 700;
-      color: #fff;
-      line-height: 1;
-    }
+    .drawer-kpi-value { font-size: 18px; font-weight: 700; color: #fff; line-height: 1; }
     .drawer-kpi-value.green  { color: #4ade80; }
     .drawer-kpi-value.yellow { color: #fbbf24; }
 
     /* Drawer filter bar */
     .drawer-filter-bar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 24px;
-      border-bottom: 1px solid #f1f5f9;
-      background: #fafafa;
-      flex-shrink: 0;
-      flex-wrap: wrap;
+      display: flex; align-items: center; gap: 8px;
+      padding: 11px 24px; border-bottom: 1px solid #f1f5f9;
+      background: #fafafa; flex-shrink: 0; flex-wrap: wrap;
     }
     .drawer-filter-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: #94a3b8;
-      text-transform: uppercase;
-      letter-spacing: .5px;
-      white-space: nowrap;
+      font-size: 10.5px; font-weight: 600; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: .5px; white-space: nowrap;
     }
     .drawer-tab-btn {
-      padding: 5px 13px;
-      border-radius: 100px;
-      border: 1.5px solid #e2e8f0;
-      font-size: 12px;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      background: #fff;
-      color: #64748b;
-      transition: all .15s;
+      padding: 5px 12px; border-radius: 100px; border: 1.5px solid #e2e8f0;
+      font-size: 11.5px; font-weight: 600; font-family: inherit; cursor: pointer;
+      background: #fff; color: #64748b; transition: all .15s;
     }
     .drawer-tab-btn:hover { border-color: #94a3b8; color: #334155; }
     .drawer-tab-btn.active { background: #0f172a; color: #fff; border-color: #0f172a; }
@@ -442,69 +322,49 @@
     .drawer-tab-btn.yellow.active { background: #b45309; border-color: #b45309; }
 
     /* Drawer body */
-    .drawer-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 18px 24px; }
     .drawer-body::-webkit-scrollbar { width: 4px; }
     .drawer-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
 
     /* Section headers */
     .section-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 10px;
-      padding-bottom: 6px;
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 10px; padding-bottom: 6px;
     }
     .section-title {
-      font-size: 10.5px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .8px;
-      color: #94a3b8;
+      font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .8px; color: #94a3b8;
     }
     .section-line { flex: 1; height: 1px; background: #f1f5f9; }
     .section-count {
-      font-size: 10px;
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: 100px;
+      font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 100px;
     }
     .section-count.pending { background: #fef3c7; color: #92400e; }
     .section-count.paid    { background: #dcfce7; color: #15803d; }
 
     /* Payment row cards */
-    .payment-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .payment-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
 
     .payment-row {
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 14px 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 13px 15px;
+      display: flex; align-items: center; gap: 12px;
       transition: box-shadow .15s, border-color .15s;
-      position: relative;
-      overflow: hidden;
+      position: relative; overflow: hidden;
     }
     .payment-row.pending-row { border-left: 3px solid #f59e0b; }
     .payment-row.paid-row    { border-left: 3px solid #22c55e; }
     .payment-row:hover { box-shadow: 0 3px 12px rgba(0,0,0,.07); border-color: #cbd5e1; }
 
     .payment-date-box {
-      background: #f8fafc;
-      border: 1px solid #f1f5f9;
-      border-radius: 9px;
-      padding: 7px 10px;
-      text-align: center;
-      flex-shrink: 0;
-      min-width: 52px;
+      background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 9px;
+      padding: 6px 9px; text-align: center; flex-shrink: 0; min-width: 50px;
     }
-    .payment-date-day   { font-size: 17px; font-weight: 700; color: #0f172a; line-height: 1; }
-    .payment-date-month { font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-top: 2px; }
+    .payment-date-day   { font-size: 16px; font-weight: 700; color: #0f172a; line-height: 1; }
+    .payment-date-month { font-size: 9.5px; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-top: 2px; }
 
     .payment-info { flex: 1; min-width: 0; }
     .payment-hours-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-    .payment-hours { font-size: 13.5px; font-weight: 700; color: #0f172a; }
+    .payment-hours { font-size: 13px; font-weight: 700; color: #0f172a; }
     .payment-rate  { font-size: 11px; color: #94a3b8; }
     .payment-amount { font-size: 13px; font-weight: 700; }
     .payment-amount.pending { color: #b45309; }
@@ -513,98 +373,51 @@
     .payment-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
     .mark-paid-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 6px 12px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 600;
-      font-family: inherit;
-      transition: all .15s;
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 6px 11px; border-radius: 8px; border: none; cursor: pointer;
+      font-size: 11.5px; font-weight: 600; font-family: inherit; transition: all .15s;
     }
-    .mark-paid-btn.do-pay {
-      background: #f0fdf4;
-      color: #15803d;
-      border: 1.5px solid #bbf7d0;
-    }
-    .mark-paid-btn.do-pay:hover { background: #dcfce7; }
-    .mark-paid-btn.undo-pay {
-      background: #fef3c7;
-      color: #92400e;
-      border: 1.5px solid #fde68a;
-    }
+    .mark-paid-btn.do-pay   { background: #f0fdf4; color: #15803d; border: 1.5px solid #bbf7d0; }
+    .mark-paid-btn.do-pay:hover   { background: #dcfce7; }
+    .mark-paid-btn.undo-pay { background: #fef3c7; color: #92400e; border: 1.5px solid #fde68a; }
     .mark-paid-btn.undo-pay:hover { background: #fde68a; }
     .mark-paid-btn svg { width: 11px; height: 11px; }
     .mark-paid-btn:disabled { opacity: .5; cursor: not-allowed; }
 
     .row-saving {
-      position: absolute;
-      inset: 0;
-      background: rgba(255,255,255,.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 12px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .15s;
+      position: absolute; inset: 0; background: rgba(255,255,255,.8);
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 12px; opacity: 0; pointer-events: none; transition: opacity .15s;
     }
     .row-saving.visible { opacity: 1; pointer-events: all; }
 
     /* ── EMPTY / LOADING ── */
     .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 60px 20px;
-      color: #94a3b8;
-      gap: 10px;
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 14px;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 60px 20px; color: #94a3b8; gap: 10px;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
     }
     .empty-state p { font-size: 13.5px; }
     .empty-state-hint { font-size: 12px; color: #cbd5e1; }
 
     /* ── SPINNER ── */
     .spinner {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2.5px solid #e2e8f0;
-      border-top-color: #2563eb;
-      border-radius: 50%;
-      animation: spin .65s linear infinite;
+      display: inline-block; width: 16px; height: 16px;
+      border: 2.5px solid #e2e8f0; border-top-color: #2563eb;
+      border-radius: 50%; animation: spin .65s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── TOAST ── */
     .toast-container {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      gap: 7px;
+      position: fixed; bottom: 20px; right: 20px;
+      z-index: 9999; display: flex; flex-direction: column; gap: 7px;
     }
     .toast {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      padding: 11px 16px;
-      background: #0f172a;
-      color: #fff;
-      border-radius: 10px;
-      font-size: 13px;
-      font-weight: 500;
-      box-shadow: 0 8px 24px rgba(0,0,0,.18);
-      animation: toastIn .2s ease;
-      max-width: 320px;
+      display: flex; align-items: center; gap: 9px; padding: 11px 16px;
+      background: #0f172a; color: #fff; border-radius: 10px; font-size: 13px;
+      font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+      animation: toastIn .2s ease; max-width: 300px;
     }
     .toast.success { background: #15803d; }
     .toast.error   { background: #dc2626; }
@@ -614,43 +427,28 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* ── STATUS FILTER ── */
-    .status-filter-bar {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-    }
-    .status-chip {
-      padding: 6px 14px;
-      border-radius: 100px;
-      border: 1.5px solid #e2e8f0;
-      font-size: 12.5px;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      background: #fff;
-      color: #64748b;
-      transition: all .15s;
-      white-space: nowrap;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-    }
-    .status-chip:hover { border-color: #94a3b8; color: #334155; }
-    .status-chip.active { background: #0f172a; color: #fff; border-color: #0f172a; }
-    .status-chip.active.green-active { background: #15803d; border-color: #15803d; }
-    .status-chip.active.amber-active { background: #b45309; border-color: #b45309; }
-    .status-chip svg { width: 12px; height: 12px; }
-
-    @media (max-width: 640px) {
-      .page-wrapper { padding: 12px 12px 30px; }
-      .drawer { width: 100%; max-width: 100%; }
-      .drawer-kpi-row { grid-template-columns: 1fr; }
-      .summary-banner { grid-template-columns: 1fr; gap: 12px; }
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .page-fixed { padding: 0 8px; }
+      .page-scroll { padding: 0 8px 24px; }
+      .page-header { gap: 8px; padding-top: 8px; margin-bottom: 10px; }
+      .page-title { font-size: 17px; }
+      .stat-chip { font-size: 11px; padding: 4px 10px; }
+      .drawer { width: 100vw; max-width: 100vw; }
+      .drawer-kpi-row { grid-template-columns: 1fr 1fr; }
+      .summary-banner { grid-template-columns: 1fr; gap: 10px; padding: 12px 14px; }
       .summary-kpi + .summary-kpi { border-left: none; border-top: 1px solid rgba(255,255,255,.08); }
-      .emp-row { padding: 12px 14px; gap: 10px; }
+      .summary-kpi-value { font-size: 18px; }
+      .emp-row { padding: 11px 12px; gap: 10px; }
+      .date-filter-bar { gap: 5px; }
+      .date-chip { font-size: 11.5px; padding: 5px 11px; }
+      .custom-date-input { font-size: 12px; }
+      .mark-paid-btn { padding: 5px 9px; font-size: 11px; }
+    }
+
+    @media (max-width: 380px) {
+      .drawer-kpi-row { grid-template-columns: 1fr; }
+      .stat-chips { gap: 4px; }
     }
   </style>
 </head>
@@ -658,71 +456,78 @@
 
 <div class="page-wrapper">
 
-  <!-- Header -->
-  <div class="page-title">Paycheck</div>
-  <div class="page-subtitle" id="dateRangeLabel">All records</div>
+  <!-- Fixed top area -->
+  <div class="page-fixed">
 
-  <!-- Date Filter -->
-  <div class="date-filter-bar" id="dateFilterBar">
-    <button class="date-chip active" data-range="all" onclick="setDateFilter('all', this)">All Time</button>
-    <button class="date-chip" data-range="this_week" onclick="setDateFilter('this_week', this)">This Week</button>
-    <button class="date-chip" data-range="this_month" onclick="setDateFilter('this_month', this)">This Month</button>
-    <button class="date-chip" data-range="last_month" onclick="setDateFilter('last_month', this)">Last Month</button>
-    <button class="date-chip" data-range="last_3_months" onclick="setDateFilter('last_3_months', this)">Last 3 Months</button>
-    <div class="date-chip-sep"></div>
-    <button class="date-chip" data-range="custom" onclick="setDateFilter('custom', this)">Custom Range</button>
-  </div>
-
-  <!-- Custom Date Range -->
-  <div class="custom-date-row" id="customDateRow">
-    <label>From</label>
-    <input type="date" class="custom-date-input" id="dateFrom" />
-    <label>To</label>
-    <input type="date" class="custom-date-input" id="dateTo" />
-    <button class="custom-apply-btn" onclick="applyCustomDate()">Apply</button>
-    <button class="custom-clear-btn" onclick="clearCustomDate()">Clear</button>
-  </div>
-
-  <!-- Status Filter -->
-  <div class="status-filter-bar" id="statusFilterBar">
-    <button class="status-chip active" data-status="all" onclick="setStatusFilter('all', this)">
-      All
-    </button>
-    <button class="status-chip" data-status="has_pending" onclick="setStatusFilter('has_pending', this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      Has Pending
-    </button>
-    <button class="status-chip" data-status="all_paid" onclick="setStatusFilter('all_paid', this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-      Fully Paid
-    </button>
-  </div>
-
-  <!-- Summary Banner -->
-  <div class="summary-banner" id="summaryBanner" style="display:none">
-    <div class="summary-kpi">
-      <div class="summary-kpi-label">Total Payroll</div>
-      <div class="summary-kpi-value" id="bannerTotal">£0</div>
+    <!-- Header: title + stat chips -->
+    <div class="page-header">
+      <span class="page-title">Paycheck</span>
+      <div class="stat-chips">
+        <div class="stat-chip green" id="statPaid" onclick="setStatusFilter('all_paid', this)" title="Fully Paid employees">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="statPaidText">—</span>
+        </div>
+        <div class="stat-chip orange" id="statPending" onclick="setStatusFilter('has_pending', this)" title="Employees with pending">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="statPendingText">—</span>
+        </div>
+        <div class="stat-chip blue" id="statHours" title="Total hours">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span id="statHoursText">—</span>
+        </div>
+      </div>
     </div>
-    <div class="summary-kpi">
-      <div class="summary-kpi-label">Total Paid</div>
-      <div class="summary-kpi-value green" id="bannerPaid">£0</div>
+
+    <!-- Date Filter -->
+    <div class="date-filter-bar">
+      <button class="date-chip active" data-range="all" onclick="setDateFilter('all', this)">All Time</button>
+      <button class="date-chip" data-range="this_week" onclick="setDateFilter('this_week', this)">This Week</button>
+      <button class="date-chip" data-range="this_month" onclick="setDateFilter('this_month', this)">This Month</button>
+      <button class="date-chip" data-range="last_month" onclick="setDateFilter('last_month', this)">Last Month</button>
+      <button class="date-chip" data-range="last_3_months" onclick="setDateFilter('last_3_months', this)">Last 3 Months</button>
+      <div class="date-chip-sep"></div>
+      <button class="date-chip" data-range="custom" onclick="setDateFilter('custom', this)">Custom</button>
     </div>
-    <div class="summary-kpi">
-      <div class="summary-kpi-label">Balance Pending</div>
-      <div class="summary-kpi-value yellow" id="bannerPending">£0</div>
+
+    <!-- Custom Date Range -->
+    <div class="custom-date-row" id="customDateRow">
+      <label>From</label>
+      <input type="date" class="custom-date-input" id="dateFrom" />
+      <label>To</label>
+      <input type="date" class="custom-date-input" id="dateTo" />
+      <button class="custom-apply-btn" onclick="applyCustomDate()">Apply</button>
+      <button class="custom-clear-btn" onclick="clearCustomDate()">Clear</button>
+    </div>
+
+    <!-- Summary Banner -->
+    <div class="summary-banner" id="summaryBanner" style="display:none">
+      <div class="summary-kpi">
+        <div class="summary-kpi-label">Total Payroll</div>
+        <div class="summary-kpi-value" id="bannerTotal">£0</div>
+      </div>
+      <div class="summary-kpi">
+        <div class="summary-kpi-label">Total Paid</div>
+        <div class="summary-kpi-value green" id="bannerPaid">£0</div>
+      </div>
+      <div class="summary-kpi">
+        <div class="summary-kpi-label">Balance Pending</div>
+        <div class="summary-kpi-value yellow" id="bannerPending">£0</div>
+      </div>
+    </div>
+
+  </div><!-- /page-fixed -->
+
+  <!-- Scrollable employee list -->
+  <div class="page-scroll">
+    <div id="cardsArea">
+      <div style="display:flex;align-items:center;justify-content:center;padding:60px 0;gap:10px;color:#94a3b8">
+        <div class="spinner"></div>
+        <span style="font-size:13.5px">Loading paycheck data…</span>
+      </div>
     </div>
   </div>
 
-  <!-- Employee List -->
-  <div id="cardsArea">
-    <div style="display:flex;align-items:center;justify-content:center;padding:60px 0;gap:10px;color:#94a3b8">
-      <div class="spinner"></div>
-      <span style="font-size:13.5px">Loading paycheck data…</span>
-    </div>
-  </div>
-
-</div>
+</div><!-- /page-wrapper -->
 
 <!-- Drawer Overlay -->
 <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
@@ -741,18 +546,14 @@
 
   const API_URL = 'https://script.google.com/macros/s/AKfycbwS9c4pGnAiXNAlhdttTKZeKNOP8b_tSONjY7S-D_DOgiicflimtvrNVaRReuX7EN3hHg/exec';
 
-  const AVATAR_COLORS = [
-    '#6366f1','#ef4444','#10b981','#f59e0b',
-    '#3b82f6','#8b5cf6','#ec4899','#14b8a6'
-  ];
+  const AVATAR_COLOR = '#334155'; // single clean colour for all avatars
 
   let allData = [];
-  let employees = {};
+  let employees = {};        // all records, keyed by employeeId
+  let uniqueEmployees = [];  // deduplicated employee list (id + name only)
   let filteredEmps = [];
   let drawerEmpId = null;
   let drawerFilter = 'all';
-  let avatarColorMap = {};
-  let colorIdx = 0;
 
   // Filter state
   let activeDateRange = 'all';
@@ -804,23 +605,26 @@
       '<div class="spinner"></div><span style="font-size:13.5px">Loading paycheck data…</span></div>';
   }
 
+  /* ══ BUILD EMPLOYEE MAP ══
+     employees[id] = { id, name, records[] }
+     uniqueEmployees = deduplicated list (one entry per id)
+  */
   function buildEmployeeMap() {
     employees = {};
+    const seen = new Set();
+    uniqueEmployees = [];
+
     allData.forEach(r => {
       if (!r.employeeId) return;
       if (!employees[r.employeeId]) {
         employees[r.employeeId] = { id: r.employeeId, name: r.employeeName, records: [] };
       }
       employees[r.employeeId].records.push(r);
+      if (!seen.has(r.employeeId)) {
+        seen.add(r.employeeId);
+        uniqueEmployees.push({ id: r.employeeId, name: r.employeeName });
+      }
     });
-  }
-
-  function getColor(empId) {
-    if (!avatarColorMap[empId]) {
-      avatarColorMap[empId] = AVATAR_COLORS[colorIdx % AVATAR_COLORS.length];
-      colorIdx++;
-    }
-    return avatarColorMap[empId];
   }
 
   /* ══ DATE FILTER ══ */
@@ -839,13 +643,13 @@
       return { from: new Date(today.getFullYear(), today.getMonth(), 1), to: today };
     }
     if (range === 'last_month') {
-      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      const end = new Date(today.getFullYear(), today.getMonth(), 0);
-      return { from: start, to: end };
+      return {
+        from: new Date(today.getFullYear(), today.getMonth() - 1, 1),
+        to:   new Date(today.getFullYear(), today.getMonth(), 0)
+      };
     }
     if (range === 'last_3_months') {
-      const start = new Date(today.getFullYear(), today.getMonth() - 3, 1);
-      return { from: start, to: today };
+      return { from: new Date(today.getFullYear(), today.getMonth() - 3, 1), to: today };
     }
     if (range === 'custom' && customFrom && customTo) {
       return { from: new Date(customFrom), to: new Date(customTo) };
@@ -861,51 +665,47 @@
     const customRow = document.getElementById('customDateRow');
     if (range === 'custom') {
       customRow.classList.add('visible');
-      if (!customFrom || !customTo) return; // wait for apply
+      if (!customFrom || !customTo) return;
     } else {
       customRow.classList.remove('visible');
       customFrom = null;
       customTo = null;
     }
-
     applyFilters();
   }
   window.setDateFilter = setDateFilter;
 
   function applyCustomDate() {
     const from = document.getElementById('dateFrom').value;
-    const to = document.getElementById('dateTo').value;
-    if (!from || !to) {
-      showToast('Please select both dates', 'error');
-      return;
-    }
-    if (from > to) {
-      showToast('From date must be before To date', 'error');
-      return;
-    }
+    const to   = document.getElementById('dateTo').value;
+    if (!from || !to) { showToast('Please select both dates', 'error'); return; }
+    if (from > to)    { showToast('From date must be before To date', 'error'); return; }
     customFrom = from;
-    customTo = to;
+    customTo   = to;
     applyFilters();
   }
   window.applyCustomDate = applyCustomDate;
 
   function clearCustomDate() {
-    customFrom = null;
-    customTo = null;
+    customFrom = null; customTo = null;
     document.getElementById('dateFrom').value = '';
-    document.getElementById('dateTo').value = '';
+    document.getElementById('dateTo').value   = '';
     setDateFilter('all', document.querySelector('.date-chip[data-range="all"]'));
   }
   window.clearCustomDate = clearCustomDate;
 
+  /* ══ STATUS FILTER ── chip clicks ══ */
   function setStatusFilter(status, el) {
-    activeStatusFilter = status;
-    document.querySelectorAll('.status-chip').forEach(c => c.classList.remove('active', 'green-active', 'amber-active'));
-    if (el) {
-      el.classList.add('active');
-      if (status === 'all_paid') el.classList.add('green-active');
-      if (status === 'has_pending') el.classList.add('amber-active');
+    // Toggle off if same chip clicked again
+    if (activeStatusFilter === status && status !== 'all') {
+      activeStatusFilter = 'all';
+      document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active-filter'));
+      applyFilters();
+      return;
     }
+    activeStatusFilter = status;
+    document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active-filter'));
+    if (el) el.classList.add('active-filter');
     applyFilters();
   }
   window.setStatusFilter = setStatusFilter;
@@ -913,66 +713,54 @@
   /* ══ FILTERS ══ */
   function applyFilters() {
     const dateRange = getDateRange(activeDateRange);
-    const empList = Object.values(employees);
 
-    filteredEmps = empList.map(emp => {
-      // Filter records by date
-      let records = emp.records;
+    // Build filtered records per employee
+    filteredEmps = uniqueEmployees.map(u => {
+      const emp = employees[u.id];
+      let recs = emp.records;
       if (dateRange) {
-        records = records.filter(r => {
+        recs = recs.filter(r => {
           const d = new Date(r.date);
           return d >= dateRange.from && d <= dateRange.to;
         });
       }
-      return { ...emp, filteredRecords: records };
+      return { ...u, filteredRecords: recs };
     }).filter(emp => {
       if (emp.filteredRecords.length === 0) return false;
-
       const hasPending = emp.filteredRecords.some(r => r.paid !== 'Yes');
-      const allPaid = emp.filteredRecords.every(r => r.paid === 'Yes');
-
+      const allPaid    = emp.filteredRecords.every(r => r.paid === 'Yes');
       if (activeStatusFilter === 'has_pending' && !hasPending) return false;
-      if (activeStatusFilter === 'all_paid' && !allPaid) return false;
-
+      if (activeStatusFilter === 'all_paid'    && !allPaid)    return false;
       return true;
     });
 
-    updateSubtitle();
+    updateHeaderStats();
     updateBanner();
     renderList();
   }
 
-  function updateSubtitle() {
-    const el = document.getElementById('dateRangeLabel');
-    const labels = {
-      all: 'All records',
-      this_week: 'This week',
-      this_month: 'This month',
-      last_month: 'Last month',
-      last_3_months: 'Last 3 months',
-    };
-    if (activeDateRange === 'custom' && customFrom && customTo) {
-      el.textContent = formatDisplayDate(customFrom) + ' — ' + formatDisplayDate(customTo);
-    } else {
-      el.textContent = labels[activeDateRange] || 'All records';
-    }
-  }
+  /* ══ HEADER STAT CHIPS ══ */
+  function updateHeaderStats() {
+    // Use ALL records (not filtered by date) for the header counters so they always reflect reality
+    const allEmps = uniqueEmployees.map(u => employees[u.id]).filter(Boolean);
+    const fullyPaid  = allEmps.filter(e => e.records.every(r => r.paid === 'Yes')).length;
+    const hasPending = allEmps.filter(e => e.records.some(r => r.paid !== 'Yes')).length;
+    const totalHours = allData.reduce((s, r) => s + r.totalHours, 0);
 
-  function formatDisplayDate(dateStr) {
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const parts = dateStr.split('-');
-    return parseInt(parts[2]) + ' ' + months[parseInt(parts[1]) - 1] + ' ' + parts[0];
+    document.getElementById('statPaidText').textContent    = fullyPaid  + ' Fully Paid';
+    document.getElementById('statPendingText').textContent = hasPending + ' Has Pending';
+    document.getElementById('statHoursText').textContent   = totalHours.toFixed(1) + 'h Total';
   }
 
   function updateBanner() {
     const allFiltered = filteredEmps.flatMap(e => e.filteredRecords);
-    const totalPay = allFiltered.reduce((s, r) => s + r.totalPay, 0);
-    const paidTotal = allFiltered.filter(r => r.paid === 'Yes').reduce((s, r) => s + r.totalPay, 0);
-    const pendingTotal = totalPay - paidTotal;
+    const totalPay    = allFiltered.reduce((s, r) => s + r.totalPay, 0);
+    const paidTotal   = allFiltered.filter(r => r.paid === 'Yes').reduce((s, r) => s + r.totalPay, 0);
+    const pendTotal   = totalPay - paidTotal;
 
-    document.getElementById('bannerTotal').textContent = '£' + fmt(totalPay);
-    document.getElementById('bannerPaid').textContent = '£' + fmt(paidTotal);
-    document.getElementById('bannerPending').textContent = '£' + fmt(pendingTotal);
+    document.getElementById('bannerTotal').textContent   = '£' + fmt(totalPay);
+    document.getElementById('bannerPaid').textContent    = '£' + fmt(paidTotal);
+    document.getElementById('bannerPending').textContent = '£' + fmt(pendTotal);
     document.getElementById('summaryBanner').style.display = allFiltered.length ? 'grid' : 'none';
   }
 
@@ -988,30 +776,30 @@
       return;
     }
 
-    // Sort: pending first
+    // Sort: pending first, then by name
     const sorted = [...filteredEmps].sort((a, b) => {
       const aPend = a.filteredRecords.some(r => r.paid !== 'Yes') ? 0 : 1;
       const bPend = b.filteredRecords.some(r => r.paid !== 'Yes') ? 0 : 1;
-      return aPend - bPend;
+      if (aPend !== bPend) return aPend - bPend;
+      return a.name.localeCompare(b.name);
     });
 
     area.innerHTML = '<div class="emp-list">' + sorted.map(emp => empRow(emp)).join('') + '</div>';
   }
 
   function empRow(emp) {
-    const recs = emp.filteredRecords;
-    const totalPay = recs.reduce((s, r) => s + r.totalPay, 0);
+    const recs       = emp.filteredRecords;
+    const totalPay   = recs.reduce((s, r) => s + r.totalPay, 0);
     const hasPending = recs.some(r => r.paid !== 'Yes');
-    const pendCount = recs.filter(r => r.paid !== 'Yes').length;
-    const color = getColor(emp.id);
-    const initials = getInitials(emp.name);
+    const pendCount  = recs.filter(r => r.paid !== 'Yes').length;
+    const initials   = getInitials(emp.name);
 
     const statusTag = hasPending
       ? '<span class="emp-status-tag pending">' + pendCount + ' pending</span>'
       : '<span class="emp-status-tag allpaid">All paid</span>';
 
     return '<div class="emp-row" onclick="openDrawer(\'' + escAttr(emp.id) + '\')">' +
-      '<div class="emp-avatar" style="background:' + color + '">' + initials + '</div>' +
+      '<div class="emp-avatar">' + initials + '</div>' +
       '<div class="emp-info">' +
         '<div class="emp-name">' + escHtml(emp.name) + '</div>' +
         '<div class="emp-meta">' + recs.length + ' record' + (recs.length !== 1 ? 's' : '') + ' · ' + escHtml(emp.id) + '</div>' +
@@ -1020,13 +808,13 @@
         '<div class="emp-amount">£' + fmt(totalPay) + '</div>' +
         statusTag +
       '</div>' +
-      '<svg class="emp-row-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>' +
+      '<svg class="emp-row-chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>' +
     '</div>';
   }
 
   /* ══ DRAWER ══ */
   function openDrawer(empId) {
-    drawerEmpId = empId;
+    drawerEmpId  = empId;
     drawerFilter = 'all';
     renderDrawer();
     document.getElementById('empDrawer').classList.add('open');
@@ -1039,7 +827,7 @@
     document.getElementById('empDrawer').classList.remove('open');
     document.getElementById('drawerOverlay').classList.remove('visible');
     document.body.style.overflow = '';
-    drawerEmpId = null;
+    drawerEmpId  = null;
     drawerFilter = 'all';
   }
   window.closeDrawer = closeDrawer;
@@ -1054,29 +842,27 @@
     const emp = employees[drawerEmpId];
     if (!emp) return;
 
-    const color = getColor(emp.id);
-    const initials = getInitials(emp.name);
-    const totalPay = emp.records.reduce((s, r) => s + r.totalPay, 0);
-    const totalPaid = emp.records.filter(r => r.paid === 'Yes').reduce((s, r) => s + r.totalPay, 0);
-    const totalPend = totalPay - totalPaid;
-    const pendCount = emp.records.filter(r => r.paid !== 'Yes').length;
-    const paidCount = emp.records.filter(r => r.paid === 'Yes').length;
+    const initials   = getInitials(emp.name);
+    const totalPay   = emp.records.reduce((s, r) => s + r.totalPay, 0);
+    const totalPaid  = emp.records.filter(r => r.paid === 'Yes').reduce((s, r) => s + r.totalPay, 0);
+    const totalPend  = totalPay - totalPaid;
+    const pendCount  = emp.records.filter(r => r.paid !== 'Yes').length;
+    const paidCount  = emp.records.filter(r => r.paid === 'Yes').length;
 
     // Hero
     document.getElementById('drawerHero').innerHTML =
       '<div class="drawer-hero">' +
         '<button class="drawer-close-btn" onclick="closeDrawer()">' +
-          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
         '</button>' +
         '<div class="drawer-hero-top">' +
-          '<div class="drawer-avatar" style="background:' + color + '">' + initials + '</div>' +
+          '<div class="drawer-avatar">' + initials + '</div>' +
           '<div>' +
             '<div class="drawer-emp-name">' + escHtml(emp.name) + '</div>' +
             '<div class="drawer-emp-id">' + escHtml(emp.id) + '</div>' +
           '</div>' +
         '</div>' +
         '<div class="drawer-kpi-row">' +
-          // Total Pay KPI
           '<div class="drawer-kpi">' +
             '<div class="drawer-kpi-top">' +
               '<div class="drawer-kpi-icon total">' +
@@ -1086,7 +872,6 @@
             '</div>' +
             '<div class="drawer-kpi-value">£' + fmt(totalPay) + '</div>' +
           '</div>' +
-          // Paid KPI
           '<div class="drawer-kpi">' +
             '<div class="drawer-kpi-top">' +
               '<div class="drawer-kpi-icon paid">' +
@@ -1096,7 +881,6 @@
             '</div>' +
             '<div class="drawer-kpi-value green">£' + fmt(totalPaid) + '</div>' +
           '</div>' +
-          // Balance Due KPI
           '<div class="drawer-kpi">' +
             '<div class="drawer-kpi-top">' +
               '<div class="drawer-kpi-icon due">' +
@@ -1116,7 +900,7 @@
       '<button class="drawer-tab-btn yellow ' + (drawerFilter === 'pending' ? 'active' : '') + '" onclick="setDrawerFilter(\'pending\')">Pending (' + pendCount + ')</button>' +
       '<button class="drawer-tab-btn green ' + (drawerFilter === 'paid' ? 'active' : '') + '" onclick="setDrawerFilter(\'paid\')">Paid (' + paidCount + ')</button>';
 
-    // Body
+    // Body records — always use all employee records (not date-filtered) in drawer
     const records = emp.records
       .filter(r => {
         if (drawerFilter === 'pending') return r.paid !== 'Yes';
@@ -1127,7 +911,7 @@
 
     if (drawerFilter === 'all') {
       const pendingRecs = records.filter(r => r.paid !== 'Yes');
-      const paidRecs = records.filter(r => r.paid === 'Yes');
+      const paidRecs    = records.filter(r => r.paid === 'Yes');
       let html = '';
 
       if (pendingRecs.length) {
@@ -1153,9 +937,9 @@
       if (!html) html = '<p style="font-size:13px;color:#94a3b8;text-align:center;padding:30px 0">No records</p>';
       document.getElementById('drawerBody').innerHTML = html;
     } else {
-      const label = drawerFilter === 'pending' ? 'Pending' : 'Paid';
+      const label      = drawerFilter === 'pending' ? 'Pending' : 'Paid';
       const countClass = drawerFilter === 'pending' ? 'pending' : 'paid';
-      const totalAmt = records.reduce((s, r) => s + r.totalPay, 0);
+      const totalAmt   = records.reduce((s, r) => s + r.totalPay, 0);
       let html =
         '<div class="section-header">' +
           '<span class="section-title">' + label + '</span>' +
@@ -1173,15 +957,15 @@
   }
 
   function paymentRow(r, empId) {
-    const isPaid = r.paid === 'Yes';
-    const rowKey = escAttr(empId + '_' + r.date);
+    const isPaid   = r.paid === 'Yes';
+    const rowKey   = escAttr(empId + '_' + r.date);
     const dateParts = parseDate(r.date);
 
     const actionBtn = isPaid
-      ? '<button class="mark-paid-btn undo-pay" id="btn_' + rowKey + '" onclick="event.stopPropagation();togglePaid(\'' + escAttr(empId) + '\', \'' + escAttr(r.date) + '\', \'No\')">' +
+      ? '<button class="mark-paid-btn undo-pay" id="btn_' + rowKey + '" onclick="event.stopPropagation();togglePaid(\'' + escAttr(empId) + '\',\'' + escAttr(r.date) + '\',\'No\')">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Undo' +
         '</button>'
-      : '<button class="mark-paid-btn do-pay" id="btn_' + rowKey + '" onclick="event.stopPropagation();togglePaid(\'' + escAttr(empId) + '\', \'' + escAttr(r.date) + '\', \'Yes\')">' +
+      : '<button class="mark-paid-btn do-pay" id="btn_' + rowKey + '" onclick="event.stopPropagation();togglePaid(\'' + escAttr(empId) + '\',\'' + escAttr(r.date) + '\',\'Yes\')">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Mark Paid' +
         '</button>';
 
@@ -1206,12 +990,12 @@
   async function togglePaid(empId, date, newValue) {
     const rowKey = empId + '_' + date;
     const saving = document.getElementById('saving_' + rowKey);
-    const btn = document.getElementById('btn_' + rowKey);
+    const btn    = document.getElementById('btn_' + rowKey);
     if (saving) saving.classList.add('visible');
-    if (btn) btn.disabled = true;
+    if (btn)    btn.disabled = true;
 
     try {
-      const res = await fetch(API_URL, {
+      const res  = await fetch(API_URL, {
         method: 'POST',
         body: JSON.stringify({ action: 'updatePaycheck', employeeId: empId, date, value: newValue }),
         headers: { 'Content-Type': 'text/plain' }
@@ -1230,7 +1014,7 @@
     } catch (e) {
       showToast('Failed to update: ' + e.message, 'error');
       if (saving) saving.classList.remove('visible');
-      if (btn) btn.disabled = false;
+      if (btn)    btn.disabled = false;
     }
   }
   window.togglePaid = togglePaid;
@@ -1238,7 +1022,7 @@
   /* ══ HELPERS ══ */
   function parseDate(d) {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const parts = String(d || '').split('-');
+    const parts  = String(d || '').split('-');
     if (parts.length !== 3) return { day: '?', month: '???' };
     return { day: parseInt(parts[2]), month: months[parseInt(parts[1]) - 1] || '???' };
   }
@@ -1262,14 +1046,14 @@
 
   let toastCounter = 0;
   function showToast(msg, type, duration) {
-    const c = document.getElementById('toastContainer');
+    const c  = document.getElementById('toastContainer');
     const id = 'toast_' + (++toastCounter);
-    const t = document.createElement('div');
+    const t  = document.createElement('div');
     t.className = 'toast ' + (type || '');
     t.id = id;
     const icons = {
-      success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-      error: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      success: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+      error:   '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
       loading: '<div class="spinner" style="width:12px;height:12px;border-width:2px;border-color:rgba(255,255,255,.3);border-top-color:#fff"></div>',
     };
     t.innerHTML = (icons[type] || '') + '<span>' + escHtml(msg) + '</span>';
