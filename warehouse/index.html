@@ -657,7 +657,12 @@
       sourcing:  { navTitle: "Sourcing",        pageTitle: "Sourcing",        section: "Modules", permission: "sourcing",  file: "../modules/sourcing.html" },
       listing:   { navTitle: "Listing & Veeqo", pageTitle: "Listing & Veeqo", section: "Modules", permission: "listing",   file: "../modules/listing.html" },
       suppliers: { navTitle: "Suppliers",        pageTitle: "Suppliers",        section: "Modules", permission: "suppliers", file: "../modules/suppliers.html" },
-      rota:      { navTitle: "Rota",             pageTitle: "Rota",             section: "Modules", permission: "rota",      file: "../modules/rota.html" }
+      
+      rota:     { navTitle: "Rota", pageTitle: "Rota", section: "Modules", permission: "rota", file: "../modules/rota.html", parent: "rota" },
+
+      paycheck: { navTitle: "Paycheck", pageTitle: "Rota - Paycheck", section: "Modules", permission: "paycheck", file: "../modules/paycheck.html", parent: "rota" },
+    
+      intelligence:{ navTitle: "Intelligence", pageTitle: "Rota - Intelligence", section: "Modules", permission: "intelligence", file: "../modules/intelligence.html", parent: "rota" },
     };
 
     /* ── ICONS ── */
@@ -707,9 +712,11 @@
       const hasListing   = hasPermission("listing");
       const hasSuppliers = hasPermission("suppliers");
       const hasRota      = hasPermission("rota");
+      const hasPaycheck     = hasPermission("paycheck");
+      const hasIntelligence = hasPermission("intelligence");
 
-      if (hasSourcing || hasListing || hasSuppliers || hasRota) {
-        html += `<div class="nav-section-label">Modules</div>`;
+if (hasSourcing || hasListing || hasSuppliers || hasRota || hasPaycheck || hasIntelligence) {
+      html += `<div class="nav-section-label">Modules</div>`;
 
         if (hasSourcing || hasListing) {
           html += `<div class="nav-group">
@@ -798,11 +805,14 @@
       if (!modules[key] || !hasPermission(modules[key].permission)) return;
       if (currentKey === key) return;
       currentKey = key;
-      setActiveNav(`nav-${key}`);
+      const parent = modules[key].parent || key;
+      setActiveNav(`nav-${parent}`);
       updateHeader(modules[key].pageTitle);
       await fetchAndRender(modules[key].file);
       closeSidebar();
     }
+
+    window.loadModule = loadModule;
 
     async function fetchAndRender(file) {
       const loader  = document.getElementById("pageLoader");
