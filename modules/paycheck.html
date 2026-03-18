@@ -1,78 +1,722 @@
-<style>
-    /* ── NAV DROPDOWN ── */
-.nav-dropdown-wrap { display: inline-block;   position: absolute;  right: 0;  top: 0;   z-index: 1000; }
-.nav-dropdown-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 12px; border: 1.5px solid #94a3b8; border-radius: 9px;
-  background: #fff; color: #0f172a; font-size: 12px; font-weight: 600;
-  font-family: inherit; cursor: pointer; transition: all .15s; white-space: nowrap;
-}
-.nav-dropdown-btn:hover { border-color: #325dd1; background: #f8fafc; }
-.nav-dropdown-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
-.nav-dropdown-btn .chevron { transition: transform .15s; }
-.nav-dropdown-btn.open .chevron { transform: rotate(180deg); }
-.nav-dropdown-menu {
-  position: absolute; top: calc(100% + 6px); left: 0;
-  background: #fff; border: 1.5px solid #e2e8f0; border-radius: 11px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.1); min-width: 160px;
-  z-index: 2000; padding: 5px; opacity: 0; pointer-events: none;
-  transform: translateY(-6px); transition: opacity .15s, transform .15s;
-}
-.nav-dropdown-menu.open { opacity: 1; pointer-events: all; transform: translateY(0); }
-.nav-dropdown-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 10px; border-radius: 7px; font-size: 13px; font-weight: 600;
-  color: #0f172a; text-decoration: none; cursor: pointer; transition: background .12s;
-}
-.nav-dropdown-item:hover { background: #f1f5f9; }
-.nav-dropdown-item.active { background: #eff6ff; color: #2563eb; }
-.nav-dropdown-item svg { width: 13px; height: 13px; flex-shrink: 0; opacity: .6; }
-</style>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paycheck</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      color: #0f172a;
+      background: #f8fafc;
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
 
+    .page-wrapper {
+      padding: 5px 10px 15px 10px;
+      max-width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
 
-<dive>
-  
+    /* ── HEADER ── */
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 18px; flex-wrap: wrap; gap: 12px;
+    }
 
-      <div class="nav-dropdown-wrap">
-  <button class="nav-dropdown-btn" id="navDropBtn" onclick="toggleNavDrop(event)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-    Pages
-    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-  </button>
-  <div class="nav-dropdown-menu" id="navDropMenu">
+    .page-title {
+      font-size: 18px; font-weight: 700; color: #0f172a;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .page-title svg { color: #2563eb; }
 
-    <a class="nav-dropdown-item" onclick="loadModule('rota')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      Rota
-    </a>
-    <a class="nav-dropdown-item" onclick="loadModule('intelligence')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-      Intelligence
-    </a>
-    <a class="nav-dropdown-item active" onclick="loadModule('paycheck')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-      Paycheck
-    </a>
+    .stats-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .stat-chip {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 13px; border-radius: 100px;
+      font-size: 12.5px; font-weight: 600; border: 1px solid transparent;
+      white-space: nowrap; cursor: pointer; transition: all .15s;
+    }
+    .stat-chip:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,.1); }
+    .stat-chip.active-filter { box-shadow: 0 0 0 3px rgba(0,0,0,.15); }
+    .stat-chip.orange { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+    .stat-chip.blue   { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+    .stat-chip.green  { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+    .stat-chip.red    { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
+    .stat-chip svg    { width: 13px; height: 13px; flex-shrink: 0; }
+
+    /* ── TOOLBAR ── */
+    .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 300px; }
+    .search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; width: 15px; height: 15px; pointer-events: none; }
+    .search-input {
+      width: 100%; padding: 8px 10px 8px 33px; border: 1.5px solid #e2e8f0; border-radius: 9px;
+      font-size: 13px; font-family: inherit; background: #fff; color: #0f172a; outline: none; transition: border-color .15s;
+    }
+    .search-input:focus { border-color: #2563eb; }
+
+    .filter-select {
+      padding: 8px 10px; border: 1.5px solid #e2e8f0; border-radius: 9px;
+      font-size: 13px; font-family: inherit; color: #374151; background: #fff;
+      outline: none; cursor: pointer; transition: border-color .15s; appearance: auto;
+    }
+    .filter-select:focus { border-color: #2563eb; }
+    .filter-select.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+
+    /* ── GENERATE BTN ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: none; border-radius: 9px;
+      font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; transition: background .15s, transform .1s; white-space: nowrap;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: #2563eb; color: #fff; box-shadow: 0 1px 4px rgba(37,99,235,.25); }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+
+    /* ── DATE GROUP SECTION ── */
+    .date-group { margin-bottom: 28px; }
+    .date-group-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 12px; position: sticky; top: 0; z-index: 10;
+      background: #f8fafc; padding: 6px 0;
+    }
+    .date-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .8px; color: #64748b; white-space: nowrap;
+    }
+    .date-label-line { flex: 1; height: 1px; background: #e2e8f0; }
+    .date-total-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 100px;
+      font-size: 11.5px; font-weight: 700;
+      background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
+    }
+
+    /* ── EMPLOYEE CARDS ── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 10px;
+    }
+
+    .emp-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.04);
+      transition: box-shadow .15s, border-color .15s, transform .15s;
+      position: relative;
+      overflow: hidden;
+    }
+    .emp-card:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,.08);
+      border-color: #cbd5e1;
+      transform: translateY(-1px);
+    }
+    .emp-card.paid {
+      border-left: 3px solid #22c55e;
+    }
+    .emp-card.unpaid {
+      border-left: 3px solid #f59e0b;
+    }
+
+    .emp-card-top {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .emp-info { display: flex; align-items: center; gap: 10px; }
+    .emp-avatar {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .emp-name { font-size: 13.5px; font-weight: 700; color: #0f172a; }
+    .emp-id   { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+
+    .paid-toggle {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 11px; border-radius: 100px; border: none; cursor: pointer;
+      font-size: 11.5px; font-weight: 600; font-family: inherit;
+      transition: all .15s;
+    }
+    .paid-toggle.yes { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .paid-toggle.yes:hover { background: #bbf7d0; }
+    .paid-toggle.no  { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .paid-toggle.no:hover  { background: #fde68a; }
+    .paid-toggle svg { width: 11px; height: 11px; }
+
+    .emp-card-stats {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px; margin-bottom: 12px;
+    }
+    .stat-mini {
+      background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 9px; padding: 8px 10px;
+    }
+    .stat-mini-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; margin-bottom: 3px; }
+    .stat-mini-value { font-size: 14px; font-weight: 700; color: #0f172a; }
+    .stat-mini-value.green { color: #15803d; }
+
+    .emp-card-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-top: 10px; border-top: 1px solid #f1f5f9;
+    }
+    .emp-rate-label { font-size: 11px; color: #94a3b8; }
+    .emp-rate-value { font-size: 13px; font-weight: 600; color: #334155; }
+
+    /* saving spinner on card */
+    .card-saving-overlay {
+      position: absolute; inset: 0; background: rgba(255,255,255,.75);
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 14px; z-index: 5; opacity: 0; pointer-events: none;
+      transition: opacity .2s;
+    }
+    .card-saving-overlay.visible { opacity: 1; pointer-events: all; }
+
+    /* ── EMPTY / LOADING ── */
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 60px 20px; color: #94a3b8; gap: 10px;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+      margin-top: 4px;
+    }
+    .empty-state p { font-size: 13.5px; }
+    .empty-state-hint { font-size: 12px; color: #cbd5e1; }
+
+    /* ── BADGES ── */
+    .yn-yes { background: #dcfce7; color: #15803d; border-radius: 100px; padding: 2px 9px; font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 3px; }
+    .yn-no  { background: #fef3c7; color: #92400e; border-radius: 100px; padding: 2px 9px; font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 3px; }
+
+    /* ── SPINNER ── */
+    .spinner {
+      display: inline-block; width: 16px; height: 16px; border: 2.5px solid #e2e8f0; border-top-color: #2563eb;
+      border-radius: 50%; animation: spin .65s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── TOAST ── */
+    .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 7px; }
+    .toast {
+      display: flex; align-items: center; gap: 9px; padding: 11px 16px; background: #0f172a; color: #fff;
+      border-radius: 10px; font-size: 13px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+      animation: toastIn .2s ease; max-width: 320px;
+    }
+    .toast.success { background: #15803d; }
+    .toast.error   { background: #dc2626; }
+    .toast.loading { background: #1e40af; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── LOADING PULSE ── */
+    .skeleton-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 10px; margin-bottom: 28px;
+    }
+    .skeleton-card {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+    .skel { background: #e2e8f0; border-radius: 6px; }
+
+    /* ── SUMMARY BANNER ── */
+    .summary-banner {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-radius: 14px; padding: 16px 20px;
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 1px; margin-bottom: 20px; position: relative; overflow: hidden;
+    }
+    .summary-banner::before {
+      content: ''; position: absolute; top: -40px; right: -40px;
+      width: 150px; height: 150px; border-radius: 50%; background: rgba(255,255,255,.04);
+    }
+    .summary-banner::after {
+      content: ''; position: absolute; bottom: -30px; left: 60px;
+      width: 100px; height: 100px; border-radius: 50%; background: rgba(37,99,235,.12);
+    }
+    .summary-kpi { padding: 8px 16px; position: relative; z-index: 1; }
+    .summary-kpi + .summary-kpi { border-left: 1px solid rgba(255,255,255,.08); }
+    .summary-kpi-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: rgba(255,255,255,.45); margin-bottom: 4px; }
+    .summary-kpi-value { font-size: 22px; font-weight: 700; color: #fff; }
+    .summary-kpi-value.green  { color: #4ade80; }
+    .summary-kpi-value.yellow { color: #fbbf24; }
+
+    @media (max-width: 640px) {
+      .page-wrapper { padding: 12px; }
+      .stats-row { gap: 5px; }
+      .stat-chip { font-size: 11.5px; padding: 5px 10px; }
+      .cards-grid { grid-template-columns: 1fr; }
+      .summary-banner { grid-template-columns: 1fr; gap: 12px; }
+      .summary-kpi + .summary-kpi { border-left: none; border-top: 1px solid rgba(255,255,255,.08); }
+      .emp-card-stats { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="stats-row">
+
+      <!-- 1. Total Paid -->
+      <div class="stat-chip green" id="statPaid" onclick="filterByStatus('paid')" title="Click to filter">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span id="statPaidText">Loading…</span>
+      </div>
+
+      <!-- 2. Balance Pending (total pay of unpaid) -->
+      <div class="stat-chip orange" id="statBalance" onclick="filterByStatus('unpaid')" title="Click to filter">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="statBalanceText">Loading…</span>
+      </div>
+
+      <!-- 3. Payment Pending count (Paid = No) -->
+      <div class="stat-chip red" id="statPending" onclick="filterByStatus('pending')" title="Click to filter">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        <span id="statPendingText">Loading…</span>
+      </div>
+
+      <!-- All -->
+      <div class="stat-chip blue" id="statAll" onclick="filterByStatus('all')" title="Show all">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span id="statAllText">Loading…</span>
+      </div>
+
+    </div>
+
+    <button class="btn btn-primary" id="generateBtn" onclick="generatePaycheck()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Regenerate
+    </button>
   </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" class="search-input" placeholder="Search employee…" oninput="applyFilters()">
+    </div>
+    <select class="filter-select" id="fDate" onchange="applyFilters()">
+      <option value="">All Dates</option>
+    </select>
+    <select class="filter-select" id="fPaid" onchange="applyFilters()">
+      <option value="">Paid: All</option>
+      <option value="Yes">Paid: Yes</option>
+      <option value="No">Paid: No</option>
+    </select>
+  </div>
+
+  <!-- Summary Banner -->
+  <div class="summary-banner" id="summaryBanner" style="display:none">
+    <div class="summary-kpi">
+      <div class="summary-kpi-label">Total Payroll</div>
+      <div class="summary-kpi-value" id="bannerTotal">£0</div>
+    </div>
+    <div class="summary-kpi">
+      <div class="summary-kpi-label">Total Paid</div>
+      <div class="summary-kpi-value green" id="bannerPaid">£0</div>
+    </div>
+    <div class="summary-kpi">
+      <div class="summary-kpi-label">Balance Pending</div>
+      <div class="summary-kpi-value yellow" id="bannerPending">£0</div>
+    </div>
+  </div>
+
+  <!-- Cards Area -->
+  <div id="cardsArea">
+    <div style="display:flex;align-items:center;justify-content:center;padding:60px 0;gap:10px;color:#94a3b8">
+      <div class="spinner"></div>
+      <span style="font-size:13.5px">Loading paycheck data…</span>
+    </div>
+  </div>
+
 </div>
 
-</dive>
-<p>this is for all payment</p>
-
+<div class="toast-container" id="toastContainer"></div>
 
 <script>
-  
-function toggleNavDrop(e) {
-  e.stopPropagation();
-  const btn = document.getElementById('navDropBtn');
-  const menu = document.getElementById('navDropMenu');
-  const open = menu.classList.toggle('open');
-  btn.classList.toggle('open', open);
-}
-document.addEventListener('click', function() {
-  document.getElementById('navDropMenu')?.classList.remove('open');
-  document.getElementById('navDropBtn')?.classList.remove('open');
-});
-</script>
+(function () {
 
+  const API_URL = 'https://script.google.com/macros/s/AKfycbwS9c4pGnAiXNAlhdttTKZeKNOP8b_tSONjY7S-D_DOgiicflimtvrNVaRReuX7EN3hHg/exec';
+
+  const AVATAR_COLORS = [
+    '#6366f1','#ef4444','#10b981','#f59e0b',
+    '#3b82f6','#8b5cf6','#ec4899','#14b8a6'
+  ];
+
+  let allData = [];
+  let filtered = [];
+  let activeStatFilter = null;
+  let avatarColorMap = {};
+  let colorIdx = 0;
+
+  /* ══ INIT ══ */
+  async function init() {
+    await loadData();
+  }
+
+  /* ══ FETCH DATA ══ */
+  async function loadData() {
+    setLoading(true);
+    try {
+      const res  = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'getPaycheck' }),
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      const data = await res.json();
+
+      if (data.error) throw new Error(data.message || 'Server error');
+
+      allData = (data.rows || []).map(r => ({
+        date:         r[0] ? String(r[0]).trim() : '',
+        employeeId:   r[1] ? String(r[1]).trim() : '',
+        employeeName: r[2] ? String(r[2]).trim() : '',
+        totalHours:   parseFloat(r[3]) || 0,
+        hourlyRate:   parseFloat(r[4]) || 0,
+        totalPay:     parseFloat(r[5]) || 0,
+        paid:         String(r[6] || '').trim()
+      }));
+
+      buildDateFilter();
+      applyFilters();
+    } catch (e) {
+      setLoading(false);
+      document.getElementById('cardsArea').innerHTML =
+        '<div class="empty-state">' +
+        '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+        '<p style="color:#dc2626">Failed to load data</p>' +
+        '<p class="empty-state-hint">Check your connection or regenerate</p>' +
+        '</div>';
+    }
+  }
+
+  function setLoading(on) {
+    if (on) {
+      document.getElementById('cardsArea').innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;padding:60px 0;gap:10px;color:#94a3b8">' +
+        '<div class="spinner"></div>' +
+        '<span style="font-size:13.5px">Loading paycheck data…</span>' +
+        '</div>';
+    }
+  }
+
+  /* ══ DATE FILTER ══ */
+  function buildDateFilter() {
+    const dates = [...new Set(allData.map(r => r.date))].sort().reverse();
+    const sel   = document.getElementById('fDate');
+    sel.innerHTML = '<option value="">All Dates</option>' +
+      dates.map(d => '<option value="' + escAttr(d) + '">' + fmtDate(d) + '</option>').join('');
+  }
+
+  /* ══ STATS ══ */
+  function updateStats() {
+    const paidRows    = allData.filter(r => r.paid === 'Yes');
+    const unpaidRows  = allData.filter(r => r.paid !== 'Yes');
+    const totalPaid   = paidRows.reduce((s, r) => s + r.totalPay, 0);
+    const balancePend = unpaidRows.reduce((s, r) => s + r.totalPay, 0);
+    const pendCount   = unpaidRows.length;
+    const totalAll    = allData.length;
+
+    document.getElementById('statPaidText').textContent    = paidRows.length + ' Paid (£' + fmt(totalPaid) + ')';
+    document.getElementById('statBalanceText').textContent = '£' + fmt(balancePend) + ' Balance';
+    document.getElementById('statPendingText').textContent = pendCount + ' Payment Pending';
+    document.getElementById('statAllText').textContent     = totalAll + ' Total Records';
+
+    // Summary banner
+    const totalPayroll = allData.reduce((s, r) => s + r.totalPay, 0);
+    document.getElementById('bannerTotal').textContent   = '£' + fmt(totalPayroll);
+    document.getElementById('bannerPaid').textContent    = '£' + fmt(totalPaid);
+    document.getElementById('bannerPending').textContent = '£' + fmt(balancePend);
+    document.getElementById('summaryBanner').style.display = allData.length ? 'grid' : 'none';
+  }
+
+  /* ══ STAT CHIP FILTER ══ */
+  function filterByStatus(type) {
+    if (activeStatFilter === type && type !== 'all') {
+      activeStatFilter = null;
+      document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active-filter'));
+      applyFilters();
+      return;
+    }
+    activeStatFilter = (type === 'all') ? null : type;
+    document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active-filter'));
+    document.getElementById('stat' + (
+      type === 'paid'    ? 'Paid'    :
+      type === 'unpaid'  ? 'Balance' :
+      type === 'pending' ? 'Pending' : 'All'
+    )).classList.add('active-filter');
+    applyFilters();
+  }
+  window.filterByStatus = filterByStatus;
+
+  /* ══ FILTERS ══ */
+  function applyFilters() {
+    const q     = document.getElementById('searchInput').value.toLowerCase();
+    const fDate = document.getElementById('fDate').value;
+    const fPaid = document.getElementById('fPaid').value;
+
+    filtered = allData.filter(r => {
+      if (q && !(r.employeeName.toLowerCase().includes(q) || r.employeeId.toLowerCase().includes(q))) return false;
+      if (fDate && r.date !== fDate) return false;
+      if (fPaid && r.paid !== fPaid) return false;
+
+      if (activeStatFilter === 'paid'    && r.paid !== 'Yes') return false;
+      if (activeStatFilter === 'unpaid'  && r.paid === 'Yes') return false;
+      if (activeStatFilter === 'pending' && r.paid === 'Yes') return false;
+
+      return true;
+    });
+
+    // Active class on selects
+    document.getElementById('fDate').classList.toggle('active', !!fDate);
+    document.getElementById('fPaid').classList.toggle('active', !!fPaid);
+
+    updateStats();
+    renderCards();
+  }
+  window.applyFilters = applyFilters;
+
+  /* ══ RENDER ══ */
+  function renderCards() {
+    const area = document.getElementById('cardsArea');
+
+    if (!filtered.length) {
+      area.innerHTML =
+        '<div class="empty-state">' +
+        '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+        '<p>No paycheck records found</p>' +
+        '<p class="empty-state-hint">Try regenerating or adjusting filters</p>' +
+        '</div>';
+      return;
+    }
+
+    // Group by date
+    const grouped = {};
+    filtered.forEach(r => {
+      if (!grouped[r.date]) grouped[r.date] = [];
+      grouped[r.date].push(r);
+    });
+
+    const sortedDates = Object.keys(grouped).sort().reverse();
+
+    area.innerHTML = sortedDates.map(date => {
+      const rows         = grouped[date];
+      const totalHours   = rows.reduce((s, r) => s + r.totalHours, 0);
+      const totalPay     = rows.reduce((s, r) => s + r.totalPay, 0);
+      const paidCount    = rows.filter(r => r.paid === 'Yes').length;
+      const unpaidCount  = rows.length - paidCount;
+
+      const dateLabel =
+        '<div class="date-group-header">' +
+        '<span class="date-label">' + fmtDate(date) + '</span>' +
+        '<span class="date-label-line"></span>' +
+        '<span class="date-total-badge">' +
+          totalHours.toFixed(1) + ' hrs · £' + fmt(totalPay) +
+          ' · <span style="color:#15803d">' + paidCount + ' paid</span>' +
+          (unpaidCount > 0 ? ' · <span style="color:#c2410c">' + unpaidCount + ' pending</span>' : '') +
+        '</span>' +
+        '</div>';
+
+      const cards = '<div class="cards-grid">' +
+        rows.map(r => empCard(r, date)).join('') +
+        '</div>';
+
+      return '<div class="date-group">' + dateLabel + cards + '</div>';
+    }).join('');
+  }
+
+  function getAvatarColor(empId) {
+    if (!avatarColorMap[empId]) {
+      avatarColorMap[empId] = AVATAR_COLORS[colorIdx % AVATAR_COLORS.length];
+      colorIdx++;
+    }
+    return avatarColorMap[empId];
+  }
+
+  function getInitials(name) {
+    return (name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  }
+
+  function empCard(r, date) {
+    const isPaid  = r.paid === 'Yes';
+    const cardKey = escAttr(r.employeeId + '_' + date);
+    const color   = getAvatarColor(r.employeeId);
+
+    const toggleBtn = isPaid
+      ? '<button class="paid-toggle yes" onclick="togglePaid(\'' + cardKey + '\', \'' + escAttr(r.employeeId) + '\', \'' + escAttr(date) + '\', \'No\')">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' +
+        'Paid</button>'
+      : '<button class="paid-toggle no" onclick="togglePaid(\'' + cardKey + '\', \'' + escAttr(r.employeeId) + '\', \'' + escAttr(date) + '\', \'Yes\')">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+        'Pending</button>';
+
+    return '<div class="emp-card ' + (isPaid ? 'paid' : 'unpaid') + '" id="card_' + cardKey + '">' +
+
+      '<div class="card-saving-overlay" id="overlay_' + cardKey + '"><div class="spinner"></div></div>' +
+
+      '<div class="emp-card-top">' +
+        '<div class="emp-info">' +
+          '<div class="emp-avatar" style="background:' + color + '">' + getInitials(r.employeeName) + '</div>' +
+          '<div>' +
+            '<div class="emp-name">' + escHtml(r.employeeName || 'Unknown') + '</div>' +
+            '<div class="emp-id">' + escHtml(r.employeeId) + '</div>' +
+          '</div>' +
+        '</div>' +
+        toggleBtn +
+      '</div>' +
+
+      '<div class="emp-card-stats">' +
+        '<div class="stat-mini">' +
+          '<div class="stat-mini-label">Hours</div>' +
+          '<div class="stat-mini-value">' + r.totalHours.toFixed(1) + 'h</div>' +
+        '</div>' +
+        '<div class="stat-mini">' +
+          '<div class="stat-mini-label">Rate</div>' +
+          '<div class="stat-mini-value">£' + fmt(r.hourlyRate) + '</div>' +
+        '</div>' +
+        '<div class="stat-mini">' +
+          '<div class="stat-mini-label">Total Pay</div>' +
+          '<div class="stat-mini-value green">£' + fmt(r.totalPay) + '</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="emp-card-footer">' +
+        '<span class="emp-rate-label">£' + fmt(r.hourlyRate) + '/hr × ' + r.totalHours.toFixed(1) + 'h</span>' +
+        '<span class="emp-rate-value">= £' + fmt(r.totalPay) + '</span>' +
+      '</div>' +
+
+    '</div>';
+  }
+
+  /* ══ TOGGLE PAID ══ */
+  async function togglePaid(cardKey, employeeId, date, newValue) {
+    const overlay = document.getElementById('overlay_' + cardKey);
+    if (overlay) overlay.classList.add('visible');
+
+    try {
+      const res  = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action:     'updatePaycheck',
+          employeeId,
+          date,
+          field:      'Paid',
+          value:      newValue
+        }),
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      const data = await res.json();
+
+      if (data.error) throw new Error(data.message || 'Server error');
+
+      // Update local data
+      const record = allData.find(r => r.employeeId === employeeId && r.date === date);
+      if (record) record.paid = newValue;
+
+      showToast(newValue === 'Yes' ? 'Marked as Paid ✓' : 'Marked as Pending', newValue === 'Yes' ? 'success' : '');
+      applyFilters();
+    } catch (e) {
+      showToast('Failed to update', 'error');
+      if (overlay) overlay.classList.remove('visible');
+    }
+  }
+  window.togglePaid = togglePaid;
+
+  /* ══ GENERATE PAYCHECK ══ */
+  async function generatePaycheck() {
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner" style="width:13px;height:13px;border-width:2px"></div> Generating…';
+    const toastId = showToast('Generating paycheck…', 'loading', 0);
+
+    try {
+      const res  = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'generatePaycheck' }),
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      const data = await res.json();
+
+      if (data.error) throw new Error(data.message || 'Failed');
+
+      removeToast(toastId);
+      showToast('Paycheck generated (' + (data.rows || 0) + ' records)', 'success');
+      await loadData();
+    } catch (e) {
+      removeToast(toastId);
+      showToast('Failed to generate: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML =
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>' +
+        'Regenerate';
+    }
+  }
+  window.generatePaycheck = generatePaycheck;
+
+  /* ══ HELPERS ══ */
+  function fmtDate(d) {
+    if (!d) return '—';
+    const parts = String(d).split('-');
+    if (parts.length !== 3) return d;
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return parseInt(parts[2]) + ' ' + (months[parseInt(parts[1]) - 1] || '') + ' ' + parts[0];
+  }
+
+  function fmt(n) {
+    const num = parseFloat(n) || 0;
+    return num % 1 === 0 ? num.toString() : num.toFixed(2);
+  }
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function escAttr(str) {
+    return String(str || '').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  let toastCounter = 0;
+  function showToast(msg, type, duration) {
+    const c  = document.getElementById('toastContainer');
+    const id = 'toast_' + (++toastCounter);
+    const t  = document.createElement('div');
+    t.className = 'toast ' + (type || '');
+    t.id = id;
+    const icons = {
+      success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+      error:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      loading: '<div class="spinner" style="width:12px;height:12px;border-width:2px;border-color:rgba(255,255,255,.3);border-top-color:#fff"></div>',
+    };
+    t.innerHTML = (icons[type] || '') + '<span>' + escHtml(msg) + '</span>';
+    c.appendChild(t);
+    if (duration !== 0) {
+      setTimeout(() => { t.remove(); }, duration || 3000);
+    }
+    return id;
+  }
+
+  function removeToast(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  }
+
+  /* ══ BOOT ══ */
+  init();
+
+})();
+</script>
+</body>
+</html>
