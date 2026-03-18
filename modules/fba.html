@@ -75,7 +75,6 @@
     color: #2563eb;
   }
 
-  /* MODAL */
   .modal {
     position: fixed;
     inset: 0;
@@ -161,38 +160,44 @@
 </div>
 
 <script>
-const API = "https://script.google.com/macros/s/AKfycbxkRLJRiIjyd43DAems0QnmNZvN-cwonwwl--6yH03wi_R-Iw63X8vw1-_ATzIsXEok/exec";
+
+const API_URL = 'https://script.google.com/macros/s/AKfycbxkRLJRiIjyd43DAems0QnmNZvN-cwonwwl--6yH03wi_R-Iw63X8vw1-_ATzIsXEok/exec';
 
 let data = [];
 let editingId = null;
 
 /* LOAD */
 async function load(){
-  const res = await fetch(API,{
-    method:'POST',
-    body: JSON.stringify({action:'getFBA'})
-  });
+  try {
+    const res = await fetch(API_URL,{
+      method:'POST',
+      body: JSON.stringify({action:'getFBA'}),
+      headers: { 'Content-Type': 'text/plain' } // 🔥 FIXED
+    });
 
-  const json = await res.json();
-  data = json.rows || [];
-  render();
+    const json = await res.json();
+    data = json.rows || [];
+    render();
+
+  } catch (e){
+    console.error('Load error:', e);
+  }
 }
 
 /* RENDER */
 function render(){
   const tbody = document.querySelector("#fbaTable tbody");
-  tbody.innerHTML = data.map(r=>{
 
-    const yesNo = v => `<span class="chip ${v==='Yes'?'yes':'no'}">${v||'No'}</span>`;
+  const yesNo = v => `<span class="chip ${v==='Yes'?'yes':'no'}">${v||'No'}</span>`;
 
-    return `
+  tbody.innerHTML = data.map(r=>`
     <tr>
-      <td>${r[3]}</td>
-      <td>${r[4]}</td>
-      <td>${r[5]}</td>
-      <td>${r[6]}</td>
-      <td>${r[14]}</td>
-      <td>${r[16]}</td>
+      <td>${r[3]||''}</td>
+      <td>${r[4]||''}</td>
+      <td>${r[5]||''}</td>
+      <td>${r[6]||''}</td>
+      <td>${r[14]||0}</td>
+      <td>${r[16]||0}</td>
       <td>${yesNo(r[9])}</td>
       <td>${yesNo(r[13])}</td>
       <td>${yesNo(r[17])}</td>
@@ -200,8 +205,8 @@ function render(){
         <button onclick="edit('${r[0]}')">Edit</button>
         <button onclick="del('${r[0]}')">Delete</button>
       </td>
-    </tr>`;
-  }).join('');
+    </tr>
+  `).join('');
 }
 
 /* MODAL */
@@ -217,14 +222,16 @@ function closeModal(){
 /* EDIT */
 function edit(id){
   const r = data.find(x=>x[0]===id);
+  if (!r) return;
+
   editingId = id;
 
-  document.getElementById("labelCode").value = r[3];
-  document.getElementById("brand").value = r[4];
-  document.getElementById("productLine").value = r[5];
-  document.getElementById("asin").value = r[6];
-  document.getElementById("unitsRequired").value = r[14];
-  document.getElementById("unitsCompleted").value = r[16];
+  labelCode.value = r[3];
+  brand.value = r[4];
+  productLine.value = r[5];
+  asin.value = r[6];
+  unitsRequired.value = r[14];
+  unitsCompleted.value = r[16];
 
   openModal();
 }
@@ -251,9 +258,10 @@ async function save(){
     prepInstructions:""
   };
 
-  await fetch(API,{
+  await fetch(API_URL,{
     method:'POST',
-    body: JSON.stringify({action:'saveFBA', data:payload})
+    body: JSON.stringify({action:'saveFBA', data:payload}),
+    headers: { 'Content-Type': 'text/plain' } // 🔥 FIXED
   });
 
   closeModal();
@@ -264,13 +272,15 @@ async function save(){
 async function del(id){
   if(!confirm("Delete?")) return;
 
-  await fetch(API,{
+  await fetch(API_URL,{
     method:'POST',
-    body: JSON.stringify({action:'deleteFBA', id})
+    body: JSON.stringify({action:'deleteFBA', id}),
+    headers: { 'Content-Type': 'text/plain' } // 🔥 FIXED
   });
 
   load();
 }
 
 load();
+
 </script>
