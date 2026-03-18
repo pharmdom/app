@@ -1078,36 +1078,63 @@ document.addEventListener('click', function() {
   }
 
   /* ══ TOGGLE PAID ══ */
-  async function togglePaid(empId, date, newValue) {
-    const rowKey = empId + '_' + date;
-    const saving = document.getElementById('saving_' + rowKey);
-    const btn    = document.getElementById('btn_' + rowKey);
-    if (saving) saving.classList.add('visible');
-    if (btn)    btn.disabled = true;
+async function togglePaid(empId, date, newValue) {
+  const rowKey = empId + '_' + date;
+  const saving = document.getElementById('saving_' + rowKey);
+  const btn    = document.getElementById('btn_' + rowKey);
 
-    try {
-      const res  = await fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'updatePaycheck', employeeId: empId, date, value: newValue }),
-        headers: { 'Content-Type': 'text/plain' }
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.message || 'Error');
+  if (saving) saving.classList.add('visible');
+  if (btn) btn.disabled = true;
 
-      const record = allData.find(r => r.employeeId === empId && r.date === date);
-      if (record) record.paid = newValue;
-      buildEmployeeMap();
+  // ✅ store previous value (IMPORTANT)
+  const record = allData.find(r => r.employeeId === empId && r.date === date);
+  const prevValue = record ? record.paid : null;
 
-      showToast(newValue === 'Yes' ? 'Marked as Paid ✓' : 'Marked as Pending', newValue === 'Yes' ? 'success' : '');
+  // ✅ optimistic update
+  if (record) record.paid = newValue;
 
-      applyFilters();
-      if (drawerEmpId === empId) renderDrawer();
-    } catch (e) {
-      showToast('Failed to update: ' + e.message, 'error');
-      if (saving) saving.classList.remove('visible');
-      if (btn)    btn.disabled = false;
-    }
+  // 🔥 instant UI refresh (this is what makes it feel fast)
+  buildEmployeeMap();
+  applyFilters();
+  if (drawerEmpId === empId) renderDrawer();
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'updatePaycheck',
+        employeeId: empId,
+        date,
+        value: newValue
+      }),
+      headers: { 'Content-Type': 'text/plain' }
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.message || 'Error');
+
+    showToast(
+      newValue === 'Yes' ? 'Marked as Paid ✓' : 'Marked as Pending',
+      newValue === 'Yes' ? 'success' : ''
+    );
+
+  } catch (e) {
+
+    // ❌ revert UI if failed
+    if (record) record.paid = prevValue;
+
+    buildEmployeeMap();
+    applyFilters();
+    if (drawerEmpId === empId) renderDrawer();
+
+    showToast('Failed to update: ' + e.message, 'error');
+
+  } finally {
+    if (saving) saving.classList.remove('visible');
+    if (btn) btn.disabled = false;
   }
+}
+  
   window.togglePaid = togglePaid;
 
   /* ══ HELPERS ══ */
