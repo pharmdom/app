@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FBA Warehouse Management</title>
-  <link href__="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FBA Prep Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       font-family: 'Inter', system-ui, sans-serif;
@@ -17,22 +18,37 @@
       max-width: 100%; height: 100vh;
       display: flex; flex-direction: column; overflow: hidden;
     }
+
+    /* ── Page Title ── */
+    .page-title-block {
+      margin-bottom: 10px; flex-shrink: 0;
+    }
+    .page-title {
+      font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px; line-height: 1.2;
+    }
+    .page-subtitle {
+      font-size: 13px; font-weight: 500; color: #64748b; margin-top: 2px;
+    }
+
+    /* ── Header row (counter + search + button) ── */
     .page-header {
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 8px; flex-wrap: wrap; gap: 8px; flex-shrink: 0;
     }
-    .stats-row   { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .header-left { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 0; flex-wrap: wrap; }
+    .header-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
     .stat-chip {
       display: flex; align-items: center; gap: 5px;
       padding: 5px 10px; border-radius: 100px;
       font-size: 12px; font-weight: 600; border: 1px solid transparent; white-space: nowrap;
+      cursor: pointer; transition: all .15s; user-select: none;
     }
     .stat-chip svg  { width: 12px; height: 12px; flex-shrink: 0; }
-    .stat-chip.slate  { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
-    .stat-chip.blue   { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
-    .stat-chip.amber  { background: #fffbeb; color: #b45309; border-color: #fde68a; }
     .stat-chip.green  { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+    .stat-chip.green:hover { background: #dcfce7; border-color: #86efac; }
+    .stat-chip.slate  { background: #f8fafc; color: #475569; border-color: #e2e8f0; cursor: default; }
+
     .btn {
       display: inline-flex; align-items: center; gap: 6px;
       padding: 7px 14px; border-radius: 9px; border: 1.5px solid;
@@ -40,8 +56,8 @@
       cursor: pointer; transition: all .15s; white-space: nowrap;
     }
     .btn svg { width: 13px; height: 13px; flex-shrink: 0; }
-    .btn-primary  { background: #0f172a; border-color: #0f172a; color: #fff; }
-    .btn-primary:hover  { background: #1e293b; border-color: #1e293b; }
+    .btn-primary  { background: #2563eb; border-color: #2563eb; color: #fff; }
+    .btn-primary:hover  { background: #1d4ed8; border-color: #1d4ed8; }
     .btn-secondary { background: #fff; border-color: #e2e8f0; color: #475569; }
     .btn-secondary:hover { border-color: #94a3b8; color: #0f172a; }
     .btn-danger   { background: #fff; border-color: #fecaca; color: #dc2626; }
@@ -49,11 +65,12 @@
     .btn-danger.confirming { background: #dc2626; border-color: #dc2626; color: #fff; animation: deletePulse .4s ease; }
     .btn-danger.deleting   { background: #dc2626; border-color: #dc2626; color: #fff; opacity: .7; pointer-events: none; }
     @keyframes deletePulse { 0%{transform:scale(1)} 40%{transform:scale(1.05)} 100%{transform:scale(1)} }
-    .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; flex-shrink: 0; }
-    .search-wrap { position: relative; flex: 1; min-width: 160px; max-width: 280px; }
+
+    .search-wrap { position: relative; min-width: 160px; max-width: 260px; flex: 1; }
     .search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; width: 14px; height: 14px; pointer-events: none; }
     .search-input { width: 100%; padding: 7px 10px 7px 32px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-family: inherit; background: #fff; color: #0f172a; outline: none; transition: border-color .15s; }
     .search-input:focus { border-color: #2563eb; }
+
     .kanban-wrapper { flex: 1; display: flex; gap: 10px; min-height: 0; overflow: hidden; }
     .kanban-column  { flex: 1; display: flex; flex-direction: column; min-width: 0; background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; height: 100%; }
     .kanban-col-header { flex-shrink: 0; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #f1f5f9; background: #fafbfc; }
@@ -87,6 +104,21 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 20px; color: #94a3b8; gap: 6px; text-align: center; }
     .empty-state p { font-size: 13px; font-weight: 600; color: #64748b; }
+
+    /* ── Bool Toggle Buttons ── */
+    .bool-toggle-group { display: flex; gap: 0; border-radius: 8px; overflow: hidden; border: 1.5px solid #e2e8f0; }
+    .bool-toggle-btn {
+      flex: 1; padding: 7px 12px; font-size: 12px; font-weight: 700; font-family: inherit;
+      border: none; cursor: pointer; transition: all .15s;
+      background: #fff; color: #94a3b8; text-align: center;
+    }
+    .bool-toggle-btn:not(:last-child) { border-right: 1.5px solid #e2e8f0; }
+    .bool-toggle-btn:hover { background: #f8fafc; }
+    .bool-toggle-btn.active-yes { background: #f0fdf4; color: #15803d; }
+    .bool-toggle-btn.active-no  { background: #fef2f2; color: #dc2626; }
+    .bool-toggle-btn.active-unset { background: #fefce8; color: #a16207; }
+
+    /* ── Drawer ── */
     .drawer-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.3); z-index: 900; opacity: 0; pointer-events: none; transition: opacity .25s; backdrop-filter: blur(2px); }
     .drawer-overlay.visible { opacity: 1; pointer-events: all; }
     .drawer { position: fixed; top: 0; right: 0; width: 580px; max-width: 97vw; height: 100vh; background: #fff; box-shadow: -8px 0 40px rgba(0,0,0,.13); z-index: 1000; display: flex; flex-direction: column; transform: translateX(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); overflow: hidden; }
@@ -96,10 +128,11 @@
     .drawer-hero::after  { content:''; position:absolute; bottom:-25px; left:30px; width:100px; height:100px; border-radius:50%; background:rgba(37,99,235,.1); }
     .drawer-hero-close { position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border: none; border-radius: 7px; background: rgba(255,255,255,.1); cursor: pointer; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.65); transition: background .15s; z-index: 1; }
     .drawer-hero-close:hover { background: rgba(255,255,255,.2); color: #fff; }
-    .drawer-bucket-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 100px; margin-bottom: 6px; font-size: 11px; font-weight: 700; letter-spacing: .2px; position: relative; z-index: 1; }
+    .drawer-bucket-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 100px; margin-bottom: 4px; font-size: 11px; font-weight: 700; letter-spacing: .2px; position: relative; z-index: 1; }
     .dbb-digital   { background: rgba(96,165,250,.15); border: 1px solid rgba(96,165,250,.3); color: #60a5fa; }
     .dbb-warehouse { background: rgba(251,191,36,.15); border: 1px solid rgba(251,191,36,.3); color: #fbbf24; }
     .dbb-completed { background: rgba(74,222,128,.15); border: 1px solid rgba(74,222,128,.3); color: #4ade80; }
+    .drawer-product-line { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.85); margin-bottom: 2px; position: relative; z-index: 1; }
     .drawer-title    { font-size: 17px; font-weight: 700; color: #fff; padding-right: 40px; line-height: 1.3; margin-bottom: 2px; position: relative; z-index: 1; }
     .drawer-subtitle { font-size: 11px; color: rgba(255,255,255,.5); margin-bottom: 10px; position: relative; z-index: 1; font-family: monospace; }
     .drawer-kpi-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; position: relative; z-index: 1; }
@@ -130,20 +163,34 @@
     }
     .edit-input:focus, .edit-select:focus, .edit-textarea:focus { border-color: #2563eb; }
     .edit-textarea { resize: vertical; min-height: 64px; }
-    .bool-select { width: 100%; padding: 6px 10px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: inherit; outline: none; cursor: pointer; transition: all .15s; appearance: auto; }
-    .bool-select.yes   { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
-    .bool-select.no    { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
-    .bool-select.empty { background: #fff; color: #94a3b8; border-color: #e2e8f0; }
+
     .drawer-footer { padding: 7px 20px; border-top: 1px solid #f1f5f9; display: flex; gap: 8px; align-items: center; flex-shrink: 0; background: #fafafa; }
+
+    /* ── Save Button ── */
+    .btn-save {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 16px; border-radius: 9px; border: 1.5px solid #2563eb;
+      font-size: 12px; font-weight: 700; font-family: inherit;
+      cursor: pointer; transition: all .15s; white-space: nowrap;
+      background: #2563eb; color: #fff; margin-left: auto;
+    }
+    .btn-save:hover { background: #1d4ed8; border-color: #1d4ed8; }
+    .btn-save:disabled { opacity: .5; cursor: default; }
+    .btn-save.saved { background: #15803d; border-color: #15803d; }
+    .btn-save svg { width: 13px; height: 13px; }
+
+    /* ── Toast ── */
     .toast-container { position: fixed; top: 65px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 7px; pointer-events: none; }
     .toast { display: flex; align-items: center; gap: 9px; padding: 10px 14px; background: #0f172a; color: #fff; border-radius: 10px; font-size: 13px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.18); animation: toastIn .2s ease; max-width: 300px; pointer-events: auto; }
     .toast.success { background: #15803d; }
     .toast.error   { background: #dc2626; }
     .toast.info    { background: #1e40af; }
     @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Modal ── */
     .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.4); z-index: 1100; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; backdrop-filter: blur(3px); }
     .modal-overlay.visible { opacity: 1; pointer-events: all; }
-    .modal { background: #fff; border-radius: 16px; box-shadow: 0 25px 60px rgba(0,0,0,.2); width: 92vw; max-width: 1100px; height: 75vh; display: flex; flex-direction: column; overflow: hidden; }
+    .modal { background: #fff; border-radius: 16px; box-shadow: 0 25px 60px rgba(0,0,0,.2); width: 92vw; max-width: 800px; height: 75vh; display: flex; flex-direction: column; overflow: hidden; }
     .modal-sm { max-width: 500px; height: auto; max-height: 90vh; }
     .modal-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
     .modal-header h2 { font-size: 16px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; }
@@ -155,17 +202,19 @@
     .new-form { padding: 20px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
     .form-row  { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
     .form-group label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; }
-    .form-group input { padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; transition: border-color .15s; }
-    .form-group input:focus { border-color: #2563eb; }
+    .form-group input, .form-group textarea { padding: 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; transition: border-color .15s; }
+    .form-group input:focus, .form-group textarea:focus { border-color: #2563eb; }
+    .form-group textarea { resize: vertical; min-height: 60px; }
     .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
     .data-table thead { position: sticky; top: 0; z-index: 2; }
     .data-table th { background: #f8fafc; padding: 10px 12px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
     .data-table td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; white-space: nowrap; }
-    .data-table tr { transition: background .1s; }
-    .data-table tr:hover td { background: #fafbff; }
-    .bool-yes { color: #15803d; font-weight: 700; }
-    .bool-no  { color: #dc2626; font-weight: 700; }
+    .data-table tr { transition: background .1s; cursor: pointer; }
+    .data-table tbody tr:hover td { background: #fafbff; }
+
+    /* ── Responsive ── */
     @media (max-width: 900px) {
       .kanban-wrapper { overflow-x: auto; overflow-y: hidden; }
       .kanban-column  { min-width: 280px; flex-shrink: 0; }
@@ -174,56 +223,55 @@
     @media (max-width: 640px) {
       html, body { overflow: auto; height: auto; }
       .page-wrapper { height: auto; overflow: visible; padding: 8px; }
+      .page-title { font-size: 18px; }
+      .page-subtitle { font-size: 12px; }
+      .page-header { flex-direction: column; align-items: stretch; }
+      .header-left { flex-wrap: wrap; }
+      .header-actions { width: 100%; justify-content: flex-end; }
+      .search-wrap { max-width: 100%; min-width: 0; }
       .kanban-wrapper { overflow-x: auto; flex-direction: row; min-height: 0; height: 68vh; }
       .kanban-column  { min-width: 260px; flex-shrink: 0; height: 100%; }
       .drawer { width: 100%; max-width: 100%; }
       .drawer-kpi-row { grid-template-columns: repeat(2,1fr); }
       .info-grid { grid-template-columns: 1fr !important; }
       .modal { width: 98vw; height: 85vh; border-radius: 10px; }
+      .modal-sm { height: auto; max-height: 90vh; }
       .form-row { grid-template-columns: 1fr; }
-      .header-actions { width: 100%; justify-content: flex-end; }
-      .stats-row .stat-chip span { display: none; }
+      .stat-chip span { display: none; }
+      .stat-chip { padding: 5px 8px; }
     }
   </style>
 </head>
 <body>
 
 <div class="page-wrapper">
+  <!-- Title block -->
+  <div class="page-title-block">
+    <div class="page-title">FBA Prep Tracker</div>
+    <div class="page-subtitle">Track and manage product preparation for Amazon FBA shipments</div>
+  </div>
+
+  <!-- Header row: counter + search + action -->
   <div class="page-header">
-    <div class="stats-row">
+    <div class="header-left">
       <div class="stat-chip slate" id="statTotal">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
         <span>Loading…</span>
       </div>
-      <div class="stat-chip blue" id="statDigital">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span>—</span>
-      </div>
-      <div class="stat-chip amber" id="statWarehouse">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        <span>—</span>
-      </div>
-      <div class="stat-chip green" id="statCompleted">
+      <div class="stat-chip green" id="statCompleted" onclick="showCompletedModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         <span>—</span>
       </div>
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search label code, brand, ASIN…" oninput="applyFilters()">
+      </div>
     </div>
     <div class="header-actions">
-      <button class="btn btn-secondary" onclick="showCleanModal()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-        Clean Completed
-      </button>
       <button class="btn btn-primary" onclick="openNewModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        New Record
+        New Product
       </button>
-    </div>
-  </div>
-
-  <div class="toolbar">
-    <div class="search-wrap">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="searchInput" class="search-input" placeholder="Search label code, brand, ASIN…" oninput="applyFilters()">
     </div>
   </div>
 
@@ -245,20 +293,20 @@
 
 <div class="toast-container" id="toastContainer"></div>
 
-<!-- CLEAN COMPLETED MODAL -->
-<div class="modal-overlay" id="cleanModalOverlay" onclick="closeCleanModal(event)">
+<!-- COMPLETED RECORDS MODAL -->
+<div class="modal-overlay" id="completedModalOverlay" onclick="closeCompletedModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
       <h2>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         Completed Records
-        <span class="modal-count" id="cleanModalCount">0</span>
+        <span class="modal-count" id="completedModalCount">0</span>
       </h2>
-      <button class="modal-close" onclick="closeCleanModal()">
+      <button class="modal-close" onclick="closeCompletedModal()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div class="modal-body" id="cleanModalBody"></div>
+    <div class="modal-body" id="completedModalBody"></div>
   </div>
 </div>
 
@@ -295,6 +343,12 @@
           <input type="text" id="nAsin" placeholder="B0XXXXXXXXX">
         </div>
       </div>
+      <div class="form-row">
+        <div class="form-group full">
+          <label>Prep Instructions</label>
+          <textarea id="nPrepInstructions" placeholder="Enter prep instructions…"></textarea>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeNewModal()">Cancel</button>
@@ -315,21 +369,12 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbyy6zBP4LduRhK-Fz_aK5H3
 /* ══════════════════════════════════════════════════
    CONSTANTS
 ══════════════════════════════════════════════════ */
-
-/**
- * BUCKET LOGIC:
- * ─ Digital Ops  → ANY of these fields is missing/empty
- * ─ Warehouse    → all Digital Ops fields filled, but NOT (Units Completed > 0 AND UPS Collected = Yes)
- * ─ Completed    → all Digital Ops fields filled AND Units Completed > 0 AND UPS Collected = Yes
- *                  → hidden from kanban, shown only in "Clean Completed" modal
- */
 const DIGITAL_OPS_REQUIRED = [
   'Label Code', 'Brand', 'Product Line', 'ASIN', 'Prep Instructions',
   'Bundle', 'DG Label', 'Poly Bag', 'Warning Label', 'Barcode', 'Box',
   'Units Required', 'Veeqo Stock Adjusted'
 ];
 
-// Bool fields: considered filled when value is "yes" OR "no" (deliberate choice made)
 const BOOL_FIELDS = new Set([
   'Bundle', 'DG Label', 'Poly Bag', 'Warning Label', 'Barcode', 'Box',
   'Veeqo Stock Adjusted', 'UPS Collected'
@@ -348,6 +393,11 @@ let filtered  = [];
 let activeTab = 'info';
 let deletePendingTimer = null;
 
+// Dirty tracking for explicit save
+let drawerDirtyFields = {};  // { field: value }
+let drawerCurrentId   = null;
+let isSaving          = false;
+
 /* ══════════════════════════════════════════════════
    HELPERS
 ══════════════════════════════════════════════════ */
@@ -358,12 +408,6 @@ function ea(s) {
   return String(s ?? '').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-/**
- * A field is "filled" when:
- *  - Bool fields: value is "yes" or "no" (user made a deliberate choice)
- *  - Units Required: must be a positive number
- *  - All other text fields: any non-empty string
- */
 function isFieldFilled(field, value) {
   if (field === 'Units Required') {
     return value !== '' && value !== null && value !== undefined && Number(value) > 0;
@@ -376,38 +420,28 @@ function isFieldFilled(field, value) {
 }
 
 /* ══════════════════════════════════════════════════
-   BUCKET LOGIC  ← critical
+   BUCKET LOGIC
 ══════════════════════════════════════════════════ */
 function getBucket(row) {
-  // Check all Digital Ops required fields
   const digitalOpsComplete = DIGITAL_OPS_REQUIRED.every(f => isFieldFilled(f, row[f]));
-
-  // Any missing → Digital Ops
   if (!digitalOpsComplete) return 'digital_ops';
-
-  // Both must be done to exit Warehouse
   const unitsDone = Number(row['Units Completed'] ?? 0) > 0;
   const upsDone   = String(row['UPS Collected'] ?? '').trim().toLowerCase() === 'yes';
-
-  if (unitsDone && upsDone) return 'completed'; // hidden from board
-
+  if (unitsDone && upsDone) return 'completed';
   return 'warehouse';
 }
 
 /* ══════════════════════════════════════════════════
-   DATA — LOAD  (GET request to bypass CORS)
-   Requires doGet in Apps Script that handles action=getFBA
+   DATA — LOAD
 ══════════════════════════════════════════════════ */
 async function loadData() {
   try {
-    // ── Use GET to avoid CORS preflight issues with Google Apps Script ──
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'getFBA' })
     });
     const data = await res.json();
-
     if (!data.success) throw new Error(data.message || 'API error');
 
     const headers = data.headers || [];
@@ -419,7 +453,6 @@ async function loadData() {
 
     applyFilters();
     showToast('Loaded ' + allData.length + ' records', 'success');
-
   } catch (err) {
     console.error(err);
     document.getElementById('kanbanWrapper').innerHTML =
@@ -437,13 +470,8 @@ async function loadData() {
 ══════════════════════════════════════════════════ */
 function updateStats() {
   const total     = allData.length;
-  const digital   = allData.filter(r => getBucket(r) === 'digital_ops').length;
-  const warehouse = allData.filter(r => getBucket(r) === 'warehouse').length;
   const completed = allData.filter(r => getBucket(r) === 'completed').length;
-
   setChip('statTotal',     total     + ' Total');
-  setChip('statDigital',   digital   + ' Digital Ops');
-  setChip('statWarehouse', warehouse + ' Warehouse');
   setChip('statCompleted', completed + ' Completed');
 }
 
@@ -477,8 +505,6 @@ function applyFilters() {
 ══════════════════════════════════════════════════ */
 function renderKanban() {
   const wrapper = document.getElementById('kanbanWrapper');
-
-  // completed items go to modal only — exclude from board
   const groups = { digital_ops: [], warehouse: [] };
   filtered.forEach(row => {
     const b = getBucket(row);
@@ -571,6 +597,12 @@ function cardHTML(row) {
 function openDrawer(id) {
   const row = allData.find(r => String(r['ID']) === String(id));
   if (!row) return;
+
+  // Reset dirty state
+  drawerDirtyFields = {};
+  drawerCurrentId = id;
+  isSaving = false;
+
   const drawer = document.getElementById('detailDrawer');
   drawer.dataset.currentId = id;
   activeTab = 'info';
@@ -580,8 +612,14 @@ function openDrawer(id) {
 }
 
 function closeDrawer() {
+  // If there are unsaved changes, save first
+  if (Object.keys(drawerDirtyFields).length > 0 && drawerCurrentId) {
+    saveAllChanges();
+  }
   document.getElementById('detailDrawer').classList.remove('open');
   document.getElementById('drawerOverlay').classList.remove('visible');
+  drawerDirtyFields = {};
+  drawerCurrentId = null;
   applyFilters();
 }
 
@@ -598,12 +636,13 @@ function renderDrawer(row) {
     completed:   '<span class="drawer-bucket-badge dbb-completed">Completed</span>',
   }[bucket] || '';
 
-  const title     = row['Label Code'] || 'New Record';
-  const subtitle  = [row['Brand'], row['Product Line']].filter(Boolean).join(' · ')
-                  + (row['ASIN'] ? ' · ' + row['ASIN'] : '');
-  const unitsReq  = row['Units Required']  || '—';
-  const unitsDone = row['Units Completed'] || '—';
-  const upsCol    = row['UPS Collected']   || '—';
+  const productLine = row['Product Line'] || '';
+  const brand       = row['Brand'] || '';
+  const labelCode   = row['Label Code'] || '';
+  const subtitle    = [brand, labelCode].filter(Boolean).join(' — ');
+  const unitsReq    = row['Units Required']  || '—';
+  const unitsDone   = row['Units Completed'] || '—';
+  const upsCol      = row['UPS Collected']   || '—';
 
   document.getElementById('drawerHeader').innerHTML =
     '<div class="drawer-hero">'
@@ -611,8 +650,9 @@ function renderDrawer(row) {
     + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
     + '</button>'
     + badgeHTML
-    + '<div class="drawer-title">'    + esc(title)    + '</div>'
-    + '<div class="drawer-subtitle">' + esc(subtitle) + '</div>'
+    + (productLine ? '<div class="drawer-product-line">' + esc(productLine) + '</div>' : '')
+    + '<div class="drawer-title">'    + esc(labelCode || 'New Record') + '</div>'
+    + (subtitle ? '<div class="drawer-subtitle">' + esc(subtitle) + '</div>' : '')
     + '<div class="drawer-kpi-row">'
       + kpiBox('Units Required',  esc(String(unitsReq)))
       + kpiBox('Units Completed', esc(String(unitsDone)))
@@ -663,10 +703,12 @@ function renderDrawer(row) {
 
   document.getElementById('drawerBody').innerHTML = body;
 
+  const hasDirty = Object.keys(drawerDirtyFields).length > 0;
   document.getElementById('drawerFooter').innerHTML =
-    '<span style="font-size:11px;color:#94a3b8">Changes auto-save</span>'
-    + '<button id="deleteBtn" class="btn btn-danger" onclick="deleteRecord(\'' + ea(id) + '\')">'
-    + svgTrash() + 'Delete</button>';
+    '<button id="deleteBtn" class="btn btn-danger" onclick="deleteRecord(\'' + ea(id) + '\')">'
+    + svgTrash() + 'Delete</button>'
+    + '<button id="saveBtn" class="btn-save' + (hasDirty ? '' : '" disabled="disabled') + '" onclick="saveAllChanges()">'
+    + svgCheck() + (hasDirty ? 'Save Changes' : 'All Saved') + '</button>';
 }
 
 /* ── Drawer component helpers ── */
@@ -677,6 +719,7 @@ function dTab(t, id, icon, label) {
   return '<button class="drawer-tab' + (activeTab === t ? ' active' : '') + '" onclick="switchTab(\'' + t + '\',\'' + ea(id) + '\')">' + icon + label + '</button>';
 }
 function switchTab(t, id) {
+  // Before switching, keep dirty fields
   activeTab = t;
   const row = allData.find(r => String(r['ID']) === String(id));
   if (row) renderDrawer(row);
@@ -685,65 +728,113 @@ function sec(label) {
   return '<div class="drawer-section"><div class="section-label">' + esc(label) + '</div>';
 }
 function eCard(id, label, value, type) {
+  // Use dirty value if exists
+  const displayVal = drawerDirtyFields.hasOwnProperty(label) ? drawerDirtyFields[label] : value;
   let inp;
   if (type === 'number') {
-    const n = parseFloat(value);
+    const n = parseFloat(displayVal);
     inp = '<input type="number" class="edit-input" value="' + (isNaN(n) ? '' : n) + '" step="1" min="0"'
-        + ' onblur="saveField(\'' + ea(id) + '\',\'' + ea(label) + '\',this.value)">';
+        + ' oninput="markDirty(\'' + ea(label) + '\',this.value)">';
   } else {
-    inp = '<input type="text" class="edit-input" value="' + ea(String(value)) + '"'
-        + ' onblur="saveField(\'' + ea(id) + '\',\'' + ea(label) + '\',this.value)">';
+    inp = '<input type="text" class="edit-input" value="' + ea(String(displayVal)) + '"'
+        + ' oninput="markDirty(\'' + ea(label) + '\',this.value)">';
   }
   return '<div class="info-card"><label>' + esc(label) + '</label>' + inp + '</div>';
 }
 function taCard(id, label, value) {
+  const displayVal = drawerDirtyFields.hasOwnProperty(label) ? drawerDirtyFields[label] : value;
   return '<div class="info-card"><label>' + esc(label) + '</label>'
-    + '<textarea class="edit-textarea" onblur="saveField(\'' + ea(id) + '\',\'' + ea(label) + '\',this.value)">'
-    + esc(value) + '</textarea></div>';
+    + '<textarea class="edit-textarea" oninput="markDirty(\'' + ea(label) + '\',this.value)">'
+    + esc(displayVal) + '</textarea></div>';
 }
 function bCard(id, label, value) {
-  const v   = String(value ?? '').trim();
+  const v   = drawerDirtyFields.hasOwnProperty(label) ? drawerDirtyFields[label] : String(value ?? '').trim();
   const low = v.toLowerCase();
-  const cls = low === 'yes' ? 'yes' : low === 'no' ? 'no' : 'empty';
   return '<div class="info-card"><label>' + esc(label) + '</label>'
-    + '<select class="bool-select ' + cls + '" onchange="saveBool(\'' + ea(id) + '\',\'' + ea(label) + '\',this)">'
-    + '<option value=""'    + (v === '' ? ' selected' : '') + '>— Not set —</option>'
-    + '<option value="Yes"' + (low === 'yes' ? ' selected' : '') + '>Yes</option>'
-    + '<option value="No"'  + (low === 'no'  ? ' selected' : '') + '>No</option>'
-    + '</select></div>';
+    + '<div class="bool-toggle-group">'
+    + '<button type="button" class="bool-toggle-btn' + (low === 'yes' ? ' active-yes' : '') + '" onclick="markBool(\'' + ea(label) + '\',\'Yes\',this)">Yes</button>'
+    + '<button type="button" class="bool-toggle-btn' + (low === 'no' ? ' active-no' : '') + '" onclick="markBool(\'' + ea(label) + '\',\'No\',this)">No</button>'
+    + '<button type="button" class="bool-toggle-btn' + (low !== 'yes' && low !== 'no' ? ' active-unset' : '') + '" onclick="markBool(\'' + ea(label) + '\',\'\',this)">—</button>'
+    + '</div></div>';
 }
-function svgGrid()      { return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>'; }
-function svgPackage()   { return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>'; }
-function svgWarehouse() { return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'; }
-function svgTrash()     { return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>'; }
+
+/* Mark field dirty (no save yet) */
+function markDirty(field, value) {
+  drawerDirtyFields[field] = value;
+  updateSaveButton();
+}
+
+function markBool(field, value, btnEl) {
+  drawerDirtyFields[field] = value;
+  // Update visual state
+  const group = btnEl.parentElement;
+  group.querySelectorAll('.bool-toggle-btn').forEach(b => {
+    b.className = 'bool-toggle-btn';
+  });
+  const low = value.toLowerCase();
+  if (low === 'yes') btnEl.classList.add('active-yes');
+  else if (low === 'no') btnEl.classList.add('active-no');
+  else btnEl.classList.add('active-unset');
+  updateSaveButton();
+}
+
+function updateSaveButton() {
+  const btn = document.getElementById('saveBtn');
+  if (!btn) return;
+  const hasDirty = Object.keys(drawerDirtyFields).length > 0;
+  btn.disabled = !hasDirty;
+  btn.classList.remove('saved');
+  btn.innerHTML = svgCheck() + (hasDirty ? 'Save Changes' : 'All Saved');
+}
 
 /* ══════════════════════════════════════════════════
-   SAVE — FIELD
+   SAVE — ALL CHANGES AT ONCE
 ══════════════════════════════════════════════════ */
-async function saveField(id, field, value) {
-  const idx = allData.findIndex(r => String(r['ID']) === String(id));
-  if (idx < 0) return;
+async function saveAllChanges() {
+  if (isSaving || !drawerCurrentId) return;
+  const dirtyKeys = Object.keys(drawerDirtyFields);
+  if (dirtyKeys.length === 0) return;
 
-  allData[idx][field] = value;
-  showToast('Saving…', 'info');
+  isSaving = true;
+  const btn = document.getElementById('saveBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner sm"></span> Saving…';
+  }
+
+  // Apply dirty fields to data
+  const idx = allData.findIndex(r => String(r['ID']) === String(drawerCurrentId));
+  if (idx < 0) { isSaving = false; return; }
+
+  dirtyKeys.forEach(field => {
+    allData[idx][field] = drawerDirtyFields[field];
+  });
 
   const result = await callApi({ action: 'saveFBA', data: rowToApiData(allData[idx]) });
 
+  isSaving = false;
+
   if (result && result.success) {
-    showToast('Saved', 'success');
+    drawerDirtyFields = {};
+    showToast('Saved successfully', 'success');
     updateStats();
-    if (document.getElementById('detailDrawer').classList.contains('open')) {
-      renderDrawer(allData[idx]);
+    if (btn) {
+      btn.innerHTML = svgCheck() + 'All Saved';
+      btn.classList.add('saved');
+      setTimeout(() => btn.classList.remove('saved'), 1500);
+    }
+    // Re-render drawer to reflect new bucket/kpis
+    const row = allData.find(r => String(r['ID']) === String(drawerCurrentId));
+    if (row && document.getElementById('detailDrawer').classList.contains('open')) {
+      renderDrawer(row);
     }
   } else {
     showToast('Error saving', 'error');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = svgCheck() + 'Save Changes';
+    }
   }
-}
-
-async function saveBool(id, field, selectEl) {
-  const v = selectEl.value;
-  selectEl.className = 'bool-select ' + (v === 'Yes' ? 'yes' : v === 'No' ? 'no' : 'empty');
-  await saveField(id, field, v);
 }
 
 /* ══════════════════════════════════════════════════
@@ -778,6 +869,8 @@ async function deleteRecord(id) {
     const idx = allData.findIndex(r => String(r['ID']) === String(id));
     if (idx > -1) allData.splice(idx, 1);
     setTimeout(() => {
+      drawerDirtyFields = {};
+      drawerCurrentId = null;
       document.getElementById('detailDrawer').classList.remove('open');
       document.getElementById('drawerOverlay').classList.remove('visible');
       applyFilters();
@@ -798,6 +891,7 @@ function openNewModal() {
   ['nLabelCode','nBrand','nProductLine','nAsin'].forEach(id => {
     document.getElementById(id).value = '';
   });
+  document.getElementById('nPrepInstructions').value = '';
   document.getElementById('newModalOverlay').classList.add('visible');
   setTimeout(() => document.getElementById('nLabelCode').focus(), 80);
 }
@@ -818,7 +912,7 @@ async function createRecord() {
     brand:            document.getElementById('nBrand').value.trim(),
     productLine:      document.getElementById('nProductLine').value.trim(),
     asin:             document.getElementById('nAsin').value.trim(),
-    prepInstructions: '',
+    prepInstructions: document.getElementById('nPrepInstructions').value.trim(),
     bundle:           '',
     dgLabel:          '',
     polyBag:          '',
@@ -847,22 +941,13 @@ async function createRecord() {
 }
 
 /* ══════════════════════════════════════════════════
-   CLEAN COMPLETED MODAL
+   COMPLETED RECORDS MODAL
 ══════════════════════════════════════════════════ */
-function showCleanModal() {
+function showCompletedModal() {
   const completed = allData.filter(r => getBucket(r) === 'completed');
-  document.getElementById('cleanModalCount').textContent = completed.length;
+  document.getElementById('completedModalCount').textContent = completed.length;
 
-  const cols = [
-    'ID', 'Label Code', 'Brand', 'Product Line', 'ASIN',
-    'Prep Instructions', 'Bundle', 'DG Label', 'Poly Bag',
-    'Warning Label', 'Barcode', 'Box',
-    'Units Required', 'Veeqo Stock Adjusted', 'Units Completed', 'UPS Collected'
-  ];
-  const boolCols = new Set([
-    'Bundle','DG Label','Poly Bag','Warning Label','Barcode','Box',
-    'Veeqo Stock Adjusted','UPS Collected'
-  ]);
+  const cols = ['Label Code', 'Brand', 'Product Line', 'ASIN', 'Prep Instructions'];
 
   let html = '<table class="data-table"><thead><tr>'
     + cols.map(c => '<th>' + esc(c) + '</th>').join('')
@@ -872,32 +957,25 @@ function showCleanModal() {
     html += '<tr><td colspan="' + cols.length + '" style="text-align:center;padding:32px;color:#94a3b8;font-weight:600">No completed records yet</td></tr>';
   } else {
     completed.forEach(row => {
-      html += '<tr>' + cols.map(c => {
-        const v = row[c];
-        if (boolCols.has(c)) {
-          const yes = String(v || '').toLowerCase() === 'yes';
-          return '<td class="' + (yes ? 'bool-yes' : 'bool-no') + '">' + (yes ? 'Yes' : 'No') + '</td>';
-        }
-        return '<td>' + esc(String(v ?? '—')) + '</td>';
-      }).join('') + '</tr>';
+      const rid = ea(String(row['ID'] || ''));
+      html += '<tr onclick="closeCompletedModal(); openDrawer(\'' + rid + '\')">'
+        + cols.map(c => '<td>' + esc(String(row[c] ?? '—')) + '</td>').join('')
+        + '</tr>';
     });
   }
 
   html += '</tbody></table>';
-  document.getElementById('cleanModalBody').innerHTML = html;
-  document.getElementById('cleanModalOverlay').classList.add('visible');
+  document.getElementById('completedModalBody').innerHTML = html;
+  document.getElementById('completedModalOverlay').classList.add('visible');
 }
 
-function closeCleanModal(e) {
-  if (e && e.target !== document.getElementById('cleanModalOverlay')) return;
-  document.getElementById('cleanModalOverlay').classList.remove('visible');
+function closeCompletedModal(e) {
+  if (e && e.target !== document.getElementById('completedModalOverlay')) return;
+  document.getElementById('completedModalOverlay').classList.remove('visible');
 }
 
 /* ══════════════════════════════════════════════════
    API HELPERS
-   NOTE: POST is used for write operations (save/delete).
-   Google Apps Script handles POST CORS differently per browser/origin;
-   if POST saves fail, ensure the script is deployed as "Anyone (even anonymous)".
 ══════════════════════════════════════════════════ */
 async function callApi(body) {
   try {
@@ -935,6 +1013,15 @@ function rowToApiData(row) {
 }
 
 /* ══════════════════════════════════════════════════
+   SVG ICONS
+══════════════════════════════════════════════════ */
+function svgGrid()      { return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>'; }
+function svgPackage()   { return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>'; }
+function svgWarehouse() { return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'; }
+function svgTrash()     { return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>'; }
+function svgCheck()     { return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'; }
+
+/* ══════════════════════════════════════════════════
    TOAST
 ══════════════════════════════════════════════════ */
 function showToast(msg, type) {
@@ -957,17 +1044,19 @@ function showToast(msg, type) {
 /* ══════════════════════════════════════════════════
    GLOBAL EXPOSURE
 ══════════════════════════════════════════════════ */
-window.closeDrawer     = closeDrawer;
-window.switchTab       = switchTab;
-window.saveField       = saveField;
-window.saveBool        = saveBool;
-window.deleteRecord    = deleteRecord;
-window.openNewModal    = openNewModal;
-window.closeNewModal   = closeNewModal;
-window.createRecord    = createRecord;
-window.showCleanModal  = showCleanModal;
-window.closeCleanModal = closeCleanModal;
-window.applyFilters    = applyFilters;
+window.closeDrawer        = closeDrawer;
+window.switchTab          = switchTab;
+window.markDirty          = markDirty;
+window.markBool           = markBool;
+window.saveAllChanges     = saveAllChanges;
+window.deleteRecord       = deleteRecord;
+window.openNewModal       = openNewModal;
+window.closeNewModal      = closeNewModal;
+window.createRecord       = createRecord;
+window.showCompletedModal = showCompletedModal;
+window.closeCompletedModal= closeCompletedModal;
+window.applyFilters       = applyFilters;
+window.openDrawer         = openDrawer;
 
 /* ══════════════════════════════════════════════════
    INIT
@@ -978,4 +1067,3 @@ loadData();
 </script>
 </body>
 </html>
-
