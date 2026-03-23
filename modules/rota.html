@@ -31,6 +31,14 @@
 .nav-dropdown-item svg { width: 13px; height: 13px; flex-shrink: 0; opacity: .6; }
 
 .content-wrap { overflow-x: hidden; }
+
+.copy-date-btn {
+  width: 100%; padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+  font-size: 13px; font-family: inherit; color: #0f172a; background: #fff;
+  text-align: left; cursor: pointer; transition: border-color .15s;
+}
+.copy-date-btn:hover { border-color: #2563eb; background: #f8faff; }
+
   
 html, body {
   font-family: 'Inter', system-ui, sans-serif;
@@ -556,6 +564,19 @@ body { overflow: hidden; }
         <label>Date</label>
         <input type="date" id="dateInput" onchange="checkConflict()">
       </div>
+      <!-- COPY CALENDAR POPUP -->
+<div class="cal-popup" id="copyCal">
+  <div class="cal-header">
+    <button class="cal-nav-btn" onclick="copyCalNav(-1)">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <span class="cal-month-label" id="copyCalMonthLabel"></span>
+    <button class="cal-nav-btn" onclick="copyCalNav(1)">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  </div>
+  <div class="cal-grid" id="copyCalGrid"></div>
+</div>
       <div class="time-section">
         <div class="time-section-title">
           Start Time
@@ -1327,9 +1348,13 @@ function copyStepsHTML(step) {
 
 function renderCopyStep1() {
   const srcDates = getCopyDates(COPY.srcDate, COPY.srcRange);
+  const destDates = getCopyDates(COPY.destDate, COPY.srcRange);
   const srcLabel = srcDates.length===1
     ? fmtDate(srcDates[0],{weekday:'short',month:'short',day:'numeric',year:'numeric'})
     : fmtDate(srcDates[0],{month:'short',day:'numeric'})+' – '+fmtDate(srcDates[srcDates.length-1],{month:'short',day:'numeric',year:'numeric'});
+  const destLabel = destDates.length===1
+    ? fmtDate(destDates[0],{weekday:'short',month:'short',day:'numeric',year:'numeric'})
+    : fmtDate(destDates[0],{month:'short',day:'numeric'})+' – '+fmtDate(destDates[destDates.length-1],{month:'short',day:'numeric',year:'numeric'});
   const shiftsInSrc = S.schedule.filter(s=>srcDates.includes(s.date));
 
   document.getElementById('copyModalTitle').textContent = 'Copy Schedule';
@@ -1338,7 +1363,7 @@ function renderCopyStep1() {
     ${copyStepsHTML(1)}
     <div class="copy-section-label">Source — start date</div>
     <div class="copy-field">
-      <input type="date" id="copySrcDate" value="${COPY.srcDate}" onchange="COPY.srcDate=this.value;renderCopyModal()">
+      <button id="copySrcDateBtn" class="copy-date-btn" onclick="openCopyCalendar('src','copySrcDateBtn')">${srcLabel}</button>
     </div>
     <div class="copy-section-label">Copy span</div>
     <div class="copy-range-pills">
@@ -1346,11 +1371,11 @@ function renderCopyStep1() {
     </div>
     <div class="copy-info-banner">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span>Source: <strong>${srcLabel}</strong> — <strong>${shiftsInSrc.length} shift${shiftsInSrc.length!==1?'s':''}</strong> found.</span>
+      <span>Source: <strong>${srcLabel}</strong> &nbsp;→&nbsp; Paste to: <strong>${destLabel}</strong> &nbsp;—&nbsp; <strong>${shiftsInSrc.length} shift${shiftsInSrc.length!==1?'s':''}</strong> found.</span>
     </div>
     <div class="copy-section-label">Paste to — start date</div>
     <div class="copy-field">
-      <input type="date" id="copyDestDate" value="${COPY.destDate}" onchange="COPY.destDate=this.value;renderCopyModal()">
+      <button id="copyDestDateBtn" class="copy-date-btn" onclick="openCopyCalendar('dest','copyDestDateBtn')">${destLabel}</button>
     </div>
     ${shiftsInSrc.length===0?`<div class="copy-warn-banner">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -1373,16 +1398,22 @@ function buildCopyPreview() {
     const srcIdx = srcDates.indexOf(s.date);
     const destIdx = Math.min(srcIdx, destDates.length-1);
     return {
-      ...s,
       _origId: s.id,
       id: 'cp_'+Date.now()+'_'+Math.random().toString(36).slice(2),
+      employeeId: s.employeeId,
+      taskId: s.taskId,
       date: destDates[destIdx],
+      start: s.start,
+      end: s.end,
+      notes: s.notes || '',
+      type: s.type,
       _remove: false
     };
   });
   COPY.step = 2;
   renderCopyModal();
 }
+
 
 function renderCopyStep2() {
   const tm = buildTaskMap();
@@ -1484,6 +1515,90 @@ async function confirmCopy() {
   else showToast(`${saved} saved, ${failed} failed`,'warn');
 }
 
+
+/* ══ COPY CALENDAR ══════════════════════════════════════════════════════════ */
+let _copyCal_field = null, _copyCal_view = new Date(), _copyCal_open = false;
+
+function openCopyCalendar(field, anchorId) {
+  _copyCal_field = field;
+  const ds = field==='src' ? COPY.srcDate : COPY.destDate;
+  _copyCal_view = new Date((ds||isoDate(new Date()))+'T00:00');
+  renderCopyCalendar();
+  const popup = document.getElementById('copyCal');
+  const anchor = document.getElementById(anchorId);
+  const rect = anchor.getBoundingClientRect();
+  const popW = 264;
+  let left = rect.left;
+  if (left+popW > window.innerWidth-8) left = window.innerWidth-popW-8;
+  if (left < 8) left = 8;
+  popup.style.top = (rect.bottom+6)+'px';
+  popup.style.left = left+'px';
+  popup.style.width = popW+'px';
+  popup.classList.add('visible');
+  _copyCal_open = true;
+}
+function closeCopyCalendar() {
+  document.getElementById('copyCal').classList.remove('visible');
+  _copyCal_open = false;
+}
+function copyCalNav(dir) {
+  _copyCal_view = new Date(_copyCal_view.getFullYear(), _copyCal_view.getMonth()+dir, 1);
+  renderCopyCalendar();
+}
+function renderCopyCalendar() {
+  const DAYS = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+  const y = _copyCal_view.getFullYear(), m = _copyCal_view.getMonth();
+  document.getElementById('copyCalMonthLabel').textContent = new Date(y,m,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  const firstDay = new Date(y,m,1), lastDay = new Date(y,m+1,0);
+  const startOffset = (firstDay.getDay()+6)%7;
+  const todayStr = isoDate(new Date());
+  const curDate = (_copyCal_field==='src' ? COPY.srcDate : COPY.destDate) || todayStr;
+  const isWeek = COPY.srcRange !== 'day';
+  const count = COPY.srcRange==='2weeks' ? 14 : 7;
+
+  // compute selected range start/end
+  let selStart = curDate, selEnd = curDate;
+  if (isWeek) {
+    const sd = new Date(curDate+'T00:00'), smon = new Date(sd);
+    smon.setDate(sd.getDate()-((sd.getDay()+6)%7));
+    selStart = isoDate(smon);
+    const send = new Date(smon); send.setDate(smon.getDate()+count-1);
+    selEnd = isoDate(send);
+  }
+
+  let html = DAYS.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  for(let i=0;i<startOffset;i++) html+='<div class="cal-day empty"></div>';
+  for(let day=1;day<=lastDay.getDate();day++){
+    const ds=`${y}-${pad(m+1)}-${pad(day)}`;
+    let cls='cal-day';
+    if(ds===todayStr) cls+=' today';
+    if(isWeek){
+      if(ds===selStart) cls+=' range-start';
+      else if(ds===selEnd) cls+=' range-end';
+      else if(ds>selStart&&ds<selEnd) cls+=' in-range';
+    } else {
+      if(ds===selStart) cls+=' selected';
+    }
+    html+=`<div class="${cls}" onclick="copyCalSelect('${ds}')">${day}</div>`;
+  }
+  document.getElementById('copyCalGrid').innerHTML = html;
+}
+function copyCalSelect(ds) {
+  if (COPY.srcRange !== 'day') {
+    const d = new Date(ds+'T00:00'), mon = new Date(d);
+    mon.setDate(d.getDate()-((d.getDay()+6)%7));
+    ds = isoDate(mon);
+  }
+  if (_copyCal_field==='src') COPY.srcDate = ds;
+  else COPY.destDate = ds;
+  closeCopyCalendar();
+  renderCopyModal();
+}
+document.addEventListener('click', function(e){
+  if (_copyCal_open && !document.getElementById('copyCal').contains(e.target) && !e.target.closest('.copy-date-btn')) closeCopyCalendar();
+});
+
+  
 /* ══ TOAST ══════════════════════════════════════════════════════════════════ */
 function showToast(msg,type){
   const c=document.getElementById('toastContainer'),el=document.createElement('div');
@@ -1526,6 +1641,8 @@ window.openCopyModal=openCopyModal; window.closeCopyModal=closeCopyModal;
 window.buildCopyPreview=buildCopyPreview; window.toggleCopyRemove=toggleCopyRemove;
 window.confirmCopy=confirmCopy; window.renderCopyModal=renderCopyModal;
 window.COPY = COPY;
+window.openCopyCalendar=openCopyCalendar; window.copyCalNav=copyCalNav; window.copyCalSelect=copyCalSelect;
+
 
 
 document.getElementById('viewSelect').addEventListener('change', function() {
