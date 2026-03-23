@@ -132,6 +132,17 @@
           </div>
         </div>
       </div>
+
+      <div class="sm-form-section">
+  <div class="sm-section-label">Compensation</div>
+  <div style="display:grid;grid-template-columns:1fr;gap:12px;">
+    <div>
+      <label class="sm-label">Hourly Rate (£)</label>
+      <input id="smHourlyRate" class="pd-input" type="number" step="0.01" placeholder="e.g. 12.50">
+    </div>
+  </div>
+</div>
+      
       <div class="sm-form-section">
         <div class="sm-section-label">Module Access</div>
         <div id="smModuleGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
@@ -510,7 +521,13 @@ function smOpenDrawer(staff) {
       <div class="sm-detail-card"><div class="sm-field-label">First Name</div><div class="sm-field-value">${staff.firstName}</div></div>
       <div class="sm-detail-card"><div class="sm-field-label">Last Name</div><div class="sm-field-value">${staff.lastName}</div></div>
       <div class="sm-detail-card" style="grid-column:1/-1;"><div class="sm-field-label">Email</div><div class="sm-field-value">${staff.email}</div></div>
-      <div class="sm-detail-card"><div class="sm-field-label">Role</div><div class="sm-field-value">${staff.role}</div></div>
+      <div class="sm-detail-card"><div class="sm-field-label">Role</div>
+      <div class="sm-detail-card">
+        <div class="sm-field-label">Hourly Rate</div>
+        <div class="sm-field-value">£${staff.hourlyRate || "-"}</div>
+      </div>
+
+      <div class="sm-field-value">${staff.role}</div></div>
       <div class="sm-detail-card" style="${statusCardStyle}border-radius:10px;padding:10px 13px;">
         <div class="sm-field-label">Status</div>
         <div class="sm-field-value" style="${statusTextStyle}font-weight:700;">${staff.status}</div>
@@ -599,6 +616,7 @@ function smOpenAddModal() {
   document.getElementById("smPwdLabel").textContent = "Password *";
   document.getElementById("smRole").value   = "Digital Ops";
   document.getElementById("smStatus").value = "Active";
+  document.getElementById("smHourlyRate").value = "";
   document.querySelectorAll(".sm-mod-btn").forEach(b => b.classList.remove("active"));
   document.querySelectorAll(".pd-input").forEach(i => i.classList.remove("error"));
   document.getElementById("smModal").style.display = "flex";
@@ -616,6 +634,7 @@ function smOpenEditModal(staff) {
   document.getElementById("smPwdLabel").textContent = "New Password (leave blank to keep)";
   document.getElementById("smRole").value   = staff.role;
   document.getElementById("smStatus").value = staff.status;
+  document.getElementById("smHourlyRate").value = staff.hourlyRate || "";
   const perms = staff.permissions || [];
   document.querySelectorAll(".sm-mod-btn").forEach(b => b.classList.toggle("active", perms.includes(b.dataset.mod)));
   document.querySelectorAll(".pd-input").forEach(i => i.classList.remove("error"));
@@ -635,6 +654,7 @@ async function smSaveStaff() {
   const role      = document.getElementById("smRole").value;
   const status    = document.getElementById("smStatus").value;
   const perms     = Array.from(document.querySelectorAll(".sm-mod-btn.active")).map(b => b.dataset.mod);
+  const hourlyRate = document.getElementById("smHourlyRate").value.trim();
 
   let valid = true;
   [["smFN",firstName],["smLN",lastName],["smEmail",email]].forEach(([id,val]) => {
@@ -651,7 +671,7 @@ async function smSaveStaff() {
   btn.disabled = true;
   lbl.innerHTML = `<span class="pd-spinner"></span> ${isEdit ? "Saving..." : "Adding..."}`;
 
-  const payload = { action:"saveUser", userId:document.getElementById("smEditId").value||"", firstName, lastName, email, password, role, status, permissions:perms.join(",") };
+  const payload = { action:"saveUser", userId:document.getElementById("smEditId").value||"", firstName, lastName, email, password, role, status, permissions:perms.join(","), hourlyRate };
 
   const res  = await fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify(payload) });
   const data = await res.json();
