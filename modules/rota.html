@@ -564,19 +564,6 @@ body { overflow: hidden; }
         <label>Date</label>
         <input type="date" id="dateInput" onchange="checkConflict()">
       </div>
-      <!-- COPY CALENDAR POPUP -->
-<div class="cal-popup" id="copyCal">
-  <div class="cal-header">
-    <button class="cal-nav-btn" onclick="copyCalNav(-1)">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-    </button>
-    <span class="cal-month-label" id="copyCalMonthLabel"></span>
-    <button class="cal-nav-btn" onclick="copyCalNav(1)">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-    </button>
-  </div>
-  <div class="cal-grid" id="copyCalGrid"></div>
-</div>
       <div class="time-section">
         <div class="time-section-title">
           Start Time
@@ -1515,36 +1502,62 @@ async function confirmCopy() {
   else showToast(`${saved} saved, ${failed} failed`,'warn');
 }
 
-
 /* ══ COPY CALENDAR ══════════════════════════════════════════════════════════ */
 let _copyCal_field = null, _copyCal_view = new Date(), _copyCal_open = false;
 
+function _ensureCopyCalDOM() {
+  if (document.getElementById('copyCal')) return;
+  const el = document.createElement('div');
+  el.className = 'cal-popup'; el.id = 'copyCal';
+  el.innerHTML = `
+    <div class="cal-header">
+      <button class="cal-nav-btn" onclick="copyCalNav(-1)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span class="cal-month-label" id="copyCalMonthLabel"></span>
+      <button class="cal-nav-btn" onclick="copyCalNav(1)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+    <div class="cal-grid" id="copyCalGrid"></div>`;
+  document.body.appendChild(el);
+}
+
 function openCopyCalendar(field, anchorId) {
+  _ensureCopyCalDOM();
   _copyCal_field = field;
   const ds = field==='src' ? COPY.srcDate : COPY.destDate;
   _copyCal_view = new Date((ds||isoDate(new Date()))+'T00:00');
   renderCopyCalendar();
   const popup = document.getElementById('copyCal');
   const anchor = document.getElementById(anchorId);
+  if (!anchor) return;
   const rect = anchor.getBoundingClientRect();
   const popW = 264;
   let left = rect.left;
   if (left+popW > window.innerWidth-8) left = window.innerWidth-popW-8;
   if (left < 8) left = 8;
-  popup.style.top = (rect.bottom+6)+'px';
+  let top = rect.bottom+6;
+  if (top+300 > window.innerHeight) top = rect.top-310;
+  popup.style.top = top+'px';
   popup.style.left = left+'px';
   popup.style.width = popW+'px';
+  popup.style.zIndex = '9000';
   popup.classList.add('visible');
   _copyCal_open = true;
 }
+
 function closeCopyCalendar() {
-  document.getElementById('copyCal').classList.remove('visible');
+  const p = document.getElementById('copyCal');
+  if (p) p.classList.remove('visible');
   _copyCal_open = false;
 }
+
 function copyCalNav(dir) {
   _copyCal_view = new Date(_copyCal_view.getFullYear(), _copyCal_view.getMonth()+dir, 1);
   renderCopyCalendar();
 }
+
 function renderCopyCalendar() {
   const DAYS = ['Mo','Tu','We','Th','Fr','Sa','Su'];
   const y = _copyCal_view.getFullYear(), m = _copyCal_view.getMonth();
@@ -1555,8 +1568,6 @@ function renderCopyCalendar() {
   const curDate = (_copyCal_field==='src' ? COPY.srcDate : COPY.destDate) || todayStr;
   const isWeek = COPY.srcRange !== 'day';
   const count = COPY.srcRange==='2weeks' ? 14 : 7;
-
-  // compute selected range start/end
   let selStart = curDate, selEnd = curDate;
   if (isWeek) {
     const sd = new Date(curDate+'T00:00'), smon = new Date(sd);
@@ -1565,7 +1576,6 @@ function renderCopyCalendar() {
     const send = new Date(smon); send.setDate(smon.getDate()+count-1);
     selEnd = isoDate(send);
   }
-
   let html = DAYS.map(d=>`<div class="cal-dow">${d}</div>`).join('');
   for(let i=0;i<startOffset;i++) html+='<div class="cal-day empty"></div>';
   for(let day=1;day<=lastDay.getDate();day++){
@@ -1583,6 +1593,7 @@ function renderCopyCalendar() {
   }
   document.getElementById('copyCalGrid').innerHTML = html;
 }
+
 function copyCalSelect(ds) {
   if (COPY.srcRange !== 'day') {
     const d = new Date(ds+'T00:00'), mon = new Date(d);
@@ -1594,8 +1605,13 @@ function copyCalSelect(ds) {
   closeCopyCalendar();
   renderCopyModal();
 }
+
 document.addEventListener('click', function(e){
-  if (_copyCal_open && !document.getElementById('copyCal').contains(e.target) && !e.target.closest('.copy-date-btn')) closeCopyCalendar();
+  if (!_copyCal_open) return;
+  const popup = document.getElementById('copyCal');
+  if (popup && popup.contains(e.target)) return;
+  if (e.target.closest && e.target.closest('.copy-date-btn')) return;
+  closeCopyCalendar();
 });
 
   
