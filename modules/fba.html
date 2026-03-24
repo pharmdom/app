@@ -850,6 +850,28 @@ function openDrawer(id, source) {
 }
 
 function closeDrawer() {
+  if (Object.keys(drawerDirtyFields).length > 0) {
+    if (!confirm('You have unsaved changes. Save before closing?')) {
+      // Discard
+      document.getElementById('detailDrawer').classList.remove('open');
+      document.getElementById('drawerOverlay').classList.remove('visible');
+      drawerDirtyFields = {};
+      drawerCurrentId = null;
+      drawerSource = null;
+      applyFilters();
+    } else {
+      // Save then close
+      saveAllChanges().then(() => {
+        document.getElementById('detailDrawer').classList.remove('open');
+        document.getElementById('drawerOverlay').classList.remove('visible');
+        drawerDirtyFields = {};
+        drawerCurrentId = null;
+        drawerSource = null;
+        applyFilters();
+      });
+    }
+    return;
+  }
   document.getElementById('detailDrawer').classList.remove('open');
   document.getElementById('drawerOverlay').classList.remove('visible');
   drawerDirtyFields = {};
@@ -1103,7 +1125,7 @@ async function saveAllChanges() {
 
   // ── Background sync (no UI waiting) ──
   const action = drawerSource === 'fba' ? 'saveFBA' : 'saveWarehouse';
-  callApi({ action, data: rowToApiData(row) }).then(result => {
+    return callApi({ action, data: rowToApiData(row) }).then(result => {
     isSaving = false;
     if (!result || !result.success) {
       showToast('Sync error — changes may not have saved', 'error');
