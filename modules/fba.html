@@ -850,9 +850,6 @@ function openDrawer(id, source) {
 }
 
 function closeDrawer() {
-  if (Object.keys(drawerDirtyFields).length > 0 && drawerCurrentId) {
-    saveAllChanges();
-  }
   document.getElementById('detailDrawer').classList.remove('open');
   document.getElementById('drawerOverlay').classList.remove('visible');
   drawerDirtyFields = {};
@@ -1080,45 +1077,38 @@ async function saveAllChanges() {
   if (dirtyKeys.length === 0) return;
 
   isSaving = true;
-  const btn = document.getElementById('saveBtn');
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner sm"></span> Saving…';
-  }
 
+  // ── Optimistic: apply locally & re-render immediately ──
   const dataSource = drawerSource === 'fba' ? fbaData : warehouseData;
   const idx = dataSource.findIndex(r => String(r['ID']) === String(drawerCurrentId));
   if (idx < 0) { isSaving = false; return; }
 
-  dirtyKeys.forEach(field => {
-    dataSource[idx][field] = drawerDirtyFields[field];
-  });
+  dirtyKeys.forEach(field => { dataSource[idx][field] = drawerDirtyFields[field]; });
+  drawerDirtyFields = {};
+  updateStats();
+  applyFilters();
 
-  const action = drawerSource === 'fba' ? 'saveFBA' : 'saveWarehouse';
-  const result = await callApi({ action: action, data: rowToApiData(dataSource[idx]) });
-
-  isSaving = false;
-
-  if (result && result.success) {
-    drawerDirtyFields = {};
-    showToast('Saved successfully', 'success');
-    updateStats();
-    if (btn) {
-      btn.innerHTML = svgCheck() + 'All Saved';
-      btn.classList.add('saved');
-      setTimeout(() => btn.classList.remove('saved'), 1500);
-    }
-    const row = dataSource.find(r => String(r['ID']) === String(drawerCurrentId));
-    if (row && document.getElementById('detailDrawer').classList.contains('open')) {
-      renderDrawer(row);
-    }
-  } else {
-    showToast('Error saving', 'error');
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = svgCheck() + 'Save Changes';
-    }
+  const btn = document.getElementById('saveBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = svgCheck() + 'All Saved';
+    btn.classList.add('saved');
+    setTimeout(() => btn.classList.remove('saved'), 1500);
   }
+
+  const row = dataSource[idx];
+  if (row && document.getElementById('detailDrawer').classList.contains('open')) {
+    renderDrawer(row);
+  }
+
+  // ── Background sync (no UI waiting) ──
+  const action = drawerSource === 'fba' ? 'saveFBA' : 'saveWarehouse';
+  callApi({ action, data: rowToApiData(row) }).then(result => {
+    isSaving = false;
+    if (!result || !result.success) {
+      showToast('Sync error — changes may not have saved', 'error');
+    }
+  });
 }
 
 
@@ -1310,28 +1300,27 @@ function setFormBool(fieldId, value, btnEl) {
   if (fg) { fg.classList.remove('has-error'); const err = fg.querySelector('.field-error'); if (err) err.remove(); }
 }
 
-async function createRecord() {
-  // Validate all fields
+
+
+ async function createRecord() {
   const fields = [
-    { id: 'nLabelCode', fg: 'fg-nLabelCode', label: 'Label Code' },
-    { id: 'nBrand', fg: 'fg-nBrand', label: 'Brand' },
-    { id: 'nProductLine', fg: 'fg-nProductLine', label: 'Product Line' },
-    { id: 'nAsin', fg: 'fg-nAsin', label: 'ASIN' },
+    { id: 'nLabelCode',        fg: 'fg-nLabelCode',        label: 'Label Code' },
+    { id: 'nBrand',            fg: 'fg-nBrand',            label: 'Brand' },
+    { id: 'nProductLine',      fg: 'fg-nProductLine',      label: 'Product Line' },
+    { id: 'nAsin',             fg: 'fg-nAsin',             label: 'ASIN' },
     { id: 'nPrepInstructions', fg: 'fg-nPrepInstructions', label: 'Prep Instructions' },
-    { id: 'nPolyBag', fg: 'fg-nPolyBag', label: 'Poly Bag' },
-    { id: 'nWarningLabel', fg: 'fg-nWarningLabel', label: 'Warning Label' },
-    { id: 'nBarcode', fg: 'fg-nBarcode', label: 'Barcode' },
-    { id: 'nBox', fg: 'fg-nBox', label: 'Box' },
+    { id: 'nPolyBag',          fg: 'fg-nPolyBag',          label: 'Poly Bag' },
+    { id: 'nWarningLabel',     fg: 'fg-nWarningLabel',     label: 'Warning Label' },
+    { id: 'nBarcode',          fg: 'fg-nBarcode',          label: 'Barcode' },
+    { id: 'nBox',              fg: 'fg-nBox',              label: 'Box' },
   ];
 
   let hasError = false;
-  // Clear previous errors
   document.querySelectorAll('#newProductForm .form-group').forEach(g => g.classList.remove('has-error'));
   document.querySelectorAll('#newProductForm .field-error').forEach(e => e.remove());
 
   fields.forEach(f => {
-    const val = document.getElementById(f.id).value.trim();
-    if (!val) {
+    if (!document.getElementById(f.id).value.trim()) {
       hasError = true;
       const fg = document.getElementById(f.fg);
       if (fg) {
@@ -1344,14 +1333,7 @@ async function createRecord() {
     }
   });
 
-  if (hasError) {
-    showToast('Please fill in all required fields', 'error');
-    return;
-  }
-
-  const btn = document.getElementById('newSubmitBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner sm"></span>Creating…';
+  if (hasError) { showToast('Please fill in all required fields', 'error'); return; }
 
   const data = {
     id:               '',
@@ -1372,35 +1354,38 @@ async function createRecord() {
     upsCollected:     ''
   };
 
+  // ── Optimistic: add locally & close immediately ──
+  const tempId = 'TEMP-' + Date.now();
+  const newRow = {
+    'ID': tempId,
+    'Label Code': data.labelCode, 'Brand': data.brand,
+    'Product Line': data.productLine, 'ASIN': data.asin,
+    'Prep Instructions': data.prepInstructions,
+    'Bundle': data.bundle, 'DG Label': data.dgLabel,
+    'Poly Bag': data.polyBag, 'Warning Label': data.warningLabel,
+    'Barcode': data.barcode, 'Box': data.box,
+    'Units Required': 0, 'Veeqo Stock Adjusted': '',
+    'Units Completed': 0, 'UPS Collected': ''
+  };
+  fbaData.push(newRow);
+  closeNewModal();
+  renderProductsTable();
+  showToast('Product created', 'success');
+
+  // ── Background sync ──
   const result = await callApi({ action: 'saveFBA', data });
-
-  btn.disabled = false;
-  btn.innerHTML = 'Create Product';
-
-  if (result && result.success) {
-    closeNewModal();
-    // Reload FBA data
-    const fbaRes = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'getFBA' })
-    });
-    const fbaJson = await fbaRes.json();
-    if (fbaJson.success) {
-      const fbaHeaders = fbaJson.headers || [];
-      fbaData = (fbaJson.rows || []).map(row => {
-        const obj = {};
-        fbaHeaders.forEach((h, i) => { obj[h] = row[i] ?? ''; });
-        return obj;
-      });
-    }
+  if (result && result.success && result.id) {
+    // Replace temp ID with real one
+    const idx = fbaData.findIndex(r => r['ID'] === tempId);
+    if (idx > -1) fbaData[idx]['ID'] = result.id;
     renderProductsTable();
-    showToast('Product created', 'success');
-    if (result.id) openDrawer(result.id, 'fba');
-  } else {
+  } else if (!result || !result.success) {
+    // Rollback
+    fbaData = fbaData.filter(r => r['ID'] !== tempId);
+    renderProductsTable();
     showToast('Error creating product', 'error');
   }
-}
+}  
 
 
 /* ══════════════════════════════════════════════════
@@ -1544,36 +1529,42 @@ async function submitAddWork() {
     upsCollected:     ''
   };
 
-  const result = await callApi({ action: 'saveWarehouse', data });
+
+  // ── Optimistic: add to kanban immediately ──
+  const tempId = 'TEMP-' + Date.now();
+  const newWorkRow = {
+    'ID': tempId,
+    'Label Code': data.labelCode, 'Brand': data.brand,
+    'Product Line': data.productLine, 'ASIN': data.asin,
+    'Prep Instructions': data.prepInstructions,
+    'Bundle': data.bundle, 'DG Label': data.dgLabel,
+    'Poly Bag': data.polyBag, 'Warning Label': data.warningLabel,
+    'Barcode': data.barcode, 'Box': data.box,
+    'Units Required': data.unitsRequired,
+    'Veeqo Stock Adjusted': '', 'Units Completed': 0, 'UPS Collected': ''
+  };
+  warehouseData.push(newWorkRow);
+  closeAddWorkModal();
+  applyFilters();
+  showToast('Work added to Warehouse', 'success');
 
   btn.disabled = false;
   btn.innerHTML = 'Add Work';
 
-  if (result && result.success) {
-    closeAddWorkModal();
-    // Reload warehouse data
-    const whRes = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'getWarehouse' })
-    });
-    const whJson = await whRes.json();
-    if (whJson.success) {
-      const whHeaders = whJson.headers || [];
-      warehouseData = (whJson.rows || []).map(row => {
-        const obj = {};
-        whHeaders.forEach((h, i) => { obj[h] = row[i] ?? ''; });
-        return obj;
-      });
-    }
+  // ── Background sync ──
+  const result = await callApi({ action: 'saveWarehouse', data });
+  if (result && result.success && result.id) {
+    const idx = warehouseData.findIndex(r => r['ID'] === tempId);
+    if (idx > -1) warehouseData[idx]['ID'] = result.id;
     applyFilters();
-    showToast('Work added to Warehouse', 'success');
-    if (result.id) openDrawer(result.id, 'warehouse');
-  } else {
-    showToast('Error adding work', 'error');
+  } else if (!result || !result.success) {
+    // Rollback
+    warehouseData = warehouseData.filter(r => r['ID'] !== tempId);
+    applyFilters();
+    showToast('Error adding work — please retry', 'error');
   }
 }
-
+   
 
 /* ══════════════════════════════════════════════════
    COMPLETED RECORDS MODAL (from Warehouse data)
