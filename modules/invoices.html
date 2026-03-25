@@ -1014,9 +1014,9 @@ function renderPreview() {
         <div class="inv-detail-row">
           <span class="inv-detail-label">Date Updated</span>
           <span class="inv-detail-val">
-            <input class="inv-editable" type="datetime-local" value="${esc(toDatetimeLocalValue(dateVal))}"
+            <input class="inv-editable" type="date" value="${esc(toDateOnly(dateVal))}"
               onchange="updateDateFromPicker(this.value)"
-              style="font-size:12px;font-weight:700;width:180px">
+              style="font-size:12px;font-weight:700;width:150px">
           </span>
         </div>
       </div>
@@ -1098,17 +1098,20 @@ function toDatetimeLocalValue(dateStr) {
   return '';
 }
 
+function toDateOnly(dateStr) {
+  if (!dateStr) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  const match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (match) return `${match[3]}-${match[2]}-${match[1]}`;
+  const d = new Date(dateStr);
+  if (!isNaN(d)) return d.toISOString().split('T')[0];
+  return '';
+}
+
 function updateDateFromPicker(val) {
   if (!currentInvoice || !val) return;
-  // Convert datetime-local value to UK display format
-  const d = new Date(val);
-  if (isNaN(d)) return;
-  const ukStr = d.toLocaleString('en-GB', {
-    timeZone: 'Europe/London',
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-  });
-  currentInvoice.date = ukStr;
+  // Store as YYYY-MM-DD (date only, no time)
+  currentInvoice.date = val;
 }
 
 
