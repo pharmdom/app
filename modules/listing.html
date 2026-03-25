@@ -1146,7 +1146,7 @@ function editCard(id,label,value,type,key) {
     inp='<select class="edit-select" onchange="saveField(\''+ea(id)+'\',\''+ea(key)+'\',this.value)"><option value="">—</option>'+opts+'</select>';
   } else if(type==='number') {
     const n=parseFloat(value);
-    inp='<input type="number" class="edit-input" value="'+(isNaN(n)?'':n)+'" step="0.01" onblur="saveField(\''+ea(id)+'\',\''+ea(key)+'\',this.value)">';
+    inp='<input type="number" class="edit-input" value="'+(isNaN(n)?'':n)+'" step="0.01" oninput="liveUpdateField(\''+ea(id)+'\',\''+ea(key)+'\',this.value)" onblur="saveField(\''+ea(id)+'\',\''+ea(key)+'\',this.value)">';
   } else {
     inp='<input type="text" class="edit-input" value="'+ea(disp)+'" onblur="saveField(\''+ea(id)+'\',\''+ea(key)+'\',this.value)">';
   }
@@ -1177,6 +1177,54 @@ function autoCard(label,value,prefix) {
     +'<div class="auto-val">'+esc(display)+'<span class="auto-badge">AUTO</span></div></div>';
 }
 
+
+
+/* ─── LIVE UPDATE (instant UI, no API call) ─────────────────────── */
+function liveUpdateField(id, field, value) {
+  const idx = allData.findIndex(p => (p['Opportunity ID'] || '') === id);
+  if (idx < 0) return;
+  allData[idx][field] = value;
+  applyAutoFields(allData[idx]);
+  refreshKpiBar(allData[idx]);
+}
+
+function refreshKpiBar(row) {
+  const unitCost = parseFloat(row['Unit Cost']);
+  const packSize = parseFloat(row['TikTok Pack Size']);
+  const ebayLP   = parseFloat(row['eBay Listing Price']);
+  const ttLP     = parseFloat(row['TikTok Listing Price']);
+
+  const ebayStatus = row['List eBay'];
+  const ttStatus   = row['List TikTok'];
+  const marketplacesNA = (ebayStatus === 'No' && ttStatus === 'No');
+
+  const kpiRow = document.querySelector('.drawer-kpi-row');
+  if (!kpiRow || marketplacesNA) return;
+
+  const kpis = kpiRow.querySelectorAll('.drawer-kpi');
+  if (kpis.length < 4) return;
+
+  const vals = [
+    !isNaN(unitCost) ? '£' + unitCost.toFixed(2) : '—',
+    !isNaN(packSize) ? String(packSize)           : '—',
+    !isNaN(ebayLP)   ? '£' + ebayLP.toFixed(2)   : '—',
+    !isNaN(ttLP)     ? '£' + ttLP.toFixed(2)      : '—',
+  ];
+
+  kpis.forEach((kpi, i) => {
+    const valEl = kpi.querySelector('.drawer-kpi-val');
+    if (!valEl) return;
+    const newVal = vals[i];
+    if (valEl.textContent !== newVal) {
+      valEl.textContent = newVal;
+      valEl.style.transition = 'color .2s';
+      valEl.style.color = '#60a5fa';
+      setTimeout(() => { valEl.style.color = '#fff'; }, 350);
+    }
+  });
+}
+
+  
 /* ─── SAVE HANDLERS ──────────────────────────────────────────────── */
 async function saveBoolDrop(id,key,selectEl) {
   const value=selectEl.value;
@@ -1342,6 +1390,7 @@ window.saveField=saveField;window.toggleBool=toggleBool;window.saveBoolDrop=save
 window.showListedTable=showListedTable;window.closeTableModal=closeTableModal;
 window.openDrawer=openDrawer;window.moveToVeeqo = moveToVeeqo;
 window.deleteProduct = deleteProduct;
+window.liveUpdateField = liveUpdateField;
 
 init();
 })();
