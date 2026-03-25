@@ -1025,7 +1025,32 @@ async function downloadPDF() {
 
   showToast('Generating PDF…', 'info');
 
-  // Temporarily hide editable controls for PDF
+  // Dynamically load libraries if not already present
+  async function loadScript(src, globalCheck) {
+    if (globalCheck()) return;
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  try {
+    await loadScript(
+      'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+      () => typeof html2canvas !== 'undefined'
+    );
+    await loadScript(
+      'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+      () => typeof window.jspdf !== 'undefined'
+    );
+  } catch (err) {
+    showToast('Failed to load PDF libraries', 'error');
+    return;
+  }
+
   const editables = paper.querySelectorAll('.inv-editable, .inv-editable-select, .add-line-btn, .line-item-del');
   editables.forEach(el => el.style.pointerEvents = 'none');
 
@@ -1038,15 +1063,12 @@ async function downloadPDF() {
       logging: false,
       imageTimeout: 15000,
       onclone: (doc) => {
-        // Replace editable inputs with plain text spans for clean PDF
         doc.querySelectorAll('.inv-editable').forEach(el => {
           const span = doc.createElement(el.tagName === 'TEXTAREA' ? 'p' : 'span');
           span.textContent = el.value || el.textContent;
           span.style.cssText = window.getComputedStyle(el).cssText;
           span.style.border = 'none';
           span.style.background = 'transparent';
-          span.style.padding = el.style.padding || '';
-          span.style.margin = el.style.margin || '';
           el.parentNode.replaceChild(span, el);
         });
         doc.querySelectorAll('.inv-editable-select').forEach(el => {
@@ -1065,8 +1087,6 @@ async function downloadPDF() {
     const pageH = pdf.internal.pageSize.getHeight();
     const imgW  = pageW - 20;
     const imgH  = (canvas.height * imgW) / canvas.width;
-
-    // If content is taller than a page, scale to fit
     const finalH = imgH > (pageH - 20) ? (pageH - 20) : imgH;
     pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 10, 10, imgW, finalH);
     pdf.save((currentInvoice.invoiceNumber || 'invoice') + '.pdf');
