@@ -919,13 +919,21 @@ function trashIcon(size=9){return `<svg width="${size}" height="${size}" viewBox
 /* ══ NAVIGATION ═════════════════════════════════════════════════════════════ */
 function navigate(dir) {
   const d = new Date(S.currentDate+'T00:00');
-  const delta = S.view==='day'?1:S.view==='week'?7:14;
-  d.setDate(d.getDate()+dir*delta);
-  if (S.view !== 'day') {
-    d.setDate(d.getDate()-((d.getDay()+6)%7));
+
+  if (S.view === 'day') {
+    d.setDate(d.getDate() + dir);
+  } else {
+    // First ensure we're on a Monday, then jump by exact weeks
+    const dayOfWeek = d.getDay(); // 0=Sun, 1=Mon...
+    const offsetToMon = (dayOfWeek + 6) % 7; // days since last Monday
+    d.setDate(d.getDate() - offsetToMon); // snap to Monday first
+    const delta = S.view === '2weeks' ? 14 : 7;
+    d.setDate(d.getDate() + dir * delta); // then jump exact weeks
   }
+
   S.currentDate = isoDate(d);
-  updateDateLabel(); renderGrid();
+  updateDateLabel();
+  renderGrid();
 }
 
 /* ── FIX: changeView now accepts value directly, no longer reads from DOM ── */
@@ -936,11 +944,12 @@ function changeView(val) {
   if (sel && sel.value !== newView) sel.value = newView;
   if (S.view !== 'day') {
     const d = new Date(S.currentDate+'T00:00');
-    const mon = new Date(d);
-    mon.setDate(d.getDate()-((d.getDay()+6)%7));
-    S.currentDate = isoDate(mon);
+    const offsetToMon = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - offsetToMon);
+    S.currentDate = isoDate(d);
   }
-  updateDateLabel(); renderGrid();
+  updateDateLabel();
+  renderGrid();
 }
 
 window.changeView = changeView;
