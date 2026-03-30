@@ -742,6 +742,7 @@ const S = {
 };
 
 /* ══ BOOT ═══════════════════════════════════════════════════════════════════ */
+// FIND and REPLACE the entire init() function:
 async function init() {
   try {
     const res = await fetch(API, { method:'POST', body: JSON.stringify({action:'getData'}), headers:{'Content-Type':'text/plain'} });
@@ -751,12 +752,12 @@ async function init() {
     S.tasks       = (d.tasks||[]).map(t=>({...t,id:String(t.id)}));
     S.schedule    = (d.schedule||[]).map(normalizeShift);
     S.workingDays = d.workingDays||[1,2,3,4,5];
-    
     S.closedDays  = JSON.parse(localStorage.getItem('rota_closedDays')||'[]');
     S.hiddenEmployees = JSON.parse(localStorage.getItem('rota_hiddenEmps')||'[]');
     S.loaded = true;
-    // Always snap to Monday on load — safe even if already Monday
-    S.currentDate = snapToMonday(S.currentDate);
+    S.view = 'week';                                    // ADD: default to week view
+    S.currentDate = snapToMonday(isoDate(new Date()));  // CHANGE: snap before storing
+    document.getElementById('viewSelect').value = 'week'; // ADD: sync the dropdown
     renderAll();
   } catch(e) {
     document.getElementById('gridContent').innerHTML = '<p style="color:#dc2626;font-size:13px;padding:40px;text-align:center">Failed to load data. Please check your connection.</p>';
