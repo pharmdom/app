@@ -778,8 +778,7 @@ function visibleEmployees() { return S.employees.filter(e=>!S.hiddenEmployees.in
 /* ══ DATES ══════════════════════════════════════════════════════════════════ */
 function getDates() {
   if (S.view === 'day') return [S.currentDate];
-  S.currentDate = snapToMonday(S.currentDate);
-  const mon = new Date(S.currentDate + 'T00:00');
+  const mon = new Date(snapToMonday(S.currentDate) + 'T00:00');
   const count = S.view === '2weeks' ? 14 : 7;
   const out = [];
   for (let i = 0; i < count; i++) {
@@ -794,6 +793,7 @@ function getDates() {
 function renderAll() { updateDateLabel(); renderGrid(); }
 
 function updateDateLabel() {
+  if (S.view !== 'day') S.currentDate = snapToMonday(S.currentDate);
   const dates = getDates();
   const label = S.view==='day'
     ? fmtDate(S.currentDate,{weekday:'short',month:'short',day:'numeric',year:'numeric'})
@@ -989,11 +989,14 @@ function renderCalendar(){
   document.getElementById('calMonthLabel').textContent=new Date(y,m,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
   const firstDay=new Date(y,m,1),lastDay=new Date(y,m+1,0),startOffset=(firstDay.getDay()+6)%7,todayStr=isoDate(new Date());
   let rangeStart=null,rangeEnd=null;
+  
   if(!isDayView){
-    const wr=getWeekRange(S.currentDate);rangeStart=wr.start;
-    if(S.view==='2weeks'){const e2=new Date(wr.end+'T00:00');e2.setDate(e2.getDate()+7);rangeEnd=isoDate(e2);}
-    else rangeEnd=wr.end;
+    const dates=getDates();
+    rangeStart=dates[0];
+    rangeEnd=dates[dates.length-1];
   }
+
+  
   let html=DAYS.map(d=>`<div class="cal-dow">${d}</div>`).join('');
   for(let i=0;i<startOffset;i++) html+='<div class="cal-day empty"></div>';
   for(let day=1;day<=lastDay.getDate();day++){
