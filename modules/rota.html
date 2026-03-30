@@ -774,12 +774,15 @@ function visibleEmployees() { return S.employees.filter(e=>!S.hiddenEmployees.in
 
 /* ══ DATES ══════════════════════════════════════════════════════════════════ */
 function getDates() {
-  const d = new Date(S.currentDate+'T00:00');
-  if (S.view==='day') return [S.currentDate];
-  const mon = new Date(d);
-  mon.setDate(d.getDate()-((d.getDay()+6)%7));
-  const count = S.view==='2weeks'?14:7, out=[];
-  for(let i=0;i<count;i++){const x=new Date(mon);x.setDate(mon.getDate()+i);out.push(isoDate(x));}
+  if (S.view === 'day') return [S.currentDate];
+  const mon = new Date(snapToMonday(S.currentDate) + 'T00:00');
+  const count = S.view === '2weeks' ? 14 : 7;
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const x = new Date(mon);
+    x.setDate(mon.getDate() + i);
+    out.push(isoDate(x));
+  }
   return out;
 }
 
@@ -916,22 +919,24 @@ function renderGrid() {
 
 function trashIcon(size=9){return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>`;}
 
+function snapToMonday(dateStr) {
+  const d = new Date(dateStr + 'T00:00');
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return isoDate(d);
+}
+  
 /* ══ NAVIGATION ═════════════════════════════════════════════════════════════ */
 function navigate(dir) {
-  const d = new Date(S.currentDate+'T00:00');
-
   if (S.view === 'day') {
+    const d = new Date(S.currentDate + 'T00:00');
     d.setDate(d.getDate() + dir);
+    S.currentDate = isoDate(d);
   } else {
-    // First ensure we're on a Monday, then jump by exact weeks
-    const dayOfWeek = d.getDay(); // 0=Sun, 1=Mon...
-    const offsetToMon = (dayOfWeek + 6) % 7; // days since last Monday
-    d.setDate(d.getDate() - offsetToMon); // snap to Monday first
+    const mon = new Date(snapToMonday(S.currentDate) + 'T00:00');
     const delta = S.view === '2weeks' ? 14 : 7;
-    d.setDate(d.getDate() + dir * delta); // then jump exact weeks
+    mon.setDate(mon.getDate() + dir * delta);
+    S.currentDate = isoDate(mon);
   }
-
-  S.currentDate = isoDate(d);
   updateDateLabel();
   renderGrid();
 }
@@ -943,10 +948,7 @@ function changeView(val) {
   const sel = document.getElementById('viewSelect');
   if (sel && sel.value !== newView) sel.value = newView;
   if (S.view !== 'day') {
-    const d = new Date(S.currentDate+'T00:00');
-    const offsetToMon = (d.getDay() + 6) % 7;
-    d.setDate(d.getDate() - offsetToMon);
-    S.currentDate = isoDate(d);
+    S.currentDate = snapToMonday(S.currentDate);
   }
   updateDateLabel();
   renderGrid();
