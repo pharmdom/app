@@ -778,8 +778,6 @@ function getDates() {
   if (S.view==='day') return [S.currentDate];
   const mon = new Date(d);
   mon.setDate(d.getDate()-((d.getDay()+6)%7));
-  // Keep currentDate pinned to Monday
-  S.currentDate = isoDate(mon);
   const count = S.view==='2weeks'?14:7, out=[];
   for(let i=0;i<count;i++){const x=new Date(mon);x.setDate(mon.getDate()+i);out.push(isoDate(x));}
   return out;
@@ -923,12 +921,9 @@ function navigate(dir) {
   const d = new Date(S.currentDate+'T00:00');
   const delta = S.view==='day'?1:S.view==='week'?7:14;
   d.setDate(d.getDate()+dir*delta);
-
-  // Always snap week/2weeks to Monday
   if (S.view !== 'day') {
     d.setDate(d.getDate()-((d.getDay()+6)%7));
   }
-
   S.currentDate = isoDate(d);
   updateDateLabel(); renderGrid();
 }
@@ -937,11 +932,11 @@ function navigate(dir) {
 function changeView(val) {
   const newView = val || document.getElementById('viewSelect').value;
   S.view = newView;
-  // Sync the select UI to match (in case called programmatically)
   const sel = document.getElementById('viewSelect');
   if (sel && sel.value !== newView) sel.value = newView;
   if (S.view !== 'day') {
-    const d = new Date(S.currentDate+'T00:00'), mon = new Date(d);
+    const d = new Date(S.currentDate+'T00:00');
+    const mon = new Date(d);
     mon.setDate(d.getDate()-((d.getDay()+6)%7));
     S.currentDate = isoDate(mon);
   }
