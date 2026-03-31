@@ -1779,13 +1779,19 @@ async function saveProduct() {
     if (data.opportunityId) {
       await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'logSourcingTime', opportunityId: data.opportunityId, agent: payload.agent, supplierName: payload.supplierName, productName: payload.productName, seconds, formatted: formatTime(seconds) }), headers: { 'Content-Type': 'text/plain' } });
     }
-  removeToast(toastId);
-  showToast('Product saved', 'success');
-  closeModal();
-  await loadData();
-  if (data.opportunityId) {
-    openDrawer(data.opportunityId);
-  }    
+    
+const newId = data.opportunityId || null;
+removeToast(toastId);
+showToast('Product saved', 'success');
+closeModal();
+activeStatFilter = null;
+document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active-filter'));
+await loadData();
+if (newId) {
+  openDrawer(newId);
+} 
+
+    
   } catch (e) {
     removeToast(toastId);
     showToast('Failed to save', 'error');
