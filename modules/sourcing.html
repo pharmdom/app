@@ -1779,19 +1779,20 @@ async function saveProduct() {
     if (data.opportunityId) {
       await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'logSourcingTime', opportunityId: data.opportunityId, agent: payload.agent, supplierName: payload.supplierName, productName: payload.productName, seconds, formatted: formatTime(seconds) }), headers: { 'Content-Type': 'text/plain' } });
     }
-    
-const newId = data.opportunityId || null;
-removeToast(toastId);
-showToast('Product saved', 'success');
-closeModal();
-activeStatFilter = null;
-document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active-filter'));
-await loadData();
-if (newId) {
-  openDrawer(newId);
-} 
-
-    
+    const newId = data.opportunityId || null;
+    removeToast(toastId);
+    showToast('Product saved', 'success');
+    closeModal();
+    activeStatFilter = null;
+    document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active-filter'));
+    await loadData();
+    if (newId) {
+      // Try exact match first, then fallback to trimmed string compare
+      const match = allData.find(p => String(p['Opportunity ID']).trim() === String(newId).trim());
+      if (match) {
+        openDrawer(match['Opportunity ID']);
+      }
+    }
   } catch (e) {
     removeToast(toastId);
     showToast('Failed to save', 'error');
