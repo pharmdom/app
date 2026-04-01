@@ -773,10 +773,12 @@ async function loadSuppliers() {
   try {
     const res  = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getSuppliers' }), headers: { 'Content-Type': 'text/plain' } });
     const data = await res.json();
+    
     suppliers = (data.suppliers || []).map(s => ({
       name: s.name || s['Supplier Name'] || s.supplierName || '',
       code: s.code || s['Code'] || s.supplierCode || ''
     }));
+    
   } catch (e) {}
 }
 
@@ -802,9 +804,22 @@ async function onDrawerSupplierChange(id, select){
   const code = selected.getAttribute('data-code') || '';
   const row = allData.find(p => p['Opportunity ID'] === id);
   if(!row) return;
-  await saveField(id,'Supplier Name',select.value);
-  if(code){
-    await saveField(id,'Code',code);
+
+  // Update local state FIRST so re-render sees new values
+  row['Supplier Name'] = select.value;
+  if(code) row['Code'] = code;
+
+  const toastId = showToast('Saving…', 'loading', 0);
+  try {
+    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'updateSourcing', opportunityId: id, field: 'Supplier Name', value: select.value }), headers: { 'Content-Type': 'text/plain' } });
+    if(code) await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'updateSourcing', opportunityId: id, field: 'Code', value: code }), headers: { 'Content-Type': 'text/plain' } });
+    removeToast(toastId);
+    showToast('Saved', 'success');
+    updateStats(); applyFilters(); renderTable();
+    if(currentDrawerId === id) renderDrawer(row);
+  } catch(e) {
+    removeToast(toastId);
+    showToast('Failed to save', 'error');
   }
 }
   
