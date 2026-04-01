@@ -699,9 +699,34 @@ let currentDrawerId = null; // track open drawer product
 
 /* ══ INIT ══ */
 async function init() {
-  await loadUsers();      // 👈 FIRST
-  await loadSuppliers();  // 👈 SECOND
-  await loadData();       // 👈 LAST (renders UI)
+  await loadUsers();
+  await loadSuppliers();
+  await loadData();
+  startPolling();
+}
+
+function startPolling() {
+  setInterval(async () => {
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'getSourcing' }),
+        headers: { 'Content-Type': 'text/plain' }
+      });
+      const data = await res.json();
+      allData = data.data || [];
+      applyFilters();
+      updateStats();
+      renderTable();
+      if (currentDrawerId) {
+        const fresh = allData.find(p => p['Opportunity ID'] === currentDrawerId);
+        if (fresh) renderDrawer(fresh);
+        else closeDrawer();
+      }
+    } catch(e) {
+      console.warn('Poll failed', e);
+    }
+  }, 30000);
 }
 
 /* ══ DATA ══ */
@@ -768,23 +793,16 @@ function fillSupplierCode(){
 
 }
 
-  function onDrawerSupplierChange(id, select){
-
+async function onDrawerSupplierChange(id, select){
   const selected = select.options[select.selectedIndex];
-
   if(!selected) return;
-
   const code = selected.getAttribute('data-code') || '';
-
   const row = allData.find(p => p['Opportunity ID'] === id);
   if(!row) return;
-
-  saveField(id,'Supplier Name',select.value);
-
+  await saveField(id,'Supplier Name',select.value);
   if(code){
-    saveField(id,'Code',code);
+    await saveField(id,'Code',code);
   }
-
 }
   
 /* ══ STATS ══ */
@@ -833,6 +851,11 @@ function filterByStatus(type) {
 document.getElementById('searchInput').addEventListener('input', function () {
   currentPage = 1;
   applyFilters();
+});
+
+document.getElementById('tableBody').addEventListener('click', function(e) {
+  const tr = e.target.closest('tr[data-id]');
+  if (tr) openDrawer(tr.dataset.id);
 });
 
 /* ══ FILTERS ══ */
@@ -946,7 +969,7 @@ function renderTable() {
       ? '<span class="yn-yes"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Yes</span>'
       : '<span class="yn-no"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>No</span>';
 
-    return '<tr onclick="openDrawer(\'' + escAttr(row['Opportunity ID']) + '\')">'
+return '<tr data-id="' + escAttr(row['Opportunity ID']) + '" style="cursor:pointer">'
       + '<td class="mtd">' + date + '</td>'
       + '<td class="product-cell" title="' + escAttr(row['Product Name'] || '') + '">' + escHtml(row['Product Name'] || '—') + '</td>'
       + '<td>' + escHtml(row['Supplier Name'] || '—') + '</td>'
@@ -1251,12 +1274,16 @@ function updateAsinRemoveBtns(id) {
   });
 }
 
+let asinSaveTimer = null;
 function saveAsins(id) {
-  const list = document.getElementById('asinList_' + id);
-  if (!list) return;
-  const inputs = list.querySelectorAll('.asin-input');
-  const vals = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
-  saveField(id, 'ASIN(s)', vals.join(', '));
+  clearTimeout(asinSaveTimer);
+  asinSaveTimer = setTimeout(() => {
+    const list = document.getElementById('asinList_' + id);
+    if (!list) return;
+    const inputs = list.querySelectorAll('.asin-input');
+    const vals = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+    saveField(id, 'ASIN(s)', vals.join(', '));
+  }, 400);
 }
 
 function onPurchasedChange(id, value) {
@@ -1404,13 +1431,17 @@ async function saveField(opportunityId, field, value) {
       body: JSON.stringify({ action: 'updateSourcing', opportunityId, field, value }),
       headers: { 'Content-Type': 'text/plain' }
     });
-    const idx = allData.findIndex(p => p['Opportunity ID'] === opportunityId);
-    if (idx > -1) allData[idx][field] = value;
-    removeToast(toastId);
-    showToast('Saved', 'success');
-    updateStats();
-    applyFilters();
-    renderTable();
+  const idx = allData.findIndex(p => p['Opportunity ID'] === opportunityId);
+  if (idx > -1) allData[idx][field] = value;
+  removeToast(toastId);
+  showToast('Saved', 'success');
+  updateStats();
+  applyFilters();
+  renderTable();
+  if (currentDrawerId === opportunityId) {
+    const updatedRow = allData.find(p => p['Opportunity ID'] === opportunityId);
+    if (updatedRow) renderDrawer(updatedRow);
+  }
   } catch (e) {
     removeToast(toastId);
     showToast('Failed to save', 'error');
@@ -1504,20 +1535,21 @@ async function decideProduct(id, decision) {
 
   const toastId = showToast('Saving decision…', 'loading', 0);
   try {
-    await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'updateSourcing',
-        opportunityId: id,
-        field: 'Approvals',
-        value: JSON.stringify(filtered2),
-        approvedBy: filtered2.filter(a => a.status !== 'rejected').map(a => a.name).join(', '),
-        approved: isApproved && !isFullyRejected
-      }),
-      headers: { 'Content-Type': 'text/plain' }
-    });
-    row['Approvals'] = JSON.stringify(filtered2);
-    row['Approved']  = isApproved && !isFullyRejected;
+const decision = { name: selectedUser, date: new Date().toLocaleDateString('en-GB'), status: decision };
+const res2 = await fetch(API_URL, {
+  method: 'POST',
+  body: JSON.stringify({
+    action: 'appendApproval',
+    opportunityId: id,
+    approval: { name: selectedUser, date: new Date().toLocaleDateString('en-GB'), status: decision }
+  }),
+  headers: { 'Content-Type': 'text/plain' }
+});
+const result2 = await res2.json();
+row['Approvals'] = result2.newApprovals;
+row['Approved']  = result2.approved;
+
+    
     removeToast(toastId);
     showToast(selectedUser + (decision === 'approved' ? ' approved' : ' rejected'), decision === 'approved' ? 'success' : 'error');
     activeTab = 'approvals';
@@ -1536,23 +1568,28 @@ async function addNote(id) {
   const noteUserEl   = document.getElementById('noteUser');
   const noteInput    = document.getElementById('noteInput');
   const selectedUser = noteUserEl ? noteUserEl.value : '';
-  const text         = noteInput ? noteInput.value.trim() : '';
 
-  if (!selectedUser) { showToast('Please select a user', 'error'); return; }
-  if (!text)         { showToast('Please write something', 'error'); return; }
+  
+const text = noteInput ? noteInput.value.trim() : '';
+if (!selectedUser) { showToast('Please select a user', 'error'); return; }
+if (!text)         { showToast('Please write something', 'error'); return; }
+if (text.length > 2000) { showToast('Note too long (max 2000 characters)', 'error'); return; }
 
-  const row   = allData.find(p => p['Opportunity ID'] === id);
-  const notes = parseJSON(row['Notes'], []);
-  notes.push({ name: selectedUser, text, date: new Date().toLocaleDateString('en-GB') });
+const row   = allData.find(p => p['Opportunity ID'] === id);
+const newNote = { name: selectedUser, text, date: new Date().toLocaleDateString('en-GB') };
 
-  const toastId = showToast('Adding note…', 'loading', 0);
-  try {
-    await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'updateSourcing', opportunityId: id, field: 'Notes', value: JSON.stringify(notes) }),
-      headers: { 'Content-Type': 'text/plain' }
-    });
-    row['Notes'] = JSON.stringify(notes);
+const toastId = showToast('Adding note…', 'loading', 0);
+try {
+  await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'appendNote', opportunityId: id, note: newNote }),
+    headers: { 'Content-Type': 'text/plain' }
+  });
+  const existingNotes = parseJSON(row['Notes'], []);
+  existingNotes.push(newNote);
+  row['Notes'] = JSON.stringify(existingNotes);
+
+    
     removeToast(toastId);
     showToast('Note added', 'success');
     activeTab = 'notes';
@@ -1577,6 +1614,7 @@ function closeModal() {
 }
 
 function startTimer() {
+  clearInterval(timerInterval);
   timerInterval = setInterval(() => {
     document.getElementById('timerText').textContent = formatTime(Math.floor((Date.now() - startTime) / 1000));
   }, 1000);
@@ -1739,9 +1777,21 @@ async function saveProduct() {
 
   const productName = document.getElementById('f_productName').value.trim();
 
+  const duplicate = allData.find(p =>
+  (p['Product Name'] || '').trim().toLowerCase() === productName.toLowerCase()
+);
+if (duplicate) {
+  showToast('A product with this name already exists', 'error');
+  saveBtn.disabled = false;
+  saveBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Save Product';
+  return;
+}
+
   const lu       = getLoggedUser();
-  const notesTxt = document.getElementById('f_notes').value.trim();
-  const notesArr = notesTxt ? JSON.stringify([{ name: lu, text: notesTxt, date: new Date().toLocaleDateString('en-GB') }]) : '[]';
+const notesTxt = document.getElementById('f_notes').value.trim();
+const agentName = document.getElementById('f_agent').value.trim();
+const noteAuthor = agentName || lu || 'Unknown';
+const notesArr = notesTxt ? JSON.stringify([{ name: noteAuthor, text: notesTxt, date: new Date().toLocaleDateString('en-GB') }]) : '[]';
 
   const saveBtn = document.getElementById('saveBtn');
   saveBtn.disabled = true;
