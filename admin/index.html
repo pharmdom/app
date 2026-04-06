@@ -390,6 +390,55 @@
       transition: transform 0.25s ease;
     }
 
+
+    .sidebar.collapsed { width: 64px; min-width: 64px; }
+.sidebar.collapsed .sidebar-brand-name,
+.sidebar.collapsed .sidebar-brand-sub,
+.sidebar.collapsed .nav-item-label,
+.sidebar.collapsed .nav-group-label,
+.sidebar.collapsed .nav-section-label,
+.sidebar.collapsed .nav-chevron,
+.sidebar.collapsed .sidebar-user-name,
+.sidebar.collapsed .sidebar-user-role,
+.sidebar.collapsed .nav-children { display: none; }
+.sidebar.collapsed .sidebar-header { justify-content: center; padding: 20px 8px; }
+.sidebar.collapsed .nav-item,
+.sidebar.collapsed .nav-group-header { justify-content: center; padding: 10px; }
+.sidebar.collapsed .sidebar-user-card { justify-content: center; padding: 10px; }
+.sidebar { transition: width 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+
+/* Hover-to-expand in collapsed mode */
+.sidebar.collapsed:hover { width: var(--sidebar-w); }
+.sidebar.collapsed:hover .sidebar-brand-name,
+.sidebar.collapsed:hover .sidebar-brand-sub,
+.sidebar.collapsed:hover .nav-item-label,
+.sidebar.collapsed:hover .nav-group-label,
+.sidebar.collapsed:hover .nav-section-label,
+.sidebar.collapsed:hover .nav-chevron,
+.sidebar.collapsed:hover .sidebar-user-name,
+.sidebar.collapsed:hover .sidebar-user-role { display: block; }
+.sidebar.collapsed:hover .nav-item,
+.sidebar.collapsed:hover .nav-group-header { justify-content: flex-start; padding: 10px 12px; }
+.sidebar.collapsed:hover .sidebar-header { justify-content: flex-start; padding: 20px 16px; }
+.sidebar.collapsed:hover .sidebar-user-card { justify-content: flex-start; padding: 10px 12px; }
+
+
+.sidebar-collapse-btn {
+  margin-left: auto;
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.sidebar-collapse-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+.sidebar.collapsed .sidebar-collapse-btn { display: none; } /* hidden when collapsed; hover reveals full bar */
+
+    
     .topbar-user.open .topbar-chevron { transform: rotate(180deg); }
 
     /* ── DROPDOWN ── */
@@ -484,6 +533,11 @@
       opacity: 0;
       transform: translateY(12px);
       transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    @media (max-width: 480px) {
+        .content { padding: 10px; }
+        .topbar { padding: 0 16px; }
     }
 
     .content.show { opacity: 1; transform: translateY(0); }
@@ -680,7 +734,9 @@ const modules = {
   listing:  { navTitle: "Listing & Veeqo", pageTitle: "Listing & Veeqo", section: "Modules", permission: "listing",  file: "../modules/listing.html", parent: "listing" },
   suppliers:{ navTitle: "Suppliers", pageTitle: "Suppliers", section: "Modules", permission: "suppliers", file: "../modules/suppliers.html", parent: "suppliers" },
 
-  fba:{ navTitle: "FBA (Warehouse)", pageTitle: "FBA (Warehouse)", section: "Modules", permission: "fba", file: "../modules/fba.html", parent: "fba" },
+  fba: { navTitle: "FBA", pageTitle: "FBA (Warehouse)", section: "Modules", permission: "fba", file: "../modules/fba.html", parent: "warehouse" },
+
+  notifiedreceived: { navTitle: "Notified & Received", pageTitle: "Notified & Received", section: "Modules", permission: "fba", file: "../modules/notified&received.html", parent: "warehouse" },
 
   invoices:{ navTitle: "Invoices", pageTitle: "Invoices", section: "Modules", permission: "invoices", file: "../modules/invoices.html", parent: "invoices" },
 
@@ -704,6 +760,13 @@ const modules = {
       fba: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8"/><path d="M3 8l9 5 9-5"/><path d="M12 13v9"/></svg>`
     };
 
+
+    function closeAllGroups() {
+  document.querySelectorAll(".nav-children.open").forEach(el => el.classList.remove("open"));
+  document.querySelectorAll(".nav-chevron.open").forEach(el => el.classList.remove("open"));
+}
+    
+
     /* ── BUILD SIDEBAR (only overview + modules) ── */
     function buildSidebar() {
       const s = document.getElementById("sidebar");
@@ -715,6 +778,11 @@ const modules = {
           <div>
             <div class="sidebar-brand-name">Pharm & Dom</div>
           </div>
+          <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" onclick="toggleCollapse()" title="Toggle sidebar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
         </div>
         <nav class="sidebar-nav" id="sidebarNav"></nav>
         <div class="sidebar-footer">
@@ -787,11 +855,25 @@ if (hasSourcing || hasListing || hasSuppliers || hasRota || hasPaycheck || hasIn
     </div>`;
 
     // FBA (separate item)
-  if (hasFBA) html += `
-    <div class="nav-item" id="nav-fba" onclick="loadModule('fba')">
+  if (hasFBA) {
+  html += `<div class="nav-group">
+    <div class="nav-group-header" onclick="toggleGroup('warehouse')">
       ${ic.fba}
-      <span class="nav-item-label">${modules.fba.navTitle}</span>
-    </div>`;
+      <span class="nav-group-label">Warehouse</span>
+      <span id="chevron-warehouse">${ic.chevron}</span>
+    </div>
+    <div class="nav-children" id="children-warehouse">
+      <div class="nav-item" id="nav-fba" onclick="loadModule('fba')">
+        ${ic.fba}
+        <span class="nav-item-label">FBA</span>
+      </div>
+      <div class="nav-item" id="nav-notifiedreceived" onclick="loadModule('notifiedreceived')">
+        ${ic.products}
+        <span class="nav-item-label">Notified & Received</span>
+      </div>
+    </div>
+  </div>`;
+}
 
   if (hasInvoices) html += `
     <div class="nav-item" id="nav-invoices" onclick="loadModule('invoices')">
@@ -848,6 +930,7 @@ if (hasRota) html += `
     async function loadPage(key) {
       if (currentKey === key) return;
       currentKey = key;
+      closeAllGroups();
       setActiveNav(`nav-${key}`);
       updateHeader(pages[key].title);
       await fetchAndRender(pages[key].file);
@@ -858,6 +941,14 @@ if (hasRota) html += `
       if (!modules[key] || !hasPermission(modules[key].permission)) return;
       if (currentKey === key) return;
       currentKey = key;
+      closeAllGroups();
+
+      const parent = modules[key].parent || key;
+      const groupEl = document.getElementById(`children-${parent}`);
+      const chevronEl = document.getElementById(`chevron-${parent}`)?.querySelector(".nav-chevron");
+      if (groupEl) groupEl.classList.add("open");
+      if (chevronEl) chevronEl.classList.add("open");
+      
       const parent = modules[key].parent || key;
       setActiveNav(`nav-${parent}`);
       updateHeader(modules[key].pageTitle);
@@ -917,6 +1008,10 @@ if (hasRota) html += `
       sessionStorage.removeItem("user");
       window.location.href = "../login";
     }
+
+    function toggleCollapse() {
+  document.getElementById("sidebar").classList.toggle("collapsed");
+}
     
     /* ── INIT ── */
     buildSidebar();
