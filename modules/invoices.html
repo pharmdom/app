@@ -1509,61 +1509,73 @@ async function downloadPDF() {
   }
 
   try {
-    // Create an offscreen container with the clean invoice HTML
+
+
+
+    // A4 at 96dpi = 794px wide. Use scale:3 for sharp output.
+    const A4_PX_WIDTH = 794;
+    const A4_MM_W = 210;
+    const A4_MM_H = 297;
+
     const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.left = '-9999px';
-    container.style.top = '0';
-    container.style.width = '794px'; // A4-ish width
-    container.style.background = '#fff';
-    container.style.fontFamily = "'Inter', system-ui, sans-serif";
+    container.style.cssText = `
+      position:fixed;left:-9999px;top:0;
+      width:${A4_PX_WIDTH}px;min-height:1123px;
+      background:#fff;font-family:'Inter',system-ui,sans-serif;
+      box-sizing:border-box;
+    `;
     container.innerHTML = buildInvoiceHTML(currentInvoice, true);
     document.body.appendChild(container);
 
-    // Wait for logo to load
+    // Patch the inner paper div to fill full width, no border/shadow
+    const paper = container.querySelector('[style*="max-width"]') || container.firstElementChild;
+    if (paper) {
+      paper.style.maxWidth = 'none';
+      paper.style.width = '100%';
+      paper.style.border = 'none';
+      paper.style.borderRadius = '0';
+      paper.style.boxShadow = 'none';
+      paper.style.margin = '0';
+    }
+
     const imgs = container.querySelectorAll('img');
     await Promise.all(Array.from(imgs).map(img => {
       if (img.complete) return Promise.resolve();
-      return new Promise(resolve => {
-        img.onload = resolve;
-        img.onerror = resolve;
-      });
+      return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
     }));
 
     const canvas = await html2canvas(container, {
-      scale: 2,
+      scale: 3,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
-      imageTimeout: 15000
+      imageTimeout: 15000,
+      width: A4_PX_WIDTH,
+      windowWidth: A4_PX_WIDTH
     });
 
     document.body.removeChild(container);
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const canvasAspect = canvas.height / canvas.width;
-    const contentH = pageW * canvasAspect;
+    const imgData = canvas.toDataURL('image/jpeg', 0.97);
+    const contentH_mm = (canvas.height / canvas.width) * A4_MM_W;
 
-    if (contentH <= pageH) {
-      // Fits on one page — centre it vertically
-      const yOffset = (pageH - contentH) / 2;
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, yOffset, pageW, contentH);
+    if (contentH_mm <= A4_MM_H) {
+      // Fits on one page — top-aligned, full width
+      pdf.addImage(imgData, 'JPEG', 0, 0, A4_MM_W, contentH_mm);
     } else {
-      // Taller than one page — slice into pages
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      let yRendered = 0;
-      while (yRendered < contentH) {
-        const sliceH = Math.min(pageH, contentH - yRendered);
-        pdf.addImage(imgData, 'JPEG', 0, -yRendered, pageW, contentH);
-        yRendered += pageH;
-        if (yRendered < contentH) pdf.addPage();
+      // Multi-page: slice at page boundaries
+      let yOffset = 0;
+      while (yOffset < contentH_mm) {
+        pdf.addImage(imgData, 'JPEG', 0, -yOffset, A4_MM_W, contentH_mm);
+        yOffset += A4_MM_H;
+        if (yOffset < contentH_mm) pdf.addPage();
       }
     }
     pdf.save((currentInvoice.invoiceNumber || 'invoice') + '.pdf');
+
     
     showToast('PDF downloaded ✓', 'success');
   } catch (err) {
@@ -1597,15 +1609,29 @@ async function generatePDFBase64(inv) {
     () => typeof window.jspdf !== 'undefined'
   );
 
+  const A4_PX_WIDTH = 794;
+  const A4_MM_W = 210;
+  const A4_MM_H = 297;
+
   const container = document.createElement('div');
-  container.style.position = 'fixed';
-  container.style.left = '-9999px';
-  container.style.top = '0';
-  container.style.width = '794px';
-  container.style.background = '#fff';
-  container.style.fontFamily = "'Inter', system-ui, sans-serif";
+  container.style.cssText = `
+    position:fixed;left:-9999px;top:0;
+    width:${A4_PX_WIDTH}px;min-height:1123px;
+    background:#fff;font-family:'Inter',system-ui,sans-serif;
+    box-sizing:border-box;
+  `;
   container.innerHTML = buildInvoiceHTML(inv, true);
   document.body.appendChild(container);
+
+  const paper = container.querySelector('[style*="max-width"]') || container.firstElementChild;
+  if (paper) {
+    paper.style.maxWidth = 'none';
+    paper.style.width = '100%';
+    paper.style.border = 'none';
+    paper.style.borderRadius = '0';
+    paper.style.boxShadow = 'none';
+    paper.style.margin = '0';
+  }
 
   const imgs = container.querySelectorAll('img');
   await Promise.all(Array.from(imgs).map(img => {
@@ -1614,31 +1640,29 @@ async function generatePDFBase64(inv) {
   }));
 
   const canvas = await html2canvas(container, {
-    scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false, imageTimeout: 15000
+    scale: 3, useCORS: true, allowTaint: true, backgroundColor: '#ffffff',
+    logging: false, imageTimeout: 15000,
+    width: A4_PX_WIDTH, windowWidth: A4_PX_WIDTH
   });
 
   document.body.removeChild(container);
 
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-  const canvasAspect = canvas.height / canvas.width;
-  const contentH = pageW * canvasAspect;
+  const imgData = canvas.toDataURL('image/jpeg', 0.97);
+  const contentH_mm = (canvas.height / canvas.width) * A4_MM_W;
 
-  if (contentH <= pageH) {
-    const yOffset = (pageH - contentH) / 2;
-    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, yOffset, pageW, contentH);
+  if (contentH_mm <= A4_MM_H) {
+    pdf.addImage(imgData, 'JPEG', 0, 0, A4_MM_W, contentH_mm);
   } else {
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
-    let yRendered = 0;
-    while (yRendered < contentH) {
-      pdf.addImage(imgData, 'JPEG', 0, -yRendered, pageW, contentH);
-      yRendered += pageH;
-      if (yRendered < contentH) pdf.addPage();
+    let yOffset = 0;
+    while (yOffset < contentH_mm) {
+      pdf.addImage(imgData, 'JPEG', 0, -yOffset, A4_MM_W, contentH_mm);
+      yOffset += A4_MM_H;
+      if (yOffset < contentH_mm) pdf.addPage();
     }
   }
-
+  
   // Return base64 string (without data:application/pdf;base64, prefix)
   return pdf.output('datauristring').split(',')[1];
 }
