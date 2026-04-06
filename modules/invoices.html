@@ -1545,11 +1545,26 @@ async function downloadPDF() {
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const imgW  = pageW - 20;
-    const imgH  = (canvas.height * imgW) / canvas.width;
-    const finalH = imgH > (pageH - 20) ? (pageH - 20) : imgH;
-    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 10, 10, imgW, finalH);
+    const canvasAspect = canvas.height / canvas.width;
+    const contentH = pageW * canvasAspect;
+
+    if (contentH <= pageH) {
+      // Fits on one page — centre it vertically
+      const yOffset = (pageH - contentH) / 2;
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, yOffset, pageW, contentH);
+    } else {
+      // Taller than one page — slice into pages
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      let yRendered = 0;
+      while (yRendered < contentH) {
+        const sliceH = Math.min(pageH, contentH - yRendered);
+        pdf.addImage(imgData, 'JPEG', 0, -yRendered, pageW, contentH);
+        yRendered += pageH;
+        if (yRendered < contentH) pdf.addPage();
+      }
+    }
     pdf.save((currentInvoice.invoiceNumber || 'invoice') + '.pdf');
+    
     showToast('PDF downloaded ✓', 'success');
   } catch (err) {
     console.error(err);
@@ -1608,10 +1623,21 @@ async function generatePDFBase64(inv) {
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
-  const imgW  = pageW - 20;
-  const imgH  = (canvas.height * imgW) / canvas.width;
-  const finalH = imgH > (pageH - 20) ? (pageH - 20) : imgH;
-  pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 10, 10, imgW, finalH);
+  const canvasAspect = canvas.height / canvas.width;
+  const contentH = pageW * canvasAspect;
+
+  if (contentH <= pageH) {
+    const yOffset = (pageH - contentH) / 2;
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, yOffset, pageW, contentH);
+  } else {
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    let yRendered = 0;
+    while (yRendered < contentH) {
+      pdf.addImage(imgData, 'JPEG', 0, -yRendered, pageW, contentH);
+      yRendered += pageH;
+      if (yRendered < contentH) pdf.addPage();
+    }
+  }
 
   // Return base64 string (without data:application/pdf;base64, prefix)
   return pdf.output('datauristring').split(',')[1];
