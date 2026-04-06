@@ -1,5 +1,4 @@
 
-
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -27,22 +26,10 @@ html, body {
 
 /* ── HEADER ROW ── */
 .page-header {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: flex-start;
   margin-bottom: 10px; flex-wrap: wrap; gap: 8px; flex-shrink: 0;
 }
 .header-left { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 0; flex-wrap: wrap; }
-
-/* ── STAT CHIP ── */
-.stat-chip {
-  display: flex; align-items: center; gap: 5px;
-  padding: 5px 10px; border-radius: 100px;
-  font-size: 12px; font-weight: 600; border: 1px solid transparent; white-space: nowrap;
-  cursor: default;
-}
-.stat-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
-.stat-chip.slate  { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
-.stat-chip.green  { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
-.stat-chip.amber  { background: #fffbeb; color: #b45309; border-color: #fde68a; }
 
 /* ── SEARCH ── */
 .search-wrap { position: relative; min-width: 180px; max-width: 260px; flex: 1; }
@@ -59,10 +46,21 @@ html, body {
   cursor: pointer; transition: all .15s; user-select: none;
 }
 .filter-pill:hover { border-color: #94a3b8; color: #334155; }
-.filter-pill.active-all  { background: #0f172a; border-color: #0f172a; color: #fff; }
-.filter-pill.active-done { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+.filter-pill.active-all     { background: #0f172a; border-color: #0f172a; color: #fff; }
+.filter-pill.active-done    { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
 .filter-pill.active-pending { background: #fffbeb; border-color: #fde68a; color: #b45309; }
 .filter-pill svg { width: 11px; height: 11px; }
+.filter-pill .pill-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 100px; font-size: 10px; font-weight: 700;
+  line-height: 1;
+}
+/* Count badge colors per state */
+.filter-pill .pill-count                        { background: #e2e8f0; color: #475569; }
+.filter-pill.active-all .pill-count             { background: rgba(255,255,255,.2); color: #fff; }
+.filter-pill.active-done .pill-count            { background: #bbf7d0; color: #15803d; }
+.filter-pill.active-pending .pill-count         { background: #fde68a; color: #b45309; }
 
 /* ── MAIN CONTENT ── */
 .main-content {
@@ -107,14 +105,6 @@ html, body {
 .data-table tbody tr:hover { background: #fafbff; }
 .data-table td { padding: 12px 16px; color: #334155; vertical-align: middle; }
 .data-table td.center { text-align: center; }
-
-/* ── ROW NUMBER ── */
-.row-num {
-  width: 28px; height: 28px; border-radius: 7px;
-  background: #f1f5f9; color: #94a3b8;
-  font-size: 11px; font-weight: 700;
-  display: inline-flex; align-items: center; justify-content: center;
-}
 
 /* ── LISTING NAME CELL ── */
 .listing-name-cell { font-weight: 700; color: #0f172a; }
@@ -180,6 +170,43 @@ html, body {
 @keyframes toastIn { from { opacity: 0; transform: translateX(20px) scale(.95); } to { opacity: 1; transform: translateX(0) scale(1); } }
 @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: scale(.93); } }
 
+/* ── MOBILE CARD LAYOUT ── */
+.mobile-cards { display: none; }
+
+.mobile-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  animation: rowIn .16s ease both;
+}
+.mobile-card + .mobile-card { margin-top: 8px; }
+
+.mobile-card-header {
+  margin-bottom: 10px;
+}
+.mobile-card-header .listing-name-cell { font-size: 13px; }
+.mobile-card-header .listing-supplier { font-size: 11px; }
+
+.mobile-card-asin { margin-bottom: 10px; }
+
+.mobile-card-fields {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.mobile-card-field {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.mobile-card-field-label {
+  font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .4px;
+}
+.mobile-card-status {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid #f1f5f9;
+}
+.mobile-card-status-label {
+  font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .4px;
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width: 900px) {
   html, body { overflow: auto; height: auto; }
@@ -187,9 +214,23 @@ html, body {
   .main-content { overflow: visible; }
   .table-wrap { overflow-x: auto; }
 }
-@media (max-width: 640px) {
-  .page-wrapper { padding: 8px; }
-  .data-table th, .data-table td { padding: 10px 12px; }
+
+@media (max-width: 680px) {
+  html, body { overflow: auto; height: auto; }
+  .page-wrapper { height: auto; overflow: visible; padding: 8px; }
+  .main-content { overflow: visible; }
+
+  .search-wrap { min-width: 0; max-width: 100%; flex-basis: 100%; }
+
+  /* Hide desktop table, show mobile cards */
+  .table-wrap { display: none; }
+  .mobile-cards { display: block; }
+
+  .filter-row { gap: 6px; }
+  .filter-pill { font-size: 10px; padding: 4px 10px; }
+
+  .toast-container { top: 10px; right: 10px; left: 10px; }
+  .toast { max-width: 100%; font-size: 12px; }
 }
 </style>
 
@@ -205,18 +246,6 @@ html, body {
   <!-- Header row -->
   <div class="page-header">
     <div class="header-left">
-      <div class="stat-chip slate" id="statTotal">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        <span>Loading…</span>
-      </div>
-      <div class="stat-chip green" id="statDone">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        <span>—</span>
-      </div>
-      <div class="stat-chip amber" id="statPending">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span>—</span>
-      </div>
       <div class="search-wrap">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="searchInput" class="search-input" placeholder="Search products…" oninput="applyFilter()">
@@ -229,25 +258,36 @@ html, body {
     <button class="filter-pill active-all" id="pill-all" onclick="setFilter('all')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
       All
+      <span class="pill-count" id="countAll">0</span>
     </button>
     <button class="filter-pill" id="pill-done" onclick="setFilter('done')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       Fully Complete
+      <span class="pill-count" id="countDone">0</span>
     </button>
     <button class="filter-pill" id="pill-pending" onclick="setFilter('pending')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       Action Needed
+      <span class="pill-count" id="countPending">0</span>
     </button>
   </div>
 
   <!-- Main content -->
   <div class="main-content">
+    <!-- Desktop table -->
     <div class="table-wrap">
       <div id="tableContainer">
         <div class="state-box">
           <span class="spinner"></span>
           <p>Loading records…</p>
         </div>
+      </div>
+    </div>
+    <!-- Mobile cards -->
+    <div class="mobile-cards" id="mobileContainer">
+      <div class="state-box">
+        <span class="spinner"></span>
+        <p>Loading records…</p>
       </div>
     </div>
   </div>
@@ -262,7 +302,7 @@ html, body {
 'use strict';
 
 /* ══════════════════════════════════════
-   CONFIG — same Apps Script URL as invoices
+   CONFIG
 ══════════════════════════════════════ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbyy6zBP4LduRhK-Fz_aK5H3bDH_cvT8HEj2g81aKgEQVIHsQze3AgJQaBr4Cq1FPs3P/exec';
 
@@ -314,14 +354,9 @@ async function loadRecords() {
     applyFilter();
     showToast('Loaded ' + allRecords.length + ' record' + (allRecords.length !== 1 ? 's' : ''), 'success');
   } else {
-    document.getElementById('tableContainer').innerHTML = `
-      <div class="state-box">
-        <div class="state-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-        </div>
-        <p style="color:#dc2626">Failed to load records</p>
-        <span style="font-size:12px;color:#94a3b8">Check your Apps Script has the getWarehouseNotified action</span>
-      </div>`;
+    var errHtml = '<div class="state-box"><div class="state-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><p style="color:#dc2626">Failed to load records</p><span style="font-size:12px;color:#94a3b8">Check your Apps Script has the getWarehouseNotified action</span></div>';
+    document.getElementById('tableContainer').innerHTML = errHtml;
+    document.getElementById('mobileContainer').innerHTML = errHtml;
     showToast('Failed to load records', 'error');
   }
 }
@@ -331,7 +366,6 @@ async function loadRecords() {
 ══════════════════════════════════════ */
 function setFilter(f) {
   activeFilter = f;
-  // Update pill styles
   document.getElementById('pill-all').className     = 'filter-pill' + (f === 'all'     ? ' active-all'     : '');
   document.getElementById('pill-done').className    = 'filter-pill' + (f === 'done'    ? ' active-done'    : '');
   document.getElementById('pill-pending').className = 'filter-pill' + (f === 'pending' ? ' active-pending' : '');
@@ -360,6 +394,7 @@ function applyFilter() {
 
   updateStats();
   renderTable();
+  renderMobileCards();
 }
 
 function updateStats() {
@@ -367,50 +402,31 @@ function updateStats() {
   const done    = allRecords.filter(r => toBool(r['Images Shared']) && toBool(r['SKU Label Printed'])).length;
   const pending = total - done;
 
-  setChip('statTotal',   total   + ' Record'  + (total   !== 1 ? 's' : ''));
-  setChip('statDone',    done    + ' Complete');
-  setChip('statPending', pending + ' Pending');
-}
-
-function setChip(id, text) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const svg = el.querySelector('svg');
-  el.innerHTML = (svg ? svg.outerHTML : '') + '<span>' + text + '</span>';
+  document.getElementById('countAll').textContent     = total;
+  document.getElementById('countDone').textContent    = done;
+  document.getElementById('countPending').textContent = pending;
 }
 
 /* ══════════════════════════════════════
-   RENDER TABLE
+   RENDER TABLE (Desktop)
 ══════════════════════════════════════ */
 function renderTable() {
   const container = document.getElementById('tableContainer');
 
   if (!filtered.length) {
-    container.innerHTML = `
-      <div class="state-box">
-        <div class="state-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        </div>
-        <p>No records found</p>
-      </div>`;
+    container.innerHTML = '<div class="state-box"><div class="state-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><p>No records found</p></div>';
     return;
   }
 
-  let html = `
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th style="width:40px">#</th>
-        <th>Listing Name &amp; Supplier</th>
-        <th>ASINs</th>
-        <th class="center" style="width:130px">Images Shared</th>
-        <th class="center" style="width:150px">SKU Label Printed</th>
-        <th class="center" style="width:80px">Status</th>
-      </tr>
-    </thead>
-    <tbody>`;
+  let html = '<table class="data-table"><thead><tr>';
+  html += '<th>Listing Name &amp; Supplier</th>';
+  html += '<th>ASINs</th>';
+  html += '<th class="center" style="width:130px">Images Shared</th>';
+  html += '<th class="center" style="width:150px">SKU Label Printed</th>';
+  html += '<th class="center" style="width:80px">Status</th>';
+  html += '</tr></thead><tbody>';
 
-  filtered.forEach((r, idx) => {
+  filtered.forEach(r => {
     const id       = esc(r['Opportunity ID'] || '');
     const name     = esc(r['Listing Name']   || '—');
     const supplier = esc(r['Supplier Name']  || '');
@@ -418,78 +434,113 @@ function renderTable() {
 
     const imgDone = toBool(r['Images Shared']);
     const skuDone = toBool(r['SKU Label Printed']);
-    const allDone = imgDone && skuDone;
 
-    html += `
-    <tr>
-      <td><span class="row-num">${idx + 1}</span></td>
-      <td>
-        <div class="listing-name-cell">${name}</div>
-        ${supplier ? `<div class="listing-supplier">${supplier}</div>` : ''}
-      </td>
-      <td>
-        ${asins !== '—' ? `<span class="asin-badge">${asins}</span>` : '<span style="color:#cbd5e1;font-size:12px">—</span>'}
-      </td>
-      <td class="center">
-        ${ynToggle(id, 'Images Shared', imgDone)}
-      </td>
-      <td class="center">
-        ${ynToggle(id, 'SKU Label Printed', skuDone)}
-      </td>
-      <td class="center">
-        <div class="row-progress" style="justify-content:center">
-          <div class="prog-dot ${imgDone ? 'done' : ''}" title="Images Shared"></div>
-          <div class="prog-dot ${skuDone ? 'done' : ''}" title="SKU Label Printed"></div>
-        </div>
-      </td>
-    </tr>`;
+    html += '<tr>';
+    html += '<td><div class="listing-name-cell">' + name + '</div>';
+    if (supplier) html += '<div class="listing-supplier">' + supplier + '</div>';
+    html += '</td>';
+    html += '<td>' + (asins !== '—' ? '<span class="asin-badge">' + asins + '</span>' : '<span style="color:#cbd5e1;font-size:12px">—</span>') + '</td>';
+    html += '<td class="center">' + ynToggle(id, 'Images Shared', imgDone) + '</td>';
+    html += '<td class="center">' + ynToggle(id, 'SKU Label Printed', skuDone) + '</td>';
+    html += '<td class="center"><div class="row-progress" style="justify-content:center">';
+    html += '<div class="prog-dot ' + (imgDone ? 'done' : '') + '" title="Images Shared"></div>';
+    html += '<div class="prog-dot ' + (skuDone ? 'done' : '') + '" title="SKU Label Printed"></div>';
+    html += '</div></td>';
+    html += '</tr>';
   });
 
   html += '</tbody></table>';
   container.innerHTML = html;
 }
 
+/* ══════════════════════════════════════
+   RENDER MOBILE CARDS
+══════════════════════════════════════ */
+function renderMobileCards() {
+  const container = document.getElementById('mobileContainer');
+
+  if (!filtered.length) {
+    container.innerHTML = '<div class="state-box"><div class="state-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><p>No records found</p></div>';
+    return;
+  }
+
+  let html = '';
+
+  filtered.forEach(r => {
+    const id       = esc(r['Opportunity ID'] || '');
+    const name     = esc(r['Listing Name']   || '—');
+    const supplier = esc(r['Supplier Name']  || '');
+    const asins    = esc(r['ASINs']          || '—');
+
+    const imgDone = toBool(r['Images Shared']);
+    const skuDone = toBool(r['SKU Label Printed']);
+
+    html += '<div class="mobile-card">';
+    html += '<div class="mobile-card-header">';
+    html += '<div class="listing-name-cell">' + name + '</div>';
+    if (supplier) html += '<div class="listing-supplier">' + supplier + '</div>';
+    html += '</div>';
+
+    if (asins !== '—') {
+      html += '<div class="mobile-card-asin"><span class="asin-badge">' + asins + '</span></div>';
+    }
+
+    html += '<div class="mobile-card-fields">';
+    html += '<div class="mobile-card-field"><span class="mobile-card-field-label">Images Shared</span>' + ynToggle(id, 'Images Shared', imgDone) + '</div>';
+    html += '<div class="mobile-card-field"><span class="mobile-card-field-label">SKU Label Printed</span>' + ynToggle(id, 'SKU Label Printed', skuDone) + '</div>';
+    html += '</div>';
+
+    html += '<div class="mobile-card-status"><span class="mobile-card-status-label">Status</span>';
+    html += '<div class="row-progress">';
+    html += '<div class="prog-dot ' + (imgDone ? 'done' : '') + '" title="Images Shared"></div>';
+    html += '<div class="prog-dot ' + (skuDone ? 'done' : '') + '" title="SKU Label Printed"></div>';
+    html += '</div></div>';
+
+    html += '</div>';
+  });
+
+  container.innerHTML = html;
+}
+
+/* ══════════════════════════════════════
+   YN TOGGLE HTML
+══════════════════════════════════════ */
 function ynToggle(id, field, isYes) {
-  const cls   = isYes ? 'yes' : 'no';
-  const label = isYes ? 'Yes' : 'No';
-  const icon  = isYes
+  var cls   = isYes ? 'yes' : 'no';
+  var label = isYes ? 'Yes' : 'No';
+  var icon  = isYes
     ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 
-  // Encode field for safe inline use
-  const safeId    = id.replace(/'/g, "\\'");
-  const safeField = field.replace(/'/g, "\\'");
+  var safeId    = id.replace(/'/g, "\\'");
+  var safeField = field.replace(/'/g, "\\'");
 
-  return `<span class="yn-toggle ${cls}" onclick="toggleField('${safeId}','${safeField}',${!isYes})">${icon}${label}</span>`;
+  return '<span class="yn-toggle ' + cls + '" onclick="toggleField(\'' + safeId + '\',\'' + safeField + '\',' + (!isYes) + ')">' + icon + label + '</span>';
 }
 
 /* ══════════════════════════════════════
    TOGGLE A YES/NO FIELD
 ══════════════════════════════════════ */
 async function toggleField(opportunityId, field, newBool) {
-  // Optimistically update local data
-  const record = allRecords.find(r => (r['Opportunity ID'] || '') === opportunityId);
+  var record = allRecords.find(r => (r['Opportunity ID'] || '') === opportunityId);
   if (!record) return;
 
-  const newVal = newBool ? 'Yes' : 'No';
+  var newVal = newBool ? 'Yes' : 'No';
   record[field] = newVal;
 
-  // Re-render immediately for snappy UX
   applyFilter();
-
   showToast('Saving…', 'info');
 
-  const result = await callApi({
+  var result = await callApi({
     action: 'updateWarehouseNotifiedField',
-    opportunityId,
-    field,
+    opportunityId: opportunityId,
+    field: field,
     value: newVal
   });
 
   if (result && result.success) {
     showToast('Saved ✓', 'success');
   } else {
-    // Revert on failure
     record[field] = newBool ? 'No' : 'Yes';
     applyFilter();
     showToast('Failed to save — please try again', 'error');
@@ -503,19 +554,19 @@ function showToast(msg, type) {
   if (type === 'success' || type === 'error') {
     document.querySelectorAll('.toast.info').forEach(t => t.remove());
   }
-  const c = document.getElementById('toastContainer');
-  const t = document.createElement('div');
+  var c = document.getElementById('toastContainer');
+  var t = document.createElement('div');
   t.className = 'toast ' + (type || '');
-  const icons = {
+  var icons = {
     success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
     error:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
     info:    '<span class="spinner sm"></span>',
   };
   t.innerHTML = (icons[type] || '') + ' ' + esc(msg);
   c.appendChild(t);
-  setTimeout(() => {
+  setTimeout(function() {
     t.style.animation = 'toastOut .2s ease forwards';
-    setTimeout(() => t.remove(), 200);
+    setTimeout(function() { t.remove(); }, 200);
   }, type === 'info' ? 8000 : 2800);
 }
 
