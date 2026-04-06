@@ -1,1 +1,537 @@
 
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  color: #0f172a;
+  background: #f8fafc;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+/* ── PAGE LAYOUT ── */
+.page-wrapper {
+  padding: 5px 10px 10px 10px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.page-title-block { margin-bottom: 10px; flex-shrink: 0; }
+.page-titl { font-size: 18px; font-weight: 700; color: #0f172a; letter-spacing: -0.3px; }
+.page-subtitle { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+/* ── HEADER ROW ── */
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px; flex-wrap: wrap; gap: 8px; flex-shrink: 0;
+}
+.header-left { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 0; flex-wrap: wrap; }
+
+/* ── STAT CHIP ── */
+.stat-chip {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: 100px;
+  font-size: 12px; font-weight: 600; border: 1px solid transparent; white-space: nowrap;
+  cursor: default;
+}
+.stat-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
+.stat-chip.slate  { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+.stat-chip.green  { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+.stat-chip.amber  { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+
+/* ── SEARCH ── */
+.search-wrap { position: relative; min-width: 180px; max-width: 260px; flex: 1; }
+.search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; width: 14px; height: 14px; pointer-events: none; }
+.search-input { width: 100%; padding: 7px 10px 7px 32px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-family: inherit; background: #fff; color: #0f172a; outline: none; transition: border-color .15s; }
+.search-input:focus { border-color: #2563eb; }
+
+/* ── FILTER PILLS ── */
+.filter-row { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-bottom: 10px; flex-wrap: wrap; }
+.filter-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 100px; font-size: 11px; font-weight: 700;
+  border: 1.5px solid #e2e8f0; background: #fff; color: #64748b;
+  cursor: pointer; transition: all .15s; user-select: none;
+}
+.filter-pill:hover { border-color: #94a3b8; color: #334155; }
+.filter-pill.active-all  { background: #0f172a; border-color: #0f172a; color: #fff; }
+.filter-pill.active-done { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+.filter-pill.active-pending { background: #fffbeb; border-color: #fde68a; color: #b45309; }
+.filter-pill svg { width: 11px; height: 11px; }
+
+/* ── MAIN CONTENT ── */
+.main-content {
+  flex: 1; min-height: 0; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+
+/* ── TABLE WRAPPER ── */
+.table-wrap {
+  flex: 1; overflow: auto; min-height: 0;
+  background: #fff; border-radius: 12px; border: 1px solid #e2e8f0;
+}
+.table-wrap::-webkit-scrollbar { width: 5px; height: 5px; }
+.table-wrap::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+
+/* ── TABLE ── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table thead { position: sticky; top: 0; z-index: 10; }
+.data-table th {
+  background: #0f172a;
+  padding: 11px 16px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: rgba(255,255,255,.75);
+  white-space: nowrap;
+  border-bottom: none;
+}
+.data-table th:first-child { border-radius: 12px 0 0 0; }
+.data-table th:last-child  { border-radius: 0 12px 0 0; text-align: center; }
+.data-table th.center { text-align: center; }
+
+.data-table tbody tr {
+  border-bottom: 1px solid #f1f5f9;
+  transition: background .1s;
+  animation: rowIn .16s ease both;
+}
+@keyframes rowIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+.data-table tbody tr:last-child { border-bottom: none; }
+.data-table tbody tr:hover { background: #fafbff; }
+.data-table td { padding: 12px 16px; color: #334155; vertical-align: middle; }
+.data-table td.center { text-align: center; }
+
+/* ── ROW NUMBER ── */
+.row-num {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: #f1f5f9; color: #94a3b8;
+  font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* ── LISTING NAME CELL ── */
+.listing-name-cell { font-weight: 700; color: #0f172a; }
+.listing-supplier  { font-size: 11px; color: #94a3b8; font-weight: 500; margin-top: 2px; }
+
+/* ── ASIN BADGE ── */
+.asin-badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 8px; border-radius: 6px;
+  background: #f1f5f9; color: #475569;
+  font-size: 11px; font-weight: 600;
+  font-family: 'SF Mono','Fira Code',Consolas,monospace;
+  letter-spacing: .3px;
+}
+
+/* ── YES/NO TOGGLE ── */
+.yn-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 68px; padding: 5px 10px; border-radius: 100px;
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  border: 1.5px solid; transition: all .18s;
+  user-select: none; gap: 5px;
+}
+.yn-toggle svg { width: 11px; height: 11px; flex-shrink: 0; }
+.yn-toggle.yes { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+.yn-toggle.no  { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+.yn-toggle.yes:hover { background: #dcfce7; border-color: #86efac; }
+.yn-toggle.no:hover  { background: #fee2e2; border-color: #fca5a5; }
+.yn-toggle.saving { opacity: .55; pointer-events: none; }
+
+/* ── PROGRESS INDICATOR ── */
+.row-progress {
+  display: flex; align-items: center; gap: 5px;
+}
+.prog-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #e2e8f0; flex-shrink: 0; transition: background .2s;
+}
+.prog-dot.done { background: #22c55e; }
+
+/* ── EMPTY / LOADING STATE ── */
+.state-box {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 60px 20px; color: #94a3b8; gap: 10px; text-align: center;
+}
+.state-box p { font-size: 13px; font-weight: 600; color: #64748b; }
+.state-icon { width: 52px; height: 52px; background: #f1f5f9; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
+.spinner { display: inline-block; width: 22px; height: 22px; border: 2.5px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin .65s linear infinite; }
+.spinner.sm { width: 12px; height: 12px; border-width: 2px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── TOAST ── */
+.toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 7px; pointer-events: none; }
+.toast {
+  display: flex; align-items: center; gap: 9px; padding: 10px 14px;
+  background: #0f172a; color: #fff; border-radius: 10px; font-size: 13px; font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18); max-width: 320px; pointer-events: auto;
+  animation: toastIn .2s cubic-bezier(.34,1.2,.64,1);
+}
+.toast.success { background: #15803d; }
+.toast.error   { background: #dc2626; }
+.toast.info    { background: #1e40af; }
+@keyframes toastIn { from { opacity: 0; transform: translateX(20px) scale(.95); } to { opacity: 1; transform: translateX(0) scale(1); } }
+@keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: scale(.93); } }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  html, body { overflow: auto; height: auto; }
+  .page-wrapper { height: auto; overflow: visible; }
+  .main-content { overflow: visible; }
+  .table-wrap { overflow-x: auto; }
+}
+@media (max-width: 640px) {
+  .page-wrapper { padding: 8px; }
+  .data-table th, .data-table td { padding: 10px 12px; }
+}
+</style>
+
+
+<div class="page-wrapper">
+
+  <!-- Title -->
+  <div class="page-title-block">
+    <div class="page-titl">Notified &amp; Received</div>
+    <div class="page-subtitle">Products notified to warehouse and delivery confirmed</div>
+  </div>
+
+  <!-- Header row -->
+  <div class="page-header">
+    <div class="header-left">
+      <div class="stat-chip slate" id="statTotal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>Loading…</span>
+      </div>
+      <div class="stat-chip green" id="statDone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>—</span>
+      </div>
+      <div class="stat-chip amber" id="statPending">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>—</span>
+      </div>
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search products…" oninput="applyFilter()">
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter pills -->
+  <div class="filter-row">
+    <button class="filter-pill active-all" id="pill-all" onclick="setFilter('all')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+      All
+    </button>
+    <button class="filter-pill" id="pill-done" onclick="setFilter('done')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Fully Complete
+    </button>
+    <button class="filter-pill" id="pill-pending" onclick="setFilter('pending')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Action Needed
+    </button>
+  </div>
+
+  <!-- Main content -->
+  <div class="main-content">
+    <div class="table-wrap">
+      <div id="tableContainer">
+        <div class="state-box">
+          <span class="spinner"></span>
+          <p>Loading records…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- TOASTS -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+(function () {
+'use strict';
+
+/* ══════════════════════════════════════
+   CONFIG — same Apps Script URL as invoices
+══════════════════════════════════════ */
+const API_URL = 'https://script.google.com/macros/s/AKfycbyy6zBP4LduRhK-Fz_aK5H3bDH_cvT8HEj2g81aKgEQVIHsQze3AgJQaBr4Cq1FPs3P/exec';
+
+/* ══════════════════════════════════════
+   STATE
+══════════════════════════════════════ */
+let allRecords = [];
+let filtered   = [];
+let activeFilter = 'all';
+
+/* ══════════════════════════════════════
+   HELPERS
+══════════════════════════════════════ */
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toBool(v) {
+  return v === true || v === 'true' || String(v).toLowerCase() === 'yes' || v === 1 || v === 'TRUE';
+}
+
+async function callApi(body) {
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(body)
+    });
+    return await res.json();
+  } catch (err) {
+    console.error('API error:', err);
+    return null;
+  }
+}
+
+/* ══════════════════════════════════════
+   LOAD
+══════════════════════════════════════ */
+async function loadRecords() {
+  const result = await callApi({ action: 'getWarehouseNotified' });
+
+  if (result && result.success) {
+    const headers = result.headers || [];
+    allRecords = (result.rows || []).map(row => {
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = row[i] ?? ''; });
+      return obj;
+    });
+    applyFilter();
+    showToast('Loaded ' + allRecords.length + ' record' + (allRecords.length !== 1 ? 's' : ''), 'success');
+  } else {
+    document.getElementById('tableContainer').innerHTML = `
+      <div class="state-box">
+        <div class="state-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        </div>
+        <p style="color:#dc2626">Failed to load records</p>
+        <span style="font-size:12px;color:#94a3b8">Check your Apps Script has the getWarehouseNotified action</span>
+      </div>`;
+    showToast('Failed to load records', 'error');
+  }
+}
+
+/* ══════════════════════════════════════
+   FILTER + RENDER
+══════════════════════════════════════ */
+function setFilter(f) {
+  activeFilter = f;
+  // Update pill styles
+  document.getElementById('pill-all').className     = 'filter-pill' + (f === 'all'     ? ' active-all'     : '');
+  document.getElementById('pill-done').className    = 'filter-pill' + (f === 'done'    ? ' active-done'    : '');
+  document.getElementById('pill-pending').className = 'filter-pill' + (f === 'pending' ? ' active-pending' : '');
+  applyFilter();
+}
+
+function applyFilter() {
+  const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+
+  filtered = allRecords.filter(r => {
+    const name     = String(r['Listing Name']  || '').toLowerCase();
+    const supplier = String(r['Supplier Name'] || '').toLowerCase();
+    const asins    = String(r['ASINs']         || '').toLowerCase();
+
+    if (q && !name.includes(q) && !supplier.includes(q) && !asins.includes(q)) return false;
+
+    const imgDone = toBool(r['Images Shared']);
+    const skuDone = toBool(r['SKU Label Printed']);
+    const allDone = imgDone && skuDone;
+
+    if (activeFilter === 'done'    && !allDone) return false;
+    if (activeFilter === 'pending' &&  allDone) return false;
+
+    return true;
+  });
+
+  updateStats();
+  renderTable();
+}
+
+function updateStats() {
+  const total   = allRecords.length;
+  const done    = allRecords.filter(r => toBool(r['Images Shared']) && toBool(r['SKU Label Printed'])).length;
+  const pending = total - done;
+
+  setChip('statTotal',   total   + ' Record'  + (total   !== 1 ? 's' : ''));
+  setChip('statDone',    done    + ' Complete');
+  setChip('statPending', pending + ' Pending');
+}
+
+function setChip(id, text) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const svg = el.querySelector('svg');
+  el.innerHTML = (svg ? svg.outerHTML : '') + '<span>' + text + '</span>';
+}
+
+/* ══════════════════════════════════════
+   RENDER TABLE
+══════════════════════════════════════ */
+function renderTable() {
+  const container = document.getElementById('tableContainer');
+
+  if (!filtered.length) {
+    container.innerHTML = `
+      <div class="state-box">
+        <div class="state-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <p>No records found</p>
+      </div>`;
+    return;
+  }
+
+  let html = `
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width:40px">#</th>
+        <th>Listing Name &amp; Supplier</th>
+        <th>ASINs</th>
+        <th class="center" style="width:130px">Images Shared</th>
+        <th class="center" style="width:150px">SKU Label Printed</th>
+        <th class="center" style="width:80px">Status</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+  filtered.forEach((r, idx) => {
+    const id       = esc(r['Opportunity ID'] || '');
+    const name     = esc(r['Listing Name']   || '—');
+    const supplier = esc(r['Supplier Name']  || '');
+    const asins    = esc(r['ASINs']          || '—');
+
+    const imgDone = toBool(r['Images Shared']);
+    const skuDone = toBool(r['SKU Label Printed']);
+    const allDone = imgDone && skuDone;
+
+    html += `
+    <tr>
+      <td><span class="row-num">${idx + 1}</span></td>
+      <td>
+        <div class="listing-name-cell">${name}</div>
+        ${supplier ? `<div class="listing-supplier">${supplier}</div>` : ''}
+      </td>
+      <td>
+        ${asins !== '—' ? `<span class="asin-badge">${asins}</span>` : '<span style="color:#cbd5e1;font-size:12px">—</span>'}
+      </td>
+      <td class="center">
+        ${ynToggle(id, 'Images Shared', imgDone)}
+      </td>
+      <td class="center">
+        ${ynToggle(id, 'SKU Label Printed', skuDone)}
+      </td>
+      <td class="center">
+        <div class="row-progress" style="justify-content:center">
+          <div class="prog-dot ${imgDone ? 'done' : ''}" title="Images Shared"></div>
+          <div class="prog-dot ${skuDone ? 'done' : ''}" title="SKU Label Printed"></div>
+        </div>
+      </td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function ynToggle(id, field, isYes) {
+  const cls   = isYes ? 'yes' : 'no';
+  const label = isYes ? 'Yes' : 'No';
+  const icon  = isYes
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+  // Encode field for safe inline use
+  const safeId    = id.replace(/'/g, "\\'");
+  const safeField = field.replace(/'/g, "\\'");
+
+  return `<span class="yn-toggle ${cls}" onclick="toggleField('${safeId}','${safeField}',${!isYes})">${icon}${label}</span>`;
+}
+
+/* ══════════════════════════════════════
+   TOGGLE A YES/NO FIELD
+══════════════════════════════════════ */
+async function toggleField(opportunityId, field, newBool) {
+  // Optimistically update local data
+  const record = allRecords.find(r => (r['Opportunity ID'] || '') === opportunityId);
+  if (!record) return;
+
+  const newVal = newBool ? 'Yes' : 'No';
+  record[field] = newVal;
+
+  // Re-render immediately for snappy UX
+  applyFilter();
+
+  showToast('Saving…', 'info');
+
+  const result = await callApi({
+    action: 'updateWarehouseNotifiedField',
+    opportunityId,
+    field,
+    value: newVal
+  });
+
+  if (result && result.success) {
+    showToast('Saved ✓', 'success');
+  } else {
+    // Revert on failure
+    record[field] = newBool ? 'No' : 'Yes';
+    applyFilter();
+    showToast('Failed to save — please try again', 'error');
+  }
+}
+
+/* ══════════════════════════════════════
+   TOAST
+══════════════════════════════════════ */
+function showToast(msg, type) {
+  if (type === 'success' || type === 'error') {
+    document.querySelectorAll('.toast.info').forEach(t => t.remove());
+  }
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type || '');
+  const icons = {
+    success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    error:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    info:    '<span class="spinner sm"></span>',
+  };
+  t.innerHTML = (icons[type] || '') + ' ' + esc(msg);
+  c.appendChild(t);
+  setTimeout(() => {
+    t.style.animation = 'toastOut .2s ease forwards';
+    setTimeout(() => t.remove(), 200);
+  }, type === 'info' ? 8000 : 2800);
+}
+
+/* ══════════════════════════════════════
+   GLOBALS
+══════════════════════════════════════ */
+window.setFilter   = setFilter;
+window.applyFilter = applyFilter;
+window.toggleField = toggleField;
+
+/* ══════════════════════════════════════
+   INIT
+══════════════════════════════════════ */
+loadRecords();
+
+})();
+</script>
+
+  
