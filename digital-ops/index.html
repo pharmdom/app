@@ -538,6 +538,73 @@
       .sidebar-toggle { display: flex; }
       .sidebar-overlay.active { display: block; }
     }
+
+
+    .sidebar.collapsed { width: 64px; min-width: 64px; }
+.sidebar.collapsed .sidebar-brand-name,
+.sidebar.collapsed .sidebar-brand-sub,
+.sidebar.collapsed .nav-item-label,
+.sidebar.collapsed .nav-group-label,
+.sidebar.collapsed .nav-section-label,
+.sidebar.collapsed .nav-chevron,
+.sidebar.collapsed .sidebar-user-name,
+.sidebar.collapsed .sidebar-user-role,
+.sidebar.collapsed .nav-children { display: none; }
+.sidebar.collapsed .sidebar-header { justify-content: center; padding: 20px 8px; }
+.sidebar.collapsed .nav-item,
+.sidebar.collapsed .nav-group-header { justify-content: center; padding: 10px 0; width: 100%; box-sizing: border-box; }
+.sidebar.collapsed .nav-group { width: 100%; }
+.sidebar.collapsed .sidebar-user-card { justify-content: center; padding: 10px; }
+.sidebar { transition: width 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+
+.sidebar.collapsed:hover { width: var(--sidebar-w); }
+.sidebar.collapsed:hover .sidebar-brand-name,
+.sidebar.collapsed:hover .sidebar-brand-sub,
+.sidebar.collapsed:hover .nav-item-label,
+.sidebar.collapsed:hover .nav-group-label,
+.sidebar.collapsed:hover .nav-section-label,
+.sidebar.collapsed:hover .nav-chevron,
+.sidebar.collapsed:hover .sidebar-user-name,
+.sidebar.collapsed:hover .sidebar-user-role { display: block; }
+.sidebar.collapsed:hover .nav-item,
+.sidebar.collapsed:hover .nav-group-header { justify-content: flex-start; padding: 10px 12px; }
+.sidebar.collapsed:hover .sidebar-header { justify-content: flex-start; padding: 20px 16px; }
+.sidebar.collapsed:hover .sidebar-user-card { justify-content: flex-start; padding: 10px 12px; }
+.sidebar.collapsed:hover .nav-children.open { display: block; }
+
+.sidebar.collapsed .nav-group-header.active-group {
+  background: rgba(124,58,237,0.82);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(124,58,237,0.38);
+}
+.sidebar.collapsed .nav-group-header.active-group svg { opacity: 1; }
+.sidebar.collapsed:hover .nav-group-header.active-group {
+  background: none;
+  color: rgba(255,255,255,0.48);
+  box-shadow: none;
+}
+.sidebar.collapsed:hover .nav-group-header.active-group svg { opacity: 0.65; }
+
+.sidebar-collapse-btn {
+  margin-left: auto;
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.sidebar-collapse-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+.sidebar.collapsed .sidebar-collapse-btn { display: none; }
+
+@media (max-width: 768px) {
+  .sidebar.collapsed { width: var(--sidebar-w); min-width: var(--sidebar-w); }
+  .sidebar.collapsed:hover { width: var(--sidebar-w); }
+}
+    
   </style>
 </head>
 
@@ -696,7 +763,13 @@
           <div>
             <div class="sidebar-brand-name">Pharm & Dom</div>
           </div>
+          <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" onclick="toggleCollapse()" title="Toggle sidebar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
         </div>
+        
         <nav class="sidebar-nav" id="sidebarNav"></nav>
         <div class="sidebar-footer">
           <div class="sidebar-user-card">
@@ -840,18 +913,21 @@ if (hasFBA || hasNotifiedreceived) {
     async function loadPage(key) {
       if (currentKey === key) return;
       currentKey = key;
+      closeAllGroups();
       setActiveNav(`nav-${key}`);
       updateHeader(pages[key].title);
       await fetchAndRender(pages[key].file);
       closeSidebar();
     }
 
-    async function loadModule(key) {
+        async function loadModule(key) {
       if (!modules[key] || !hasPermission(modules[key].permission)) return;
       if (currentKey === key) return;
       currentKey = key;
       const parent = modules[key].parent || key;
-      setActiveNav(`nav-${parent}`);
+      closeAllGroups();
+      openGroup(parent);
+      setActiveNav(`nav-${key}`);
       updateHeader(modules[key].pageTitle);
       await fetchAndRender(modules[key].file);
       closeSidebar();
@@ -888,11 +964,14 @@ if (hasFBA || hasNotifiedreceived) {
       document.getElementById("breadcrumbPage").textContent = title;
     }
 
-    function setActiveNav(id) {
-      document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
-      const el = document.getElementById(id);
-      if (el) el.classList.add("active");
-    }
+function setActiveNav(id) {
+  document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
+  document.querySelectorAll(".nav-group-header").forEach(el => el.classList.remove("active-group"));
+  const el = document.getElementById(id);
+  if (el) el.classList.add("active");
+  const parent = el?.closest(".nav-group")?.querySelector(".nav-group-header");
+  if (parent) parent.classList.add("active-group");
+}
 
     /* ── MOBILE ── */
     function toggleSidebar() {
@@ -910,6 +989,21 @@ if (hasFBA || hasNotifiedreceived) {
       window.location.href = "../login";
     }
 
+    function toggleCollapse() {
+  document.getElementById("sidebar").classList.toggle("collapsed");
+}
+
+    function closeAllGroups() {
+  document.querySelectorAll(".nav-children.open").forEach(el => el.classList.remove("open"));
+  document.querySelectorAll(".nav-chevron.open").forEach(el => el.classList.remove("open"));
+}
+
+function openGroup(id) {
+  const children = document.getElementById(`children-${id}`);
+  const chevron  = document.getElementById(`chevron-${id}`)?.querySelector(".nav-chevron");
+  if (children) children.classList.add("open");
+  if (chevron)  chevron.classList.add("open");
+}
     
     /* ── INIT ── */
     buildSidebar();
