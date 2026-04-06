@@ -700,14 +700,12 @@ function formatDateForDisplay(dateStr) {
    ADDRESS HELPERS
 ══════════════════════════════════════ */
 function parseAddress(addrString) {
-  // Parse stored address (could be old free-text or new structured JSON)
-  if (!addrString) return { line1: '', line2: '', city: '', country: '', contact: '' };
+  if (!addrString) return { line1: '', line2: '', city: '', postcode: '', country: '', contact: '' };
   try {
     const parsed = JSON.parse(addrString);
     if (typeof parsed === 'object' && parsed !== null) return parsed;
   } catch {}
-  // Legacy: treat as free text, put in line1
-  return { line1: String(addrString), line2: '', city: '', country: '', contact: '' };
+  return { line1: String(addrString), line2: '', city: '', postcode: '', country: '', contact: '' };
 }
 
 function serializeAddress(obj) {
@@ -716,7 +714,7 @@ function serializeAddress(obj) {
 
 function formatAddressDisplay(addrString) {
   const a = parseAddress(addrString);
-  const parts = [a.line1, a.line2, a.city, a.country].filter(Boolean);
+  const parts = [a.line1, a.line2, a.city, a.postcode, a.country].filter(Boolean);
   const addr = parts.join(', ');
   if (a.contact) return addr + (addr ? '\n' : '') + 'Contact: ' + a.contact;
   return addr;
@@ -889,7 +887,7 @@ function newInvoice() {
     invoiceNumber: nextNum,
     date: ukNow(),
     clientName: '',
-    clientAddress: serializeAddress({ line1: '', line2: '', city: '', country: '', contact: '' }),
+    clientAddress: serializeAddress({ line1: '', line2: '', city: '', postcode: '', country: '', contact: '' }),
     orderNotes: '',
     lineItems: [emptyLine()],
     subtotal: 0,
@@ -994,12 +992,17 @@ function renderPreview() {
             <input class="addr-field addr-full" type="text" placeholder="Address Line 2"
               value="${esc(addr.line2 || '')}"
               oninput="updateAddress('line2',this.value)">
+              
             <input class="addr-field" type="text" placeholder="Town / City"
               value="${esc(addr.city || '')}"
               oninput="updateAddress('city',this.value)">
-            <input class="addr-field" type="text" placeholder="Country"
+            <input class="addr-field" type="text" placeholder="Postcode"
+              value="${esc(addr.postcode || '')}"
+              oninput="updateAddress('postcode',this.value)">
+            <input class="addr-field addr-full" type="text" placeholder="Country"
               value="${esc(addr.country || '')}"
               oninput="updateAddress('country',this.value)">
+              
             <input class="addr-field addr-full" type="text" placeholder="Contact (phone or email)"
               value="${esc(addr.contact || '')}"
               oninput="updateAddress('contact',this.value)">
@@ -1350,7 +1353,7 @@ async function deleteInvoice() {
 ══════════════════════════════════════ */
 function buildInvoiceHTML(inv, forPdf) {
   const addr = parseAddress(inv.clientAddress);
-  const addrParts = [addr.line1, addr.line2, addr.city, addr.country].filter(Boolean);
+  const addrParts = [addr.line1, addr.line2, addr.city, addr.postcode, addr.country].filter(Boolean);
   const addrDisplay = addrParts.join(', ');
   const contactDisplay = addr.contact ? '<br>Contact: ' + esc(addr.contact) : '';
   const dateDisplay = formatDateForDisplay(inv.date);
