@@ -1,1 +1,899 @@
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body {
+  height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  color: #0f172a;
+  background: #f8fafc;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+.page-wrapper {
+  padding: 5px 10px 10px 10px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-title-block { margin-bottom: 10px; flex-shrink: 0; }
+.page-titl { font-size: 18px; font-weight: 700; color: #0f172a; letter-spacing: -0.3px; }
+.page-subtitle { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+/* ── METRICS BAR ── */
+.metrics-bar {
+  display: flex; gap: 10px; margin-bottom: 10px; flex-shrink: 0; flex-wrap: wrap;
+}
+.metric-card {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+  padding: 12px 16px; flex: 1; min-width: 140px; position: relative; overflow: hidden;
+}
+.metric-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.metric-card.blue::before  { background: #2563eb; }
+.metric-card.orange::before { background: #f97316; }
+.metric-card.purple::before { background: #7c3aed; }
+.metric-card.green::before  { background: #15803d; }
+.metric-card.red::before    { background: #dc2626; }
+.metric-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; margin-bottom: 4px; }
+.metric-val { font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+.metric-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+/* ── HEADER ROW ── */
+.page-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-shrink: 0; flex-wrap: wrap;
+}
+.header-left { display: flex; gap: 8px; align-items: center; flex: 1; flex-wrap: wrap; }
+
+/* ── SEARCH ── */
+.search-wrap { position: relative; min-width: 180px; max-width: 260px; flex: 1; }
+.search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; width: 14px; height: 14px; pointer-events: none; }
+.search-input { width: 100%; padding: 7px 10px 7px 32px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-family: inherit; background: #fff; color: #0f172a; outline: none; transition: border-color .15s; }
+.search-input:focus { border-color: #2563eb; }
+
+/* ── FILTER PILLS ── */
+.filter-row { display: flex; gap: 8px; align-items: center; flex-shrink: 0; margin-bottom: 10px; flex-wrap: wrap; }
+.filter-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 100px; font-size: 11px; font-weight: 700;
+  border: 1.5px solid #e2e8f0; background: #fff; color: #64748b;
+  cursor: pointer; transition: all .15s; user-select: none;
+}
+.filter-pill.active-all     { background: #0f172a; border-color: #0f172a; color: #fff; }
+.filter-pill.active-warehouse { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
+.filter-pill.active-digital   { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+.filter-pill.active-unresolved { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+.filter-pill .pill-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 100px; font-size: 10px; font-weight: 700; background: #e2e8f0; color: #475569; }
+.filter-pill.active-all .pill-count { background: rgba(255,255,255,.2); color: #fff; }
+.filter-pill.active-warehouse .pill-count { background: #fed7aa; color: #c2410c; }
+.filter-pill.active-digital .pill-count   { background: #bfdbfe; color: #1d4ed8; }
+.filter-pill.active-unresolved .pill-count { background: #fecaca; color: #dc2626; }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 9px; border: 1.5px solid;
+  font-size: 12px; font-weight: 700; font-family: inherit;
+  cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+.btn-primary  { background: #2563eb; border-color: #2563eb; color: #fff; }
+.btn-primary:hover  { background: #1d4ed8; border-color: #1d4ed8; }
+.btn-secondary { background: #fff; border-color: #e2e8f0; color: #475569; }
+.btn-secondary:hover { border-color: #94a3b8; color: #0f172a; }
+.btn-danger   { background: #fff; border-color: #fecaca; color: #dc2626; }
+.btn-danger:hover   { background: #fee2e2; border-color: #fca5a5; }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+
+/* ── MAIN CONTENT ── */
+.main-content { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+
+/* ── TABLE WRAPPER ── */
+.table-wrap {
+  flex: 1; overflow: auto; min-height: 0;
+  background: #fff; border-radius: 12px; border: 1px solid #e2e8f0;
+}
+.table-wrap::-webkit-scrollbar { width: 5px; height: 5px; }
+.table-wrap::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+
+/* ── TABLE ── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table thead { position: sticky; top: 0; z-index: 10; }
+.data-table th {
+  background: #0f172a; padding: 11px 16px; text-align: left;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
+  color: rgba(255,255,255,.75); white-space: nowrap;
+}
+.data-table th:first-child { border-radius: 12px 0 0 0; }
+.data-table th:last-child  { border-radius: 0 12px 0 0; text-align: right; }
+.data-table th.center { text-align: center; }
+.data-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: background .1s; animation: rowIn .16s ease both; }
+@keyframes rowIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+.data-table tbody tr:last-child { border-bottom: none; }
+.data-table tbody tr:hover { background: #fafbff; }
+.data-table td { padding: 11px 16px; color: #334155; vertical-align: middle; }
+.data-table td.right { text-align: right; }
+
+/* ── BADGES ── */
+.fault-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 700;
+}
+.fault-badge.warehouse { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+.fault-badge.digital   { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+
+.resolved-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 700;
+  cursor: pointer; transition: all .18s; border: 1.5px solid; user-select: none;
+}
+.resolved-badge.yes { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+.resolved-badge.no  { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+.resolved-badge.yes:hover { background: #dcfce7; border-color: #86efac; }
+.resolved-badge.no:hover  { background: #fee2e2; border-color: #fca5a5; }
+.resolved-badge svg { width: 11px; height: 11px; }
+
+.id-badge {
+  font-family: 'SF Mono','Fira Code',Consolas,monospace;
+  font-size: 11px; font-weight: 600; color: #475569;
+  background: #f1f5f9; padding: 3px 8px; border-radius: 6px;
+}
+
+/* ── STATE BOXES ── */
+.state-box {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 60px 20px; color: #94a3b8; gap: 10px; text-align: center;
+}
+.state-box p { font-size: 13px; font-weight: 600; color: #64748b; }
+.spinner { display: inline-block; width: 22px; height: 22px; border: 2.5px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin .65s linear infinite; }
+.spinner.sm { width: 12px; height: 12px; border-width: 2px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── TOAST ── */
+.toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 7px; pointer-events: none; }
+.toast {
+  display: flex; align-items: center; gap: 9px; padding: 10px 14px;
+  background: #0f172a; color: #fff; border-radius: 10px; font-size: 13px; font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18); max-width: 320px; pointer-events: auto;
+  animation: toastIn .2s cubic-bezier(.34,1.2,.64,1);
+}
+.toast.success { background: #15803d; }
+.toast.error   { background: #dc2626; }
+.toast.info    { background: #1e40af; }
+@keyframes toastIn { from { opacity: 0; transform: translateX(20px) scale(.95); } to { opacity: 1; transform: translateX(0) scale(1); } }
+@keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: scale(.93); } }
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 1100;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s; backdrop-filter: blur(4px); padding: 16px;
+}
+.modal-overlay.visible { opacity: 1; pointer-events: all; }
+.modal-box {
+  background: #fff; border-radius: 18px; box-shadow: 0 25px 60px rgba(0,0,0,.22);
+  width: 500px; max-width: 100%; max-height: 92vh; display: flex; flex-direction: column;
+  transform: translateY(10px); transition: transform .2s;
+}
+.modal-overlay.visible .modal-box { transform: translateY(0); }
+.modal-hero {
+  padding: 18px 22px 16px; background: linear-gradient(135deg,#1e293b 0%,#0f172a 100%);
+  border-radius: 18px 18px 0 0; flex-shrink: 0; position: relative;
+}
+.modal-hero-close {
+  position: absolute; top: 12px; right: 12px; width: 28px; height: 28px;
+  border: none; border-radius: 7px; background: rgba(255,255,255,.1); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.65);
+  transition: background .15s;
+}
+.modal-hero-close:hover { background: rgba(255,255,255,.2); color: #fff; }
+.modal-title { font-size: 15px; font-weight: 800; color: #fff; }
+.modal-subtitle { font-size: 11px; color: rgba(255,255,255,.5); margin-top: 2px; }
+.modal-body { flex: 1; overflow-y: auto; padding: 20px 22px; min-height: 0; }
+.modal-body::-webkit-scrollbar { width: 4px; }
+.modal-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+.modal-footer { padding: 14px 22px; border-top: 1px solid #f1f5f9; display: flex; gap: 8px; justify-content: flex-end; background: #fafafa; border-radius: 0 0 18px 18px; flex-shrink: 0; }
+
+.form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.form-group label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; }
+.form-group input, .form-group select {
+  padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 9px;
+  font-size: 13px; font-family: inherit; color: #0f172a; background: #fff;
+  outline: none; transition: border-color .15s;
+}
+.form-group input:focus, .form-group select:focus { border-color: #2563eb; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ── CONFIRM ── */
+.confirm-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 2000;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .18s; backdrop-filter: blur(3px); padding: 16px;
+}
+.confirm-overlay.visible { opacity: 1; pointer-events: all; }
+.confirm-box {
+  background: #fff; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,.2);
+  width: 320px; max-width: 100%; padding: 24px;
+  transform: translateY(8px); transition: transform .18s; text-align: center;
+}
+.confirm-overlay.visible .confirm-box { transform: translateY(0); }
+.confirm-icon { width: 44px; height: 44px; border-radius: 50%; background: #fef2f2; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+.confirm-title { font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+.confirm-msg { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+.confirm-btns { display: flex; gap: 8px; justify-content: center; }
+.confirm-btn-cancel { padding: 8px 18px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-weight: 600; font-family: inherit; color: #64748b; background: #fff; cursor: pointer; }
+.confirm-btn-danger { padding: 8px 18px; background: #dc2626; color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; }
+
+/* ── PIN GATE ── */
+.pin-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,.65); z-index: 3000;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(6px); padding: 16px;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.pin-overlay.visible { opacity: 1; pointer-events: all; }
+.pin-box {
+  background: #fff; border-radius: 18px; box-shadow: 0 25px 60px rgba(0,0,0,.28);
+  width: 360px; max-width: 100%; padding: 32px 28px; text-align: center;
+  transform: translateY(12px); transition: transform .2s;
+}
+.pin-overlay.visible .pin-box { transform: translateY(0); }
+.pin-icon { width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg,#1e293b,#0f172a); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.pin-title { font-size: 17px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+.pin-sub { font-size: 12px; color: #94a3b8; margin-bottom: 20px; }
+.pin-input {
+  width: 100%; padding: 11px 14px; border: 2px solid #e2e8f0; border-radius: 10px;
+  font-size: 16px; font-family: 'SF Mono','Fira Code',Consolas,monospace; font-weight: 700;
+  text-align: center; letter-spacing: 4px; color: #0f172a; outline: none;
+  transition: border-color .15s; margin-bottom: 12px;
+}
+.pin-input:focus { border-color: #2563eb; }
+.pin-input.error { border-color: #dc2626; animation: shake .3s ease; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+.pin-error { font-size: 12px; color: #dc2626; font-weight: 600; margin-bottom: 12px; min-height: 18px; }
+.pin-btn { width: 100%; padding: 11px; background: #0f172a; color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background .15s; }
+.pin-btn:hover { background: #1e293b; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  html, body { overflow: auto; height: auto; }
+  .page-wrapper { height: auto; overflow: visible; }
+  .main-content { overflow: visible; }
+  .table-wrap { overflow-x: auto; }
+  .metrics-bar { flex-wrap: wrap; }
+  .metric-card { min-width: 120px; }
+}
+@media (max-width: 640px) {
+  .page-wrapper { padding: 8px; }
+  .form-row { grid-template-columns: 1fr; }
+  .metrics-bar { gap: 8px; }
+  .metric-val { font-size: 16px; }
+}
+</style>
+
+
+<div class="page-wrapper">
+
+  <div class="page-title-block">
+    <div class="page-titl"></div>
+    <div class="page-subtitle">Log and track packaging faults by fault type and team</div>
+  </div>
+
+  <!-- Metrics bar — locked behind PIN -->
+  <div class="metrics-bar" id="metricsBar" style="display:none">
+    <div class="metric-card blue">
+      <div class="metric-label">Total Faults (30d)</div>
+      <div class="metric-val" id="mTotalFaults">—</div>
+      <div class="metric-sub">All submissions</div>
+    </div>
+    <div class="metric-card red">
+      <div class="metric-label">Total Order Value (30d)</div>
+      <div class="metric-val" id="mTotalValue">—</div>
+      <div class="metric-sub">Affected orders</div>
+    </div>
+    <div class="metric-card orange">
+      <div class="metric-label">Warehouse Faults (30d)</div>
+      <div class="metric-val" id="mWarehouseFaults">—</div>
+      <div class="metric-sub" id="mWarehouseValue">£0.00</div>
+    </div>
+    <div class="metric-card purple">
+      <div class="metric-label">Digital Faults (30d)</div>
+      <div class="metric-val" id="mDigitalFaults">—</div>
+      <div class="metric-sub" id="mDigitalValue">£0.00</div>
+    </div>
+    <div class="metric-card green">
+      <div class="metric-label">Resolved (30d)</div>
+      <div class="metric-val" id="mResolved">—</div>
+      <div class="metric-sub">Out of total</div>
+    </div>
+  </div>
+
+  <!-- Header row -->
+  <div class="page-header">
+    <div class="header-left">
+      <div class="filter-row" style="margin-bottom:0">
+        <button class="filter-pill active-all" id="pill-all" onclick="setFilter('all')">
+          All <span class="pill-count" id="countAll">0</span>
+        </button>
+        <button class="filter-pill" id="pill-warehouse" onclick="setFilter('warehouse')">
+          Warehouse <span class="pill-count" id="countWarehouse">0</span>
+        </button>
+        <button class="filter-pill" id="pill-digital" onclick="setFilter('digital')">
+          Digital <span class="pill-count" id="countDigital">0</span>
+        </button>
+        <button class="filter-pill" id="pill-unresolved" onclick="setFilter('unresolved')">
+          Unresolved <span class="pill-count" id="countUnresolved">0</span>
+        </button>
+      </div>
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search faults…" oninput="applyFilter()">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;align-items:center">
+      <button class="btn btn-secondary" id="metricsToggleBtn" onclick="requestMetrics()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        View Metrics
+      </button>
+      <button class="btn btn-primary" onclick="openNewFaultModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Log Fault
+      </button>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="table-wrap">
+      <div id="tableContainer">
+        <div class="state-box">
+          <span class="spinner"></span>
+          <p>Loading faults…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- LOG / EDIT FAULT MODAL -->
+<div class="modal-overlay" id="faultModal">
+  <div class="modal-box">
+    <div class="modal-hero">
+      <button class="modal-hero-close" onclick="closeFaultModal()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="modal-title" id="faultModalTitle">Log Packaging Fault</div>
+      <div class="modal-subtitle" id="faultModalSub">Complete the details below</div>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="fEditId">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tracking ID</label>
+          <input type="text" id="fTrackingId" placeholder="e.g. JD123456789GB">
+        </div>
+        <div class="form-group">
+          <label>Order Number</label>
+          <input type="text" id="fOrderNumber" placeholder="e.g. 205-1234567-8901234">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Order Date <span style="color:#dc2626">*</span></label>
+          <input type="date" id="fOrderDate">
+        </div>
+        <div class="form-group">
+          <label>Order Value (£) <span style="color:#dc2626">*</span></label>
+          <input type="number" id="fOrderValue" placeholder="0.00" min="0" step="0.01">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Fault Type <span style="color:#dc2626">*</span></label>
+          <select id="fFault">
+            <option value="">Select…</option>
+            <option value="Warehouse">Warehouse</option>
+            <option value="Digital">Digital</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Person <span style="color:#dc2626">*</span></label>
+          <select id="fPerson">
+            <option value="">Select…</option>
+            <option value="Anees">Anees</option>
+            <option value="Abu">Abu</option>
+            <option value="Warehouse Team">Warehouse Team</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Resolved</label>
+        <select id="fResolved">
+          <option value="No">No — Pending</option>
+          <option value="Yes">Yes — Resolved</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeFaultModal()">Cancel</button>
+      <button class="btn btn-danger btn-sm" id="fDeleteBtn" onclick="deleteFaultFromModal()" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Delete
+      </button>
+      <button class="btn btn-primary" id="fSaveBtn" onclick="saveFault()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span id="fSaveBtnText">Log Fault</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- CONFIRM -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+    </div>
+    <div class="confirm-title" id="confirmTitle">Confirm</div>
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-btns">
+      <button class="confirm-btn-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="confirm-btn-danger" id="confirmOkBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- PIN GATE -->
+<div class="pin-overlay" id="pinOverlay">
+  <div class="pin-box">
+    <div class="pin-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </div>
+    <div class="pin-title">Metrics Access</div>
+    <div class="pin-sub">Enter the admin code to view the 30-day metrics dashboard</div>
+    <input type="password" class="pin-input" id="pinInput" placeholder="••••••••••" maxlength="20"
+      oninput="clearPinError()" onkeydown="if(event.key==='Enter')submitPin()">
+    <div class="pin-error" id="pinError"></div>
+    <button class="pin-btn" onclick="submitPin()">Unlock Metrics</button>
+  </div>
+</div>
+
+
+<!-- TOASTS -->
+<div class="toast-container" id="toastContainer"></div>
+
+
+<script>
+(function () {
+'use strict';
+
+const API_URL = 'https://script.google.com/macros/s/AKfycbyy6zBP4LduRhK-Fz_aK5H3bDH_cvT8HEj2g81aKgEQVIHsQze3AgJQaBr4Cq1FPs3P/exec';
+const ADMIN_CODE = 'A2D0M2I6N';
+const STORE_KEY  = 'pf_metrics_unlocked';
+
+let allRecords = [];
+let filtered   = [];
+let activeFilter = 'all';
+let metricsVisible = false;
+let _confirmResolve = null;
+
+/* ── HELPERS ── */
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmt(n) { return '£' + Number(n||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function isWithin30Days(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return false;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  return d >= cutoff;
+}
+
+/* ── API ── */
+async function callApi(body) {
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(body)
+    });
+    return await res.json();
+  } catch (err) {
+    console.error('API error:', err);
+    return null;
+  }
+}
+
+/* ── LOAD ── */
+async function loadRecords() {
+  const result = await callApi({ action: 'getPackagingFaults' });
+  if (result && result.success) {
+    const headers = result.headers || [];
+    allRecords = (result.rows || []).map(row => {
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = row[i] ?? ''; });
+      return obj;
+    });
+    applyFilter();
+    computeMetrics();
+    showToast('Loaded ' + allRecords.length + ' record' + (allRecords.length !== 1 ? 's' : ''), 'success');
+  } else {
+    document.getElementById('tableContainer').innerHTML =
+      '<div class="state-box"><p style="color:#dc2626">Failed to load records</p></div>';
+    showToast('Failed to load records', 'error');
+  }
+}
+
+/* ── FILTER ── */
+function setFilter(f) {
+  activeFilter = f;
+  ['all','warehouse','digital','unresolved'].forEach(k => {
+    const el = document.getElementById('pill-' + k);
+    el.className = 'filter-pill' + (f === k ? ' active-' + k : '');
+  });
+  applyFilter();
+}
+
+function applyFilter() {
+  const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+  filtered = allRecords.filter(r => {
+    const id      = String(r['Issue ID']     || '').toLowerCase();
+    const tracking = String(r['Tracking ID'] || '').toLowerCase();
+    const order   = String(r['Order Number'] || '').toLowerCase();
+    const person  = String(r['Person']       || '').toLowerCase();
+    const fault   = String(r['Fault']        || '').toLowerCase();
+    if (q && !id.includes(q) && !tracking.includes(q) && !order.includes(q) && !person.includes(q) && !fault.includes(q)) return false;
+    if (activeFilter === 'warehouse' && fault !== 'warehouse') return false;
+    if (activeFilter === 'digital'   && fault !== 'digital')   return false;
+    if (activeFilter === 'unresolved' && String(r['Resolved']).toLowerCase() === 'yes') return false;
+    return true;
+  });
+  updateCounts();
+  renderTable();
+}
+
+function updateCounts() {
+  document.getElementById('countAll').textContent       = allRecords.length;
+  document.getElementById('countWarehouse').textContent = allRecords.filter(r => String(r['Fault']).toLowerCase() === 'warehouse').length;
+  document.getElementById('countDigital').textContent   = allRecords.filter(r => String(r['Fault']).toLowerCase() === 'digital').length;
+  document.getElementById('countUnresolved').textContent = allRecords.filter(r => String(r['Resolved']).toLowerCase() !== 'yes').length;
+}
+
+/* ── METRICS ── */
+function computeMetrics() {
+  const recent = allRecords.filter(r => isWithin30Days(r['Order Date']));
+  const total  = recent.length;
+  const totalVal = recent.reduce((s,r) => s + Number(r['Order Value']||0), 0);
+  const warehouse = recent.filter(r => String(r['Fault']).toLowerCase() === 'warehouse');
+  const digital   = recent.filter(r => String(r['Fault']).toLowerCase() === 'digital');
+  const resolved  = recent.filter(r => String(r['Resolved']).toLowerCase() === 'yes');
+
+  document.getElementById('mTotalFaults').textContent    = total;
+  document.getElementById('mTotalValue').textContent     = fmt(totalVal);
+  document.getElementById('mWarehouseFaults').textContent = warehouse.length;
+  document.getElementById('mWarehouseValue').textContent  = fmt(warehouse.reduce((s,r)=>s+Number(r['Order Value']||0),0));
+  document.getElementById('mDigitalFaults').textContent   = digital.length;
+  document.getElementById('mDigitalValue').textContent    = fmt(digital.reduce((s,r)=>s+Number(r['Order Value']||0),0));
+  document.getElementById('mResolved').textContent        = resolved.length + ' / ' + total;
+}
+
+/* ── TABLE ── */
+function renderTable() {
+  const container = document.getElementById('tableContainer');
+  if (!filtered.length) {
+    container.innerHTML = '<div class="state-box"><p>No faults found</p></div>';
+    return;
+  }
+
+  let html = '<table class="data-table"><thead><tr>';
+  html += '<th>Issue ID</th>';
+  html += '<th>Tracking ID</th>';
+  html += '<th>Order Number</th>';
+  html += '<th>Order Date</th>';
+  html += '<th>Fault</th>';
+  html += '<th>Person</th>';
+  html += '<th class="right">Order Value</th>';
+  html += '<th class="center">Resolved</th>';
+  html += '<th class="right">Actions</th>';
+  html += '</tr></thead><tbody>';
+
+  filtered.forEach(r => {
+    const id       = esc(r['Issue ID']     || '');
+    const tracking = esc(r['Tracking ID']  || '—');
+    const orderNum = esc(r['Order Number'] || '—');
+    const orderDate = esc(r['Order Date']  || '—');
+    const fault    = String(r['Fault'] || '');
+    const person   = esc(r['Person']       || '—');
+    const val      = Number(r['Order Value'] || 0);
+    const resolved = String(r['Resolved'] || 'No').toLowerCase() === 'yes';
+
+    const faultCls = fault.toLowerCase() === 'warehouse' ? 'warehouse' : 'digital';
+    const resCls   = resolved ? 'yes' : 'no';
+    const resLabel = resolved ? 'Yes' : 'No';
+    const resIcon  = resolved
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+    html += '<tr>';
+    html += `<td><span class="id-badge">${id}</span></td>`;
+    html += `<td style="font-family:'SF Mono','Fira Code',Consolas,monospace;font-size:12px">${tracking}</td>`;
+    html += `<td style="font-size:12px">${orderNum}</td>`;
+    html += `<td style="font-size:12px">${orderDate}</td>`;
+    html += `<td><span class="fault-badge ${faultCls}">${esc(fault)}</span></td>`;
+    html += `<td>${person}</td>`;
+    html += `<td class="right" style="font-weight:700">${fmt(val)}</td>`;
+    html += `<td class="center"><span class="resolved-badge ${resCls}" onclick="toggleResolved('${id.replace(/'/g,"\\'")}',${!resolved})">${resIcon}${resLabel}</span></td>`;
+    html += `<td class="right"><button class="btn btn-secondary btn-sm" onclick="openEditModal('${id.replace(/'/g,"\\'")}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Edit</button></td>`;
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+/* ── TOGGLE RESOLVED ── */
+async function toggleResolved(id, newVal) {
+  const record = allRecords.find(r => r['Issue ID'] === id);
+  if (!record) return;
+  const newResolved = newVal ? 'Yes' : 'No';
+  record['Resolved'] = newResolved;
+  applyFilter();
+  computeMetrics();
+  showToast('Saving…', 'info');
+  const result = await callApi({
+    action: 'updatePackagingFault',
+    data: {
+      id: record['Issue ID'],
+      trackingId:   record['Tracking ID'],
+      orderNumber:  record['Order Number'],
+      orderDate:    record['Order Date'],
+      fault:        record['Fault'],
+      person:       record['Person'],
+      orderValue:   record['Order Value'],
+      resolved:     newResolved
+    }
+  });
+  if (result && result.success) {
+    showToast('Saved ✓', 'success');
+  } else {
+    record['Resolved'] = newVal ? 'No' : 'Yes';
+    applyFilter();
+    computeMetrics();
+    showToast('Failed to save', 'error');
+  }
+}
+
+/* ── MODAL: NEW ── */
+function openNewFaultModal() {
+  document.getElementById('fEditId').value        = '';
+  document.getElementById('fTrackingId').value    = '';
+  document.getElementById('fOrderNumber').value   = '';
+  document.getElementById('fOrderDate').value     = new Date().toISOString().split('T')[0];
+  document.getElementById('fOrderValue').value    = '';
+  document.getElementById('fFault').value         = '';
+  document.getElementById('fPerson').value        = '';
+  document.getElementById('fResolved').value      = 'No';
+  document.getElementById('faultModalTitle').textContent = 'Log Packaging Fault';
+  document.getElementById('faultModalSub').textContent   = 'Complete the details below';
+  document.getElementById('fSaveBtnText').textContent    = 'Log Fault';
+  document.getElementById('fDeleteBtn').style.display    = 'none';
+  document.getElementById('faultModal').classList.add('visible');
+  setTimeout(() => document.getElementById('fTrackingId').focus(), 200);
+}
+
+/* ── MODAL: EDIT ── */
+function openEditModal(id) {
+  const r = allRecords.find(rec => rec['Issue ID'] === id);
+  if (!r) return;
+  document.getElementById('fEditId').value        = id;
+  document.getElementById('fTrackingId').value    = r['Tracking ID']  || '';
+  document.getElementById('fOrderNumber').value   = r['Order Number'] || '';
+  document.getElementById('fOrderDate').value     = r['Order Date']   || '';
+  document.getElementById('fOrderValue').value    = r['Order Value']  || '';
+  document.getElementById('fFault').value         = r['Fault']        || '';
+  document.getElementById('fPerson').value        = r['Person']       || '';
+  document.getElementById('fResolved').value      = String(r['Resolved']).toLowerCase() === 'yes' ? 'Yes' : 'No';
+  document.getElementById('faultModalTitle').textContent = 'Edit Fault — ' + id;
+  document.getElementById('faultModalSub').textContent   = 'Update the details below';
+  document.getElementById('fSaveBtnText').textContent    = 'Save Changes';
+  document.getElementById('fDeleteBtn').style.display    = 'flex';
+  document.getElementById('faultModal').classList.add('visible');
+}
+
+function closeFaultModal() {
+  document.getElementById('faultModal').classList.remove('visible');
+}
+
+/* ── SAVE FAULT ── */
+async function saveFault() {
+  const editId     = document.getElementById('fEditId').value.trim();
+  const trackingId = document.getElementById('fTrackingId').value.trim();
+  const orderNumber = document.getElementById('fOrderNumber').value.trim();
+  const orderDate  = document.getElementById('fOrderDate').value.trim();
+  const orderValue = document.getElementById('fOrderValue').value.trim();
+  const fault      = document.getElementById('fFault').value;
+  const person     = document.getElementById('fPerson').value;
+  const resolved   = document.getElementById('fResolved').value;
+
+  if (!orderDate) { showToast('Please enter an order date', 'error'); return; }
+  if (!fault)     { showToast('Please select a fault type', 'error'); return; }
+  if (!person)    { showToast('Please select a person', 'error'); return; }
+
+  const btn  = document.getElementById('fSaveBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner sm"></span> Saving…';
+
+  const data = { trackingId, orderNumber, orderDate, orderValue, fault, person, resolved };
+
+  let result;
+  if (editId) {
+    data.id = editId;
+    result = await callApi({ action: 'updatePackagingFault', data });
+  } else {
+    result = await callApi({ action: 'savePackagingFault', data });
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg> <span id="fSaveBtnText">' + (editId ? 'Save Changes' : 'Log Fault') + '</span>';
+
+  if (result && result.success) {
+    closeFaultModal();
+    showToast(editId ? 'Fault updated ✓' : 'Fault logged ✓', 'success');
+    await loadRecords();
+  } else {
+    showToast('Failed to save — please try again', 'error');
+  }
+}
+
+/* ── DELETE FAULT ── */
+async function deleteFaultFromModal() {
+  const id = document.getElementById('fEditId').value.trim();
+  if (!id) return;
+  const ok = await showConfirm('Delete Fault?', 'This will permanently remove ' + id + '. Cannot be undone.');
+  if (!ok) return;
+  const result = await callApi({ action: 'deletePackagingFault', id });
+  if (result && result.success) {
+    closeFaultModal();
+    showToast('Fault deleted', 'success');
+    await loadRecords();
+  } else {
+    showToast('Failed to delete', 'error');
+  }
+}
+
+/* ── METRICS PIN ── */
+function requestMetrics() {
+  if (metricsVisible) {
+    metricsVisible = false;
+    document.getElementById('metricsBar').style.display = 'none';
+    document.getElementById('metricsToggleBtn').innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> View Metrics';
+    return;
+  }
+  if (sessionStorage.getItem(STORE_KEY) === '1') {
+    showMetrics();
+    return;
+  }
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinError').textContent = '';
+  document.getElementById('pinInput').classList.remove('error');
+  document.getElementById('pinOverlay').classList.add('visible');
+  setTimeout(() => document.getElementById('pinInput').focus(), 200);
+}
+
+function submitPin() {
+  const val = document.getElementById('pinInput').value.trim();
+  if (val === ADMIN_CODE) {
+    sessionStorage.setItem(STORE_KEY, '1');
+    document.getElementById('pinOverlay').classList.remove('visible');
+    showMetrics();
+  } else {
+    document.getElementById('pinError').textContent = 'Incorrect code. Please try again.';
+    const inp = document.getElementById('pinInput');
+    inp.classList.add('error');
+    inp.value = '';
+    setTimeout(() => inp.classList.remove('error'), 400);
+  }
+}
+
+function clearPinError() {
+  document.getElementById('pinError').textContent = '';
+  document.getElementById('pinInput').classList.remove('error');
+}
+
+function showMetrics() {
+  metricsVisible = true;
+  computeMetrics();
+  document.getElementById('metricsBar').style.display = 'flex';
+  document.getElementById('metricsToggleBtn').innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Hide Metrics';
+}
+
+/* ── CONFIRM ── */
+function showConfirm(title, msg) {
+  return new Promise(resolve => {
+    _confirmResolve = resolve;
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMsg').textContent = msg;
+    const okBtn = document.getElementById('confirmOkBtn');
+    const newBtn = okBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newBtn, okBtn);
+    newBtn.addEventListener('click', () => {
+      document.getElementById('confirmOverlay').classList.remove('visible');
+      _confirmResolve = null;
+      resolve(true);
+    });
+    document.getElementById('confirmOverlay').classList.add('visible');
+  });
+}
+function closeConfirm() {
+  document.getElementById('confirmOverlay').classList.remove('visible');
+  if (_confirmResolve) { const r = _confirmResolve; _confirmResolve = null; r(false); }
+}
+
+/* ── TOAST ── */
+function showToast(msg, type) {
+  if (type === 'success' || type === 'error') {
+    document.querySelectorAll('.toast.info').forEach(t => t.remove());
+  }
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type || '');
+  const icons = {
+    success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    error:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    info:    '<span class="spinner sm"></span>',
+  };
+  t.innerHTML = (icons[type] || '') + ' ' + esc(msg);
+  c.appendChild(t);
+  setTimeout(() => {
+    t.style.animation = 'toastOut .2s ease forwards';
+    setTimeout(() => t.remove(), 200);
+  }, type === 'info' ? 8000 : 2800);
+}
+
+/* ── OUTSIDE CLICK HANDLERS ── */
+document.getElementById('faultModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('faultModal')) closeFaultModal();
+});
+document.getElementById('confirmOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('confirmOverlay')) closeConfirm();
+});
+document.getElementById('pinOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('pinOverlay')) document.getElementById('pinOverlay').classList.remove('visible');
+});
+
+/* ── GLOBALS ── */
+window.setFilter         = setFilter;
+window.applyFilter       = applyFilter;
+window.openNewFaultModal = openNewFaultModal;
+window.openEditModal     = openEditModal;
+window.closeFaultModal   = closeFaultModal;
+window.saveFault         = saveFault;
+window.deleteFaultFromModal = deleteFaultFromModal;
+window.toggleResolved    = toggleResolved;
+window.requestMetrics    = requestMetrics;
+window.submitPin         = submitPin;
+window.clearPinError     = clearPinError;
+window.closeConfirm      = closeConfirm;
+
+/* ── INIT ── */
+loadRecords();
+
+// Auto-open the log form on page load
+setTimeout(() => openNewFaultModal(), 300);
+
+})();
+</script>
