@@ -1,3 +1,5 @@
+
+
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -9,6 +11,7 @@ html, body {
   background: #f8fafc;
   line-height: 1.5;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 .page-wrapper {
@@ -25,12 +28,18 @@ html, body {
 
 /* ── METRICS BAR ── */
 .metrics-bar {
-  display: flex; gap: 10px; margin-bottom: 10px; flex-shrink: 0; flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
 }
 .metric-card {
   background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
-  padding: 12px 16px; flex: 1; min-width: 140px; position: relative; overflow: hidden;
+  padding: 12px 16px; position: relative; overflow: hidden;
+  transition: box-shadow .2s, transform .2s;
 }
+.metric-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.06); transform: translateY(-1px); }
 .metric-card::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
 }
@@ -39,7 +48,17 @@ html, body {
 .metric-card.purple::before { background: #7c3aed; }
 .metric-card.green::before  { background: #15803d; }
 .metric-card.red::before    { background: #dc2626; }
-.metric-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; margin-bottom: 4px; }
+.metric-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.metric-icon {
+  width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.metric-icon svg { width: 15px; height: 15px; }
+.metric-icon.blue   { background: #eff6ff; color: #2563eb; }
+.metric-icon.orange  { background: #fff7ed; color: #f97316; }
+.metric-icon.purple  { background: #f5f3ff; color: #7c3aed; }
+.metric-icon.green   { background: #f0fdf4; color: #15803d; }
+.metric-icon.red     { background: #fef2f2; color: #dc2626; }
+.metric-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; }
 .metric-val { font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
 .metric-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
 
@@ -258,20 +277,56 @@ html, body {
 .pin-btn { width: 100%; padding: 11px; background: #0f172a; color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background .15s; }
 .pin-btn:hover { background: #1e293b; }
 
+/* ── MOBILE CARDS VIEW ── */
+.mobile-cards { display: none; flex-direction: column; gap: 10px; padding: 4px 0; }
+.mobile-card {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px;
+  transition: box-shadow .15s;
+}
+.mobile-card:active { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.mobile-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.mobile-card-tracking { font-family: 'SF Mono','Fira Code',Consolas,monospace; font-size: 12px; font-weight: 600; color: #334155; }
+.mobile-card-value { font-size: 14px; font-weight: 800; color: #0f172a; }
+.mobile-card-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.mobile-card-detail { font-size: 11px; color: #64748b; }
+.mobile-card-footer { display: flex; justify-content: space-between; align-items: center; }
+
 /* ── RESPONSIVE ── */
+@media (max-width: 1100px) {
+  .metrics-bar { grid-template-columns: repeat(3, 1fr); }
+}
 @media (max-width: 900px) {
   html, body { overflow: auto; height: auto; }
-  .page-wrapper { height: auto; overflow: visible; }
+  .page-wrapper { height: auto; overflow: visible; padding: 10px; }
   .main-content { overflow: visible; }
   .table-wrap { overflow-x: auto; }
-  .metrics-bar { flex-wrap: wrap; }
-  .metric-card { min-width: 120px; }
+  .metrics-bar { grid-template-columns: repeat(2, 1fr); }
+  .metric-card { min-width: 0; }
 }
 @media (max-width: 640px) {
   .page-wrapper { padding: 8px; }
   .form-row { grid-template-columns: 1fr; }
-  .metrics-bar { gap: 8px; }
+  .metrics-bar { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .metric-card { padding: 10px 12px; }
   .metric-val { font-size: 16px; }
+  .metric-icon { width: 26px; height: 26px; border-radius: 6px; }
+  .metric-icon svg { width: 13px; height: 13px; }
+  .page-header { gap: 6px; }
+  .header-left { flex-direction: column; align-items: stretch; gap: 6px; }
+  .search-wrap { max-width: 100%; min-width: 0; }
+  .filter-row { gap: 6px; }
+  .filter-pill { padding: 4px 10px; font-size: 10px; }
+  /* Hide table, show cards on mobile */
+  .table-wrap { display: none; }
+  .mobile-cards { display: flex; }
+  .btn { padding: 6px 10px; font-size: 11px; }
+  .modal-box { border-radius: 14px; }
+  .modal-hero { border-radius: 14px 14px 0 0; padding: 14px 16px 12px; }
+  .modal-body { padding: 16px; }
+  .modal-footer { padding: 12px 16px; border-radius: 0 0 14px 14px; }
+}
+@media (max-width: 380px) {
+  .metrics-bar { grid-template-columns: 1fr; }
 }
 </style>
 
@@ -285,28 +340,58 @@ html, body {
 
   <!-- Metrics bar — locked behind PIN -->
   <div class="metrics-bar" id="metricsBar" style="display:none">
+    <!-- 1. Total Order Value -->
     <div class="metric-card blue">
-      <div class="metric-label">Total Faults (30d)</div>
-      <div class="metric-val" id="mTotalFaults">—</div>
-      <div class="metric-sub">All submissions</div>
-    </div>
-    <div class="metric-card red">
-      <div class="metric-label">Total Order Value (30d)</div>
+      <div class="metric-header">
+        <div class="metric-icon blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="metric-label">Total Order Value (30d)</div>
+      </div>
       <div class="metric-val" id="mTotalValue">—</div>
       <div class="metric-sub">Affected orders</div>
     </div>
+    <!-- 2. Total Faults -->
+    <div class="metric-card red">
+      <div class="metric-header">
+        <div class="metric-icon red">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div class="metric-label">Total Faults (30d)</div>
+      </div>
+      <div class="metric-val" id="mTotalFaults">—</div>
+      <div class="metric-sub">All submissions</div>
+    </div>
+    <!-- 3. Warehouse Faults -->
     <div class="metric-card orange">
-      <div class="metric-label">Warehouse Faults (30d)</div>
+      <div class="metric-header">
+        <div class="metric-icon orange">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+        </div>
+        <div class="metric-label">Warehouse Faults (30d)</div>
+      </div>
       <div class="metric-val" id="mWarehouseFaults">—</div>
       <div class="metric-sub" id="mWarehouseValue">£0.00</div>
     </div>
+    <!-- 4. Digital Faults -->
     <div class="metric-card purple">
-      <div class="metric-label">Digital Faults (30d)</div>
+      <div class="metric-header">
+        <div class="metric-icon purple">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <div class="metric-label">Digital Faults (30d)</div>
+      </div>
       <div class="metric-val" id="mDigitalFaults">—</div>
       <div class="metric-sub" id="mDigitalValue">£0.00</div>
     </div>
+    <!-- 5. Resolved -->
     <div class="metric-card green">
-      <div class="metric-label">Resolved (30d)</div>
+      <div class="metric-header">
+        <div class="metric-icon green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="metric-label">Resolved (30d)</div>
+      </div>
       <div class="metric-val" id="mResolved">—</div>
       <div class="metric-sub">Out of total</div>
     </div>
@@ -347,12 +432,20 @@ html, body {
   </div>
 
   <div class="main-content">
+    <!-- Desktop table -->
     <div class="table-wrap">
       <div id="tableContainer">
         <div class="state-box">
           <span class="spinner"></span>
           <p>Loading faults…</p>
         </div>
+      </div>
+    </div>
+    <!-- Mobile cards -->
+    <div class="mobile-cards" id="mobileCardsContainer">
+      <div class="state-box">
+        <span class="spinner"></span>
+        <p>Loading faults…</p>
       </div>
     </div>
   </div>
@@ -530,6 +623,8 @@ async function loadRecords() {
   } else {
     document.getElementById('tableContainer').innerHTML =
       '<div class="state-box"><p style="color:#dc2626">Failed to load records</p></div>';
+    document.getElementById('mobileCardsContainer').innerHTML =
+      '<div class="state-box"><p style="color:#dc2626">Failed to load records</p></div>';
     showToast('Failed to load records', 'error');
   }
 }
@@ -547,12 +642,11 @@ function setFilter(f) {
 function applyFilter() {
   const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
   filtered = allRecords.filter(r => {
-    const id      = String(r['Issue ID']     || '').toLowerCase();
     const tracking = String(r['Tracking ID'] || '').toLowerCase();
     const order   = String(r['Order Number'] || '').toLowerCase();
     const person  = String(r['Person']       || '').toLowerCase();
     const fault   = String(r['Fault']        || '').toLowerCase();
-    if (q && !id.includes(q) && !tracking.includes(q) && !order.includes(q) && !person.includes(q) && !fault.includes(q)) return false;
+    if (q && !tracking.includes(q) && !order.includes(q) && !person.includes(q) && !fault.includes(q)) return false;
     if (activeFilter === 'warehouse' && fault !== 'warehouse') return false;
     if (activeFilter === 'digital'   && fault !== 'digital')   return false;
     if (activeFilter === 'unresolved' && String(r['Resolved']).toLowerCase() === 'yes') return false;
@@ -560,6 +654,7 @@ function applyFilter() {
   });
   updateCounts();
   renderTable();
+  renderMobileCards();
 }
 
 function updateCounts() {
@@ -578,8 +673,8 @@ function computeMetrics() {
   const digital   = recent.filter(r => String(r['Fault']).toLowerCase() === 'digital');
   const resolved  = recent.filter(r => String(r['Resolved']).toLowerCase() === 'yes');
 
-  document.getElementById('mTotalFaults').textContent    = total;
   document.getElementById('mTotalValue').textContent     = fmt(totalVal);
+  document.getElementById('mTotalFaults').textContent    = total;
   document.getElementById('mWarehouseFaults').textContent = warehouse.length;
   document.getElementById('mWarehouseValue').textContent  = fmt(warehouse.reduce((s,r)=>s+Number(r['Order Value']||0),0));
   document.getElementById('mDigitalFaults').textContent   = digital.length;
@@ -587,7 +682,7 @@ function computeMetrics() {
   document.getElementById('mResolved').textContent        = resolved.length + ' / ' + total;
 }
 
-/* ── TABLE ── */
+/* ── TABLE (Desktop) ── */
 function renderTable() {
   const container = document.getElementById('tableContainer');
   if (!filtered.length) {
@@ -624,20 +719,69 @@ function renderTable() {
       : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 
     html += '<tr>';
-    html += `<td style="font-family:'SF Mono','Fira Code',Consolas,monospace;font-size:12px">${tracking}</td>`;
-    html += `<td style="font-size:12px">${orderNum}</td>`;
-    html += `<td style="font-size:12px">${orderDate}</td>`;
-    html += `<td><span class="fault-badge ${faultCls}">${esc(fault)}</span></td>`;
-    html += `<td>${person}</td>`;
-    html += `<td class="right" style="font-weight:700">${fmt(val)}</td>`;
-    html += `<td class="center"><span class="resolved-badge ${resCls}" onclick="toggleResolved('${id.replace(/'/g,"\\'")}',${!resolved})">${resIcon}${resLabel}</span></td>`;
-    html += `<td class="right"><button class="btn btn-secondary btn-sm" onclick="openEditModal('${id.replace(/'/g,"\\'")}')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      Edit</button></td>`;
+    html += '<td style="font-family:\'SF Mono\',\'Fira Code\',Consolas,monospace;font-size:12px">' + tracking + '</td>';
+    html += '<td style="font-size:12px">' + orderNum + '</td>';
+    html += '<td style="font-size:12px">' + orderDate + '</td>';
+    html += '<td><span class="fault-badge ' + faultCls + '">' + esc(fault) + '</span></td>';
+    html += '<td>' + person + '</td>';
+    html += '<td class="right" style="font-weight:700">' + fmt(val) + '</td>';
+    html += '<td class="center"><span class="resolved-badge ' + resCls + '" onclick="toggleResolved(\'' + id.replace(/'/g,"\\'") + '\',' + !resolved + ')">' + resIcon + resLabel + '</span></td>';
+    html += '<td class="right"><button class="btn btn-secondary btn-sm" onclick="openEditModal(\'' + id.replace(/'/g,"\\'") + '\')">';
+    html += '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+    html += ' Edit</button></td>';
     html += '</tr>';
   });
 
   html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+/* ── MOBILE CARDS ── */
+function renderMobileCards() {
+  const container = document.getElementById('mobileCardsContainer');
+  if (!filtered.length) {
+    container.innerHTML = '<div class="state-box"><p>No faults found</p></div>';
+    return;
+  }
+
+  let html = '';
+  filtered.forEach(r => {
+    const id       = esc(r['Issue ID']     || '');
+    const tracking = esc(r['Tracking ID']  || '—');
+    const orderNum = esc(r['Order Number'] || '—');
+    const orderDate = esc(r['Order Date']  || '—');
+    const fault    = String(r['Fault'] || '');
+    const person   = esc(r['Person']       || '—');
+    const val      = Number(r['Order Value'] || 0);
+    const resolved = String(r['Resolved'] || 'No').toLowerCase() === 'yes';
+
+    const faultCls = fault.toLowerCase() === 'warehouse' ? 'warehouse' : 'digital';
+    const resCls   = resolved ? 'yes' : 'no';
+    const resLabel = resolved ? 'Yes' : 'No';
+    const resIcon  = resolved
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+    html += '<div class="mobile-card">';
+    html += '  <div class="mobile-card-header">';
+    html += '    <div><div class="mobile-card-tracking">' + tracking + '</div><div class="mobile-card-detail" style="margin-top:2px">' + orderNum + '</div></div>';
+    html += '    <div class="mobile-card-value">' + fmt(val) + '</div>';
+    html += '  </div>';
+    html += '  <div class="mobile-card-meta">';
+    html += '    <span class="fault-badge ' + faultCls + '">' + esc(fault) + '</span>';
+    html += '    <span class="mobile-card-detail">' + person + '</span>';
+    html += '    <span class="mobile-card-detail">·</span>';
+    html += '    <span class="mobile-card-detail">' + orderDate + '</span>';
+    html += '  </div>';
+    html += '  <div class="mobile-card-footer">';
+    html += '    <span class="resolved-badge ' + resCls + '" onclick="toggleResolved(\'' + id.replace(/'/g,"\\'") + '\',' + !resolved + ')">' + resIcon + ' ' + resLabel + '</span>';
+    html += '    <button class="btn btn-secondary btn-sm" onclick="openEditModal(\'' + id.replace(/'/g,"\\'") + '\')">';
+    html += '      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+    html += '      Edit</button>';
+    html += '  </div>';
+    html += '</div>';
+  });
+
   container.innerHTML = html;
 }
 
@@ -688,13 +832,14 @@ function openNewFaultModal() {
   document.getElementById('fSaveBtnText').textContent    = 'Log Fault';
   document.getElementById('fDeleteBtn').style.display    = 'none';
   document.getElementById('faultModal').classList.add('visible');
-  setTimeout(() => document.getElementById('fTrackingId').focus(), 200);
+  setTimeout(function() { document.getElementById('fTrackingId').focus(); }, 200);
 }
 
 /* ── MODAL: EDIT ── */
 function openEditModal(id) {
-  const r = allRecords.find(rec => rec['Issue ID'] === id);
+  var r = allRecords.find(function(rec) { return rec['Issue ID'] === id; });
   if (!r) return;
+  var trackingId = r['Tracking ID'] || id;
   document.getElementById('fEditId').value        = id;
   document.getElementById('fTrackingId').value    = r['Tracking ID']  || '';
   document.getElementById('fOrderNumber').value   = r['Order Number'] || '';
@@ -703,7 +848,7 @@ function openEditModal(id) {
   document.getElementById('fFault').value         = r['Fault']        || '';
   document.getElementById('fPerson').value        = r['Person']       || '';
   document.getElementById('fResolved').value      = String(r['Resolved']).toLowerCase() === 'yes' ? 'Yes' : 'No';
-  document.getElementById('faultModalTitle').textContent = 'Edit Fault — ' + id;
+  document.getElementById('faultModalTitle').textContent = 'Edit Fault — ' + trackingId;
   document.getElementById('faultModalSub').textContent   = 'Update the details below';
   document.getElementById('fSaveBtnText').textContent    = 'Save Changes';
   document.getElementById('fDeleteBtn').style.display    = 'flex';
@@ -759,9 +904,11 @@ async function saveFault() {
 async function deleteFaultFromModal() {
   const id = document.getElementById('fEditId').value.trim();
   if (!id) return;
-  const ok = await showConfirm('Delete Fault?', 'This will permanently remove ' + id + '. Cannot be undone.');
+  var record = allRecords.find(function(r) { return r['Issue ID'] === id; });
+  var displayId = (record && record['Tracking ID']) ? record['Tracking ID'] : id;
+  const ok = await showConfirm('Delete Fault?', 'This will permanently remove ' + displayId + '. Cannot be undone.');
   if (!ok) return;
-  const result = await callApi({ action: 'deletePackagingFault', id });
+  const result = await callApi({ action: 'deletePackagingFault', id: id });
   if (result && result.success) {
     closeFaultModal();
     showToast('Fault deleted', 'success');
@@ -788,7 +935,7 @@ function requestMetrics() {
   document.getElementById('pinError').textContent = '';
   document.getElementById('pinInput').classList.remove('error');
   document.getElementById('pinOverlay').classList.add('visible');
-  setTimeout(() => document.getElementById('pinInput').focus(), 200);
+  setTimeout(function() { document.getElementById('pinInput').focus(); }, 200);
 }
 
 function submitPin() {
@@ -802,7 +949,7 @@ function submitPin() {
     const inp = document.getElementById('pinInput');
     inp.classList.add('error');
     inp.value = '';
-    setTimeout(() => inp.classList.remove('error'), 400);
+    setTimeout(function() { inp.classList.remove('error'); }, 400);
   }
 }
 
@@ -814,21 +961,21 @@ function clearPinError() {
 function showMetrics() {
   metricsVisible = true;
   computeMetrics();
-  document.getElementById('metricsBar').style.display = 'flex';
+  document.getElementById('metricsBar').style.display = 'grid';
   document.getElementById('metricsToggleBtn').innerHTML =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Hide Metrics';
 }
 
 /* ── CONFIRM ── */
 function showConfirm(title, msg) {
-  return new Promise(resolve => {
+  return new Promise(function(resolve) {
     _confirmResolve = resolve;
     document.getElementById('confirmTitle').textContent = title;
     document.getElementById('confirmMsg').textContent = msg;
     const okBtn = document.getElementById('confirmOkBtn');
     const newBtn = okBtn.cloneNode(true);
     okBtn.parentNode.replaceChild(newBtn, okBtn);
-    newBtn.addEventListener('click', () => {
+    newBtn.addEventListener('click', function() {
       document.getElementById('confirmOverlay').classList.remove('visible');
       _confirmResolve = null;
       resolve(true);
@@ -838,13 +985,13 @@ function showConfirm(title, msg) {
 }
 function closeConfirm() {
   document.getElementById('confirmOverlay').classList.remove('visible');
-  if (_confirmResolve) { const r = _confirmResolve; _confirmResolve = null; r(false); }
+  if (_confirmResolve) { var r = _confirmResolve; _confirmResolve = null; r(false); }
 }
 
 /* ── TOAST ── */
 function showToast(msg, type) {
   if (type === 'success' || type === 'error') {
-    document.querySelectorAll('.toast.info').forEach(t => t.remove());
+    document.querySelectorAll('.toast.info').forEach(function(t) { t.remove(); });
   }
   const c = document.getElementById('toastContainer');
   const t = document.createElement('div');
@@ -856,20 +1003,20 @@ function showToast(msg, type) {
   };
   t.innerHTML = (icons[type] || '') + ' ' + esc(msg);
   c.appendChild(t);
-  setTimeout(() => {
+  setTimeout(function() {
     t.style.animation = 'toastOut .2s ease forwards';
-    setTimeout(() => t.remove(), 200);
+    setTimeout(function() { t.remove(); }, 200);
   }, type === 'info' ? 8000 : 2800);
 }
 
 /* ── OUTSIDE CLICK HANDLERS ── */
-document.getElementById('faultModal').addEventListener('click', e => {
+document.getElementById('faultModal').addEventListener('click', function(e) {
   if (e.target === document.getElementById('faultModal')) closeFaultModal();
 });
-document.getElementById('confirmOverlay').addEventListener('click', e => {
+document.getElementById('confirmOverlay').addEventListener('click', function(e) {
   if (e.target === document.getElementById('confirmOverlay')) closeConfirm();
 });
-document.getElementById('pinOverlay').addEventListener('click', e => {
+document.getElementById('pinOverlay').addEventListener('click', function(e) {
   if (e.target === document.getElementById('pinOverlay')) document.getElementById('pinOverlay').classList.remove('visible');
 });
 
@@ -892,3 +1039,5 @@ loadRecords();
 
 })();
 </script>
+
+  
