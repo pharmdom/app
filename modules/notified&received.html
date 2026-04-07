@@ -378,9 +378,10 @@ function applyFilter() {
 
     if (q && !name.includes(q) && !supplier.includes(q) && !asins.includes(q) && !code.includes(q)) return false;
 
-    const imgDone = toBool(r['Images Shared']);
-    const skuDone = toBool(r['SKU Label Printed']);
-    const allDone = imgDone && skuDone;
+    const imgDone   = toBool(r['Images Shared']);
+    const skuDone   = toBool(r['SKU Label Printed']);
+    const stockDone = toBool(r['Stock Counted']);
+    const allDone   = imgDone && skuDone && stockDone;
 
     if (activeFilter === 'done'    && !allDone) return false;
     if (activeFilter === 'pending' &&  allDone) return false;
@@ -395,7 +396,7 @@ function applyFilter() {
 
 function updateStats() {
   const total   = allRecords.length;
-  const done    = allRecords.filter(r => toBool(r['Images Shared']) && toBool(r['SKU Label Printed'])).length;
+  const done    = allRecords.filter(r => toBool(r['Images Shared']) && toBool(r['SKU Label Printed']) && toBool(r['Stock Counted'])).length;
   const pending = total - done;
 
   document.getElementById('countAll').textContent     = total;
@@ -419,6 +420,7 @@ function renderTable() {
   html += '<th>ASINs</th>';
   html += '<th class="center" style="width:130px">Images Shared</th>';
   html += '<th class="center" style="width:150px">SKU Label Printed</th>';
+  html += '<th class="center" style="width:130px">Stock Counted</th>';
   html += '<th class="center" style="width:80px">Status</th>';
   html += '</tr></thead><tbody>';
 
@@ -429,8 +431,9 @@ function renderTable() {
     const code     = esc(r['Code']           || '');
     const asins    = esc(r['ASINs']          || '—');
 
-    const imgDone = toBool(r['Images Shared']);
-    const skuDone = toBool(r['SKU Label Printed']);
+    const imgDone   = toBool(r['Images Shared']);
+    const skuDone   = toBool(r['SKU Label Printed']);
+    const stockDone = toBool(r['Stock Counted']);
 
     html += '<tr>';
     html += '<td><div class="listing-name-cell">' + name + '</div>';
@@ -441,9 +444,11 @@ function renderTable() {
     
     html += '<td class="center">' + ynToggle(id, 'Images Shared', imgDone) + '</td>';
     html += '<td class="center">' + ynToggle(id, 'SKU Label Printed', skuDone) + '</td>';
+    html += '<td class="center">' + ynToggle(id, 'Stock Counted', stockDone) + '</td>';
     html += '<td class="center"><div class="row-progress" style="justify-content:center">';
     html += '<div class="prog-dot ' + (imgDone ? 'done' : '') + '" title="Images Shared"></div>';
     html += '<div class="prog-dot ' + (skuDone ? 'done' : '') + '" title="SKU Label Printed"></div>';
+    html += '<div class="prog-dot ' + (stockDone ? 'done' : '') + '" title="Stock Counted"></div>';
     html += '</div></td>';
     html += '</tr>';
   });
@@ -472,8 +477,9 @@ function renderMobileCards() {
     const code     = esc(r['Code']           || '');
     const asins    = esc(r['ASINs']          || '—');
 
-    const imgDone = toBool(r['Images Shared']);
-    const skuDone = toBool(r['SKU Label Printed']);
+    const imgDone   = toBool(r['Images Shared']);
+    const skuDone   = toBool(r['SKU Label Printed']);
+    const stockDone = toBool(r['Stock Counted']);
 
     html += '<div class="mobile-card">';
     html += '<div class="mobile-card-header">';
@@ -490,13 +496,16 @@ function renderMobileCards() {
 
     html += '<div class="mobile-card-fields">';
     html += '<div class="mobile-card-field"><span class="mobile-card-field-label">Images Shared</span>' + ynToggle(id, 'Images Shared', imgDone) + '</div>';
+    
     html += '<div class="mobile-card-field"><span class="mobile-card-field-label">SKU Label Printed</span>' + ynToggle(id, 'SKU Label Printed', skuDone) + '</div>';
+    html += '<div class="mobile-card-field"><span class="mobile-card-field-label">Stock Counted</span>' + ynToggle(id, 'Stock Counted', stockDone) + '</div>';
     html += '</div>';
-
+    
     html += '<div class="mobile-card-status"><span class="mobile-card-status-label">Status</span>';
     html += '<div class="row-progress">';
     html += '<div class="prog-dot ' + (imgDone ? 'done' : '') + '" title="Images Shared"></div>';
     html += '<div class="prog-dot ' + (skuDone ? 'done' : '') + '" title="SKU Label Printed"></div>';
+    html += '<div class="prog-dot ' + (stockDone ? 'done' : '') + '" title="Stock Counted"></div>';
     html += '</div></div>';
 
     html += '</div>';
