@@ -1794,52 +1794,60 @@ async function submitAddWork() {
   const tempIds = [];
   const apiCalls = [];
 
-  validRows.forEach((row, vi) => {
-    const m = row.match || {}; // additional rows may not have a match
-    const data = {
-      id: '',
-      labelCode:        row.code,
-      brand:            m['Brand'] || '',
-      productLine:      m['Product Line'] || '',
-      asin:             m['ASIN'] || '',
-      prepInstructions: m['Prep Instructions'] || '',
-      bundle:           m['Bundle'] || '',
-      dgLabel:          m['DG Label'] || '',
-      polyBag:          m['Poly Bag'] || '',
-      warningLabel:     m['Warning Label'] || '',
-      barcode:          m['Barcode'] || '',
-      box:              m['Box'] || '',
-      barcodeImage:     m['Barcode Image'] || '',
-      groupingLink:     document.getElementById('awGroupingLink').value.trim() || m['Grouping Link'] || '',
-      groupingImage:    uploadedGroupingImageValue || m['Grouping Image'] || '',
-      collectionBooked: document.getElementById('awCollectionBooked').value.trim() || m['Collection Booked'] || '',
-      unitsRequired:    Number(row.units) || 0,
-      veeqoAdjusted:    '',
-      unitsCompleted:   0,
-      upsCollected:     ''
-    };
-    const tempId = 'TEMP-' + Date.now() + '-' + Math.random().toString(36).slice(2);
-    tempIds.push(tempId);
-    const newWorkRow = {
-      'ID': tempId,
-      'Label Code': data.labelCode, 'Brand': data.brand,
-      'Product Line': data.productLine, 'ASIN': data.asin,
-      'Prep Instructions': data.prepInstructions,
-      'Bundle': data.bundle, 'DG Label': data.dgLabel,
-      'Poly Bag': data.polyBag, 'Warning Label': data.warningLabel,
-      'Barcode': data.barcode, 'Box': data.box,
-      'Barcode Image': data.barcodeImage,
-      'Grouping Link': data.groupingLink, 'Grouping Image': data.groupingImage, 'Collection Booked': data.collectionBooked,
-      'Units Required': data.unitsRequired,
-      'Veeqo Stock Adjusted': '', 'Units Completed': 0, 'UPS Collected': ''
-    };
-    warehouseData.push(newWorkRow);
-    apiCalls.push({ tempId, data });
+  // Primary row drives the work item; additional rows are extra label codes on the same item
+  const primaryRow = validRows[0];
+  const additionalRows = validRows.slice(1);
+  const m = primaryRow.match || {};
+
+  // Build combined label code string: "FBA-LC-001 (10), FBA-LC-002 (5)"
+  const allLabels = validRows.map(r => r.code + ' (' + r.units + ')').join(', ');
+  const totalUnits = validRows.reduce((sum, r) => sum + (Number(r.units) || 0), 0);
+
+  const data = {
+    id: '',
+    labelCode:        allLabels,
+    brand:            m['Brand'] || '',
+    productLine:      m['Product Line'] || '',
+    asin:             m['ASIN'] || '',
+    prepInstructions: m['Prep Instructions'] || '',
+    bundle:           m['Bundle'] || '',
+    dgLabel:          m['DG Label'] || '',
+    polyBag:          m['Poly Bag'] || '',
+    warningLabel:     m['Warning Label'] || '',
+    barcode:          m['Barcode'] || '',
+    box:              m['Box'] || '',
+    barcodeImage:     m['Barcode Image'] || '',
+    groupingLink:     document.getElementById('awGroupingLink').value.trim() || m['Grouping Link'] || '',
+    groupingImage:    uploadedGroupingImageValue || m['Grouping Image'] || '',
+    collectionBooked: document.getElementById('awCollectionBooked').value.trim() || m['Collection Booked'] || '',
+    unitsRequired:    totalUnits,
+    veeqoAdjusted:    '',
+    unitsCompleted:   0,
+    upsCollected:     ''
+  };
+
+  const tempId = 'TEMP-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+  tempIds.push(tempId);
+  const newWorkRow = {
+    'ID': tempId,
+    'Label Code': data.labelCode, 'Brand': data.brand,
+    'Product Line': data.productLine, 'ASIN': data.asin,
+    'Prep Instructions': data.prepInstructions,
+    'Bundle': data.bundle, 'DG Label': data.dgLabel,
+    'Poly Bag': data.polyBag, 'Warning Label': data.warningLabel,
+    'Barcode': data.barcode, 'Box': data.box,
+    'Barcode Image': data.barcodeImage,
+    'Grouping Link': data.groupingLink, 'Grouping Image': data.groupingImage, 'Collection Booked': data.collectionBooked,
+    'Units Required': data.unitsRequired,
+    'Veeqo Stock Adjusted': '', 'Units Completed': 0, 'UPS Collected': ''
+  };
+  warehouseData.push(newWorkRow);
+  apiCalls.push({ tempId, data });
   });
 
   closeAddWorkModal();
   applyFilters();
-  showToast('Added ' + validRows.length + ' work item(s)', 'success');
+  showToast('Work item added', 'success');
 
   btn.disabled = false;
   btn.innerHTML = 'Add Work';
