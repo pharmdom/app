@@ -567,6 +567,7 @@ body {
       </button>
 
       <!-- Matched Products Display -->
+      <div id="awMatchedProducts"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeAddWorkModal()">Cancel</button>
@@ -953,33 +954,32 @@ function renderDrawer(row) {
     body += '</div>';
 
     // Grouping & Collection section
-// Grouping & Collection section — hidden for FBA products
-    if (source !== 'fba') {
-      if (!ro) {
-        body += sec('Grouping & Collection') + '<div class="drawer-section">'
-          + '<div class="info-grid" style="margin-bottom:10px">'
-          + eCard(id, 'Grouping Link', row['Grouping Link'] || '', 'url', false)
-          + dateCard(id, 'Collection Booked', row['Collection Booked'] || '')
-          + '</div>'
-          + '<div style="margin-bottom:6px"><div class="info-card"><label>Grouping Images</label>'
-          + renderGroupingImages(row['Grouping Image'] || '', id)
-          + '</div></div>'
-          + '</div>';
+    if (!ro) {
+      body += sec('Grouping & Collection') + '<div class="drawer-section">'
+        + '<div class="info-grid" style="margin-bottom:10px">'
+        + eCard(id, 'Grouping Link', row['Grouping Link'] || '', 'url', false)
+        + dateCard(id, 'Collection Booked', row['Collection Booked'] || '')
+        + '</div>'
+        + '<div style="margin-bottom:6px"><div class="info-card"><label>Grouping Images</label>'
+        + renderGroupingImages(row['Grouping Image'] || '', id)
+        + '</div></div>'
+        + '</div>';
+    } else {
+      // Readonly display
+      const gl = row['Grouping Link'] || '';
+      const cb = row['Collection Booked'] || '';
+      const gi = row['Grouping Image'] || '';
+      body += sec('Grouping & Collection') + '<div class="drawer-section">';
+      if (gl || cb || gi) {
+        if (gl) body += '<div class="grouping-link-display" style="margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><a href="' + ea(gl) + '" target="_blank" rel="noopener">' + esc(gl) + '</a></div>';
+        if (cb) body += '<div style="font-size:11px;color:#64748b;margin-bottom:8px"><strong>Collection Booked:</strong> ' + esc(fmtDate(cb)) + '</div>';
+        if (gi) body += renderGroupingImages(gi, id, true);
       } else {
-        const gl = row['Grouping Link'] || '';
-        const cb = row['Collection Booked'] || '';
-        const gi = row['Grouping Image'] || '';
-        body += sec('Grouping & Collection') + '<div class="drawer-section">';
-        if (gl || cb || gi) {
-          if (gl) body += '<div class="grouping-link-display" style="margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><a href="' + ea(gl) + '" target="_blank" rel="noopener">' + esc(gl) + '</a></div>';
-          if (cb) body += '<div style="font-size:11px;color:#64748b;margin-bottom:8px"><strong>Collection Booked:</strong> ' + esc(fmtDate(cb)) + '</div>';
-          if (gi) body += renderGroupingImages(gi, id, true);
-        } else {
-          body += '<div style="color:#94a3b8;font-size:12px">No grouping or collection data</div>';
-        }
-        body += '</div>';
+        body += '<div style="color:#94a3b8;font-size:12px">No grouping or collection data</div>';
       }
+      body += '</div>';
     }
+  }
 
   if (activeTab === 'prep') {
     body += sec('Instructions') + '<div class="info-grid full">'
@@ -1548,6 +1548,7 @@ function openAddWorkModal() {
   awLabelCodeRows = [];
   awRowDebounceTimers = {};
   document.getElementById('awLabelCodeRows').innerHTML = '';
+  document.getElementById('awMatchedProducts').innerHTML = '';
   document.getElementById('addWorkModalOverlay').classList.add('visible');
   addLabelCodeRow();
   setTimeout(() => {
@@ -1563,7 +1564,7 @@ function closeAddWorkModal(e) {
 
 function addLabelCodeRow() {
   const rowId = 'lcrow_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
-  awLabelCodeRows.push({ rowId, code: '', units: '', groupingLink: '', groupingImages: [], collectionBooked: '' });
+  awLabelCodeRows.push({ rowId, code: '', units: '', match: null });
   renderLabelCodeRows();
 }
 
@@ -1577,81 +1578,53 @@ function removeLabelCodeRow(rowId) {
 function renderLabelCodeRows() {
   const container = document.getElementById('awLabelCodeRows');
   container.innerHTML = awLabelCodeRows.map((row, i) => {
-    return '<div class="lc-row" id="' + row.rowId + '" style="grid-template-columns:1fr;gap:10px;padding:14px">'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-        + '<div>'
-          + '<div class="lc-row-label">Label Code</div>'
-          + '<input type="text" data-field="code" data-rowid="' + row.rowId + '" value="' + ea(row.code) + '" placeholder="e.g. FBA-LC-001" oninput="onLcRowInput(this,\'' + row.rowId + '\',\'code\')">'
-        + '</div>'
-        + '<div>'
-          + '<div class="lc-row-label">Units Required</div>'
-          + '<input type="number" data-field="units" data-rowid="' + row.rowId + '" value="' + ea(row.units) + '" placeholder="0" min="1" step="1" oninput="onLcRowInput(this,\'' + row.rowId + '\',\'units\')">'
+    const found = row.match !== null;
+    const notFound = row.code && row.match === null;
+    let rowClass = 'lc-row';
+    if (found) rowClass += ' found-row';
+    else if (notFound) rowClass += ' notfound-row';
+    return '<div class="' + rowClass + '" id="' + row.rowId + '">'
+      + '<div>'
+        + '<div class="lc-row-label">Label Code</div>'
+        + '<input type="text" data-field="code" data-rowid="' + row.rowId + '" value="' + ea(row.code) + '" placeholder="e.g. FBA-LC-001" oninput="onLcRowInput(this,\'' + row.rowId + '\',\'code\')">'
+        + '<div class="lc-row-status" style="color:' + (found ? '#15803d' : (notFound ? '#dc2626' : '#94a3b8')) + '">'
+          + (found ? '✓ ' + esc(row.match['Product Line'] || row.match['Brand'] || row.code) : (notFound ? '✗ Not found' : ''))
         + '</div>'
       + '</div>'
       + '<div>'
-        + '<div class="lc-row-label">Grouping Link</div>'
-        + '<input type="url" data-field="groupingLink" data-rowid="' + row.rowId + '" value="' + ea(row.groupingLink || '') + '" placeholder="https://…" oninput="onLcRowInput(this,\'' + row.rowId + '\',\'groupingLink\')">'
+        + '<div class="lc-row-label">Units Required</div>'
+        + '<input type="number" data-field="units" data-rowid="' + row.rowId + '" value="' + ea(row.units) + '" placeholder="0" min="1" step="1" oninput="onLcRowInput(this,\'' + row.rowId + '\',\'units\')">'
       + '</div>'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end">'
-        + '<div>'
-          + '<div class="lc-row-label">Collection Booked</div>'
-          + '<input type="date" data-field="collectionBooked" data-rowid="' + row.rowId + '" value="' + ea(row.collectionBooked || '') + '" class="date-input-styled" style="padding:7px 10px;font-size:13px" oninput="onLcRowInput(this,\'' + row.rowId + '\',\'collectionBooked\')">'
-        + '</div>'
-        + '<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px">'
-          + (awLabelCodeRows.length > 1
-            ? '<button class="lc-remove-btn" onclick="removeLabelCodeRow(\'' + row.rowId + '\')" title="Remove">✕</button>'
-            : '')
-        + '</div>'
-      + '</div>'
-      + '<div>'
-        + '<div class="lc-row-label">Grouping Image(s)</div>'
-        + '<label class="file-upload-area" style="display:block;cursor:pointer;padding:10px" onclick="document.getElementById(\'awGroupingFile_' + row.rowId + '\').click()">'
-          + '<span style="font-size:11px;color:#64748b"><strong style="color:#2563eb">Upload images</strong> (multiple allowed)</span>'
-        + '</label>'
-        + '<input type="file" id="awGroupingFile_' + row.rowId + '" accept="image/*" multiple style="display:none" onchange="handleAwGroupingUpload(this,\'' + row.rowId + '\')">'
-        + '<div id="awGroupingProgress_' + row.rowId + '" style="display:none" class="upload-progress"><span class="spinner sm"></span> Uploading…</div>'
-        + renderAwGroupingPreviews(row)
-      + '</div>'
+      + (awLabelCodeRows.length > 1
+        ? '<button class="lc-remove-btn" onclick="removeLabelCodeRow(\'' + row.rowId + '\')" title="Remove">✕</button>'
+        : '<div style="width:28px"></div>')
       + '</div>';
   }).join('');
 }
 
-function renderAwGroupingPreviews(row) {
-  const urls = row.groupingImages || [];
-  if (!urls.length) return '';
-  return '<div class="grouping-images-grid" style="margin-top:6px">'
-    + urls.map((url, i) => '<div class="grouping-img-item"><img src="' + ea(url) + '" alt="img ' + (i+1) + '" onclick="openLightbox(\'' + ea(url) + '\')"><a class="download-link" href="' + ea(url) + '" target="_blank">↓</a></div>').join('')
-    + '</div>';
-}
-
-
-async function handleAwGroupingUpload(inputEl, rowId) {
-  const files = Array.from(inputEl.files);
-  if (!files.length) return;
-  const progressEl = document.getElementById('awGroupingProgress_' + rowId);
-  if (progressEl) progressEl.style.display = 'flex';
-  try {
-    const newUrls = await Promise.all(files.map(f => uploadFileToDrive(f)));
-    const idx = awLabelCodeRows.findIndex(r => r.rowId === rowId);
-    if (idx > -1) {
-      awLabelCodeRows[idx].groupingImages = [...(awLabelCodeRows[idx].groupingImages || []), ...newUrls];
-    }
-    renderLabelCodeRows();
-    showToast('Images uploaded', 'success');
-  } catch(e) {
-    showToast('Upload failed: ' + e.message, 'error');
-  } finally {
-    if (progressEl) progressEl.style.display = 'none';
-  }
-}
-window.handleAwGroupingUpload = handleAwGroupingUpload;
-  
 function onLcRowInput(el, rowId, field) {
   const idx = awLabelCodeRows.findIndex(r => r.rowId === rowId);
   if (idx < 0) return;
   awLabelCodeRows[idx][field] = el.value.trim();
+  if (field === 'code') {
+    clearTimeout(awRowDebounceTimers[rowId]);
+    awRowDebounceTimers[rowId] = setTimeout(() => lookupLabelCode(rowId), 300);
+  }
 }
 
+function lookupLabelCode(rowId) {
+  const idx = awLabelCodeRows.findIndex(r => r.rowId === rowId);
+  if (idx < 0) return;
+  const code = awLabelCodeRows[idx].code;
+  if (!code) {
+    awLabelCodeRows[idx].match = null;
+  } else {
+    const match = fbaData.find(r => String(r['Label Code'] || '').trim().toLowerCase() === code.toLowerCase());
+    awLabelCodeRows[idx].match = match || null;
+  }
+  renderLabelCodeRows();
+  renderMatchedProducts();
+}
 
 function renderMatchedProducts() {
   const container = document.getElementById('awMatchedProducts');
@@ -1699,7 +1672,8 @@ function renderMatchedProducts() {
 }
 
 async function submitAddWork() {
-  const validRows = showToast('Add at least one label code with units', 'error');
+  const validRows = awLabelCodeRows.filter(r => r.match && r.units && Number(r.units) > 0);
+  const errorRows = awLabelCodeRows.filter(r => !r.match || !r.units || Number(r.units) <= 0);
 
   if (!validRows.length) {
     showToast('Add at least one valid label code with units', 'error');
@@ -1722,20 +1696,20 @@ async function submitAddWork() {
     const data = {
       id: '',
       labelCode:        row.code,
-      brand:            '',
-      productLine:      '',
-      asin:             '',
-      prepInstructions: '',
-      bundle:           '',
-      dgLabel:          '',
-      polyBag:          '',
-      warningLabel:     '',
-      barcode:          '',
-      box:              '',
-      barcodeImage:     '',
-      groupingLink:     row.groupingLink     || '',
-      groupingImage:    serializeGroupingImages(row.groupingImages || []),
-      collectionBooked: row.collectionBooked || '',
+      brand:            m['Brand'] || '',
+      productLine:      m['Product Line'] || '',
+      asin:             m['ASIN'] || '',
+      prepInstructions: m['Prep Instructions'] || '',
+      bundle:           m['Bundle'] || '',
+      dgLabel:          m['DG Label'] || '',
+      polyBag:          m['Poly Bag'] || '',
+      warningLabel:     m['Warning Label'] || '',
+      barcode:          m['Barcode'] || '',
+      box:              m['Box'] || '',
+      barcodeImage:     m['Barcode Image'] || '',
+      groupingLink:     m['Grouping Link'] || '',
+      groupingImage:    m['Grouping Image'] || '',
+      collectionBooked: m['Collection Booked'] || '',
       unitsRequired:    Number(row.units) || 0,
       veeqoAdjusted:    '',
       unitsCompleted:   0,
@@ -1745,16 +1719,14 @@ async function submitAddWork() {
     tempIds.push(tempId);
     const newWorkRow = {
       'ID': tempId,
-      'Label Code': data.labelCode, 'Brand': '',
-      'Product Line': '', 'ASIN': '',
-      'Prep Instructions': '',
-      'Bundle': '', 'DG Label': '',
-      'Poly Bag': '', 'Warning Label': '',
-      'Barcode': '', 'Box': '',
-      'Barcode Image': '',
-      'Grouping Link': data.groupingLink,
-      'Grouping Image': data.groupingImage,
-      'Collection Booked': data.collectionBooked,
+      'Label Code': data.labelCode, 'Brand': data.brand,
+      'Product Line': data.productLine, 'ASIN': data.asin,
+      'Prep Instructions': data.prepInstructions,
+      'Bundle': data.bundle, 'DG Label': data.dgLabel,
+      'Poly Bag': data.polyBag, 'Warning Label': data.warningLabel,
+      'Barcode': data.barcode, 'Box': data.box,
+      'Barcode Image': data.barcodeImage,
+      'Grouping Link': data.groupingLink, 'Grouping Image': data.groupingImage, 'Collection Booked': data.collectionBooked,
       'Units Required': data.unitsRequired,
       'Veeqo Stock Adjusted': '', 'Units Completed': 0, 'UPS Collected': ''
     };
@@ -1904,7 +1876,6 @@ function showToast(msg, type) {
 /* ══════════════════════════════════════════════════
    GLOBAL EXPOSURE
 ══════════════════════════════════════════════════ */
-window.handleAwGroupingUpload = handleAwGroupingUpload;
 window.closeDrawer              = closeDrawer;
 window.switchTab                = switchTab;
 window.markDirty                = markDirty;
