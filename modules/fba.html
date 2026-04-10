@@ -511,6 +511,29 @@ html, body {
       </div>
 
       <!-- Barcode Image Upload -->
+      <!-- Product Image Upload -->
+<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;display:flex;align-items:center;gap:8px">Product Image<span style="flex:1;height:1px;background:#f1f5f9"></span></div>
+<div class="form-group full">
+  <label>Upload Product Image</label>
+  <div class="file-upload-area" id="nProductImgUploadArea" onclick="document.getElementById('nProductImgFile').click()">
+    <input type="file" id="nProductImgFile" accept="image/*,application/pdf" onchange="previewProductImage(this)">
+    <div class="file-upload-label">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 6px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <strong>Click to upload</strong> or drag & drop<br>
+      <span style="font-size:11px;color:#94a3b8">PNG, JPG, WEBP, PDF up to 5MB</span>
+    </div>
+  </div>
+  <div id="nProductImgPreview" style="display:none;text-align:center;margin-top:8px">
+    <img id="nProductImgPreviewImg" src="" alt="Product preview" style="max-width:100%;max-height:140px;border-radius:10px;border:1.5px solid #e2e8f0;object-fit:contain">
+    <div style="margin-top:6px">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="clearProductImage()">Remove Image</button>
+    </div>
+  </div>
+  <div id="nProductImgUploadProgress" style="display:none" class="upload-progress">
+    <span class="spinner sm"></span> Uploading image…
+  </div>
+  <input type="hidden" id="nProductImageUrl" value="">
+</div>
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;display:flex;align-items:center;gap:8px">Barcode Image<span style="flex:1;height:1px;background:#f1f5f9"></span></div>
       <div class="form-group full">
         <label>Upload Barcode Image</label>
@@ -519,7 +542,7 @@ html, body {
           <div class="file-upload-label">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 6px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             <strong>Click to upload</strong> or drag & drop<br>
-            <span style="font-size:11px;color:#94a3b8">PNG, JPG, WEBP up to 5MB</span>
+            <span style="font-size:11px;color:#94a3b8">PDF, PNG, JPG, WEBP up to 5MB</span>
           </div>
         </div>
         <div id="nBarcodePreview" class="file-upload-preview" style="display:none;text-align:center">
@@ -582,7 +605,7 @@ html, body {
           <div class="file-upload-label">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 6px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             <strong>Click to upload</strong> or drag & drop<br>
-            <span style="font-size:11px;color:#94a3b8">PNG, JPG, WEBP — multiple allowed</span>
+            <span style="font-size:11px;color:#94a3b8">PDF, PNG, JPG, WEBP — multiple allowed</span>
           </div>
         </div>
         <div id="awGroupingImgPreview" style="display:none;margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
@@ -642,6 +665,7 @@ let awRowDebounceTimers = {};
 
 // New Product — barcode image
 let nBarcodeFile = null;
+let nProductImgFile = null;
 let awGroupingImgFiles = [];
 
 
@@ -931,7 +955,7 @@ function renderDrawer(row) {
   if (source === 'fba') {
     tabsHTML = dTab('info',svgGrid(),'Product Info') + dTab('prep',svgPackage(),'Prep') + dTab('warehouse',svgWarehouse(),'Warehouse');
   } else if (isWarehouseBucket) {
-    tabsHTML = dTab('info',svgGrid(),'Product Info',true) + dTab('prep',svgPackage(),'Prep',true) + dTab('warehouse',svgWarehouse(),'Warehouse');
+    tabsHTML = dTab('info',svgGrid(),'Product Info') + dTab('prep',svgPackage(),'Prep') + dTab('warehouse',svgWarehouse(),'Warehouse',true);
   } else if (isDigitalOpsBucket) {
     tabsHTML = dTab('info',svgGrid(),'Product Info') + dTab('prep',svgPackage(),'Prep');
   } else {
@@ -943,7 +967,32 @@ function renderDrawer(row) {
   let body = '';
 
   if (activeTab === 'info') {
-    body += sec('Product Info') + '<div class="info-grid">'
+    // Product image at top of Product Info
+    const prodImg = row['Product Image'] || '';
+    body += sec('Product Info');
+    if (prodImg) {
+      body += '<div style="margin-bottom:12px;display:flex;align-items:flex-start;gap:12px">'
+        + '<div style="flex-shrink:0;border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#f8fafc">'
+          + '<img src="' + ea(prodImg) + '" alt="Product" style="width:90px;height:72px;object-fit:cover;display:block;cursor:zoom-in" onclick="openLightbox(\'' + ea(prodImg) + '\')">'
+        + '</div>'
+        + '<div style="flex:1;min-width:0">'
+          + '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:4px">Product Image</div>'
+          + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+            + '<a href="' + ea(prodImg) + '" target="_blank" class="btn btn-secondary btn-sm">Open full size</a>'
+            + (!ro ? '<button class="btn btn-secondary btn-sm" onclick="openProductImageUpload(\'' + ea(id) + '\')">Replace</button>' : '')
+          + '</div>'
+        + '</div>'
+      + '</div>';
+    } else if (!ro) {
+      body += '<div style="margin-bottom:12px">'
+        + '<button class="btn btn-secondary btn-sm" onclick="openProductImageUpload(\'' + ea(id) + '\')">'
+          + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
+          + ' Upload product image'
+        + '</button>'
+      + '</div>';
+    }
+    body += '<input type="file" id="drawerProductImgFile_' + ea(id) + '" accept="image/*,application/pdf" style="display:none" onchange="handleDrawerProductImageUpload(this,\'' + ea(id) + '\')">';
+    body += '<div class="info-grid">'
       + eCard(id, 'Label Code',    row['Label Code']    || '', 'text', ro)
       + eCard(id, 'Brand',         row['Brand']         || '', 'text', ro)
       + eCard(id, 'Product Line',  row['Product Line']  || '', 'text', ro)
@@ -1059,7 +1108,7 @@ function renderGroupingImages(giVal, id, readonly) {
       + '<label class="file-upload-area" style="display:block;cursor:pointer" onclick="document.getElementById(\'drawerGroupingFile_' + ea(id) + '\').click()">'
       + '<span style="font-size:11px;color:#64748b"><strong style="color:#2563eb">Upload images</strong> (multiple allowed)</span>'
       + '</label>'
-      + '<input type="file" id="drawerGroupingFile_' + ea(id) + '" accept="image/*" multiple style="display:none" onchange="handleGroupingImagesUpload(this,\'' + ea(id) + '\')">'
+      + '<input type="file" id="drawerGroupingFile_' + ea(id) + '" accept="image/*,application/pdf" multiple style="display:none" onchange="handleGroupingImagesUpload(this,\'' + ea(id) + '\')">'
       + '<div id="groupingUploadProgress_' + ea(id) + '" style="display:none" class="upload-progress"><span class="spinner sm"></span> Uploading…</div>'
       + '</div>';
   }
@@ -1104,6 +1153,29 @@ async function handleDrawerBarcodeUpload(inputEl, id) {
   }
 }
 
+function openProductImageUpload(id) {
+  const el = document.getElementById('drawerProductImgFile_' + id);
+  if (el) el.click();
+}
+
+async function handleDrawerProductImageUpload(inputEl, id) {
+  const file = inputEl.files[0];
+  if (!file) return;
+  showToast('Uploading product image…', 'info');
+  try {
+    const url = await uploadFileToDrive(file);
+    markDirty('Product Image', url);
+    const dataSource = drawerSource === 'fba' ? fbaData : warehouseData;
+    const idx = dataSource.findIndex(r => String(r['ID']) === String(drawerCurrentId));
+    if (idx > -1) dataSource[idx]['Product Image'] = url;
+    renderDrawer(dataSource[idx]);
+    await saveAllChanges();
+    showToast('Product image uploaded', 'success');
+  } catch(e) {
+    showToast('Upload failed: ' + e.message, 'error');
+  }
+}
+  
 async function handleGroupingImagesUpload(inputEl, id) {
   const files = Array.from(inputEl.files);
   if (!files.length) return;
@@ -1393,19 +1465,25 @@ function renderProductsTable() {
   });
   document.getElementById('productsModalCount').textContent = data.length;
   const cols = ['Label Code', 'Brand', 'Product Line', 'ASIN', 'Prep Instructions'];
-  let html = '<table class="data-table"><thead><tr>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>';
+  let html = '<table class="data-table"><thead><tr><th>Image</th>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>';
   if (!data.length) {
     html += '<tr><td colspan="' + cols.length + '" style="text-align:center;padding:32px;color:#94a3b8;font-weight:600">No products found</td></tr>';
   } else {
     data.forEach(row => {
       const rid = ea(String(row['ID'] || ''));
+      const imgUrl = row['Product Image'] || '';
       html += '<tr onclick="openDrawerFromProductsTable(\'' + rid + '\')">'
+        + '<td style="width:48px">'
+          + (imgUrl
+            ? '<img src="' + ea(imgUrl) + '" style="width:40px;height:32px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;display:block">'
+            : '<div style="width:40px;height:32px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>')
+          + '</td>'
         + cols.map(c => {
           let val = String(row[c] ?? '—');
           if (c === 'Prep Instructions' && val.length > 50) val = val.substring(0, 50) + '…';
           return '<td>' + esc(val) + '</td>';
         }).join('')
-        + '</tr>';
+        + '</tr>';      
     });
   }
   html += '</tbody></table>';
@@ -1426,6 +1504,7 @@ function openNewProductForm() {
   document.querySelectorAll('#newProductForm .form-group').forEach(g => g.classList.remove('has-error'));
   document.querySelectorAll('#newProductForm .field-error').forEach(e => e.remove());
   clearBarcodeImage();
+  clearProductImage();
   document.getElementById('newModalOverlay').classList.add('visible');
   setTimeout(() => document.getElementById('nLabelCode').focus(), 80);
 }
@@ -1463,6 +1542,43 @@ function clearBarcodeImage() {
   document.getElementById('nBarcodePreviewImg').src = '';
 }
 
+function previewProductImage(inputEl) {
+  const file = inputEl.files[0];
+  if (!file) return;
+  nProductImgFile = file;
+  if (file.type === 'application/pdf') {
+    document.getElementById('nProductImgUploadArea').style.display = 'none';
+    document.getElementById('nProductImgPreview').style.display = 'block';
+    document.getElementById('nProductImgPreviewImg').style.display = 'none';
+    document.getElementById('nProductImgPreview').insertAdjacentHTML('afterbegin',
+      '<div id="nProductImgPdfBadge" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;font-size:12px;font-weight:600;color:#1e40af;margin-bottom:8px">'
+      + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+      + file.name + '</div>');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('nProductImgUploadArea').style.display = 'none';
+    document.getElementById('nProductImgPreview').style.display = 'block';
+    const img = document.getElementById('nProductImgPreviewImg');
+    img.style.display = 'block';
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearProductImage() {
+  nProductImgFile = null;
+  document.getElementById('nProductImgFile').value = '';
+  document.getElementById('nProductImageUrl').value = '';
+  document.getElementById('nProductImgUploadArea').style.display = 'block';
+  document.getElementById('nProductImgPreview').style.display = 'none';
+  document.getElementById('nProductImgPreviewImg').src = '';
+  const badge = document.getElementById('nProductImgPdfBadge');
+  if (badge) badge.remove();
+  document.getElementById('nProductImgPreviewImg').style.display = 'block';
+}
+  
 async function createRecord() {
   const required = [
     { id: 'nLabelCode',   fg: 'fg-nLabelCode',   label: 'Label Code' },
@@ -1492,6 +1608,23 @@ async function createRecord() {
   submitBtn.disabled = true;
   submitBtn.innerHTML = '<span class="spinner sm"></span> Creating…';
 
+  // Upload product image if selected
+  let productImageUrl = '';
+  if (nProductImgFile) {
+    document.getElementById('nProductImgUploadProgress').style.display = 'flex';
+    showToast('Uploading product image…', 'info');
+    try {
+      productImageUrl = await uploadFileToDrive(nProductImgFile);
+    } catch(e) {
+      showToast('Product image upload failed: ' + e.message, 'error');
+      document.getElementById('nProductImgUploadProgress').style.display = 'none';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Create Product';
+      return;
+    }
+    document.getElementById('nProductImgUploadProgress').style.display = 'none';
+  }
+  
   // Upload barcode image if selected
   let barcodeImageUrl = '';
   if (nBarcodeFile) {
@@ -1523,6 +1656,7 @@ async function createRecord() {
     barcode:          document.getElementById('nBarcode').value.trim(),
     box:              document.getElementById('nBox').value.trim(),
     barcodeImage:     barcodeImageUrl,
+    productImage:     productImageUrl,
     groupingLink:     '',
     groupingImage:    '',
     collectionBooked: '',
@@ -1543,6 +1677,7 @@ async function createRecord() {
     'Poly Bag': data.polyBag, 'Warning Label': data.warningLabel,
     'Barcode': data.barcode, 'Box': data.box,
     'Barcode Image': barcodeImageUrl,
+    'Product Image': productImageUrl,
     'Grouping Link': '', 'Grouping Image': '', 'Collection Booked': '',
     'Units Required': 0, 'Veeqo Stock Adjusted': '',
     'Units Completed': 0, 'UPS Collected': ''
@@ -1921,6 +2056,7 @@ function rowToApiData(row) {
     barcode:          String(row['Barcode']               ?? ''),
     box:              String(row['Box']                   ?? ''),
     barcodeImage:     String(row['Barcode Image']         ?? ''),
+    productImage:     String(row['Product Image']         ?? ''),
     groupingLink:     String(row['Grouping Link']         ?? ''),
     groupingImage:    String(row['Grouping Image']        ?? ''),
     collectionBooked: String(row['Collection Booked']     ?? ''),
@@ -1983,6 +2119,10 @@ function showToast(msg, type) {
 /* ══════════════════════════════════════════════════
    GLOBAL EXPOSURE
 ══════════════════════════════════════════════════ */
+window.previewProductImage        = previewProductImage;
+window.clearProductImage          = clearProductImage;
+window.openProductImageUpload     = openProductImageUpload;
+window.handleDrawerProductImageUpload = handleDrawerProductImageUpload;
 window.closeDrawer              = closeDrawer;
 window.switchTab                = switchTab;
 window.markDirty                = markDirty;
