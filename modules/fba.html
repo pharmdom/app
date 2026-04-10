@@ -20,6 +20,8 @@ html, body {
   overflow: hidden;
 }
 
+#workTableModalOverlay .modal { height: auto; max-height: 85vh; }
+  
 /* ── Page Title ── */
 .page-titl {
   font-size: 18px; font-weight: 700; color: #0f172a; letter-spacing: -0.3px; line-height: 1.2;
@@ -408,7 +410,7 @@ html, body {
 </div>
 
 <!-- PRODUCTS TABLE MODAL -->
-<div class="modal-overlay" id="productsModalOverlay" onclick="closeProductsModal(event)">
+<div class="modal-overlay" id="productsModalOverlay">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
       <h2>
@@ -453,7 +455,7 @@ html, body {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="workTableSearchInput" class="search-input" placeholder="Search work items…" oninput="renderWorkTable()">
       </div>
-      <button class="btn btn-amber" onclick="closeWorkTableModal(); openAddWorkModal()">
+      <button class="btn btn-amber" onclick="document.getElementById('workTableModalOverlay').classList.remove('visible'); openAddWorkModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add Work
       </button>
@@ -527,7 +529,7 @@ html, body {
             <button type="button" class="bool-toggle-btn" onclick="setFormBool('nBarcode','No',this)">No</button>
           </div>
           <input type="hidden" id="nBarcode" value="">
-        </div>
+        </div>        
         <div class="form-group" id="fg-nBox">
           <label>Box</label>
           <div class="form-bool-toggle-group" data-field="nBox">
@@ -536,7 +538,8 @@ html, body {
           </div>
           <input type="hidden" id="nBox" value="">
         </div>
-      <div class="form-row">
+      </div>
+      <div class="form-row">        
         <div class="form-group" id="fg-nBundle">
           <label>Bundle</label>
           <div class="form-bool-toggle-group" data-field="nBundle">
@@ -764,9 +767,13 @@ window.closeLightbox = closeLightbox;
 function getBucket(row) {
   const unitsCompleted = String(row['Units Completed'] ?? '').trim();
   const upsCollected   = String(row['UPS Collected'] ?? '').trim().toLowerCase();
-  if ((!unitsCompleted || unitsCompleted === '0') && (!upsCollected || upsCollected === '' || upsCollected === '—')) {
-    return 'warehouse';
-  }
+
+  // Must have BOTH units completed (non-zero) AND UPS collected to leave warehouse
+  const hasUnits = unitsCompleted && unitsCompleted !== '0';
+  const hasUps   = upsCollected && upsCollected !== '' && upsCollected !== '—' && upsCollected !== 'no';
+
+  if (!hasUnits || !hasUps) return 'warehouse';
+
   const veeqo = String(row['Veeqo Stock Adjusted'] ?? '').trim().toLowerCase();
   if (veeqo !== 'yes') return 'digital_ops';
   return 'completed';
@@ -911,14 +918,18 @@ function cardHTML(row) {
   }).join('');
   const prodImg = row['Product Image'] || '';
   return ''
-    + (prodImg
-      ? '<div style="width:100%;height:72px;border-radius:7px;overflow:hidden;margin-bottom:8px;background:#f1f5f9;flex-shrink:0">'
-        + '<img src="' + ea(prodImg) + '" style="width:100%;height:100%;object-fit:cover;display:block">'
-        + '</div>'
-      : '')
-    + '<div class="kc-label">' + esc(labelCode) + '</div>'
-    + (brandLine ? '<div class="kc-brandline">' + esc(brandLine) + '</div>' : '')
-    + (asin      ? '<div class="kc-asin">'      + esc(asin)     + '</div>' : '')
+    + '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">'
+      + '<div style="flex:1;min-width:0">'
+        + '<div class="kc-label">' + esc(labelCode) + '</div>'
+        + (brandLine ? '<div class="kc-brandline">' + esc(brandLine) + '</div>' : '')
+        + (asin      ? '<div class="kc-asin">'      + esc(asin)     + '</div>' : '')
+      + '</div>'
+      + (prodImg
+        ? '<div style="flex-shrink:0;width:44px;height:44px;border-radius:7px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9">'
+          + '<img src="' + ea(prodImg) + '" style="width:100%;height:100%;object-fit:cover;display:block">'
+          + '</div>'
+        : '')
+    + '</div>'
     + '<div class="kc-stats"><div class="kc-stat"><div class="kc-stat-label">Units Req.</div><div class="kc-stat-val">' + esc(String(unitsReq || '—')) + '</div></div></div>'
     + '<div class="kc-chips">' + chips + '</div>';
 }
@@ -1533,7 +1544,7 @@ function renderWorkTable() {
       const bucketLabel = { warehouse: 'Warehouse', digital_ops: 'Digital Ops', completed: 'Completed' }[bucket] || bucket;
       const bucketColor = { warehouse: '#d97706', digital_ops: '#2563eb', completed: '#15803d' }[bucket] || '#64748b';
       const bucketBg    = { warehouse: '#fef3c7', digital_ops: '#dbeafe', completed: '#dcfce7' }[bucket] || '#f1f5f9';
-      html += '<tr onclick="closeWorkTableModal(); openDrawer(\'' + rid + '\',\'warehouse\')">'
+      html += '<tr onclick="openDrawer(\'' + rid + '\',\'warehouse\')">'
         + cols.map(c => '<td>' + esc(String(row[c] ?? '—')) + '</td>').join('')
         + '<td><span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;background:' + bucketBg + ';color:' + bucketColor + '">' + bucketLabel + '</span></td>'
         + '</tr>';
@@ -1553,7 +1564,7 @@ function openProductsModal() {
   document.getElementById('productsModalOverlay').classList.add('visible');
 }
 function closeProductsModal(e) {
-  if (e && e.target !== document.getElementById('productsModalOverlay')) return;
+  if (e) return; // only close when called directly (from X button), not from overlay click
   document.getElementById('productsModalOverlay').classList.remove('visible');
 }
 function renderProductsTable() {
