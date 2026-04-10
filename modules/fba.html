@@ -805,6 +805,7 @@ async function loadData() {
         whHeaders.forEach((h, i) => { obj[h] = row[i] ?? ''; });
         return obj;
       });
+    warehouseData.sort((a, b) => new Date(b['Date Created']) - new Date(a['Date Created']));
     } else {
       warehouseData = [];
     }
@@ -1532,6 +1533,8 @@ function renderWorkTable() {
       String(row['ASIN']         || '').toLowerCase().includes(q)
     );
   });
+  data.sort((a, b) => new Date(b['Date Created']) - new Date(a['Date Created']));
+
   document.getElementById('workTableModalCount').textContent = data.length;
   const cols = ['Label Code', 'Brand', 'Product Line', 'Units Required', 'Units Completed', 'UPS Collected'];
   let html = '<table class="data-table"><thead><tr>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '<th>Status</th></tr></thead><tbody>';
@@ -1578,6 +1581,8 @@ function renderProductsTable() {
       String(row['ASIN']         || '').toLowerCase().includes(q)
     );
   });
+  data.sort((a, b) => new Date(b['Date Created']) - new Date(a['Date Created']));
+
   document.getElementById('productsModalCount').textContent = data.length;
   const cols = ['Label Code', 'Brand', 'Product Line', 'ASIN', 'Prep Instructions'];
   let html = '<table class="data-table"><thead><tr><th>Image</th>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>';
@@ -1956,14 +1961,20 @@ function renderMatchedProducts() {
   let html = '<div style="margin-top:8px">';
   found.forEach((row, ri) => {
     const m = row.match;
+    const productImg = m['Product Image'] || '';
     const barcodeImg = m['Barcode Image'] || '';
     html += '<div style="border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:10px">'
       + '<div style="background:#0f172a;padding:10px 14px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px">'
         + '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:#2563eb;color:#fff;border-radius:50%;font-size:10px;font-weight:800;flex-shrink:0">' + (ri + 1) + '</span>'
-        + '<div>'
-          + '<div style="font-size:12px;font-weight:700;color:#fff">' + esc(row.code) + '</div>'
-          + '<div style="font-size:11px;color:rgba(255,255,255,.5)">' + esc([m['Brand'], m['Product Line']].filter(Boolean).join(' · ')) + '</div>'
-        + '</div>'
+        + (productImg
+  ? '<div style="flex-shrink:0;width:40px;height:40px;border-radius:6px;overflow:hidden;border:1.5px solid rgba(255,255,255,.15);background:#1e293b;margin-right:4px">'
+    + '<img src="' + ea(productImg) + '" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in" onclick="openLightbox(\'' + ea(productImg) + '\')">'
+    + '</div>'
+  : '')
++ '<div>'
+  + '<div style="font-size:12px;font-weight:700;color:#fff">' + esc(row.code) + '</div>'
+  + '<div style="font-size:11px;color:rgba(255,255,255,.5)">' + esc([m['Brand'], m['Product Line']].filter(Boolean).join(' · ')) + '</div>'
++ '</div>'
       + '</div>'      
       + '<div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:6px">'
         + '<div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">ASIN</div><div style="font-size:12px;color:#0f172a;font-family:monospace">' + esc(m['ASIN'] || '—') + '</div></div>'
