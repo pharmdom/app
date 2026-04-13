@@ -439,7 +439,7 @@ html, body {
 
 
 <!-- WORK TABLE MODAL -->
-<div class="modal-overlay" id="workTableModalOverlay" onclick="closeWorkTableModal(event)">
+<div class="modal-overlay" id="workTableModalOverlay">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
       <h2>
@@ -706,6 +706,7 @@ let deletePendingTimer = null;
 let drawerDirtyFields = {};
 let drawerCurrentId   = null;
 let drawerSource      = null;
+let drawerOpenedFromKanban = false;
 let isSaving          = false;
 
 // Add Work — multi label code rows
@@ -947,6 +948,7 @@ function openDrawer(id, source) {
   drawerDirtyFields = {};
   drawerCurrentId = id;
   drawerSource = source;
+  drawerOpenedFromKanban = (source === 'warehouse' && !document.getElementById('workTableModalOverlay').classList.contains('visible'));
   isSaving = false;
   const drawer = document.getElementById('detailDrawer');
   drawer.dataset.currentId = id;
@@ -981,6 +983,7 @@ function renderDrawer(row) {
   const source = drawerSource || 'warehouse';
   const bucket = source === 'warehouse' ? getBucket(row) : 'fba';
   const isWarehouseBucket  = (source === 'warehouse' && bucket === 'warehouse');
+  const infoAndPrepReadonly = drawerOpenedFromKanban && bucket === 'warehouse';
   const isDigitalOpsBucket = (source === 'warehouse' && bucket === 'digital_ops');
 
   const badgeHTML = {
@@ -1043,11 +1046,11 @@ function renderDrawer(row) {
           + '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:4px">Product Image</div>'
           + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
             + '<a href="' + ea(prodImg) + '" target="_blank" class="btn btn-secondary btn-sm">Open full size</a>'
-            + (!ro ? '<button class="btn btn-secondary btn-sm" onclick="openProductImageUpload(\'' + ea(id) + '\')">Replace</button>' : '')
+            + (!infoAndPrepReadonly ? '<button class="btn btn-secondary btn-sm" onclick="openProductImageUpload(\'' + ea(id) + '\')">Replace</button>' : '')
           + '</div>'
         + '</div>'
       + '</div>';
-    } else if (!ro) {
+    } else if (!infoAndPrepReadonly) {
       body += '<div style="margin-bottom:12px">'
         + '<button class="btn btn-secondary btn-sm" onclick="openProductImageUpload(\'' + ea(id) + '\')">'
           + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
@@ -1057,14 +1060,14 @@ function renderDrawer(row) {
     }
     body += '<input type="file" id="drawerProductImgFile_' + ea(id) + '" accept="image/*,application/pdf" style="display:none" onchange="handleDrawerProductImageUpload(this,\'' + ea(id) + '\')">';
     body += '<div class="info-grid">'
-      + eCard(id, 'Label Code',    row['Label Code']    || '', 'text', ro)
-      + eCard(id, 'Brand',         row['Brand']         || '', 'text', ro)
-      + eCard(id, 'Product Line',  row['Product Line']  || '', 'text', ro)
-      + eCard(id, 'Amazon / ASIN', row['ASIN']          || '', 'text', ro)
+      + eCard(id, 'Label Code',    row['Label Code']    || '', 'text', infoAndPrepReadonly)
+      + eCard(id, 'Brand',         row['Brand']         || '', 'text', infoAndPrepReadonly)
+      + eCard(id, 'Product Line',  row['Product Line']  || '', 'text', infoAndPrepReadonly)
+      + eCard(id, 'Amazon / ASIN', row['ASIN']          || '', 'text', infoAndPrepReadonly)
       + '</div></div>'
       + sec('Quantities') + '<div class="info-grid">'
-      + eCard(id, 'Units Required', row['Units Required'] || '', 'number', ro)
-      + bCard(id, 'Veeqo Stock Adjusted', row['Veeqo Stock Adjusted'], ro)
+      + eCard(id, 'Units Required', row['Units Required'] || '', 'number', infoAndPrepReadonly)
+      + bCard(id, 'Veeqo Stock Adjusted', row['Veeqo Stock Adjusted'], infoAndPrepReadonly)
       + '</div></div>';
 
     // Barcode Image
@@ -1075,10 +1078,10 @@ function renderDrawer(row) {
         + '<img src="' + ea(barcodeImgUrl) + '" alt="Barcode" onclick="openLightbox(\'' + ea(barcodeImgUrl) + '\')" title="Click to view full size">'
         + '</div>'
         + '<div style="margin-top:8px;display:flex;gap:8px;align-items:center">'
-        + '<a href="' + ea(barcodeImgUrl) + '" target="_blank" class="btn btn-secondary btn-sm">Open full size</a>'
-        + (ro ? '' : '<button class="btn btn-secondary btn-sm" onclick="openBarcodeImageUpload(\'' + ea(id) + '\')">Replace image</button>')
+        + '<a href="' + ea(barcodeImgUrl) + '" download class="btn btn-secondary btn-sm">Download</a>'
+        + (infoAndPrepReadonly ? '' : '<button class="btn btn-secondary btn-sm" onclick="openBarcodeImageUpload(\'' + ea(id) + '\')">Replace image</button>')
         + '</div>';
-    } else if (!ro) {
+    } else if (!infoAndPrepReadonly) {
       body += '<div class="barcode-img-wrap barcode-img-placeholder">'
         + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
         + '<span>No barcode image</span>'
@@ -1093,7 +1096,7 @@ function renderDrawer(row) {
     body += '</div>';
 
         // Grouping & Collection section — hide for FBA Products table
-    if (!ro && source !== 'fba') {
+    if (!infoAndPrepReadonly && source !== 'fba') {
       body += sec('Grouping & Collection') + '<div class="drawer-section">'
         + '<div class="info-grid" style="margin-bottom:10px">'
         + eCard(id, 'Grouping Link', row['Grouping Link'] || '', 'url', false)
@@ -1122,15 +1125,15 @@ function renderDrawer(row) {
 
   if (activeTab === 'prep') {
     body += sec('Instructions') + '<div class="info-grid full">'
-      + taCard(id, 'Prep Instructions', row['Prep Instructions'] || '', ro)
+      + taCard(id, 'Prep Instructions', row['Prep Instructions'] || '', infoAndPrepReadonly)
       + '</div></div>'
       + sec('Packaging') + '<div class="info-grid">'
-      + bCard(id, 'Bundle',        row['Bundle'], ro)
-      + bCard(id, 'DG Label',      row['DG Label'], ro)
-      + bCard(id, 'Poly Bag',      row['Poly Bag'], ro)
-      + bCard(id, 'Warning Label', row['Warning Label'], ro)
-      + bCard(id, 'Barcode',       row['Barcode'], ro)
-      + bCard(id, 'Box',           row['Box'], ro)
+      + bCard(id, 'Bundle',        row['Bundle'], infoAndPrepReadonly)
+      + bCard(id, 'DG Label',      row['DG Label'], infoAndPrepReadonly)
+      + bCard(id, 'Poly Bag',      row['Poly Bag'], infoAndPrepReadonly)
+      + bCard(id, 'Warning Label', row['Warning Label'], infoAndPrepReadonly)
+      + bCard(id, 'Barcode',       row['Barcode'], infoAndPrepReadonly)
+      + bCard(id, 'Box',           row['Box'], infoAndPrepReadonly)
       + '</div></div>';
   }
 
@@ -1519,7 +1522,7 @@ function openWorkTableModal() {
   document.getElementById('workTableModalOverlay').classList.add('visible');
 }
 function closeWorkTableModal(e) {
-  if (e && e.target !== document.getElementById('workTableModalOverlay')) return;
+  if (e) return;
   document.getElementById('workTableModalOverlay').classList.remove('visible');
 }
 function renderWorkTable() {
@@ -1537,7 +1540,7 @@ function renderWorkTable() {
 
   document.getElementById('workTableModalCount').textContent = data.length;
   const cols = ['Label Code', 'Brand', 'Product Line', 'Units Required', 'Units Completed', 'UPS Collected'];
-  let html = '<table class="data-table"><thead><tr>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '<th>Status</th></tr></thead><tbody>';
+  let html = '<table class="data-table"><thead><tr><th>Image</th>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '<th>Status</th></tr></thead><tbody>';
   if (!data.length) {
     html += '<tr><td colspan="' + (cols.length + 1) + '" style="text-align:center;padding:32px;color:#94a3b8;font-weight:600">No work items found</td></tr>';
   } else {
@@ -1547,8 +1550,14 @@ function renderWorkTable() {
       const bucketLabel = { warehouse: 'Warehouse', digital_ops: 'Digital Ops', completed: 'Completed' }[bucket] || bucket;
       const bucketColor = { warehouse: '#d97706', digital_ops: '#2563eb', completed: '#15803d' }[bucket] || '#64748b';
       const bucketBg    = { warehouse: '#fef3c7', digital_ops: '#dbeafe', completed: '#dcfce7' }[bucket] || '#f1f5f9';
-      html += '<tr onclick="openDrawer(\'' + rid + '\',\'warehouse\')">'
-        + cols.map(c => '<td>' + esc(String(row[c] ?? '—')) + '</td>').join('')
+      const wImgUrl = row['Product Image'] || '';
+html += '<tr onclick="openDrawer(\'' + rid + '\',\'warehouse\')">'
+  + '<td style="width:48px">'
+  + (wImgUrl
+    ? '<img src="' + ea(wImgUrl) + '" style="width:40px;height:32px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;display:block">'
+    : '<div style="width:40px;height:32px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>')
+  + '</td>'
+  + cols.map(c => '<td>' + esc(String(row[c] ?? '—')) + '</td>').join('')
         + '<td><span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;background:' + bucketBg + ';color:' + bucketColor + '">' + bucketLabel + '</span></td>'
         + '</tr>';
     });
@@ -2054,76 +2063,114 @@ async function submitAddWork() {
   const apiCalls = [];
 
   // Each valid row becomes its own separate work item
-  const sharedGroupingLink     = document.getElementById('awGroupingLink').value.trim();
-  const sharedCollectionBooked = document.getElementById('awCollectionBooked').value.trim();
+const sharedGroupingLink     = document.getElementById('awGroupingLink').value.trim();
+const sharedCollectionBooked = document.getElementById('awCollectionBooked').value.trim();
 
-  validRows.forEach((r, ri) => {
-    const m = r.match || {};
-    const data = {
-      id:               '',
-      labelCode:        r.code,
-      brand:            m['Brand']            || '',
-      productLine:      m['Product Line']     || '',
-      asin:             m['ASIN']             || '',
-      prepInstructions: m['Prep Instructions'] || '',
-      bundle:           m['Bundle']           || '',
-      dgLabel:          m['DG Label']         || '',
-      polyBag:          m['Poly Bag']         || '',
-      warningLabel:     m['Warning Label']    || '',
-      barcode:          m['Barcode']          || '',
-      box:              m['Box']              || '',
-      barcodeImage:     m['Barcode Image']    || '',
-      productImage:     m['Product Image']    || '',
-      groupingLink:     sharedGroupingLink    || m['Grouping Link']  || '',
-      groupingImage:    uploadedGroupingImageValue || m['Grouping Image'] || '',
-      collectionBooked: sharedCollectionBooked || m['Collection Booked'] || '',
-      unitsRequired:    Number(r.units) || 0,
-      veeqoAdjusted:    '',
-      unitsCompleted:   0,
-      upsCollected:     ''
-    };
-    const tempId = 'TEMP-' + Date.now() + '-' + ri + '-' + Math.random().toString(36).slice(2);
-    tempIds.push(tempId);
-    const newWorkRow = {
-      'ID': tempId,
-      'Label Code': data.labelCode, 'Brand': data.brand,
-      'Product Line': data.productLine, 'ASIN': data.asin,
-      'Prep Instructions': data.prepInstructions,
-      'Bundle': data.bundle, 'DG Label': data.dgLabel,
-      'Poly Bag': data.polyBag, 'Warning Label': data.warningLabel,
-      'Barcode': data.barcode, 'Box': data.box,
-      'Barcode Image': data.barcodeImage,
-      'Product Image': data.productImage,
-      'Grouping Link': data.groupingLink, 'Grouping Image': data.groupingImage,
-      'Collection Booked': data.collectionBooked,
-      'Units Required': data.unitsRequired,
-      'Veeqo Stock Adjusted': '', 'Units Completed': 0, 'UPS Collected': ''
-    };
-    warehouseData.push(newWorkRow);
-    apiCalls.push({ tempId, data });
-  });
-
+if (validRows.length === 1) {
+  // Single work item — existing behaviour
+  const r = validRows[0];
+  const m = r.match || {};
+  const data = {
+    id: '', labelCode: r.code, brand: m['Brand'] || '', productLine: m['Product Line'] || '',
+    asin: m['ASIN'] || '', prepInstructions: m['Prep Instructions'] || '',
+    bundle: m['Bundle'] || '', dgLabel: m['DG Label'] || '', polyBag: m['Poly Bag'] || '',
+    warningLabel: m['Warning Label'] || '', barcode: m['Barcode'] || '', box: m['Box'] || '',
+    barcodeImage: m['Barcode Image'] || '', productImage: m['Product Image'] || '',
+    groupingLink: sharedGroupingLink || m['Grouping Link'] || '',
+    groupingImage: uploadedGroupingImageValue || m['Grouping Image'] || '',
+    collectionBooked: sharedCollectionBooked || m['Collection Booked'] || '',
+    unitsRequired: Number(r.units) || 0, veeqoAdjusted: '', unitsCompleted: 0, upsCollected: ''
+  };
+  const tempId = 'TEMP-' + Date.now();
+  const newWorkRow = {
+    'ID': tempId, 'Label Code': data.labelCode, 'Brand': data.brand,
+    'Product Line': data.productLine, 'ASIN': data.asin,
+    'Prep Instructions': data.prepInstructions, 'Bundle': data.bundle,
+    'DG Label': data.dgLabel, 'Poly Bag': data.polyBag, 'Warning Label': data.warningLabel,
+    'Barcode': data.barcode, 'Box': data.box, 'Barcode Image': data.barcodeImage,
+    'Product Image': data.productImage, 'Grouping Link': data.groupingLink,
+    'Grouping Image': data.groupingImage, 'Collection Booked': data.collectionBooked,
+    'Units Required': data.unitsRequired, 'Veeqo Stock Adjusted': '',
+    'Units Completed': 0, 'UPS Collected': ''
+  };
+  warehouseData.push(newWorkRow);
   closeAddWorkModal();
   applyFilters();
-  showToast(apiCalls.length + ' work item' + (apiCalls.length !== 1 ? 's' : '') + ' added', 'success');
-
-  btn.disabled = false;
-  btn.innerHTML = 'Add Work';
-
-  for (const item of apiCalls) {
-    const result = await callApi({ action: 'saveWarehouse', data: item.data });
-    if (result && result.success && result.id) {
-      const idx = warehouseData.findIndex(r => r['ID'] === item.tempId);
-      if (idx > -1) warehouseData[idx]['ID'] = result.id;
-    } else if (!result || !result.success) {
-      warehouseData = warehouseData.filter(r => r['ID'] !== item.tempId);
-      showToast('Error adding work for ' + item.data.labelCode, 'error');
-    }
+  showToast('1 work item added', 'success');
+  btn.disabled = false; btn.innerHTML = 'Add Work';
+  const result = await callApi({ action: 'saveWarehouse', data });
+  if (result && result.success && result.id) {
+    const idx = warehouseData.findIndex(r => r['ID'] === tempId);
+    if (idx > -1) warehouseData[idx]['ID'] = result.id;
+  } else if (!result || !result.success) {
+    warehouseData = warehouseData.filter(r => r['ID'] !== tempId);
+    showToast('Error adding work for ' + data.labelCode, 'error');
+  }
+  applyFilters();
+} else {
+  // Batch: combine all into one work record
+  const first = validRows[0].match || {};
+  const labelCodes     = validRows.map(r => r.code);
+  const unitsList      = validRows.map(r => Number(r.units) || 0);
+  const totalUnits     = unitsList.reduce((a, b) => a + b, 0);
+  // Build a readable combined label: "FBA-001 (10) + FBA-002 (5) + FBA-003 (3)"
+  const combinedLabel  = labelCodes.map((c, i) => c + ' (' + unitsList[i] + ')').join(' + ');
+  // Store individual rows as JSON in prepInstructions supplement — we'll store them in a dedicated field "Batch Items"
+  const batchItems = validRows.map((r, i) => {
+    const m = r.match || {};
+    return {
+      labelCode: r.code, units: Number(r.units) || 0,
+      brand: m['Brand'] || '', productLine: m['Product Line'] || '',
+      asin: m['ASIN'] || '', bundle: m['Bundle'] || '', dgLabel: m['DG Label'] || '',
+      polyBag: m['Poly Bag'] || '', warningLabel: m['Warning Label'] || '',
+      barcode: m['Barcode'] || '', box: m['Box'] || '',
+      barcodeImage: m['Barcode Image'] || '', productImage: m['Product Image'] || '',
+      prepInstructions: m['Prep Instructions'] || ''
+    };
+  });
+  const data = {
+    id: '', labelCode: combinedLabel,
+    brand: first['Brand'] || '',
+    productLine: validRows.map(r => (r.match || {})['Product Line'] || r.code).join(' / '),
+    asin: first['ASIN'] || '',
+    prepInstructions: JSON.stringify(batchItems),
+    bundle: first['Bundle'] || '', dgLabel: first['DG Label'] || '',
+    polyBag: first['Poly Bag'] || '', warningLabel: first['Warning Label'] || '',
+    barcode: first['Barcode'] || '', box: first['Box'] || '',
+    barcodeImage: first['Barcode Image'] || '', productImage: first['Product Image'] || '',
+    groupingLink: sharedGroupingLink || first['Grouping Link'] || '',
+    groupingImage: uploadedGroupingImageValue || first['Grouping Image'] || '',
+    collectionBooked: sharedCollectionBooked || first['Collection Booked'] || '',
+    unitsRequired: totalUnits, veeqoAdjusted: '', unitsCompleted: 0, upsCollected: ''
+  };
+  const tempId = 'TEMP-BATCH-' + Date.now();
+  const newWorkRow = {
+    'ID': tempId, 'Label Code': data.labelCode, 'Brand': data.brand,
+    'Product Line': data.productLine, 'ASIN': data.asin,
+    'Prep Instructions': data.prepInstructions, 'Bundle': data.bundle,
+    'DG Label': data.dgLabel, 'Poly Bag': data.polyBag, 'Warning Label': data.warningLabel,
+    'Barcode': data.barcode, 'Box': data.box, 'Barcode Image': data.barcodeImage,
+    'Product Image': data.productImage, 'Grouping Link': data.groupingLink,
+    'Grouping Image': data.groupingImage, 'Collection Booked': data.collectionBooked,
+    'Units Required': data.unitsRequired, 'Veeqo Stock Adjusted': '',
+    'Units Completed': 0, 'UPS Collected': ''
+  };
+  warehouseData.push(newWorkRow);
+  closeAddWorkModal();
+  applyFilters();
+  showToast('Batch of ' + validRows.length + ' label codes added as 1 work item', 'success');
+  btn.disabled = false; btn.innerHTML = 'Add Work';
+  const result = await callApi({ action: 'saveWarehouse', data });
+  if (result && result.success && result.id) {
+    const idx = warehouseData.findIndex(r => r['ID'] === tempId);
+    if (idx > -1) warehouseData[idx]['ID'] = result.id;
+  } else if (!result || !result.success) {
+    warehouseData = warehouseData.filter(r => r['ID'] !== tempId);
+    showToast('Error creating batch work item', 'error');
   }
   applyFilters();
 }
-
-
+}
   
 /* ══════════════════════════════════════════════════
    COMPLETED RECORDS MODAL
