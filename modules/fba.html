@@ -1037,10 +1037,12 @@ function renderDrawer(row) {
   let body = '';
 
   if (activeTab === 'info') {
-    // Product image at top of Product Info
     const prodImg = row['Product Image'] || '';
+    const rawPrep0 = row['Prep Instructions'] || '';
+    let batchItems0 = null;
+    try { const p0 = JSON.parse(rawPrep0); if (Array.isArray(p0) && p0.length > 1) batchItems0 = p0; } catch(e) {}
     body += sec('Product Info');
-    if (prodImg) {
+    if (prodImg && !batchItems0) {
       body += '<div style="margin-bottom:12px;display:flex;align-items:flex-start;gap:12px">'
         + '<div style="flex-shrink:0;border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#f8fafc">'
           + '<img src="' + ea(prodImg) + '" alt="Product" style="width:90px;height:72px;object-fit:cover;display:block;cursor:zoom-in" onclick="openLightbox(\'' + ea(prodImg) + '\')">'
@@ -1084,6 +1086,7 @@ function renderDrawer(row) {
           + (b.brand ? '<span style="font-size:11px;color:#64748b">· ' + esc(b.brand) + '</span>' : '')
           + '<span style="margin-left:auto;font-size:11px;font-weight:700;color:#0f172a">× ' + esc(String(b.units||0)) + ' units</span>'
         + '</div>'
+        + (b.productImage ? '<div style="margin-bottom:6px"><img src="' + ea(b.productImage) + '" alt="' + esc(b.labelCode) + '" onclick="openLightbox(\'' + ea(b.productImage) + '\')" style="max-height:80px;max-width:100%;object-fit:contain;border-radius:7px;border:1.5px solid #e2e8f0;cursor:zoom-in;display:block"></div>' : '')
         + '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">'
         + [['Poly Bag',b.polyBag],['Bundle',b.bundle],['Barcode',b.barcode],['Box',b.box],['DG Label',b.dgLabel],['Warning',b.warningLabel]].map(([lbl,val]) => {
             const v = String(val||'').toLowerCase();
@@ -1098,9 +1101,9 @@ function renderDrawer(row) {
       + '</div>'
       + '</div>';
   })()
-      + eCard(id, 'Brand',         row['Brand']         || '', 'text', infoAndPrepReadonly)
-      + eCard(id, 'Product Line',  row['Product Line']  || '', 'text', infoAndPrepReadonly)
-      + eCard(id, 'Amazon / ASIN', row['ASIN']          || '', 'text', infoAndPrepReadonly)
+            + (!batchItems0 ? eCard(id, 'Brand',         row['Brand']         || '', 'text', infoAndPrepReadonly) : '')
+      + (!batchItems0 ? eCard(id, 'Product Line',  row['Product Line']  || '', 'text', infoAndPrepReadonly) : '')
+      + (!batchItems0 ? eCard(id, 'Amazon / ASIN', row['ASIN']          || '', 'text', infoAndPrepReadonly) : '')
       + '</div></div>'
       + sec('Quantities') + '<div class="info-grid">'
       + eCard(id, 'Units Required', row['Units Required'] || '', 'number', infoAndPrepReadonly)
@@ -2475,5 +2478,4 @@ loadData();
 })();
 </script>
 
-
-  
+   
