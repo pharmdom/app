@@ -1116,7 +1116,7 @@ function renderDrawer(row) {
         + '<img src="' + ea(barcodeImgUrl) + '" alt="Barcode" onclick="openLightbox(\'' + ea(barcodeImgUrl) + '\')" title="Click to view full size">'
         + '</div>'
         + '<div style="margin-top:8px;display:flex;gap:8px;align-items:center">'
-        + '<a href="' + ea(barcodeImgUrl) + '" download target="_blank" class="btn btn-secondary btn-sm" onclick="downloadFile(\'' + ea(barcodeImgUrl) + '\',event)">Download</a>'
+        + '<a href="#" class="btn btn-secondary btn-sm" onclick="downloadFile(\'' + ea(barcodeImgUrl) + '\',event)">Download</a>'
         + (infoAndPrepReadonly ? '' : '<button class="btn btn-secondary btn-sm" onclick="openBarcodeImageUpload(\'' + ea(id) + '\')">Replace image</button>')
         + '</div>';
     } else if (!infoAndPrepReadonly) {
@@ -2364,21 +2364,23 @@ function showToast(msg, type) {
 }
 
 
-async function downloadFile(url, e) {
+function downloadFile(url, e) {
   e.preventDefault();
-  try {
-    const res = await fetch(url);
-    const blob = await res.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    const ext = url.split('.').pop().split('?')[0] || 'file';
-    a.download = 'barcode.' + ext;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-  } catch(err) {
-    window.open(url, '_blank');
+  e.stopPropagation();
+  // Convert any Google Drive view/sharing URL to a direct download URL
+  let downloadUrl = url;
+  const driveMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (driveMatch) {
+    downloadUrl = 'https://drive.google.com/uc?export=download&id=' + driveMatch[1];
   }
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = 'barcode';
+  a.target = '_blank';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => a.remove(), 500);
 }
 window.downloadFile = downloadFile;
 
