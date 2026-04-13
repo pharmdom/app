@@ -917,10 +917,10 @@ function buildCard(row) {
   try { const p = JSON.parse(rawPrep); if (Array.isArray(p) && p.length > 1) batchItems = p; } catch(e) {}
     
 if (batchItems) {
-  // ── BATCH: single card, single-product style ──
-  const firstProductLine = batchItems.map(b => b.productLine).filter(Boolean).join(' / ');
-  const firstAsin = batchItems[0].asin || '';
+  // ── BATCH: show brands, product images ──
+  const batchBrands = [...new Set(batchItems.map(b => b.brand).filter(Boolean))].join(' / ');
   const combinedLabel = batchItems.map(b => b.labelCode).join(' + ');
+  const batchImages = batchItems.map(b => b.productImage).filter(Boolean);
   const chipDefs = [
     ['DG Label', batchItems[0].dgLabel],
     ['Poly Bag', batchItems[0].polyBag],
@@ -939,17 +939,21 @@ if (batchItems) {
       + '<div style="flex:1;min-width:0">'
         + '<div style="display:inline-flex;align-items:center;padding:1px 7px;border-radius:100px;font-size:8px;font-weight:800;background:#dbeafe;color:#1d4ed8;margin-bottom:3px;letter-spacing:.3px">GROUP · ' + batchItems.length + ' PRODUCTS</div>'
         + '<div class="kc-label">' + esc(combinedLabel) + '</div>'
-        + (firstProductLine ? '<div class="kc-brandline">' + esc(firstProductLine) + '</div>' : '')
-        + (firstAsin ? '<div class="kc-asin">' + esc(firstAsin) + '</div>' : '')
+        + (batchBrands ? '<div class="kc-brandline">' + esc(batchBrands) + '</div>' : '')
       + '</div>'
+      + (batchImages.length
+        ? '<div style="display:flex;gap:3px;flex-shrink:0">'
+          + batchImages.slice(0, 3).map(img => '<div style="width:36px;height:36px;border-radius:6px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9;flex-shrink:0"><img src="' + ea(img) + '" style="width:100%;height:100%;object-fit:cover;display:block"></div>').join('')
+          + (batchImages.length > 3 ? '<div style="width:36px;height:36px;border-radius:6px;background:#f1f5f9;border:1.5px solid #e2e8f0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#64748b;flex-shrink:0">+' + (batchImages.length - 3) + '</div>' : '')
+          + '</div>'
+        : '')
     + '</div>'
     + '<div class="kc-stats"><div class="kc-stat"><div class="kc-stat-label">Total Units</div><div class="kc-stat-val">' + esc(String(unitsReq || '—')) + '</div></div></div>'
     + '<div class="kc-chips">' + chips + '</div>';
 }
 
 
-  // ── SINGLE PRODUCT CARD (unchanged logic) ──
-  const brandLine = [brand, productLine].filter(Boolean).join(' · ');
+    // ── SINGLE PRODUCT CARD ──
   const chipDefs = [
     { key:'DG Label',      label:'DG' },
     { key:'Poly Bag',      label:'Poly' },
@@ -967,8 +971,8 @@ if (batchItems) {
     + '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">'
       + '<div style="flex:1;min-width:0">'
         + '<div class="kc-label">' + esc(labelCode) + '</div>'
-        + (brandLine ? '<div class="kc-brandline">' + esc(brandLine) + '</div>' : '')
-        + (asin      ? '<div class="kc-asin">'      + esc(asin)     + '</div>' : '')
+        + (brand ? '<div class="kc-brandline">' + esc(brand) + '</div>' : '')
+        + (asin  ? '<div class="kc-asin">'      + esc(asin)  + '</div>' : '')
       + '</div>'
       + (prodImg
         ? '<div style="flex-shrink:0;width:44px;height:44px;border-radius:7px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9">'
@@ -1121,30 +1125,36 @@ function renderDrawer(row) {
     return '<div style="grid-column:1/-1">'
       + '<div style="margin-top:8px">'
       + batchItems.map((b, bi) =>
-        '<div style="border:1.5px solid #e2e8f0;border-radius:9px;padding:8px 10px;margin-bottom:6px;background:#fafbfc">'
-        + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">'
-          + '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#2563eb;color:#fff;border-radius:50%;font-size:9px;font-weight:800;flex-shrink:0">' + (bi+1) + '</span>'
-          + '<span style="font-size:12px;font-weight:800;color:#1d4ed8">' + esc(b.labelCode) + '</span>'
-          + (b.brand ? '<span style="font-size:11px;color:#64748b">· ' + esc(b.brand) + '</span>' : '')
-          + '<span style="margin-left:auto;font-size:11px;font-weight:700;color:#0f172a">× ' + esc(String(b.units||0)) + ' units</span>'
+        '<div style="border:1.5px solid #e2e8f0;border-radius:9px;padding:10px 12px;margin-bottom:6px;background:#fafbfc">'
+        + '<div style="display:flex;align-items:flex-start;gap:10px">'
+          + (b.productImage ? '<div style="flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9"><img src="' + ea(b.productImage) + '" alt="' + esc(b.labelCode) + '" onclick="openLightbox(\'' + ea(b.productImage) + '\')" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in"></div>' : '')
+          + '<div style="flex:1;min-width:0">'
+            + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+              + '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#2563eb;color:#fff;border-radius:50%;font-size:9px;font-weight:800;flex-shrink:0">' + (bi+1) + '</span>'
+              + '<span style="font-size:12px;font-weight:800;color:#1d4ed8">' + esc(b.labelCode) + '</span>'
+              + (b.brand ? '<span style="font-size:11px;color:#64748b">· ' + esc(b.brand) + '</span>' : '')
+              + '<span style="margin-left:auto;font-size:11px;font-weight:700;color:#0f172a">× ' + esc(String(b.units||0)) + ' units</span>'
+            + '</div>'
+            + (b.productLine ? '<div style="font-size:11px;font-weight:600;color:#334155;margin-bottom:2px">' + esc(b.productLine) + '</div>' : '')
+            + (b.asin ? '<div style="font-size:10px;color:#94a3b8;font-family:monospace;margin-bottom:4px">' + esc(b.asin) + '</div>' : '')
+            + '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:2px">'
+            + [['Poly Bag',b.polyBag],['Bundle',b.bundle],['Barcode',b.barcode],['Box',b.box],['DG Label',b.dgLabel],['Warning',b.warningLabel]].map(([lbl,val]) => {
+                const v = String(val||'').toLowerCase();
+                if (v==='yes') return '<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#dcfce7;color:#15803d">' + lbl + '</span>';
+                if (v==='no')  return '<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#f1f5f9;color:#94a3b8">' + lbl + '</span>';
+                return '<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#fef3c7;color:#92400e">' + lbl + '</span>';
+              }).join('')
+            + '</div>'
+            + (b.prepInstructions ? '<div style="font-size:11px;color:#64748b;line-height:1.5;margin-top:2px">' + esc(b.prepInstructions) + '</div>' : '')
+          + '</div>'
         + '</div>'
-        + (b.productImage ? '<div style="margin-bottom:6px"><img src="' + ea(b.productImage) + '" alt="' + esc(b.labelCode) + '" onclick="openLightbox(\'' + ea(b.productImage) + '\')" style="max-height:80px;max-width:100%;object-fit:contain;border-radius:7px;border:1.5px solid #e2e8f0;cursor:zoom-in;display:block"></div>' : '')
-        + (b.barcodeImage ? '<div style="margin-bottom:6px"><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#94a3b8;margin-bottom:3px">Barcode</div><img src="' + ea(b.barcodeImage) + '" alt="Barcode" onclick="openLightbox(\'' + ea(b.barcodeImage) + '\')" style="max-height:60px;max-width:100%;object-fit:contain;border-radius:6px;border:1.5px solid #e2e8f0;cursor:zoom-in;display:block"></div>' : '')
-        + '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">'
-        + [['Poly Bag',b.polyBag],['Bundle',b.bundle],['Barcode',b.barcode],['Box',b.box],['DG Label',b.dgLabel],['Warning',b.warningLabel]].map(([lbl,val]) => {
-            const v = String(val||'').toLowerCase();
-            if (v==='yes') return '<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#dcfce7;color:#15803d">' + lbl + '</span>';
-            if (v==='no')  return '<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#f1f5f9;color:#94a3b8">' + lbl + '</span>';
-            return '<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#fef3c7;color:#92400e">' + lbl + '</span>';
-          }).join('')
-        + '</div>'
-        + (b.prepInstructions ? '<div style="font-size:11px;color:#64748b;line-height:1.5;margin-top:2px">' + esc(b.prepInstructions) + '</div>' : '')
-        + '</div>'
+        + (b.barcodeImage ? '<div style="margin-top:8px"><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#94a3b8;margin-bottom:3px">Barcode</div><img src="' + ea(b.barcodeImage) + '" alt="Barcode" onclick="openLightbox(\'' + ea(b.barcodeImage) + '\')" style="max-height:60px;max-width:100%;object-fit:contain;border-radius:6px;border:1.5px solid #e2e8f0;cursor:zoom-in;display:block"></div>' : '')
+        + '</div>'                      
       ).join('')
       + '</div>'
       + '</div>';
   })()
-            + (!batchItems0 ? eCard(id, 'Brand',         row['Brand']         || '', 'text', infoAndPrepReadonly) : '')
+      + (!batchItems0 ? eCard(id, 'Brand',         row['Brand']         || '', 'text', infoAndPrepReadonly) : '')
       + (!batchItems0 ? eCard(id, 'Product Line',  row['Product Line']  || '', 'text', infoAndPrepReadonly) : '')
       + (!batchItems0 ? eCard(id, 'Amazon / ASIN', row['ASIN']          || '', 'text', infoAndPrepReadonly) : '')
       + '</div></div>'
