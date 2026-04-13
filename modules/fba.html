@@ -853,6 +853,7 @@ function applyFilters() {
       String(row['ASIN']         || '').toLowerCase().includes(q)
     );
   });
+  filtered.sort((a, b) => new Date(b['Date Created'] || 0) - new Date(a['Date Created'] || 0));
   updateStats();
   renderKanban();
 }
@@ -1106,7 +1107,7 @@ function renderDrawer(row) {
           + '</div>'
         + '</div>'
       + '</div>';
-    } else if (!infoAndPrepReadonly) {
+    } else if (!infoAndPrepReadonly && !batchItems0) {
       body += '<div style="margin-bottom:12px">'
         + '<button class="btn btn-secondary btn-sm" onclick="openProductImageUpload(\'' + ea(id) + '\')">'
           + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
@@ -1644,7 +1645,7 @@ function renderWorkTable() {
       const bucketLabel = { warehouse: 'Warehouse', digital_ops: 'Digital Ops', completed: 'Completed' }[bucket] || bucket;
       const bucketColor = { warehouse: '#d97706', digital_ops: '#2563eb', completed: '#15803d' }[bucket] || '#64748b';
       const bucketBg    = { warehouse: '#fef3c7', digital_ops: '#dbeafe', completed: '#dcfce7' }[bucket] || '#f1f5f9';
-      const wImgUrl = row['Product Image'] || '';
+const wImgUrl = row['Product Image'] || '';
 const isBatch = (() => {
   try { const p = JSON.parse(row['Prep Instructions']||''); return Array.isArray(p) && p.length > 1; } catch(e){ return false; }
 })();
@@ -1653,19 +1654,45 @@ const batchItems = (() => {
 })();
 const batchToggleId = 'batch_' + rid;
 
-html += '<tr onclick="openDrawer(\'' + rid + '\',\'warehouse\')" style="' + (isBatch ? 'border-bottom:none' : '') + '">'
-  + '<td style="width:48px">'
-  + (wImgUrl
+// Build image cell
+let imgCell = '';
+if (isBatch) {
+  const batchImgs = batchItems.map(b => b.productImage).filter(Boolean);
+  if (batchImgs.length) {
+    imgCell = '<div style="display:flex;gap:2px;align-items:center">'
+      + batchImgs.slice(0,2).map(img => '<img src="' + ea(img) + '" style="width:28px;height:28px;object-fit:cover;border-radius:4px;border:1px solid #e2e8f0;display:block">').join('')
+      + (batchImgs.length > 2 ? '<div style="width:28px;height:28px;background:#f1f5f9;border-radius:4px;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#64748b">+' + (batchImgs.length-2) + '</div>' : '')
+      + '</div>';
+  } else {
+    imgCell = '<div style="width:40px;height:32px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
+  }
+} else {
+  imgCell = wImgUrl
     ? '<img src="' + ea(wImgUrl) + '" style="width:40px;height:32px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;display:block">'
-    : '<div style="width:40px;height:32px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>')
-  + '</td>'
+    : '<div style="width:40px;height:32px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
+}
+
+html += '<tr onclick="openDrawer(\'' + rid + '\',\'warehouse\')" style="' + (isBatch ? 'border-bottom:none' : '') + '">'
+  + '<td style="width:48px">' + imgCell + '</td>'
   + cols.map(c => {
-    if (c === 'Label Code' && isBatch) {
-      return '<td>'
-        + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
-        + batchItems.map(b => '<span style="display:inline-flex;align-items:center;padding:2px 7px;border-radius:100px;font-size:10px;font-weight:700;background:#dbeafe;color:#1d4ed8;white-space:nowrap">' + esc(b.labelCode) + '</span>').join('')
-        + '</div>'
-        + '</td>';
+    if (isBatch) {
+      if (c === 'Label Code') {
+        return '<td><div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">'
+          + batchItems.map(b => '<span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:100px;font-size:10px;font-weight:700;background:#dbeafe;color:#1d4ed8;white-space:nowrap">' + esc(b.labelCode) + '</span>').join('')
+          + '</div></td>';
+      }
+      if (c === 'Brand') {
+        const brands = [...new Set(batchItems.map(b => b.brand).filter(Boolean))].join(', ');
+        return '<td><span title="' + ea(brands) + '" style="display:inline-block;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">' + esc(brands || '—') + '</span></td>';
+      }
+      if (c === 'Product Line') {
+        const pl = [...new Set(batchItems.map(b => b.productLine).filter(Boolean))].join(', ');
+        return '<td><span title="' + ea(pl) + '" style="display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">' + esc(pl || '—') + '</span></td>';
+      }
+    }
+    if (c === 'Product Line') {
+      const pl = String(row[c] ?? '—');
+      return '<td><span title="' + ea(pl) + '" style="display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">' + esc(pl) + '</span></td>';
     }
     return '<td>' + esc(String(row[c] ?? '—')) + '</td>';
   }).join('')
@@ -1675,29 +1702,29 @@ html += '<tr onclick="openDrawer(\'' + rid + '\',\'warehouse\')" style="' + (isB
 if (isBatch) {
   html += '<tr id="' + batchToggleId + '_row" style="display:none">'
     + '<td colspan="' + (cols.length + 2) + '" style="padding:0;background:#f8fafc;border-bottom:1px solid #e2e8f0">'
-    + '<div style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:8px">'
-    + batchItems.map((b, bi) =>
-      '<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:8px 12px;min-width:180px;max-width:240px;flex:1">'
-      + '<div style="font-size:10px;font-weight:800;color:#1d4ed8;margin-bottom:4px">' + esc(b.labelCode) + '</div>'
-      + (b.brand || b.productLine ? '<div style="font-size:11px;color:#64748b;margin-bottom:4px">' + esc([b.brand,b.productLine].filter(Boolean).join(' · ')) + '</div>' : '')
-      + '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">'
-      + [['Poly',b.polyBag],['Bundle',b.bundle],['Barcode',b.barcode],['Box',b.box],['DG',b.dgLabel],['Warn',b.warningLabel]].map(([lbl,val]) => {
-          const v = String(val||'').toLowerCase();
-          if (v==='yes') return '<span style="padding:1px 6px;border-radius:100px;font-size:9px;font-weight:700;background:#dcfce7;color:#15803d">' + lbl + '</span>';
-          if (v==='no')  return '<span style="padding:1px 6px;border-radius:100px;font-size:9px;font-weight:700;background:#f1f5f9;color:#94a3b8">' + lbl + '</span>';
-          return '';
-        }).join('')
-      + '</div>'
-      + '<div style="font-size:10px;font-weight:700;color:#64748b">Units: <span style="color:#0f172a">' + esc(String(b.units||'—')) + '</span></div>'
-      + (b.prepInstructions ? '<div style="font-size:10px;color:#64748b;margin-top:3px;line-height:1.4;white-space:pre-wrap">' + esc(b.prepInstructions.substring(0,80) + (b.prepInstructions.length>80?'…':'')) + '</div>' : '')
-      + '</div>'
-    ).join('')
-    + '</div>'
+    + '<table style="width:100%;border-collapse:collapse">'
+    + batchItems.map((b) => {
+      const bImg = b.productImage || '';
+      const bPl = b.productLine || '—';
+      return '<tr style="border-bottom:1px solid #f1f5f9">'
+        + '<td style="width:48px;padding:6px 12px">'
+          + (bImg
+            ? '<img src="' + ea(bImg) + '" style="width:36px;height:28px;object-fit:cover;border-radius:5px;border:1px solid #e2e8f0;display:block">'
+            : '<div style="width:36px;height:28px;background:#f1f5f9;border-radius:5px;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>')
+        + '</td>'
+        + '<td style="padding:6px 12px"><span style="padding:1px 6px;border-radius:100px;font-size:10px;font-weight:700;background:#dbeafe;color:#1d4ed8">' + esc(b.labelCode) + '</span></td>'
+        + '<td style="padding:6px 12px;font-size:12px;color:#475569">' + esc(b.brand || '—') + '</td>'
+        + '<td style="padding:6px 12px"><span title="' + ea(bPl) + '" style="display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#475569;vertical-align:middle">' + esc(bPl) + '</span></td>'
+        + '<td style="padding:6px 12px;font-size:12px;color:#0f172a;font-weight:600">' + esc(String(b.units || '—')) + '</td>'
+        + '<td style="padding:6px 12px;color:#94a3b8;font-size:12px">—</td>'
+        + '<td style="padding:6px 12px;color:#94a3b8;font-size:12px">—</td>'
+        + '<td style="padding:6px 12px"></td>'
+        + '</tr>';
+    }).join('')
+    + '</table>'
     + '</td>'
     + '</tr>';
 
-  // Insert expand toggle row AFTER the main row — inject button into label code cell
-  // We'll instead add a thin toggle bar
   html += '<tr onclick="toggleBatchRow(\'' + batchToggleId + '\')" style="cursor:pointer;background:#f0f7ff">'
     + '<td colspan="' + (cols.length + 2) + '" style="padding:3px 12px;text-align:center;border-bottom:1px solid #e2e8f0">'
     + '<span id="' + batchToggleId + '_lbl" style="font-size:10px;font-weight:700;color:#2563eb;display:inline-flex;align-items:center;gap:4px">'
