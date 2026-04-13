@@ -902,13 +902,70 @@ function buildCard(row) {
   card.addEventListener('click', () => openDrawer(id, 'warehouse'));
   return card;
 }
-function cardHTML(row) {
+
+  function cardHTML(row) {
   const labelCode   = row['Label Code']   || '—';
   const brand       = row['Brand']        || '';
   const productLine = row['Product Line'] || '';
   const asin        = row['ASIN']         || '';
   const unitsReq    = row['Units Required'];
-  const brandLine   = [brand, productLine].filter(Boolean).join(' · ');
+  const prodImg     = row['Product Image'] || '';
+
+  // Check if batch/group
+  const rawPrep = row['Prep Instructions'] || '';
+  let batchItems = null;
+  try { const p = JSON.parse(rawPrep); if (Array.isArray(p) && p.length > 1) batchItems = p; } catch(e) {}
+
+  if (batchItems) {
+    // ── BATCH / GROUP CARD ──
+    let html = '<div style="margin-bottom:6px">'
+      + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">'
+        + '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:100px;font-size:9px;font-weight:800;background:#dbeafe;color:#1d4ed8;letter-spacing:.3px">GROUP · ' + batchItems.length + ' PRODUCTS</span>'
+        + '<span style="font-size:11px;font-weight:700;color:#0f172a;margin-left:auto">Total: ' + esc(String(unitsReq || '—')) + ' units</span>'
+      + '</div>';
+
+    batchItems.forEach((b, bi) => {
+      const bBarcodeImg = b.barcodeImage || '';
+      const bProductImg = b.productImage || '';
+      html += '<div style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:5px;background:#fafbfc">'
+        + '<div style="display:flex;align-items:flex-start;gap:8px">'
+          + (bProductImg
+            ? '<div style="flex-shrink:0;width:36px;height:36px;border-radius:6px;overflow:hidden;border:1px solid #e2e8f0;background:#f1f5f9">'
+              + '<img src="' + ea(bProductImg) + '" style="width:100%;height:100%;object-fit:cover;display:block">'
+            + '</div>'
+            : '')
+          + '<div style="flex:1;min-width:0">'
+            + '<div style="display:flex;align-items:center;gap:5px;margin-bottom:2px">'
+              + '<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#2563eb;color:#fff;border-radius:50%;font-size:8px;font-weight:800;flex-shrink:0">' + (bi+1) + '</span>'
+              + '<span style="font-size:12px;font-weight:700;color:#0f172a">' + esc(b.labelCode) + '</span>'
+              + '<span style="font-size:10px;font-weight:700;color:#475569;margin-left:auto">× ' + esc(String(b.units||0)) + '</span>'
+            + '</div>'
+            + (b.productLine ? '<div style="font-size:10px;color:#2563eb;font-weight:600;margin-bottom:1px">' + esc(b.productLine) + '</div>' : '')
+            + (b.brand ? '<div style="font-size:10px;color:#64748b">' + esc(b.brand) + '</div>' : '')
+          + '</div>'
+        + '</div>'
+        + (bBarcodeImg
+          ? '<div style="margin-top:6px;border-top:1px solid #f1f5f9;padding-top:6px">'
+            + '<img src="' + ea(bBarcodeImg) + '" style="max-height:48px;max-width:100%;object-fit:contain;border-radius:5px;border:1px solid #e2e8f0;display:block">'
+          + '</div>'
+          : '')
+        + '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">'
+        + [['Poly',b.polyBag],['Bundle',b.bundle],['Barcode',b.barcode],['Box',b.box],['DG',b.dgLabel],['Warn',b.warningLabel]].map(([lbl,val]) => {
+            const v = String(val||'').toLowerCase();
+            if (v==='yes') return '<span style="padding:1px 6px;border-radius:100px;font-size:8px;font-weight:700;background:#dcfce7;color:#15803d">' + lbl + '</span>';
+            if (v==='no')  return '<span style="padding:1px 6px;border-radius:100px;font-size:8px;font-weight:700;background:#f1f5f9;color:#94a3b8">' + lbl + '</span>';
+            return '';
+          }).filter(Boolean).join('')
+        + '</div>'
+      + '</div>';
+    });
+
+    html += '</div>';
+    return html;
+  }
+
+  // ── SINGLE PRODUCT CARD (unchanged logic) ──
+  const brandLine = [brand, productLine].filter(Boolean).join(' · ');
   const chipDefs = [
     { key:'DG Label',      label:'DG' },
     { key:'Poly Bag',      label:'Poly' },
@@ -922,7 +979,6 @@ function cardHTML(row) {
     if (v === 'no')  return '<span class="chip no">'    + c.label + '</span>';
     return             '<span class="chip unset">' + c.label + '</span>';
   }).join('');
-  const prodImg = row['Product Image'] || '';
   return ''
     + '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">'
       + '<div style="flex:1;min-width:0">'
@@ -996,10 +1052,16 @@ function renderDrawer(row) {
     fba:         '<span class="drawer-bucket-badge" style="background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:#818cf8">FBA Product</span>',
   }[bucket] || '';
 
-  const productLine = row['Product Line'] || '';
+    const productLine = row['Product Line'] || '';
   const brand       = row['Brand'] || '';
   const labelCode   = row['Label Code'] || '';
-  const subtitle    = [brand, labelCode].filter(Boolean).join(' — ');
+
+  // Check if batch/group (more than one product)
+  const rawPrepHero = row['Prep Instructions'] || '';
+  let isBatchHero = false;
+  try { const ph = JSON.parse(rawPrepHero); isBatchHero = Array.isArray(ph) && ph.length > 1; } catch(e) {}
+
+  const subtitle    = isBatchHero ? '' : [brand, labelCode].filter(Boolean).join(' — ');
   const unitsReq    = row['Units Required']  || '—';
   const unitsDone   = row['Units Completed'] || '—';
   const upsCol      = row['UPS Collected']   || '—';
@@ -1010,7 +1072,8 @@ function renderDrawer(row) {
     + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
     + '</button>'
     + badgeHTML
-    + (productLine ? '<div class="drawer-product-line">' + esc(productLine) + '</div>' : '')
+        + (!isBatchHero && productLine ? '<div class="drawer-product-line">' + esc(productLine) + '</div>' : '')
+    + (isBatchHero ? '<div class="drawer-product-line" style="font-size:12px;color:rgba(255,255,255,.6)">Batch — ' + (() => { try { return JSON.parse(rawPrepHero).length; } catch(e){ return '?'; } })() + ' products</div>' : '')
     + '<div class="drawer-title"></div>'
     + (subtitle ? '<div class="drawer-subtitle">' + esc(subtitle) + '</div>' : '')
     + '<div class="drawer-kpi-row">'
@@ -1082,6 +1145,7 @@ function renderDrawer(row) {
           + '<span style="margin-left:auto;font-size:11px;font-weight:700;color:#0f172a">× ' + esc(String(b.units||0)) + ' units</span>'
         + '</div>'
         + (b.productImage ? '<div style="margin-bottom:6px"><img src="' + ea(b.productImage) + '" alt="' + esc(b.labelCode) + '" onclick="openLightbox(\'' + ea(b.productImage) + '\')" style="max-height:80px;max-width:100%;object-fit:contain;border-radius:7px;border:1.5px solid #e2e8f0;cursor:zoom-in;display:block"></div>' : '')
+        + (b.barcodeImage ? '<div style="margin-bottom:6px"><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#94a3b8;margin-bottom:3px">Barcode</div><img src="' + ea(b.barcodeImage) + '" alt="Barcode" onclick="openLightbox(\'' + ea(b.barcodeImage) + '\')" style="max-height:60px;max-width:100%;object-fit:contain;border-radius:6px;border:1.5px solid #e2e8f0;cursor:zoom-in;display:block"></div>' : '')
         + '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">'
         + [['Poly Bag',b.polyBag],['Bundle',b.bundle],['Barcode',b.barcode],['Box',b.box],['DG Label',b.dgLabel],['Warning',b.warningLabel]].map(([lbl,val]) => {
             const v = String(val||'').toLowerCase();
@@ -1106,8 +1170,9 @@ function renderDrawer(row) {
       + '</div>';
 
     // Barcode Image
-    const barcodeImgUrl = row['Barcode Image'] || '';
-    body += sec('Barcode Image') + '<div class="drawer-section">';
+    if (!batchItems0) {
+      const barcodeImgUrl = row['Barcode Image'] || '';
+      body += sec('Barcode Image') + '<div class="drawer-section">';
     if (barcodeImgUrl) {
       body += '<div class="barcode-img-wrap" style="max-width:280px">'
         + '<img src="' + ea(barcodeImgUrl) + '" alt="Barcode" onclick="openLightbox(\'' + ea(barcodeImgUrl) + '\')" title="Click to view full size">'
@@ -1129,7 +1194,7 @@ function renderDrawer(row) {
     }
     body += '<input type="file" id="drawerBarcodeFile" accept="image/*" style="display:none" onchange="handleDrawerBarcodeUpload(this,\'' + ea(id) + '\')">';
     body += '</div>';
-
+    }
         // Grouping & Collection section — hide for FBA Products table
     if (!infoAndPrepReadonly && source !== 'fba') {
       body += sec('Grouping & Collection') + '<div class="drawer-section">'
