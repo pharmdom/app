@@ -915,54 +915,38 @@ function buildCard(row) {
   const rawPrep = row['Prep Instructions'] || '';
   let batchItems = null;
   try { const p = JSON.parse(rawPrep); if (Array.isArray(p) && p.length > 1) batchItems = p; } catch(e) {}
+    
+if (batchItems) {
+  // ── BATCH: single card, single-product style ──
+  const firstProductLine = batchItems.map(b => b.productLine).filter(Boolean).join(' / ');
+  const firstAsin = batchItems[0].asin || '';
+  const combinedLabel = batchItems.map(b => b.labelCode).join(' + ');
+  const chipDefs = [
+    ['DG Label', batchItems[0].dgLabel],
+    ['Poly Bag', batchItems[0].polyBag],
+    ['Warn', batchItems[0].warningLabel],
+    ['Barcode', batchItems[0].barcode],
+    ['Box', batchItems[0].box],
+  ];
+  const chips = chipDefs.map(([lbl, val]) => {
+    const v = String(val || '').toLowerCase();
+    if (v === 'yes') return '<span class="chip yes">' + lbl + '</span>';
+    if (v === 'no')  return '<span class="chip no">'  + lbl + '</span>';
+    return '<span class="chip unset">' + lbl + '</span>';
+  }).join('');
+  return ''
+    + '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">'
+      + '<div style="flex:1;min-width:0">'
+        + '<div style="display:inline-flex;align-items:center;padding:1px 7px;border-radius:100px;font-size:8px;font-weight:800;background:#dbeafe;color:#1d4ed8;margin-bottom:3px;letter-spacing:.3px">GROUP · ' + batchItems.length + ' PRODUCTS</div>'
+        + '<div class="kc-label">' + esc(combinedLabel) + '</div>'
+        + (firstProductLine ? '<div class="kc-brandline">' + esc(firstProductLine) + '</div>' : '')
+        + (firstAsin ? '<div class="kc-asin">' + esc(firstAsin) + '</div>' : '')
+      + '</div>'
+    + '</div>'
+    + '<div class="kc-stats"><div class="kc-stat"><div class="kc-stat-label">Total Units</div><div class="kc-stat-val">' + esc(String(unitsReq || '—')) + '</div></div></div>'
+    + '<div class="kc-chips">' + chips + '</div>';
+}
 
-  if (batchItems) {
-    // ── BATCH / GROUP CARD ──
-    let html = '<div style="margin-bottom:6px">'
-      + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">'
-        + '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:100px;font-size:9px;font-weight:800;background:#dbeafe;color:#1d4ed8;letter-spacing:.3px">GROUP · ' + batchItems.length + ' PRODUCTS</span>'
-        + '<span style="font-size:11px;font-weight:700;color:#0f172a;margin-left:auto">Total: ' + esc(String(unitsReq || '—')) + ' units</span>'
-      + '</div>';
-
-    batchItems.forEach((b, bi) => {
-      const bBarcodeImg = b.barcodeImage || '';
-      const bProductImg = b.productImage || '';
-      html += '<div style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:5px;background:#fafbfc">'
-        + '<div style="display:flex;align-items:flex-start;gap:8px">'
-          + (bProductImg
-            ? '<div style="flex-shrink:0;width:36px;height:36px;border-radius:6px;overflow:hidden;border:1px solid #e2e8f0;background:#f1f5f9">'
-              + '<img src="' + ea(bProductImg) + '" style="width:100%;height:100%;object-fit:cover;display:block">'
-            + '</div>'
-            : '')
-          + '<div style="flex:1;min-width:0">'
-            + '<div style="display:flex;align-items:center;gap:5px;margin-bottom:2px">'
-              + '<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#2563eb;color:#fff;border-radius:50%;font-size:8px;font-weight:800;flex-shrink:0">' + (bi+1) + '</span>'
-              + '<span style="font-size:12px;font-weight:700;color:#0f172a">' + esc(b.labelCode) + '</span>'
-              + '<span style="font-size:10px;font-weight:700;color:#475569;margin-left:auto">× ' + esc(String(b.units||0)) + '</span>'
-            + '</div>'
-            + (b.productLine ? '<div style="font-size:10px;color:#2563eb;font-weight:600;margin-bottom:1px">' + esc(b.productLine) + '</div>' : '')
-            + (b.brand ? '<div style="font-size:10px;color:#64748b">' + esc(b.brand) + '</div>' : '')
-          + '</div>'
-        + '</div>'
-        + (bBarcodeImg
-          ? '<div style="margin-top:6px;border-top:1px solid #f1f5f9;padding-top:6px">'
-            + '<img src="' + ea(bBarcodeImg) + '" style="max-height:48px;max-width:100%;object-fit:contain;border-radius:5px;border:1px solid #e2e8f0;display:block">'
-          + '</div>'
-          : '')
-        + '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">'
-        + [['Poly',b.polyBag],['Bundle',b.bundle],['Barcode',b.barcode],['Box',b.box],['DG',b.dgLabel],['Warn',b.warningLabel]].map(([lbl,val]) => {
-            const v = String(val||'').toLowerCase();
-            if (v==='yes') return '<span style="padding:1px 6px;border-radius:100px;font-size:8px;font-weight:700;background:#dcfce7;color:#15803d">' + lbl + '</span>';
-            if (v==='no')  return '<span style="padding:1px 6px;border-radius:100px;font-size:8px;font-weight:700;background:#f1f5f9;color:#94a3b8">' + lbl + '</span>';
-            return '';
-          }).filter(Boolean).join('')
-        + '</div>'
-      + '</div>';
-    });
-
-    html += '</div>';
-    return html;
-  }
 
   // ── SINGLE PRODUCT CARD (unchanged logic) ──
   const brandLine = [brand, productLine].filter(Boolean).join(' · ');
