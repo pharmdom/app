@@ -716,11 +716,18 @@ function getTaskIcon(name) {
 const H_START = 7, H_END = 20;
 const TOTAL_MINS = (H_END - H_START) * 60;
 const SLOTS = [];
-for (let h = H_START; h < H_END; h++) { SLOTS.push(pad(h)+':00'); SLOTS.push(pad(h)+':30'); }
+for (let h = H_START; h < H_END; h++) {
+  SLOTS.push(pad(h)+':00'); SLOTS.push(pad(h)+':15');
+  SLOTS.push(pad(h)+':30'); SLOTS.push(pad(h)+':45');
+}
 const TIME_OPTIONS = [];
 for (let h = H_START; h <= H_END; h++) {
   TIME_OPTIONS.push(pad(h)+':00');
-  if (h < H_END) TIME_OPTIONS.push(pad(h)+':30');
+  if (h < H_END) {
+    TIME_OPTIONS.push(pad(h)+':15');
+    TIME_OPTIONS.push(pad(h)+':30');
+    TIME_OPTIONS.push(pad(h)+':45');
+  }
 }
 
 function pad(n) { return String(n).padStart(2,'0'); }
@@ -1035,19 +1042,64 @@ document.addEventListener('click',function(e){if(calOpen&&!document.getElementBy
 function renderTimeBtns(gridId, inputId, badgeId, selectedVal, isEnd) {
   const grid = document.getElementById(gridId);
   if (!grid) return;
-  grid.innerHTML = TIME_OPTIONS.map(t => {
-    const sel = t === selectedVal;
-    const selClass = sel ? (isEnd ? ' end-selected' : ' selected') : '';
-    return `<button type="button" class="time-btn${selClass}" onclick="selectTime('${gridId}','${inputId}','${badgeId}','${t}',${isEnd})">${t}</button>`;
-  }).join('');
+
+  const selHour = selectedVal ? selectedVal.split(':')[0] : null;
+  const selMin  = selectedVal ? selectedVal.split(':')[1] : null;
+
+  // Build hour buttons (07–20)
+  let hourHTML = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">';
+  for (let h = H_START; h <= H_END; h++) {
+    const hStr = pad(h);
+    const isSelHour = hStr === selHour;
+    hourHTML += `<button type="button"
+      class="time-btn${isSelHour ? (isEnd ? ' end-selected' : ' selected') : ''}"
+      style="min-width:46px"
+      onclick="timePickHour('${gridId}','${inputId}','${badgeId}','${hStr}',${isEnd})"
+    >${hStr}:__</button>`;
+  }
+  hourHTML += '</div>';
+
+  // Build minute buttons — only show when an hour is selected
+  let minHTML = '';
+  if (selHour !== null) {
+    minHTML = `<div style="display:flex;gap:4px;flex-wrap:wrap;padding:8px 10px;background:#f8fafc;border-radius:9px;border:1.5px solid #e2e8f0">
+      <span style="width:100%;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin-bottom:2px">${selHour}:__ — pick minutes</span>`;
+    ['00','15','30','45'].forEach(min => {
+      const fullTime = selHour + ':' + min;
+      const isSel = selHour === selHour && min === selMin;
+      minHTML += `<button type="button"
+        class="time-btn${isSel ? (isEnd ? ' end-selected' : ' selected') : ''}"
+        style="flex:1;min-width:52px"
+        onclick="selectTime('${gridId}','${inputId}','${badgeId}','${fullTime}',${isEnd})"
+      >${fullTime}</button>`;
+    });
+    minHTML += '</div>';
+  } else {
+    minHTML = '<div style="padding:8px 10px;background:#f8fafc;border-radius:9px;border:1.5px dashed #e2e8f0;font-size:11px;color:#94a3b8;text-align:center">← Pick an hour first</div>';
+  }
+
+  grid.innerHTML = hourHTML + minHTML;
   document.getElementById(inputId).value = selectedVal || '';
   const badge = document.getElementById(badgeId);
   if (badge) {
-    if (selectedVal) { badge.textContent = selectedVal; badge.style.display = 'inline-block'; }
+    if (selectedVal && selMin) { badge.textContent = selectedVal; badge.style.display = 'inline-block'; }
     else badge.style.display = 'none';
   }
 }
 
+
+function timePickHour(gridId, inputId, badgeId, hStr, isEnd) {
+  // Default minute to :00 when hour first selected, preserving existing minute if same hour
+  const curVal = document.getElementById(inputId).value;
+  const curHour = curVal ? curVal.split(':')[0] : null;
+  const curMin  = curVal ? curVal.split(':')[1] : '00';
+  const newMin  = (curHour === hStr) ? curMin : '00';
+  const newVal  = hStr + ':' + newMin;
+  // Re-render with this hour selected so minute row appears
+  renderTimeBtns(gridId, inputId, badgeId, newVal, isEnd);
+}
+window.timePickHour = timePickHour;
+  
 function selectTime(gridId, inputId, badgeId, val, isEnd) {
   document.getElementById(inputId).value = val;
   const grid = document.getElementById(gridId);
@@ -1677,7 +1729,7 @@ window.navigate=navigate; window.changeView=changeView; window.toggleCalendar=to
 window.calNav=calNav; window.calSelectDate=calSelectDate;
 window.openShiftModal=openShiftModal; window.closeShiftModal=closeShiftModal;
 window.switchType=switchType; window.saveShift=saveShift; window.checkConflict=checkConflict;
-window.selectTime=selectTime;
+window.selectTime=selectTime; window.timePickHour=timePickHour;
 window.deleteShift=deleteShift; window.editShift=editShift;
 window.openDrawer=openDrawer; window.closeDrawer=closeDrawer; window.toggleDay=toggleDay;
 window.openTeamModal=openTeamModal; window.closeTeamModal=closeTeamModal;
