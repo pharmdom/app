@@ -862,7 +862,6 @@
           html += navGroup("products", "Products", ic.products, [
             perms.sourcing  ? navItem("sourcing",  ic.sourcing,  modules.sourcing.navTitle)  : "",
             perms.listing   ? navItem("listing",   ic.listing,   modules.listing.navTitle)   : "",
-            perms.planner   ? navItem("planner",   ic.planner,   modules.planner.navTitle)   : "",
           ]);
         }
 
@@ -893,13 +892,13 @@
             </div>`;
         }
 
-        // ── ROTA GROUP ──
+        // ── ROTA (standalone — paycheck & intelligence open from within Rota page) ──
         if (perms.rota || perms.paycheck || perms.intelligence) {
-          html += navGroup("rota", "Rota", ic.rota, [
-            perms.rota         ? navItem("rota",         ic.rota,         modules.rota.navTitle)         : "",
-            perms.paycheck     ? navItem("paycheck",     ic.paycheck,     modules.paycheck.navTitle)     : "",
-            perms.intelligence ? navItem("intelligence", ic.intelligence, modules.intelligence.navTitle) : "",
-          ]);
+          html += `
+            <div class="nav-item" id="nav-rota" onclick="loadModule('rota')">
+              ${ic.rota}
+              <span class="nav-item-label">${modules.rota.navTitle}</span>
+            </div>`;
         }
       }
 
@@ -958,17 +957,19 @@
       document.querySelectorAll(".nav-chevron.open").forEach(el => el.classList.remove("open"));
     }
 
-    /* ── ACTIVE NAV ── */
+/* ── ACTIVE NAV ── */
     function setActiveNav(navId, groupId) {
       // Clear all active states
       document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
       document.querySelectorAll(".nav-group-header").forEach(el => el.classList.remove("active-group"));
 
-      // Highlight the nav item
-      const el = document.getElementById(navId);
+      // Highlight the nav item — if it doesn't exist in the DOM (internal page like
+      // paycheck / intelligence / planner), fall back to the parent's standalone nav item
+      let el = document.getElementById(navId);
+      if (!el && groupId) el = document.getElementById(`nav-${groupId}`);
       if (el) el.classList.add("active");
 
-      // Highlight the group header (for collapsed sidebar tooltip)
+      // Highlight the group header (for collapsed sidebar — groups only)
       if (groupId) {
         const header = document.getElementById(`group-header-${groupId}`);
         if (header) header.classList.add("active-group");
