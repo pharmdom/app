@@ -95,8 +95,8 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-size:14px;color:var(--te
 @keyframes cardIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .offer-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.09);border-color:#bfdbfe;transform:translateY(-1px)}
 
-.oc-img-wrap{position:relative;width:100%;height:110px;background:#f1f5f9;overflow:hidden;flex-shrink:0}
-.oc-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}
+.oc-img-wrap{position:relative;width:100%;height:80px;background:#f1f5f9;overflow:hidden;flex-shrink:0}
+  .oc-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}
 .offer-card:hover .oc-img-wrap img{transform:scale(1.03)}
 .oc-img-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f8fafc}
 .oc-img-placeholder svg{width:28px;height:28px;color:#cbd5e1}
@@ -121,11 +121,11 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-size:14px;color:var(--te
 .offers-table-wrap{width:100%}
 .offers-table{width:100%;border-collapse:collapse}
 .offers-table thead th{background:#f8fafc;padding:9px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;border-bottom:2px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:2}
-.offers-table td{padding:8px 12px;border-bottom:1px solid #f1f5f9;color:#334155;font-size:13px;vertical-align:middle}
+.offers-table td{padding:6px 12px;border-bottom:1px solid #f1f5f9;color:#334155;font-size:13px;vertical-align:middle}
 .offers-table tbody tr{cursor:pointer;transition:background .1s}
 .offers-table tbody tr:hover td{background:#f8faff}
-.ot-thumb{width:36px;height:36px;border-radius:7px;object-fit:cover;border:1px solid var(--border);display:block}
-.ot-thumb-ph{width:36px;height:36px;border-radius:7px;background:#f1f5f9;display:flex;align-items:center;justify-content:center}
+.ot-thumb{width:30px;height:30px;border-radius:6px;object-fit:cover;border:1px solid var(--border);display:block}
+.ot-thumb-ph{width:30px;height:30px;border-radius:6px;background:#f1f5f9;display:flex;align-items:center;justify-content:center}
 .ot-thumb-ph svg{width:16px;height:16px;color:#cbd5e1}
 
 /* ══════════════════════════════════════
@@ -142,7 +142,7 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-size:14px;color:var(--te
 .kanban-col-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
 .kanban-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px;cursor:pointer;transition:box-shadow .15s,border-color .15s}
 .kanban-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08);border-color:#bfdbfe}
-.kc-img{width:100%;height:70px;border-radius:7px;object-fit:cover;margin-bottom:8px;display:block}
+.kc-img{width:100%;height:60px;border-radius:7px;object-fit:cover;margin-bottom:7px;display:block}
 .kc-name{font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .kc-sup{font-size:10px;color:var(--text3);margin-bottom:6px}
 .kc-bottom{display:flex;justify-content:space-between;align-items:center}
@@ -244,8 +244,8 @@ html,body{font-family:'Inter',system-ui,sans-serif;font-size:14px;color:var(--te
 .ib-table tbody tr.marked td{background:#f0fdf4}
 col.ibc-img{width:50px}col.ibc-ean{width:125px}col.ibc-name{width:auto}col.ibc-sup{width:120px}col.ibc-cost{width:78px}col.ibc-date{width:105px}col.ibc-act{width:95px}
 
-.ib-thumb{width:34px;height:34px;border-radius:6px;object-fit:cover;border:1px solid var(--border);display:block;cursor:zoom-in}
-.ib-thumb-ph{width:34px;height:34px;border-radius:6px;background:#f1f5f9;display:flex;align-items:center;justify-content:center}
+.ib-thumb{width:28px;height:28px;border-radius:5px;object-fit:cover;border:1px solid var(--border);display:block;cursor:zoom-in}
+.ib-thumb-ph{width:28px;height:28px;border-radius:5px;background:#f1f5f9;display:flex;align-items:center;justify-content:center}
 .ib-thumb-ph svg{width:15px;height:15px;color:#cbd5e1}
 
 .ib-mark-btn{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid var(--border);background:#fff;color:var(--text3);cursor:pointer;transition:all .18s;white-space:nowrap;font-family:inherit}
@@ -542,18 +542,21 @@ var currentView         = 'card';
 function resolveImg(raw) {
   if (!raw) return '';
   raw = String(raw).trim();
-  if (!raw) return '';
-  // Google Drive /d/ID format
-  var m = raw.match(/\/d\/([a-zA-Z0-9_-]+)/);
-  if (m) return 'https://lh3.googleusercontent.com/d/' + m[1] + '=s600';
+  if (!raw || raw === '[object Object]') return '';
+  // Google Drive file view or open links: /d/ID or /file/d/ID
+  var m = raw.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
+  if (m) return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w400';
   // Google Drive ?id= or &id=
-  var m2 = raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (m2) return 'https://lh3.googleusercontent.com/d/' + m2[1] + '=s600';
-  // Already a URL
+  var m2 = raw.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
+  if (m2) return 'https://drive.google.com/thumbnail?id=' + m2[1] + '&sz=w400';
+  // Google Drive export/uc links
+  var m3 = raw.match(/drive\.google\.com\/uc\?.*?id=([a-zA-Z0-9_-]{10,})/);
+  if (m3) return 'https://drive.google.com/thumbnail?id=' + m3[1] + '&sz=w400';
+  // Already a direct image URL
   if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-  // Bare Drive file ID (20+ alphanumeric chars)
-  if (/^[a-zA-Z0-9_-]{20,}$/.test(raw)) return 'https://lh3.googleusercontent.com/d/' + raw + '=s600';
-  return raw;
+  // Bare Drive file ID (25–44 alphanumeric chars — typical Drive ID length)
+  if (/^[a-zA-Z0-9_-]{25,44}$/.test(raw)) return 'https://drive.google.com/thumbnail?id=' + raw + '&sz=w400';
+  return '';
 }
 
 /* ════════════════════════════
@@ -636,6 +639,7 @@ async function loadOffers(){
 }
 
 async function loadInbound(){
+  pStart();
   var lb=document.getElementById('inboundLoadBar');
   if(lb) lb.classList.add('active');
   document.getElementById('inboundBody').innerHTML=
@@ -655,7 +659,7 @@ async function loadInbound(){
   }catch(e){
     toast('Failed to load inbound','error');
     document.getElementById('inboundBody').innerHTML='<div class="state-center"><p style="color:var(--red)">Failed to load — check API</p></div>';
-  }
+  }finally{ pDone(); }
 }
 
 async function refreshAll(){
