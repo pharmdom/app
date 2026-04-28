@@ -1,12 +1,11 @@
-
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#f0f3f9;
-  --surface:#fff;
-  --surface2:#f7f9fc;
-  --border:#e3e9f4;
-  --border2:#edf1f8;
+  --bg:#eef1f8;
+  --surface:#ffffff;
+  --surface2:#f5f7fc;
+  --border:#e2e8f5;
+  --border2:#ecf0f9;
   --text:#0c1526;
   --text2:#2a3a54;
   --text3:#64748b;
@@ -38,13 +37,10 @@ html,body{
   background:var(--bg);
   -webkit-font-smoothing:antialiased;
   height:100%;
-  /* When embedded in shell, inherit height properly */
 }
 
-.content-wrap { overflow-x: hidden; }
+.content-wrap{overflow-x:hidden}
 
-  
-/* When served standalone */
 body{overflow:hidden}
 
 ::-webkit-scrollbar{width:5px;height:5px}
@@ -52,9 +48,7 @@ body{overflow:hidden}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
 ::-webkit-scrollbar-thumb:hover{background:var(--text4)}
 
-/* ═══ ROOT SHELL ═══
-   Works both standalone (100vh) and embedded in a parent shell
-   that already controls height via #tdcontent or similar */
+/* ═══ ROOT SHELL ═══ */
 .offers-app{
   display:flex;
   flex-direction:column;
@@ -62,16 +56,16 @@ body{overflow:hidden}
   max-height:100vh;
   overflow:hidden;
   position:relative;
+  /* Subtle mesh background */
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(24,71,212,.04) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 100%, rgba(24,71,212,.03) 0%, transparent 60%),
+    var(--bg);
 }
 #tdcontent .offers-app,
 .td-content .offers-app{
   height:100%;
   max-height:100%;
-}
-/* If parent shell provides height via a wrapper */
-#tdcontent .offers-app,
-.td-content .offers-app{
-  height:100%;
 }
 
 /* ═══ TOPNAV ═══ */
@@ -80,7 +74,9 @@ body{overflow:hidden}
   align-items:center;
   gap:10px;
   padding:8px 18px;
-  background:var(--surface);
+  background:rgba(255,255,255,.85);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
   border-bottom:1px solid var(--border);
   flex-shrink:0;
   z-index:100;
@@ -91,12 +87,17 @@ body{overflow:hidden}
 .tnav-chips{display:flex;align-items:center;gap:6px}
 .tnav-chip{
   display:flex;align-items:center;gap:5px;
-  padding:4px 10px;border-radius:7px;
+  padding:4px 10px;border-radius:20px;
   background:var(--surface2);border:1px solid var(--border);
   color:var(--text3);font-size:11.5px;font-weight:600;white-space:nowrap;
+  transition:all .2s;
 }
 .tnav-chip svg{width:11px;height:11px;flex-shrink:0}
-.tnav-chip.accent{background:var(--accent-bg);border-color:var(--accent-bd);color:var(--accent)}
+.tnav-chip.accent{
+  background:var(--accent-bg);border-color:var(--accent-bd);color:var(--accent);
+}
+/* Chip count-up animation */
+.tnav-chip span{transition:all .3s}
 .tnav-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .nav-btn{
   display:flex;align-items:center;gap:5px;
@@ -107,12 +108,15 @@ body{overflow:hidden}
 }
 .nav-btn svg{width:13px;height:13px;flex-shrink:0}
 .nav-btn:hover{background:var(--border);color:var(--text)}
+.nav-btn:disabled{opacity:.5;cursor:default}
 
 /* ═══ TOOLBAR ═══ */
 .toolbar{
   display:flex;align-items:center;gap:8px;
   padding:9px 18px;
-  background:var(--surface);
+  background:rgba(255,255,255,.85);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
   border-bottom:1px solid var(--border);
   flex-shrink:0;
   flex-wrap:wrap;
@@ -121,7 +125,6 @@ body{overflow:hidden}
 .tb-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0;flex-wrap:wrap}
 .tb-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
 
-/* Search */
 .search-box{position:relative;min-width:160px;max-width:260px;flex:1}
 .search-box svg.search-ico{
   position:absolute;left:10px;top:50%;transform:translateY(-50%);
@@ -135,7 +138,6 @@ body{overflow:hidden}
 }
 .search-box input:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(24,71,212,.07)}
 
-/* Selects */
 .sel-wrap{position:relative;display:inline-flex;align-items:center}
 .sel-wrap svg.sel-arr{
   position:absolute;right:8px;top:50%;transform:translateY(-50%);
@@ -151,7 +153,6 @@ body{overflow:hidden}
 }
 .fsel:focus{border-color:var(--accent)}
 
-/* View toggle */
 .view-btns{
   display:flex;border:1.5px solid var(--border);
   border-radius:var(--r-sm);overflow:hidden;background:var(--surface2);
@@ -168,7 +169,7 @@ body{overflow:hidden}
 
 /* ═══ CONTENT BODY ═══ */
 .offers-content{flex:1;overflow:hidden;min-height:0;display:flex;flex-direction:column;position:relative}
-  
+
 /* ─── Kanban ─── */
 .kanban-outer{
   flex:1;overflow:hidden;min-height:0;
@@ -192,15 +193,33 @@ body{overflow:hidden}
   overflow:hidden;
   height:calc(100vh - 120px);
   max-height:calc(100vh - 120px);
+  box-shadow:var(--sh-sm);
+  transition:box-shadow .2s;
+}
+.k-col:hover{box-shadow:var(--sh)}
+
+/* Coloured top bar on each column */
+.k-col-top-bar{
+  height:3px;
+  flex-shrink:0;
+  border-radius:0;
 }
 
-  
 .k-col-hdr{
   padding:11px 14px 10px;flex-shrink:0;
   border-bottom:1px solid var(--border2);
   background:var(--surface);
 }
 .k-hdr-row{display:flex;align-items:center;gap:9px}
+
+/* Supplier avatar badge */
+.k-avatar{
+  width:30px;height:30px;border-radius:8px;
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;letter-spacing:-.3px;
+  border:1.5px solid rgba(0,0,0,.06);
+}
+
 .k-sup-info{flex:1;min-width:0}
 .k-sup-name{
   font-size:12px;font-weight:700;color:var(--text);
@@ -212,6 +231,7 @@ body{overflow:hidden}
   background:var(--bg);color:var(--text3);
   padding:2px 8px;border-radius:20px;border:1px solid var(--border);flex-shrink:0;
 }
+
 .k-col-body{
   flex:1;overflow-y:auto;overflow-x:hidden;
   padding:8px;display:flex;flex-direction:column;gap:7px;
@@ -220,16 +240,22 @@ body{overflow:hidden}
 .k-col-body::-webkit-scrollbar{width:3px}
 
 .k-card{
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--r);padding:10px;cursor:pointer;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-left-width:3px; /* accent left border — set per supplier */
+  border-radius:var(--r);
+  padding:10px;cursor:pointer;
   transition:box-shadow .15s,border-color .15s,transform .12s;
   display:flex;flex-direction:column;gap:7px;
   animation:fadeUp .18s ease both;
 }
 @keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
-.k-card:hover{box-shadow:var(--sh);border-color:var(--accent-bd);transform:translateY(-1px)}
+.k-card:hover{
+  box-shadow:var(--sh);
+  transform:translateY(-1px);
+}
 
-/* Product image on card — only shown when image exists */
+/* Image wrap */
 .k-card-img-wrap{
   position:relative;width:100%;height:68px;
   border-radius:7px;overflow:hidden;background:var(--bg);flex-shrink:0;
@@ -262,7 +288,20 @@ body{overflow:hidden}
   display:flex;align-items:center;justify-content:space-between;
   padding-top:6px;border-top:1px solid var(--border2);
 }
-.k-card-cost{font-size:14px;font-weight:800;color:var(--text)}
+
+/* Price badge — green pill */
+.k-card-cost{
+  font-size:12.5px;font-weight:800;
+  color:var(--green);
+  background:var(--green-bg);
+  border:1px solid var(--green-bd);
+  padding:2px 8px;border-radius:20px;
+  letter-spacing:-.2px;
+}
+.k-card-cost.no-price{
+  background:transparent;border-color:transparent;
+  color:var(--text4);font-weight:600;font-size:11px;
+}
 .k-card-date{font-size:10px;color:var(--text4)}
 
 /* ─── Card Grid ─── */
@@ -272,12 +311,12 @@ body{overflow:hidden}
   grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
   gap:12px;
 }
-
 .c-card{
   background:var(--surface);border:1px solid var(--border);
   border-radius:var(--r-lg);overflow:hidden;cursor:pointer;
   transition:box-shadow .15s,border-color .15s,transform .12s;
   display:flex;flex-direction:column;animation:fadeUp .18s ease both;
+  box-shadow:var(--sh-sm);
 }
 .c-card:hover{box-shadow:var(--sh);border-color:var(--accent-bd);transform:translateY(-1px)}
 .c-card-img{
@@ -308,7 +347,15 @@ body{overflow:hidden}
   display:flex;align-items:center;justify-content:space-between;
   margin-top:5px;padding-top:7px;border-top:1px solid var(--border2);
 }
-.c-cost{font-size:14px;font-weight:800;color:var(--text)}
+/* Price badge in card grid */
+.c-cost{
+  font-size:13px;font-weight:800;
+  color:var(--green);
+  background:var(--green-bg);
+  border:1px solid var(--green-bd);
+  padding:2px 9px;border-radius:20px;
+}
+.c-cost.no-price{background:transparent;border-color:transparent;color:var(--text4);font-weight:600;font-size:11px}
 .c-date{font-size:10px;color:var(--text4)}
 
 /* ─── Table ─── */
@@ -333,6 +380,14 @@ body{overflow:hidden}
   text-decoration:none;transition:color .12s;cursor:pointer;
 }
 .ean-link:hover{color:var(--accent);text-decoration:underline}
+/* Price pill in table */
+.tbl-price{
+  display:inline-flex;
+  font-size:12px;font-weight:800;
+  color:var(--green);background:var(--green-bg);
+  border:1px solid var(--green-bd);
+  padding:2px 9px;border-radius:20px;
+}
 
 /* ═══ STATES ═══ */
 .state-wrap{
@@ -487,7 +542,8 @@ body{overflow:hidden}
 /* ═══ PROGRESS BAR ═══ */
 .pbar{
   position:fixed;top:0;left:0;right:0;height:2px;
-  background:var(--accent);z-index:9998;
+  background:linear-gradient(90deg,var(--accent),#4f80f7);
+  z-index:9998;
   transform:scaleX(0);transform-origin:left;
   transition:transform .3s ease;opacity:0;
 }
@@ -561,7 +617,6 @@ body{overflow:hidden}
 </div>
 
 <div class="offers-app" id="offersApp">
-  <!-- Top Nav -->
   <nav class="topnav">
     <div class="tnav-left">
       <div class="tnav-chips">
@@ -583,7 +638,6 @@ body{overflow:hidden}
     </div>
   </nav>
 
-  <!-- Toolbar (sticky) -->
   <div class="toolbar" id="toolbar">
     <div class="tb-left">
       <div class="search-box">
@@ -613,7 +667,6 @@ body{overflow:hidden}
     </div>
   </div>
 
-  <!-- Main content -->
   <div class="offers-content" id="offersContentArea">
     <div class="state-wrap">
       <span class="spinner spin-md"></span>
@@ -626,24 +679,46 @@ body{overflow:hidden}
 (function(){
 'use strict';
 
-/* ════════════════════════════════
-   CONFIG
-════════════════════════════════ */
 var API_URL = 'https://script.google.com/macros/s/AKfycbwt1sg2sgDxCuwZ6KOFONX6IHany8CcOZyJMLjIkHn08e3d-cVsLOhGpIW0Hj3XYigB/exec';
 
-/* ════════════════════════════════
-   STATE
-════════════════════════════════ */
 var offersData = [];
 var currentView = 'kanban';
 var confirmFn = null;
 
 /* ════════════════════════════════
-   SMART SUPPLIER GROUPING
-   Uses fuzzy/token matching to group similar supplier names
+   SUPPLIER COLOUR PALETTE
+   10 distinct, tasteful colours
 ════════════════════════════════ */
+var PALETTE = [
+  { bg:'#dbeafe', fg:'#1d4ed8', bar:'#3b82f6', border:'#93c5fd' },
+  { bg:'#dcfce7', fg:'#15803d', bar:'#22c55e', border:'#86efac' },
+  { bg:'#fce7f3', fg:'#9d174d', bar:'#ec4899', border:'#f9a8d4' },
+  { bg:'#fef9c3', fg:'#854d0e', bar:'#eab308', border:'#fde047' },
+  { bg:'#ede9fe', fg:'#6d28d9', bar:'#8b5cf6', border:'#c4b5fd' },
+  { bg:'#ffedd5', fg:'#c2410c', bar:'#f97316', border:'#fdba74' },
+  { bg:'#e0f2fe', fg:'#0369a1', bar:'#0ea5e9', border:'#7dd3fc' },
+  { bg:'#fdf4ff', fg:'#7e22ce', bar:'#a855f7', border:'#d8b4fe' },
+  { bg:'#fff7ed', fg:'#9a3412', bar:'#ea580c', border:'#fdba74' },
+  { bg:'#f0fdf4', fg:'#166534', bar:'#16a34a', border:'#86efac' },
+];
+var _colourMap = {};
+function getColour(name) {
+  if (!_colourMap[name]) {
+    var idx = name.split('').reduce(function(a,c){return a+c.charCodeAt(0);},0) % PALETTE.length;
+    _colourMap[name] = PALETTE[idx];
+  }
+  return _colourMap[name];
+}
+function initials(str) {
+  if (!str) return '?';
+  var parts = str.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0,2).toUpperCase();
+  return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+}
 
-// Tokenise a supplier name into meaningful words (strips Ltd, Limited, etc.)
+/* ════════════════════════════════
+   SMART SUPPLIER GROUPING
+════════════════════════════════ */
 function tokenise(name) {
   return name
     .toLowerCase()
@@ -652,8 +727,6 @@ function tokenise(name) {
     .split(/\s+/)
     .filter(function(t){ return t.length > 1; });
 }
-
-// Compute Jaccard similarity between two token sets
 function jaccardSim(a, b) {
   if (!a.length || !b.length) return 0;
   var setA = new Set(a), setB = new Set(b);
@@ -662,24 +735,16 @@ function jaccardSim(a, b) {
   var union = new Set([...setA, ...setB]).size;
   return union === 0 ? 0 : inter / union;
 }
-
-// Check if one name starts with or is a prefix of another
 function isPrefixOf(shorter, longer) {
   var s = shorter.toLowerCase().trim();
   var l = longer.toLowerCase().trim();
   return l.startsWith(s) || s.startsWith(l);
 }
-
-// Given an array of raw supplier names, return a map:
-// rawName → canonicalName (the most "full" representative name for the group)
 function buildSupplierMap(names) {
   var unique = [];
   names.forEach(function(n){ if(unique.indexOf(n) < 0) unique.push(n); });
-
-  // Union-find grouping
   var parent = {};
   unique.forEach(function(n){ parent[n] = n; });
-
   function find(x) {
     while(parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; }
     return x;
@@ -687,26 +752,16 @@ function buildSupplierMap(names) {
   function union(a, b) {
     var ra = find(a), rb = find(b);
     if (ra === rb) return;
-    // Keep the longer name as root (more descriptive)
     if (ra.length >= rb.length) parent[rb] = ra;
     else parent[ra] = rb;
   }
-
-  // Pairwise comparison — only O(n²) but supplier count is small
   for (var i = 0; i < unique.length; i++) {
     for (var j = i + 1; j < unique.length; j++) {
       var a = unique[i], b = unique[j];
-      var tokA = tokenise(a), tokB = tokenise(b);
-      var sim = jaccardSim(tokA, tokB);
-      var prefix = isPrefixOf(a, b);
-      // Merge if similarity > 0.5 OR one is prefix of other
-      if (sim > 0.5 || prefix) {
-        union(a, b);
-      }
+      var sim = jaccardSim(tokenise(a), tokenise(b));
+      if (sim > 0.5 || isPrefixOf(a, b)) union(a, b);
     }
   }
-
-  // Build map: rawName → canonical (the root with longest name in group)
   var map = {};
   unique.forEach(function(n){ map[n] = find(n); });
   return map;
@@ -714,79 +769,63 @@ function buildSupplierMap(names) {
 
 /* ════════════════════════════════
    IMAGE RESOLVER
-   Drive links may be restricted — use thumbnail API
 ════════════════════════════════ */
 function resolveImg(raw) {
   if (!raw) return '';
   raw = String(raw).trim();
   if (!raw || raw === '[object Object]') return '';
-
-  // /d/FILE_ID pattern (view, edit, open links)
   var m1 = raw.match(/\/d\/([a-zA-Z0-9_-]{15,})/);
   if (m1) return 'https://drive.google.com/thumbnail?id=' + m1[1] + '&sz=w400';
-
-  // ?id= or &id= pattern
   var m2 = raw.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
   if (m2) return 'https://drive.google.com/thumbnail?id=' + m2[1] + '&sz=w400';
-
-  // drive.google.com/uc? pattern
   var m3 = raw.match(/drive\.google\.com\/uc\?.*?id=([a-zA-Z0-9_-]{15,})/);
   if (m3) return 'https://drive.google.com/thumbnail?id=' + m3[1] + '&sz=w400';
-
-  // Raw Drive file ID (25-44 chars, alphanumeric + _ -)
-  if (/^[a-zA-Z0-9_-]{25,44}$/.test(raw)) {
-    return 'https://drive.google.com/thumbnail?id=' + raw + '&sz=w400';
-  }
-
-  // Already a URL
+  if (/^[a-zA-Z0-9_-]{25,44}$/.test(raw)) return 'https://drive.google.com/thumbnail?id=' + raw + '&sz=w400';
   if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-
   return '';
 }
 
 /* ════════════════════════════════
-   DATE UTILS
+   DATE / COST UTILS
 ════════════════════════════════ */
 function fmtDate(v) {
   if (!v) return '—';
-  try {
-    var d = new Date(v);
-    if (isNaN(d)) return String(v);
-    return d.toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'});
-  } catch(e) { return String(v); }
+  try { var d=new Date(v); return isNaN(d)?String(v):d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}); }
+  catch(e){ return String(v); }
 }
 function fmtDateSh(v) {
   if (!v) return '—';
-  try {
-    var d = new Date(v);
-    if (isNaN(d)) return String(v);
-    return d.toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'});
-  } catch(e) { return String(v); }
+  try { var d=new Date(v); return isNaN(d)?String(v):d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
+  catch(e){ return String(v); }
 }
 function toISO(v) {
   if (!v) return '';
-  try { var d = new Date(v); return isNaN(d) ? '' : d.toISOString().split('T')[0]; }
-  catch(e) { return ''; }
+  try { var d=new Date(v); return isNaN(d)?'':d.toISOString().split('T')[0]; }
+  catch(e){ return ''; }
 }
-
-/* ════════════════════════════════
-   COST FORMATTING
-════════════════════════════════ */
 function fmtCost(v) {
   if (!v && v !== 0) return '—';
   var n = parseFloat(v);
   return isNaN(n) ? String(v) : '£' + n.toFixed(2);
 }
+function costHtml(v, extraClass) {
+  var f = fmtCost(v);
+  var cls = 'k-card-cost' + (extraClass ? ' ' + extraClass : '') + (f === '—' ? ' no-price' : '');
+  return '<span class="' + cls + '">' + esc(f) + '</span>';
+}
+function costHtmlC(v) {
+  var f = fmtCost(v);
+  return '<span class="c-cost' + (f === '—' ? ' no-price' : '') + '">' + esc(f) + '</span>';
+}
 
 /* ════════════════════════════════
-   EAN LINK — Google Image Search
+   EAN LINK
 ════════════════════════════════ */
 function eanLink(ean) {
   if (!ean || ean === '—') return esc(ean || '—');
   var url = 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(ean);
   return '<a href="' + esc(url) + '" target="_blank" rel="noopener" class="ean-link"'
-    + ' onclick="event.stopPropagation()" title="Search images for ' + esc(ean) + '">'
-    + esc(ean) + '</a>';
+    + ' onclick="event.stopPropagation()">' + esc(ean) + '</a>';
 }
 
 /* ════════════════════════════════
@@ -794,43 +833,34 @@ function eanLink(ean) {
 ════════════════════════════════ */
 function sortDesc(arr) {
   return arr.slice().sort(function(a, b) {
-    var da = new Date(a.Date || a.date || 0);
-    var db = new Date(b.Date || b.date || 0);
-    if (isNaN(da)) da = new Date(0);
-    if (isNaN(db)) db = new Date(0);
-    return db - da;
+    var da=new Date(a.Date||a.date||0), db=new Date(b.Date||b.date||0);
+    if(isNaN(da)) da=new Date(0); if(isNaN(db)) db=new Date(0);
+    return db-da;
   });
 }
 
 /* ════════════════════════════════
    PROGRESS BAR
 ════════════════════════════════ */
-var _pv = 0, _pt = null;
-function pStart() {
-  var b = document.getElementById('pbar');
-  clearInterval(_pt); _pv = 0.1;
-  b.style.transform = 'scaleX(0.1)'; b.classList.add('active');
-  _pt = setInterval(function() {
-    _pv = Math.min(_pv + (1 - _pv) * 0.07, 0.92);
-    b.style.transform = 'scaleX(' + _pv + ')';
-  }, 250);
+var _pv=0,_pt=null;
+function pStart(){
+  var b=document.getElementById('pbar');
+  clearInterval(_pt);_pv=0.1;
+  b.style.transform='scaleX(0.1)';b.classList.add('active');
+  _pt=setInterval(function(){_pv=Math.min(_pv+(1-_pv)*0.07,0.92);b.style.transform='scaleX('+_pv+')';},250);
 }
-function pDone() {
+function pDone(){
   clearInterval(_pt);
-  var b = document.getElementById('pbar');
-  b.style.transform = 'scaleX(1)';
-  setTimeout(function() { b.classList.remove('active'); b.style.transform = 'scaleX(0)'; }, 380);
+  var b=document.getElementById('pbar');
+  b.style.transform='scaleX(1)';
+  setTimeout(function(){b.classList.remove('active');b.style.transform='scaleX(0)';},380);
 }
 
 /* ════════════════════════════════
    API
 ════════════════════════════════ */
 async function api(body) {
-  var r = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(body)
-  });
+  var r = await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)});
   return r.json();
 }
 
@@ -840,135 +870,126 @@ async function api(body) {
 async function loadOffers() {
   pStart();
   try {
-    var r = await api({ action: 'getOffers' });
+    var r = await api({action:'getOffers'});
     if (r && r.success) {
-      var h = r.headers || [];
-      offersData = sortDesc((r.rows || []).map(function(row) {
-        var o = {};
-        h.forEach(function(k, i) { o[k] = row[i] != null ? row[i] : ''; });
-        return o;
+      var h = r.headers||[];
+      offersData = sortDesc((r.rows||[]).map(function(row){
+        var o={}; h.forEach(function(k,i){o[k]=row[i]!=null?row[i]:''}); return o;
       }));
       populateFilters();
       renderView();
-      updateChips();
+      animateChips();
     } else {
-      toast('Failed to load offers', 'error');
-      showEmpty('Failed to load', 'Check your API connection');
+      toast('Failed to load offers','error');
+      showEmpty('Failed to load','Check your API connection');
     }
   } catch(e) {
-    toast('Network error', 'error');
-    showEmpty('Network error', 'Could not reach the API');
+    toast('Network error','error');
+    showEmpty('Network error','Could not reach the API');
   }
   finally { pDone(); }
 }
 
 async function refreshData() {
-  var ic = document.getElementById('refreshIcon');
-  var btn = document.getElementById('refreshBtn');
-  btn.disabled = true;
-  ic.style.animation = 'spin .7s linear infinite';
+  var ic=document.getElementById('refreshIcon');
+  var btn=document.getElementById('refreshBtn');
+  btn.disabled=true;
+  ic.style.animation='spin .7s linear infinite';
   await loadOffers();
-  ic.style.animation = '';
-  btn.disabled = false;
+  ic.style.animation='';
+  btn.disabled=false;
+}
+
+/* ════════════════════════════════
+   CHIP ANIMATION — count up
+════════════════════════════════ */
+function animateChips() {
+  var t = offersData.length;
+  var rawNames = [];
+  offersData.forEach(function(r){ var s=r['Supplier Name']||r.Supplier||''; if(s&&rawNames.indexOf(s)<0) rawNames.push(s); });
+  var supMap = buildSupplierMap(rawNames);
+  var s = new Set(rawNames.map(function(n){ return supMap[n]; })).size;
+
+  countUp('chipTotal', t, t + ' Offer' + (t!==1?'s':''));
+  countUp('chipSuppliers', s, s + ' Supplier' + (s!==1?'s':''));
+}
+
+function countUp(id, target, finalText) {
+  var el = document.getElementById(id); if(!el) return;
+  var svg = el.querySelector('svg');
+  var span = el.querySelector('span');
+  if(!span) return;
+  var start = 0;
+  var duration = 600;
+  var startTime = null;
+  function step(ts) {
+    if(!startTime) startTime=ts;
+    var progress = Math.min((ts-startTime)/duration, 1);
+    var ease = 1 - Math.pow(1-progress, 3);
+    var current = Math.round(ease * target);
+    span.textContent = current + (id==='chipTotal' ? ' Offer' + (current!==1?'s':'') : ' Supplier' + (current!==1?'s':''));
+    if(progress < 1) requestAnimationFrame(step);
+    else span.textContent = finalText.split(' ').slice(1).join(' ') ? finalText : finalText;
+  }
+  requestAnimationFrame(step);
 }
 
 /* ════════════════════════════════
    FILTERS
 ════════════════════════════════ */
 function populateFilters() {
-  var sel = document.getElementById('supFilter');
-  var prev = sel.value;
-
-  // Get canonical supplier names for the dropdown
-  var rawNames = [];
-  offersData.forEach(function(r) {
-    var s = r['Supplier Name'] || r.Supplier || '';
-    if (s && rawNames.indexOf(s) < 0) rawNames.push(s);
-  });
-
-  var supMap = buildSupplierMap(rawNames);
-
-  // Collect unique canonical names
-  var canonicals = [];
-  rawNames.forEach(function(n) {
-    var c = supMap[n];
-    if (canonicals.indexOf(c) < 0) canonicals.push(c);
-  });
+  var sel=document.getElementById('supFilter'), prev=sel.value;
+  var rawNames=[];
+  offersData.forEach(function(r){ var s=r['Supplier Name']||r.Supplier||''; if(s&&rawNames.indexOf(s)<0) rawNames.push(s); });
+  var supMap=buildSupplierMap(rawNames);
+  var canonicals=[];
+  rawNames.forEach(function(n){ var c=supMap[n]; if(canonicals.indexOf(c)<0) canonicals.push(c); });
   canonicals.sort();
-
-  sel.innerHTML = '<option value="">All Suppliers</option>';
-  canonicals.forEach(function(c) {
-    sel.innerHTML += '<option value="' + esc(c) + '">' + esc(c) + '</option>';
-  });
-
-  if (prev) sel.value = prev;
+  sel.innerHTML='<option value="">All Suppliers</option>';
+  canonicals.forEach(function(c){ sel.innerHTML+='<option value="'+esc(c)+'">'+esc(c)+'</option>'; });
+  if(prev) sel.value=prev;
 }
 
 function getFiltered() {
-  var q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
-  var supFilter = document.getElementById('supFilter').value;
-  var dt = document.getElementById('dateFilter').value;
-
-  // Build supplier map for filtering
-  var rawNames = [];
-  offersData.forEach(function(r) {
-    var s = r['Supplier Name'] || r.Supplier || '';
-    if (s && rawNames.indexOf(s) < 0) rawNames.push(s);
-  });
-  var supMap = buildSupplierMap(rawNames);
-
-  return offersData.filter(function(r) {
-    if (q) {
-      var s = (
-        String(r.EAN || r.Ean || '') + ' ' +
-        String(r['Product Name'] || r.Name || '') + ' ' +
-        String(r['Supplier Name'] || r.Supplier || '')
-      ).toLowerCase();
-      if (!s.includes(q)) return false;
-    }
-    if (supFilter) {
-      var rawSup = r['Supplier Name'] || r.Supplier || '';
-      var canonical = supMap[rawSup] || rawSup;
-      if (canonical !== supFilter) return false;
-    }
-    if (dt && toISO(r.Date || r.date || '') !== dt) return false;
+  var q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
+  var supFilter=document.getElementById('supFilter').value;
+  var dt=document.getElementById('dateFilter').value;
+  var rawNames=[];
+  offersData.forEach(function(r){ var s=r['Supplier Name']||r.Supplier||''; if(s&&rawNames.indexOf(s)<0) rawNames.push(s); });
+  var supMap=buildSupplierMap(rawNames);
+  return offersData.filter(function(r){
+    if(q){ var s=(String(r.EAN||'')+' '+String(r['Product Name']||'')+' '+String(r['Supplier Name']||'')).toLowerCase(); if(!s.includes(q)) return false; }
+    if(supFilter){ var c=supMap[r['Supplier Name']||r.Supplier||'']||(r['Supplier Name']||r.Supplier||''); if(c!==supFilter) return false; }
+    if(dt&&toISO(r.Date||r.date||'')!==dt) return false;
     return true;
   });
 }
 
 /* ════════════════════════════════
-   CHIPS
+   CHIPS (static update, used after delete)
 ════════════════════════════════ */
 function updateChips() {
-  var t = offersData.length;
-
-  // Count unique canonical suppliers
-  var rawNames = [];
-  offersData.forEach(function(r) {
-    var s = r['Supplier Name'] || r.Supplier || '';
-    if (s && rawNames.indexOf(s) < 0) rawNames.push(s);
-  });
-  var supMap = buildSupplierMap(rawNames);
-  var canonicals = new Set(rawNames.map(function(n){ return supMap[n]; }));
-  var s = canonicals.size;
-
-  setChip('chipTotal', t + ' Offer' + (t !== 1 ? 's' : ''));
-  setChip('chipSuppliers', s + ' Supplier' + (s !== 1 ? 's' : ''));
+  var t=offersData.length;
+  var rawNames=[];
+  offersData.forEach(function(r){ var s=r['Supplier Name']||r.Supplier||''; if(s&&rawNames.indexOf(s)<0) rawNames.push(s); });
+  var supMap=buildSupplierMap(rawNames);
+  var s=new Set(rawNames.map(function(n){ return supMap[n]; })).size;
+  setChip('chipTotal', t+' Offer'+(t!==1?'s':''));
+  setChip('chipSuppliers', s+' Supplier'+(s!==1?'s':''));
 }
-function setChip(id, txt) {
-  var el = document.getElementById(id); if (!el) return;
-  var svg = el.querySelector('svg');
-  el.innerHTML = (svg ? svg.outerHTML : '') + '<span>' + esc(txt) + '</span>';
+function setChip(id,txt){
+  var el=document.getElementById(id); if(!el) return;
+  var svg=el.querySelector('svg');
+  el.innerHTML=(svg?svg.outerHTML:'')+'<span>'+esc(txt)+'</span>';
 }
 
 /* ════════════════════════════════
    VIEW SWITCHING
 ════════════════════════════════ */
 function setView(v) {
-  currentView = v;
-  ['kanban', 'card', 'table'].forEach(function(t) {
-    var id = 'vbtn' + t.charAt(0).toUpperCase() + t.slice(1);
-    document.getElementById(id).classList.toggle('active', t === v);
+  currentView=v;
+  ['kanban','card','table'].forEach(function(t){
+    document.getElementById('vbtn'+t.charAt(0).toUpperCase()+t.slice(1)).classList.toggle('active',t===v);
   });
   renderView();
 }
@@ -977,423 +998,338 @@ function setView(v) {
    RENDER
 ════════════════════════════════ */
 function renderView() {
-  var data = getFiltered();
-  var area = document.getElementById('offersContentArea');
-
-  if (!data.length && !offersData.length) {
-    showLoading(); return;
-  }
-  if (!data.length) {
-    showEmpty('No offers found', 'Try adjusting your search or filters'); return;
-  }
-
-  if (currentView === 'kanban') renderKanban(data, area);
-  else if (currentView === 'card') renderCards(data, area);
-  else renderTable(data, area);
+  var data=getFiltered();
+  var area=document.getElementById('offersContentArea');
+  if(!data.length&&!offersData.length){ showLoading(); return; }
+  if(!data.length){ showEmpty('No offers found','Try adjusting your search or filters'); return; }
+  if(currentView==='kanban') renderKanban(data,area);
+  else if(currentView==='card') renderCards(data,area);
+  else renderTable(data,area);
 }
-
-function showLoading() {
-  document.getElementById('offersContentArea').innerHTML =
-    '<div class="state-wrap"><span class="spinner spin-md"></span><p>Loading offers…</p></div>';
-}
-function showEmpty(title, sub) {
-  document.getElementById('offersContentArea').innerHTML =
-    '<div class="state-wrap">'
-    + '<div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>'
-    + '<p>' + esc(title) + '</p><span>' + esc(sub) + '</span>'
-    + '</div>';
-}
+function showLoading(){ document.getElementById('offersContentArea').innerHTML='<div class="state-wrap"><span class="spinner spin-md"></span><p>Loading offers…</p></div>'; }
+function showEmpty(title,sub){ document.getElementById('offersContentArea').innerHTML='<div class="state-wrap"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><p>'+esc(title)+'</p><span>'+esc(sub)+'</span></div>'; }
 
 /* ─── KANBAN ─── */
 function renderKanban(data, area) {
-  // Group by canonical supplier name
-  var rawNames = data.map(function(r){ return r['Supplier Name'] || r.Supplier || 'Unknown'; });
-  var allRaw = [];
-  offersData.forEach(function(r){ var s = r['Supplier Name']||r.Supplier||''; if(s && allRaw.indexOf(s)<0) allRaw.push(s); });
-  var supMap = buildSupplierMap(allRaw);
+  var allRaw=[];
+  offersData.forEach(function(r){ var s=r['Supplier Name']||r.Supplier||''; if(s&&allRaw.indexOf(s)<0) allRaw.push(s); });
+  var supMap=buildSupplierMap(allRaw);
 
-  var cols = {};
-  data.forEach(function(r) {
-    var raw = r['Supplier Name'] || r.Supplier || 'Unknown';
-    var canonical = supMap[raw] || raw;
-    if (!cols[canonical]) cols[canonical] = [];
+  var cols={};
+  data.forEach(function(r){
+    var raw=r['Supplier Name']||r.Supplier||'Unknown';
+    var canonical=supMap[raw]||raw;
+    if(!cols[canonical]) cols[canonical]=[];
     cols[canonical].push(r);
   });
 
-  area.className = '';
-  area.innerHTML = '';
+  area.className=''; area.innerHTML='';
+  var outer=document.createElement('div'); outer.className='kanban-outer';
+  var wrap=document.createElement('div'); wrap.className='kanban-wrap';
 
-  var outer = document.createElement('div');
-  outer.className = 'kanban-outer';
+  Object.keys(cols).sort().forEach(function(sup, idx) {
+    var items=cols[sup];
+    var col=document.createElement('div'); col.className='k-col';
+    var colour=getColour(sup);
 
-  var wrap = document.createElement('div');
-  wrap.className = 'kanban-wrap';
+    // Coloured top bar
+    var topBar=document.createElement('div');
+    topBar.className='k-col-top-bar';
+    topBar.style.background=colour.bar;
+    col.appendChild(topBar);
 
-  Object.keys(cols).sort().forEach(function(sup) {
-    var items = cols[sup];
-    var col = document.createElement('div');
-    col.className = 'k-col';
-
-    // Header
-    var hdr = document.createElement('div');
-    hdr.className = 'k-col-hdr';
-    hdr.innerHTML =
+    // Header with avatar
+    var hdr=document.createElement('div'); hdr.className='k-col-hdr';
+    hdr.innerHTML=
       '<div class="k-hdr-row">'
-      + '<div class="k-sup-info">'
-        + '<div class="k-sup-name" title="' + esc(sup) + '">' + esc(sup) + '</div>'
-        + '<div class="k-sup-meta">' + items.length + ' offer' + (items.length !== 1 ? 's' : '') + '</div>'
-      + '</div>'
-      + '<span class="k-col-count">' + items.length + '</span>'
-      + '</div>';
+      +'<div class="k-avatar" style="background:'+colour.bg+';color:'+colour.fg+';border-color:'+colour.border+'">'+esc(initials(sup))+'</div>'
+      +'<div class="k-sup-info">'
+        +'<div class="k-sup-name" title="'+esc(sup)+'">'+esc(sup)+'</div>'
+        +'<div class="k-sup-meta">'+items.length+' offer'+(items.length!==1?'s':'')+'</div>'
+      +'</div>'
+      +'<span class="k-col-count">'+items.length+'</span>'
+      +'</div>';
     col.appendChild(hdr);
 
-    // Body (scrollable)
-    var body = document.createElement('div');
-    body.className = 'k-col-body';
-    items.forEach(function(r) {
-      body.appendChild(buildKanbanCard(r));
+    // Scrollable body
+    var body=document.createElement('div'); body.className='k-col-body';
+    items.forEach(function(r,i){
+      var card=buildKanbanCard(r, colour);
+      card.style.animationDelay=(i*0.03)+'s';
+      body.appendChild(card);
     });
     col.appendChild(body);
     wrap.appendChild(col);
   });
 
-  outer.appendChild(wrap);
-  area.appendChild(outer);
+  outer.appendChild(wrap); area.appendChild(outer);
 }
 
-function buildKanbanCard(r) {
-  var card = document.createElement('div');
-  card.className = 'k-card';
+function buildKanbanCard(r, colour) {
+  var card=document.createElement('div'); card.className='k-card';
+  // Left accent border matching supplier colour
+  card.style.borderLeftColor=colour.bar;
 
-  var img = resolveImg(r['Product Image'] || r.product_image || '');
-  var ean = r.EAN || r.Ean || '';
-  var cost = fmtCost(r.Cost || r.cost);
-  var date = fmtDateSh(r.Date || r.date);
-  var pname = r['Product Name'] || r.Name || '—';
+  var img=resolveImg(r['Product Image']||r.product_image||'');
+  var ean=r.EAN||r.Ean||'';
+  var cost=r.Cost||r.cost;
+  var date=fmtDateSh(r.Date||r.date);
+  var pname=r['Product Name']||r.Name||'—';
 
-  var html = '';
-
-  // Only show image section if image URL exists
-  if (img) {
-    html += '<div class="k-card-img-wrap">'
-      + '<img src="' + esc(img) + '" alt="" loading="lazy"'
-      + ' onerror="this.closest(\'.k-card-img-wrap\').style.display=\'none\'">'
-      + '<button class="k-zoom-btn" onclick="event.stopPropagation();openLightbox(\'' + esc(img) + '\')" title="View image">'
-      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
-      + '</button></div>';
+  var html='';
+  if(img){
+    html+='<div class="k-card-img-wrap">'
+      +'<img src="'+esc(img)+'" alt="" loading="lazy" onerror="this.closest(\'.k-card-img-wrap\').style.display=\'none\'">'
+      +'<button class="k-zoom-btn" onclick="event.stopPropagation();openLightbox(\''+esc(img)+'\')" title="View image">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
+      +'</button></div>';
   }
 
-  html += '<div class="k-card-name" title="' + esc(pname) + '">' + esc(pname) + '</div>';
+  html+='<div class="k-card-name" title="'+esc(pname)+'">'+esc(pname)+'</div>';
 
-  if (ean) {
-    html += '<div class="k-card-ean">'
-      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px;flex-shrink:0"><rect x="2" y="4" width="3" height="15"/><rect x="7" y="4" width="2" height="15"/><rect x="11" y="4" width="4" height="15"/><rect x="17" y="4" width="2" height="15"/><rect x="21" y="4" width="2" height="15"/></svg>'
-      + eanLink(ean) + '</div>';
+  if(ean){
+    html+='<div class="k-card-ean">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px;flex-shrink:0"><rect x="2" y="4" width="3" height="15"/><rect x="7" y="4" width="2" height="15"/><rect x="11" y="4" width="4" height="15"/><rect x="17" y="4" width="2" height="15"/><rect x="21" y="4" width="2" height="15"/></svg>'
+      +eanLink(ean)+'</div>';
   }
 
-  html += '<div class="k-card-foot">'
-    + '<span class="k-card-cost">' + esc(cost) + '</span>'
-    + '<span class="k-card-date">' + esc(date) + '</span>'
-    + '</div>';
+  html+='<div class="k-card-foot">'
+    +costHtml(cost)
+    +'<span class="k-card-date">'+esc(date)+'</span>'
+    +'</div>';
 
-  card.innerHTML = html;
-  card.addEventListener('click', function() {
-    openDrawer(String(r.ID || ''));
-  });
+  card.innerHTML=html;
+  card.addEventListener('click',function(){ openDrawer(String(r.ID||'')); });
   return card;
 }
 
 /* ─── CARDS ─── */
 function renderCards(data, area) {
-  area.className = '';
-  area.innerHTML = '';
+  area.className=''; area.innerHTML='';
+  var outer=document.createElement('div'); outer.className='card-outer';
+  var grid=document.createElement('div'); grid.className='card-grid';
 
-  var outer = document.createElement('div');
-  outer.className = 'card-outer';
+  data.forEach(function(r,i){
+    var card=document.createElement('div'); card.className='c-card';
+    card.style.animationDelay=(i*0.02)+'s';
+    var img=resolveImg(r['Product Image']||r.product_image||'');
+    var pname=r['Product Name']||r.Name||'—';
+    var ean=r.EAN||r.Ean||'';
+    var cost=r.Cost||r.cost;
+    var date=fmtDateSh(r.Date||r.date);
+    var sup=r['Supplier Name']||r.Supplier||'';
 
-  var grid = document.createElement('div');
-  grid.className = 'card-grid';
-
-  data.forEach(function(r) {
-    var card = document.createElement('div');
-    card.className = 'c-card';
-
-    var img = resolveImg(r['Product Image'] || r.product_image || '');
-    var pname = r['Product Name'] || r.Name || '—';
-    var ean = r.EAN || r.Ean || '';
-    var cost = fmtCost(r.Cost || r.cost);
-    var date = fmtDateSh(r.Date || r.date);
-    var sup = r['Supplier Name'] || r.Supplier || '';
-
-    var html = '';
-
-    if (img) {
-      html += '<div class="c-card-img">'
-        + '<img src="' + esc(img) + '" alt="" loading="lazy"'
-        + ' onerror="this.closest(\'.c-card-img\').style.display=\'none\'">'
-        + '<button class="c-card-zoom" onclick="event.stopPropagation();openLightbox(\'' + esc(img) + '\')">'
-        + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
-        + '</button></div>';
+    var html='';
+    if(img){
+      html+='<div class="c-card-img">'
+        +'<img src="'+esc(img)+'" alt="" loading="lazy" onerror="this.closest(\'.c-card-img\').style.display=\'none\'">'
+        +'<button class="c-card-zoom" onclick="event.stopPropagation();openLightbox(\''+esc(img)+'\')">'
+        +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
+        +'</button></div>';
     }
-
-    html += '<div class="c-body">'
-      + '<div class="c-name">' + esc(pname) + '</div>';
-    if (sup) {
-      html += '<div class="c-sup">'
-        + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>'
-        + esc(sup) + '</div>';
-    }
-    if (ean) html += '<div class="c-ean">' + eanLink(ean) + '</div>';
-    html += '<div class="c-foot"><span class="c-cost">' + esc(cost) + '</span><span class="c-date">' + esc(date) + '</span></div>'
-      + '</div>';
-
-    card.innerHTML = html;
-    card.addEventListener('click', function() { openDrawer(String(r.ID || '')); });
+    html+='<div class="c-body"><div class="c-name">'+esc(pname)+'</div>';
+    if(sup) html+='<div class="c-sup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>'+esc(sup)+'</div>';
+    if(ean) html+='<div class="c-ean">'+eanLink(ean)+'</div>';
+    html+='<div class="c-foot">'+costHtmlC(cost)+'<span class="c-date">'+esc(date)+'</span></div></div>';
+    card.innerHTML=html;
+    card.addEventListener('click',function(){ openDrawer(String(r.ID||'')); });
     grid.appendChild(card);
   });
 
-  outer.appendChild(grid);
-  area.appendChild(outer);
+  outer.appendChild(grid); area.appendChild(outer);
 }
 
 /* ─── TABLE ─── */
 function renderTable(data, area) {
-  area.className = '';
-  area.innerHTML = '';
+  area.className=''; area.innerHTML='';
+  var outer=document.createElement('div'); outer.className='tbl-outer';
 
-  var outer = document.createElement('div');
-  outer.className = 'tbl-outer';
+  var tbl='<table class="data-tbl"><thead><tr>'
+    +'<th style="width:50px"></th>'
+    +'<th>EAN</th><th>Product Name</th><th>Supplier</th><th>Cost</th><th>Date</th>'
+    +'</tr></thead><tbody>';
 
-  var tbl = '<table class="data-tbl"><thead><tr>'
-    + '<th style="width:50px"></th>'
-    + '<th>EAN</th><th>Product Name</th><th>Supplier</th><th>Cost</th><th>Date</th>'
-    + '</tr></thead><tbody>';
+  data.forEach(function(r){
+    var img=resolveImg(r['Product Image']||r.product_image||'');
+    var pname=r['Product Name']||r.Name||'—';
+    var ean=r.EAN||r.Ean||'';
+    var id=esc(String(r.ID||''));
+    var cost=fmtCost(r.Cost||r.cost);
+    var sup=r['Supplier Name']||r.Supplier||'';
+    var colour=getColour(sup||'unknown');
 
-  data.forEach(function(r) {
-    var img = resolveImg(r['Product Image'] || r.product_image || '');
-    var pname = r['Product Name'] || r.Name || '—';
-    var ean = r.EAN || r.Ean || '';
-    var id = esc(String(r.ID || ''));
-
-    tbl += '<tr onclick="openDrawer(\'' + id + '\')">';
-    tbl += '<td>';
-    if (img) {
-      tbl += '<img class="tbl-thumb" src="' + esc(img) + '" alt=""'
-        + ' onerror="this.style.display=\'none\'">';
-    }
-    tbl += '</td>';
-    tbl += '<td>' + eanLink(ean) + '</td>';
-    tbl += '<td style="font-weight:600">' + esc(pname) + '</td>';
-    tbl += '<td style="color:var(--text3);font-size:12px">' + esc(r['Supplier Name'] || r.Supplier || '') + '</td>';
-    tbl += '<td style="font-weight:700">' + esc(fmtCost(r.Cost || r.cost)) + '</td>';
-    tbl += '<td style="color:var(--text4);font-size:12px">' + esc(fmtDateSh(r.Date || r.date)) + '</td>';
-    tbl += '</tr>';
+    tbl+='<tr onclick="openDrawer(\''+id+'\')">';
+    tbl+='<td>'+(img?'<img class="tbl-thumb" src="'+esc(img)+'" alt="" onerror="this.style.display=\'none\'">':'')+'</td>';
+    tbl+='<td>'+eanLink(ean)+'</td>';
+    tbl+='<td style="font-weight:600">'+esc(pname)+'</td>';
+    tbl+='<td><span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:'+colour.fg+'">'
+      +'<span style="width:6px;height:6px;border-radius:50%;background:'+colour.bar+';flex-shrink:0;display:inline-block"></span>'
+      +esc(sup)+'</span></td>';
+    tbl+='<td><span class="tbl-price">'+esc(cost)+'</span></td>';
+    tbl+='<td style="color:var(--text4);font-size:12px">'+esc(fmtDateSh(r.Date||r.date))+'</td>';
+    tbl+='</tr>';
   });
 
-  tbl += '</tbody></table>';
-  outer.innerHTML = tbl;
-  area.appendChild(outer);
+  tbl+='</tbody></table>';
+  outer.innerHTML=tbl; area.appendChild(outer);
 }
 
 /* ════════════════════════════════
    DRAWER
 ════════════════════════════════ */
 function openDrawer(id) {
-  var row = offersData.find(function(r) { return String(r.ID || '') === id; });
-  if (!row) return;
+  var row=offersData.find(function(r){ return String(r.ID||'')===id; });
+  if(!row) return;
   renderDrawer(row);
   document.getElementById('drawerOverlay').classList.add('open');
   document.getElementById('detailDrawer').classList.add('open');
 }
-function closeDrawer() {
+function closeDrawer(){
   document.getElementById('drawerOverlay').classList.remove('open');
   document.getElementById('detailDrawer').classList.remove('open');
 }
-
 function renderDrawer(row) {
-  var ean = String(row.EAN || row.Ean || '—');
-  var name = String(row['Product Name'] || row.Name || '—');
-  var sup = String(row['Supplier Name'] || row.Supplier || '');
-  var cost = fmtCost(row.Cost || row.cost);
-  var id = String(row.ID || '');
-  var img = resolveImg(row['Product Image'] || row.product_image || '');
-  var date = fmtDate(row.Date || row.date);
+  var ean=String(row.EAN||row.Ean||'—');
+  var name=String(row['Product Name']||row.Name||'—');
+  var sup=String(row['Supplier Name']||row.Supplier||'');
+  var cost=fmtCost(row.Cost||row.cost);
+  var id=String(row.ID||'');
+  var img=resolveImg(row['Product Image']||row.product_image||'');
+  var date=fmtDate(row.Date||row.date);
 
-  var imgHtml = img
-    ? '<div class="drw-img" onclick="openLightbox(\'' + esc(img) + '\')" title="View full image">'
-      + '<img src="' + esc(img) + '" alt="" onerror="this.closest(\'.drw-img\').style.display=\'none\'">'
-      + '</div>'
-    : '';
+  var imgHtml=img
+    ?'<div class="drw-img" onclick="openLightbox(\''+esc(img)+'\')" title="View full image">'
+      +'<img src="'+esc(img)+'" alt="" onerror="this.closest(\'.drw-img\').style.display=\'none\'">'
+      +'</div>'
+    :'';
 
-  document.getElementById('drawerHero').innerHTML =
+  document.getElementById('drawerHero').innerHTML=
     '<div class="drawer-hero">'
-    + '<button class="drw-close" onclick="closeDrawer()">'
-    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
-    + '</button>'
-    + imgHtml
-    + (sup ? '<div class="drw-sup">' + esc(sup) + '</div>' : '')
-    + '<div class="drw-name">' + esc(name) + '</div>'
-    + '<div class="drw-ean">EAN: ' + eanLink(ean) + '</div>'
-    + '<div class="drw-kpis">'
-    + kpi('Cost', cost)
-    + kpi('Date', fmtDateSh(row.Date || row.date) || '—')
-    + kpi('Case', String(row.Case || row.case || '—'))
-    + '</div></div>';
+    +'<button class="drw-close" onclick="closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
+    +imgHtml
+    +(sup?'<div class="drw-sup">'+esc(sup)+'</div>':'')
+    +'<div class="drw-name">'+esc(name)+'</div>'
+    +'<div class="drw-ean">EAN: '+eanLink(ean)+'</div>'
+    +'<div class="drw-kpis">'+kpi('Cost',cost)+kpi('Date',fmtDateSh(row.Date||row.date)||'—')+kpi('Case',String(row.Case||row.case||'—'))+'</div>'
+    +'</div>';
 
-  var skip = new Set(['ID','EAN','Ean','Product Name','Name','Supplier Name','Supplier',
-    'Cost','cost','Product Image','product_image','Date','date','Case','case']);
-  var body = '<div><div class="det-sec-lbl">Product Details</div><div class="det-grid">';
-
-  if (row.Code || row.code)
-    body += df('SKU / Code', String(row.Code || row.code || ''));
-  if (row.Barcode || row.barcode)
-    body += df('Barcode', String(row.Barcode || row.barcode || ''));
-  if (row['Supplier Email'])
-    body += df('Supplier Email', String(row['Supplier Email']));
-  if (row['Email Subject'])
-    body += df('Email Subject', String(row['Email Subject']));
-  if (row.Category || row.category)
-    body += df('Category', String(row.Category || row.category || ''));
-
-  Object.keys(row).forEach(function(k) {
-    if (!skip.has(k) && String(row[k]).trim() !== '' && !body.includes(esc(k))) {
-      body += df(k, String(row[k]));
-    }
+  var skip=new Set(['ID','EAN','Ean','Product Name','Name','Supplier Name','Supplier','Cost','cost','Product Image','product_image','Date','date','Case','case']);
+  var body='<div><div class="det-sec-lbl">Product Details</div><div class="det-grid">';
+  if(row.Code||row.code) body+=df('SKU / Code',String(row.Code||row.code||''));
+  if(row.Barcode||row.barcode) body+=df('Barcode',String(row.Barcode||row.barcode||''));
+  if(row['Supplier Email']) body+=df('Supplier Email',String(row['Supplier Email']));
+  if(row['Email Subject']) body+=df('Email Subject',String(row['Email Subject']));
+  if(row.Category||row.category) body+=df('Category',String(row.Category||row.category||''));
+  Object.keys(row).forEach(function(k){
+    if(!skip.has(k)&&String(row[k]).trim()!==''&&!body.includes(esc(k))) body+=df(k,String(row[k]));
   });
+  body+='</div></div>';
 
-  body += '</div></div>';
-  document.getElementById('drawerBody').innerHTML = body;
-  document.getElementById('drawerFoot').innerHTML =
-    '<button class="btn btn-danger btn-sm" onclick="confirmDeleteOffer(\'' + esc(id) + '\')">'
-    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>'
-    + 'Delete</button>'
-    + '<div style="margin-left:auto;font-size:11px;color:var(--text4)">Added ' + esc(fmtDateSh(row.Date || row.date)) + '</div>';
+  document.getElementById('drawerBody').innerHTML=body;
+  document.getElementById('drawerFoot').innerHTML=
+    '<button class="btn btn-danger btn-sm" onclick="confirmDeleteOffer(\''+esc(id)+'\')">'
+    +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete</button>'
+    +'<div style="margin-left:auto;font-size:11px;color:var(--text4)">Added '+esc(fmtDateSh(row.Date||row.date))+'</div>';
 }
-
-function kpi(lbl, val) {
-  return '<div class="drw-kpi"><div class="drw-kpi-lbl">' + lbl + '</div><div class="drw-kpi-val">' + esc(String(val)) + '</div></div>';
-}
-function df(lbl, val) {
-  return '<div class="det-field"><label>' + esc(lbl) + '</label>'
-    + '<div class="dval' + (val ? '' : ' empty') + '">' + esc(val || '—') + '</div></div>';
-}
+function kpi(lbl,val){ return '<div class="drw-kpi"><div class="drw-kpi-lbl">'+lbl+'</div><div class="drw-kpi-val">'+esc(String(val))+'</div></div>'; }
+function df(lbl,val){ return '<div class="det-field"><label>'+esc(lbl)+'</label><div class="dval'+(val?'':' empty')+'">'+esc(val||'—')+'</div></div>'; }
 
 /* ════════════════════════════════
    DELETE
 ════════════════════════════════ */
-function confirmDeleteOffer(id) {
-  openConfirm('Delete Offer?',
-    'This product will be permanently removed from the Offers sheet.',
-    function() { doDeleteOffer(id); }, 'Delete');
+function confirmDeleteOffer(id){
+  openConfirm('Delete Offer?','This product will be permanently removed from the Offers sheet.',function(){ doDeleteOffer(id); },'Delete');
 }
-async function doDeleteOffer(id) {
+async function doDeleteOffer(id){
   closeConfirm(); closeDrawer(); pStart();
   try {
-    var r = await api({ action: 'deleteOffer', id: id });
-    if (r && r.success) {
-      offersData = offersData.filter(function(x) { return String(x.ID || '') !== id; });
+    var r=await api({action:'deleteOffer',id:id});
+    if(r&&r.success){
+      offersData=offersData.filter(function(x){ return String(x.ID||'')!==id; });
       populateFilters(); renderView(); updateChips();
-      toast('Offer deleted', 'success');
-    } else { toast('Failed to delete', 'error'); }
-  } catch(e) { toast('Error', 'error'); }
-  finally { pDone(); }
+      toast('Offer deleted','success');
+    } else toast('Failed to delete','error');
+  } catch(e){ toast('Error','error'); }
+  finally{ pDone(); }
 }
 
 /* ════════════════════════════════
    LIGHTBOX
 ════════════════════════════════ */
-function openLightbox(url) {
-  document.getElementById('lbImg').src = url;
-  document.getElementById('lightbox').classList.add('open');
-}
-function closeLightbox() {
-  document.getElementById('lightbox').classList.remove('open');
-  document.getElementById('lbImg').src = '';
-}
+function openLightbox(url){ document.getElementById('lbImg').src=url; document.getElementById('lightbox').classList.add('open'); }
+function closeLightbox(){ document.getElementById('lightbox').classList.remove('open'); document.getElementById('lbImg').src=''; }
 
 /* ════════════════════════════════
    CONFIRM
 ════════════════════════════════ */
-function openConfirm(title, msg, fn, lbl) {
-  document.getElementById('confirmTitle').textContent = title;
-  document.getElementById('confirmMsg').textContent = msg;
-  document.getElementById('confirmOkBtn').textContent = lbl || 'Confirm';
-  confirmFn = fn;
+function openConfirm(title,msg,fn,lbl){
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmMsg').textContent=msg;
+  document.getElementById('confirmOkBtn').textContent=lbl||'Confirm';
+  confirmFn=fn;
   document.getElementById('confirmOverlay').classList.add('open');
 }
-function closeConfirm() {
-  document.getElementById('confirmOverlay').classList.remove('open');
-  confirmFn = null;
-}
-function doConfirm() { if (confirmFn) confirmFn(); }
+function closeConfirm(){ document.getElementById('confirmOverlay').classList.remove('open'); confirmFn=null; }
+function doConfirm(){ if(confirmFn) confirmFn(); }
 
 /* ════════════════════════════════
    TOAST
 ════════════════════════════════ */
-function toast(msg, type) {
-  var c = document.getElementById('toasts');
-  var t = document.createElement('div');
-  t.className = 'toast ' + (type || '');
-  var icons = {
-    success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-    error: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
-    info: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+function toast(msg,type){
+  var c=document.getElementById('toasts');
+  var t=document.createElement('div'); t.className='toast '+(type||'');
+  var icons={
+    success:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    error:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    info:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
   };
-  t.innerHTML = (icons[type] || '') + esc(msg);
+  t.innerHTML=(icons[type]||'')+esc(msg);
   c.appendChild(t);
-  setTimeout(function() { if (t.parentNode) t.remove(); }, 3400);
+  setTimeout(function(){ if(t.parentNode) t.remove(); },3400);
 }
 
 /* ════════════════════════════════
    ESCAPE
 ════════════════════════════════ */
-function esc(s) {
-  return String(s != null ? s : '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+function esc(s){ return String(s!=null?s:'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 /* ════════════════════════════════
    KEYBOARD
 ════════════════════════════════ */
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    if (document.getElementById('lightbox').classList.contains('open')) { closeLightbox(); return; }
-    if (document.getElementById('confirmOverlay').classList.contains('open')) { closeConfirm(); return; }
-    if (document.getElementById('detailDrawer').classList.contains('open')) { closeDrawer(); return; }
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){
+    if(document.getElementById('lightbox').classList.contains('open')){ closeLightbox(); return; }
+    if(document.getElementById('confirmOverlay').classList.contains('open')){ closeConfirm(); return; }
+    if(document.getElementById('detailDrawer').classList.contains('open')){ closeDrawer(); return; }
   }
 });
 
 /* ════════════════════════════════
    SHELL HEIGHT FIX
-   When embedded in a Google Sheets shell (#tdcontent),
-   override body overflow and set app height to fill parent
 ════════════════════════════════ */
-(function() {
-  var shell = document.getElementById('tdcontent') || document.querySelector('.td-content');
-  if (shell) {
-    document.body.style.overflow = 'hidden';
-    document.body.style.height = '100%';
-    var app = document.getElementById('app');
-    if (app) {
-      app.style.height = '100%';
-    }
+(function(){
+  var shell=document.getElementById('tdcontent')||document.querySelector('.td-content');
+  if(shell){
+    document.body.style.overflow='hidden';
+    document.body.style.height='100%';
+    var app=document.getElementById('offersApp');
+    if(app) app.style.height='100%';
   }
 })();
 
 /* ════════════════════════════════
-   GLOBALS (for inline handlers)
+   GLOBALS
 ════════════════════════════════ */
-window.refreshData = refreshData;
-window.setView = setView;
-window.renderView = renderView;
-window.openDrawer = openDrawer;
-window.closeDrawer = closeDrawer;
-window.openLightbox = openLightbox;
-window.closeLightbox = closeLightbox;
-window.confirmDeleteOffer = confirmDeleteOffer;
-window.closeConfirm = closeConfirm;
-window.doConfirm = doConfirm;
+window.refreshData=refreshData;
+window.setView=setView;
+window.renderView=renderView;
+window.openDrawer=openDrawer;
+window.closeDrawer=closeDrawer;
+window.openLightbox=openLightbox;
+window.closeLightbox=closeLightbox;
+window.confirmDeleteOffer=confirmDeleteOffer;
+window.closeConfirm=closeConfirm;
+window.doConfirm=doConfirm;
 
 /* ════════════════════════════════
    INIT
@@ -1402,5 +1338,3 @@ loadOffers();
 
 })();
 </script>
-
-  
