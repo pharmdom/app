@@ -188,22 +188,19 @@ body{overflow:hidden}
   flex:0 0 268px;min-width:268px;
   display:flex;flex-direction:column;
   background:var(--surface);
-  border:1px solid var(--border);
   border-radius:var(--r-lg);
   overflow:hidden;
   height:calc(100vh - 120px);
   max-height:calc(100vh - 120px);
   box-shadow:var(--sh-sm);
-  transition:box-shadow .2s;
+  border:1px solid var(--border);
+  transition:box-shadow .2s, border-color .2s;
 }
-.k-col:hover{box-shadow:var(--sh)}
+.k-col:hover{
+  box-shadow:var(--sh);
+  border-color:var(--accent-bd);
+}
 
-/* Coloured top bar on each column */
-.k-col-top-bar{
-  height:3px;
-  flex-shrink:0;
-  border-radius:0;
-}
 
 .k-col-hdr{
   padding:11px 14px 10px;flex-shrink:0;
@@ -252,7 +249,14 @@ body{overflow:hidden}
 @keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 .k-card:hover{
   box-shadow:var(--sh);
+  border-color:var(--accent-bd);
+  border-left-color:var(--accent-bd);
   transform:translateY(-1px);
+}
+.k-card.active{
+  border-color:var(--accent);
+  border-left-color:var(--accent);
+  box-shadow:0 0 0 2px var(--accent-bg);
 }
 
 /* Image wrap */
@@ -1032,11 +1036,6 @@ function renderKanban(data, area) {
     var col=document.createElement('div'); col.className='k-col';
     var colour=getColour(sup);
 
-    // Coloured top bar
-    var topBar=document.createElement('div');
-    topBar.className='k-col-top-bar';
-    topBar.style.background=colour.bar;
-    col.appendChild(topBar);
 
     // Header with avatar
     var hdr=document.createElement('div'); hdr.className='k-col-hdr';
@@ -1067,8 +1066,7 @@ function renderKanban(data, area) {
 
 function buildKanbanCard(r, colour) {
   var card=document.createElement('div'); card.className='k-card';
-  // Left accent border matching supplier colour
-  card.style.borderLeftColor=colour.bar;
+
 
   var img=resolveImg(r['Product Image']||r.product_image||'');
   var ean=r.EAN||r.Ean||'';
@@ -1099,7 +1097,11 @@ function buildKanbanCard(r, colour) {
     +'</div>';
 
   card.innerHTML=html;
-  card.addEventListener('click',function(){ openDrawer(String(r.ID||'')); });
+  card.addEventListener('click', function() {
+  document.querySelectorAll('.k-card').forEach(function(c){ c.classList.remove('active'); });
+  card.classList.add('active');
+  openDrawer(String(r.ID || ''));
+});
   return card;
 }
 
