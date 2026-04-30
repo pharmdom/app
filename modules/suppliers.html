@@ -34,7 +34,7 @@
   --sh-sm:0 2px 8px rgba(12,21,38,.08),0 1px 3px rgba(12,21,38,.04);
   --sh:0 6px 24px rgba(12,21,38,.1),0 2px 8px rgba(12,21,38,.05);
   --sh-lg:0 20px 56px rgba(12,21,38,.15),0 6px 18px rgba(12,21,38,.08);
-  --left-w:320px;
+  --left-w:310px;
   --transition:.22s cubic-bezier(.4,0,.2,1);
 }
 
@@ -558,7 +558,7 @@ html,body{
 .sc-pbar.active{opacity:1}
 
 /* Responsive */
-@media(max-width:900px){:root{--left-w:280px}}
+@media(max-width:900px){:root{--left-w:270px}}
 @media(max-width:768px){
   .sc-root{flex-direction:column}
   .sc-left{width:100%!important;min-width:100%!important;height:auto;max-height:45vh;border-bottom:2px solid var(--border)}
@@ -860,28 +860,39 @@ async function api(body){
    Strategy: normalise both strings (lowercase, strip punctuation, common suffixes),
    then check for word overlap or substring containment.
 */
-function normaliseSupName(s){
-  return (s||'')
+function normaliseSupName(s) {
+  return (s || '')
     .toLowerCase()
-    .replace(/\bltd\.?\b|\bplc\.?\b|\binc\.?\b|\bco\.?\b|\bcorp\.?\b|\bgroup\b|\buk\b/g,'')
-    .replace(/[^a-z0-9\s]/g,' ')
-    .replace(/\s+/g,' ')
+    .replace(/\bltd\.?\b|\bplc\.?\b|\binc\.?\b|\bco\.?\b|\bcorp\.?\b|\bgroup\b|\buk\b|\bsupplies\b|\btrading\b|\bwholesale\b/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
-function supplierNamesMatch(supName, rowSupName){
-  if(!supName||!rowSupName) return false;
-  const a=normaliseSupName(supName);
-  const b=normaliseSupName(rowSupName);
-  if(a===b) return true;
-  // One fully contains the other
-  if(a.includes(b)||b.includes(a)) return true;
-  // Word overlap ≥ 1 meaningful word (>3 chars)
-  const wa=a.split(' ').filter(w=>w.length>3);
-  const wb=b.split(' ').filter(w=>w.length>3);
-  if(wa.length&&wb.length){
-    const setA=new Set(wa);
-    for(const w of wb){ if(setA.has(w)) return true; }
+
+function supplierNamesMatch(supName, rowSupName) {
+  if (!supName || !rowSupName) return false;
+  const a = normaliseSupName(supName);
+  const b = normaliseSupName(rowSupName);
+  if (a === b) return true;
+  if (a.includes(b) || b.includes(a)) return true;
+  
+  // Word overlap — match if ANY meaningful word (>2 chars) overlaps
+  const wa = a.split(' ').filter(w => w.length > 2);
+  const wb = b.split(' ').filter(w => w.length > 2);
+  if (wa.length && wb.length) {
+    const setA = new Set(wa);
+    for (const w of wb) { if (setA.has(w)) return true; }
   }
+  
+  // Abbreviation check: "CVT" matches "Clear Value Trading"
+  const abbrA = supName.replace(/[^a-zA-Z\s]/g, '').trim().split(/\s+/).map(w => w[0]).join('').toLowerCase();
+  const abbrB = rowSupName.replace(/[^a-zA-Z\s]/g, '').trim().split(/\s+/).map(w => w[0]).join('').toLowerCase();
+  const rawA = supName.toLowerCase().replace(/[^a-z]/g, '');
+  const rawB = rowSupName.toLowerCase().replace(/[^a-z]/g, '');
+  if (abbrA.length >= 2 && abbrA === rawB) return true;
+  if (abbrB.length >= 2 && abbrB === rawA) return true;
+  if (abbrA.length >= 2 && abbrA === abbrB) return true;
+  
   return false;
 }
 
@@ -893,10 +904,19 @@ async function loadSuppliers(){
     if(!r.success) throw new Error(r.message||'Failed');
     allSuppliers=r.suppliers||[];
     renderSupDropdown();
-    if(currentSupId){
-      const s=allSuppliers.find(x=>x['Supplier ID']===currentSupId);
-      if(s) renderSupplierCard(s);
-    }
+if (!currentSupId && allSuppliers.length > 0) {
+  // Auto-select first supplier
+  const first = allSuppliers[0];
+  currentSupId = first['Supplier ID'];
+  document.getElementById('scSupFilterVal').textContent = first['Supplier Name'] || 'Unknown';
+  document.getElementById('scCatTitle').textContent = (first['Supplier Name'] || 'Supplier') + ' — Catalog';
+  renderSupplierCard(first);
+  loadCatalog(first);
+  renderSupDropdown();
+} else if (currentSupId) {
+  const s = allSuppliers.find(x => x['Supplier ID'] === currentSupId);
+  if (s) renderSupplierCard(s);
+}
   }catch(e){
     toast('Failed to load suppliers','error');
   }
@@ -1024,7 +1044,7 @@ async function selectSupplier(sid){
   document.getElementById('scSupFilterVal').textContent=s['Supplier Name']||'Unknown';
   document.getElementById('scCatTitle').textContent=(s['Supplier Name']||'Supplier')+' — Catalog';
   renderSupplierCard(s);
-  await loadCatalog(s);
+  loadCatalog(s);
   renderSupDropdown();
 }
 
@@ -1247,14 +1267,12 @@ function renderTable(data,cc){
   outer.className='sc-tbl-outer';
   let html=`<table class="sc-cat-table">
 <thead><tr>
-  <th style="width:50px"></th>
   <th>EAN</th>
   <th>Product Name</th>
   <th>Code</th>
   <th>Case</th>
   <th>Category</th>
   <th>Cost</th>
-  <th>Date</th>
 </tr></thead><tbody>`;
   data.forEach((r,i)=>{
     const img=resolveImg(r['Product Image']||'');
@@ -1262,16 +1280,12 @@ function renderTable(data,cc){
     const cost=r['Cost']||'';
     const id=esc(String(r['ID']||''));
     html+=`<tr onclick="openProdDrawer('${id}')" style="animation-delay:${Math.min(i,20)*0.02}s">
-      <td>${img
-        ?`<img class="cat-thumb" src="${esc(img)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=cat-thumb-ph>${esc((r['Product Name']||'?').slice(0,2).toUpperCase())}</div>'">`
-        :`<div class="cat-thumb-ph">${esc((r['Product Name']||'?').slice(0,2).toUpperCase())}</div>`}</td>
-      <td><a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(ean||'—')}</a></td>
+      <td><a class="ean-link" href__="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(ean||'—')}</a></td>
       <td style="font-weight:600;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r['Product Name']||'')}">${esc(r['Product Name']||'—')}</td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${esc(r['Code']||'—')}</td>
       <td>${esc(r['Case']||'—')}</td>
       <td>${r['Category']?`<span class="sc-badge blue">${esc(r['Category'])}</span>`:'<span style="color:var(--text4);font-size:11px">—</span>'}</td>
       <td><span class="cat-cost${!cost?' empty':''}">${cost?'£'+parseFloat(cost).toFixed(2):'—'}</span></td>
-      <td style="font-size:11.5px;color:var(--text4)">${esc(fmtDateSh(r['Date'])||'—')}</td>
     </tr>`;
   });
   html+='</tbody></table>';
