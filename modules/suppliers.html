@@ -860,7 +860,7 @@ async function api(body){
    Strategy: normalise both strings (lowercase, strip punctuation, common suffixes),
    then check for word overlap or substring containment.
 */
-function normSup(s){
+function normaliseSupName(s) {
   return (s||'')
     .toLowerCase()
     .replace(/\bltd\.?\b|\blimited\b|\bplc\.?\b|\binc\.?\b|\bco\.?\b|\bcorp\.?\b|\bgroup\b|\buk\b/g,' ')
@@ -869,48 +869,34 @@ function normSup(s){
     .trim();
 }
 
-function supplierNamesMatch(supName, rowSupName){
-  if(!supName||!rowSupName) return false;
-
-  const aRaw = supName.toLowerCase().trim();
-  const bRaw = rowSupName.toLowerCase().trim();
-
-  // 1. Exact (case-insensitive)
-  if(aRaw===bRaw) return true;
-
-  // 2. Known abbreviations — bidirectional
-  const aExp = ABBREV_MAP[aRaw] || aRaw;
-  const bExp = ABBREV_MAP[bRaw] || bRaw;
-  if(aExp===bExp) return true;
-
-  // 3. Normalised compare (strips Ltd, Plc, etc — but keeps Trading, Supplies)
-  const a = normSup(aExp);
-  const b = normSup(bExp);
-  if(!a||!b) return false;
-  if(a===b) return true;
-
-  // 4. Strict prefix containment — one must START with the other,
-  //    AND the shorter must be at least 4 chars to avoid trivial matches
-  const shorter = a.length < b.length ? a : b;
-  const longer  = a.length < b.length ? b : a;
-  if(shorter.length >= 4 && (longer.startsWith(shorter+' ') || longer===shorter)){
-    return true;
+  
+function supplierNamesMatch(supName, rowSupName) {
+  if (!supName || !rowSupName) return false;
+  const a = normaliseSupName(supName);
+  const b = normaliseSupName(rowSupName);
+  if (a === b) return true;
+  if (a.includes(b) || b.includes(a)) return true;
+  
+  // Word overlap — match if ANY meaningful word (>2 chars) overlaps
+  const wa = a.split(' ').filter(w => w.length > 2);
+  const wb = b.split(' ').filter(w => w.length > 2);
+  if (wa.length && wb.length) {
+    const setA = new Set(wa);
+    for (const w of wb) { if (setA.has(w)) return true; }
   }
-
-  // 5. Initials: only if supName is all-caps 2–5 letters (e.g. "CVT", "WTS")
-  if(/^[A-Z]{2,5}$/.test(supName.trim())){
-    const words = rowSupName.trim().split(/\s+/)
-      .filter(w => !/^(ltd|limited|plc|inc|co|corp|group|uk|the|and|of)\.?$/i.test(w))
-      .filter(w => w.length > 1);
-    const ini = words.map(w=>w[0].toUpperCase()).join('');
-    if(ini===supName.trim().toUpperCase()) return true;
-  }
-
+  
+  // Abbreviation check: "CVT" matches "Clear Value Trading"
+  const abbrA = supName.replace(/[^a-zA-Z\s]/g, '').trim().split(/\s+/).map(w => w[0]).join('').toLowerCase();
+  const abbrB = rowSupName.replace(/[^a-zA-Z\s]/g, '').trim().split(/\s+/).map(w => w[0]).join('').toLowerCase();
+  const rawA = supName.toLowerCase().replace(/[^a-z]/g, '');
+  const rawB = rowSupName.toLowerCase().replace(/[^a-z]/g, '');
+  if (abbrA.length >= 2 && abbrA === rawB) return true;
+  if (abbrB.length >= 2 && abbrB === rawA) return true;
+  if (abbrA.length >= 2 && abbrA === abbrB) return true;
+  
   return false;
 }
 
-
-  
 /* ── LOAD SUPPLIERS ── */
 async function loadSuppliers(){
   pStart();
