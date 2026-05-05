@@ -419,14 +419,14 @@ body{overflow:hidden}
 /* ═══ DRAWER ═══ */
 .drawer-overlay{
   position:fixed;inset:0;background:rgba(12,21,38,.35);
-  z-index:800;opacity:0;pointer-events:none;
+  z-index:1250;opacity:0;pointer-events:none;
   transition:opacity .25s;backdrop-filter:blur(2px);
 }
 .drawer-overlay.open{opacity:1;pointer-events:all}
 .drawer{
   position:fixed;top:0;right:0;width:520px;max-width:97vw;height:100vh;
   background:var(--surface);box-shadow:-12px 0 50px rgba(12,21,38,.15);
-  z-index:900;display:flex;flex-direction:column;
+  z-index:1300;display:flex;flex-direction:column;
   transform:translateX(100%);
   transition:transform .28s cubic-bezier(.4,0,.2,1);overflow:hidden;
 }
@@ -700,8 +700,9 @@ body{overflow:hidden}
 .rejected-row{
   display:flex;align-items:flex-start;gap:10px;padding:10px 12px;
   border:1px solid var(--red-bd);border-radius:var(--r);
-  background:var(--red-bg);
+  background:var(--red-bg);cursor:pointer;transition:background .12s;
 }
+.rejected-row:hover{background:#fecaca33}
 .rejected-row-info{flex:1;min-width:0}
 .rejected-row-name{font-size:12.5px;font-weight:700;color:var(--text);margin-bottom:2px;
   overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
@@ -815,7 +816,7 @@ body{overflow:hidden}
         <div class="tnav-actions">
       <div class="agent-sel-wrap" title="Select your agent profile">
         <div class="agent-dot"></div>
-        <div class="agent-name" id="agentLabel">Loading…</div>
+        <div class="agent-name" id="agentLabel">— Select Agent —</div>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10" style="color:var(--text4);flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
         <div class="agent-sel-rel">
           <select id="agentSelect" onchange="onAgentChange(this.value)"></select>
@@ -885,6 +886,7 @@ var offersData   = [];
 var currentView  = 'kanban';
 var confirmFn    = null;
 var _rejectId    = null;
+var _openedFromRejected = false;
 
 /* ── Navigation state ── */
 var _navItems    = [];   // all items for current supplier group
@@ -1349,6 +1351,10 @@ function closeDrawer(){
   document.getElementById('drawerOverlay').classList.remove('open');
   document.getElementById('detailDrawer').classList.remove('open');
   document.querySelectorAll('.k-card').forEach(function(c){c.classList.remove('active');});
+  if(_openedFromRejected){
+    _openedFromRejected=false;
+    openRejectedModal();
+  }
 }
 
 function renderDrawer(row){
@@ -1393,8 +1399,18 @@ function renderDrawer(row){
     +'<div class="drw-kpis">'+kpi('Cost',cost)+kpi('Date',fmtDateSh(row.Date||row.date)||'—')+kpi('Case',String(row.Case||row.case||'—'))+'</div>'
     +'</div>';
 
-  var skip=new Set(['ID','EAN','Ean','Product Name','Name','Supplier Name','Supplier','Cost','cost','Product Image','product_image','Date','date','Case','case']);
-  var body='<div><div class="det-sec-lbl">Product Details</div><div class="det-grid">';
+   var isRejected=(row.Approval||row.approval||'').toLowerCase()==='rejected';
+  var skip=new Set(['ID','EAN','Ean','Product Name','Name','Supplier Name','Supplier','Cost','cost','Product Image','product_image','Date','date','Case','case','Approval','approval','Note','note']);
+  var body='<div>';
+  if(isRejected){
+    var rejNote=String(row.Note||row.note||'No reason provided');
+    body+='<div style="background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r);padding:11px 13px;margin-bottom:14px;display:flex;align-items:flex-start;gap:8px">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="color:var(--red);flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+      +'<div><div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--red);margin-bottom:3px">Rejection Reason</div>'
+      +'<div style="font-size:13px;color:var(--red);font-style:italic;line-height:1.5">'+esc(rejNote)+'</div></div>'
+      +'</div>';
+  }
+  body+='<div class="det-sec-lbl">Product Details</div><div class="det-grid">';
   if(row.Code||row.code) body+=df('SKU / Code',String(row.Code||row.code||''));
   if(row.Barcode||row.barcode) body+=df('Barcode',String(row.Barcode||row.barcode||''));
   if(row['Supplier Email']) body+=df('Supplier Email',String(row['Supplier Email']));
@@ -1406,14 +1422,22 @@ function renderDrawer(row){
   body+='</div></div>';
   document.getElementById('drawerBody').innerHTML=body;
 
-  document.getElementById('drawerFoot').innerHTML=
-    '<button class="btn btn-danger btn-sm" onclick="confirmDeleteOffer(\''+esc(id)+'\')" title="Delete permanently">'
-    +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete</button>'
-    +'<button class="btn btn-sm" style="background:#fef3c7;border-color:#fcd34d;color:#92400e;margin-left:6px" onclick="openRejectModal(\''+esc(id)+'\')" title="Reject with reason">'
-    +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>Reject</button>'
-    +'<button class="btn btn-sm" id="approveBtn_'+esc(id)+'" style="background:#15803d;border-color:#15803d;color:#fff;margin-left:auto" onclick="doApproveOffer(\''+esc(id)+'\',this)" title="Approve — move to Product Sourcing">'
-    +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>Approve</button>';
-}
+  if(isRejected){
+    document.getElementById('drawerFoot').innerHTML=
+      '<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:20px;font-size:11px;font-weight:700;color:var(--red)">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>Rejected</span>'
+      +'<button class="btn btn-danger btn-sm" onclick="confirmDeleteOffer(\''+esc(id)+'\')" style="margin-left:auto" title="Delete permanently">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete</button>';
+  }else{
+    document.getElementById('drawerFoot').innerHTML=
+      '<button class="btn btn-danger btn-sm" onclick="confirmDeleteOffer(\''+esc(id)+'\')" title="Delete permanently">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete</button>'
+      +'<button class="btn btn-sm" style="background:#fef3c7;border-color:#fcd34d;color:#92400e;margin-left:6px" onclick="openRejectModal(\''+esc(id)+'\')" title="Reject with reason">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>Reject</button>'
+      +'<button class="btn btn-sm" id="approveBtn_'+esc(id)+'" style="background:#15803d;border-color:#15803d;color:#fff;margin-left:auto" onclick="doApproveOffer(\''+esc(id)+'\',this)" title="Approve — move to Product Sourcing">'
+      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>Approve</button>';
+  }
+  }
 
 function kpi(lbl,val){return '<div class="drw-kpi"><div class="drw-kpi-lbl">'+lbl+'</div><div class="drw-kpi-val">'+esc(String(val))+'</div></div>';}
 function df(lbl,val){return '<div class="det-field"><label>'+esc(lbl)+'</label><div class="dval'+(val?'':' empty')+'">'+esc(val||'—')+'</div></div>';}
@@ -1675,18 +1699,33 @@ function openRejectedModal(){
       var div=document.createElement('div');div.className='rejected-row';
       var sup=r['Supplier Name']||r.Supplier||'';
       var note=r.Note||r.note||'No reason provided';
+      
+      var rid=String(r.ID||'');
       div.innerHTML='<div class="rejected-row-info">'
         +'<div class="rejected-row-name">'+esc(r['Product Name']||r.Name||'—')+'</div>'
         +(sup?'<div class="rejected-row-sup">'+esc(sup)+'</div>':'')
         +'<div class="rejected-row-note">'+esc(note)+'</div>'
-        +'</div>';
+        +'</div>'
+        +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" style="color:var(--text4);flex-shrink:0;align-self:center"><polyline points="9 18 15 12 9 6"/></svg>';
+      div.addEventListener('click',function(){openRejectedOfferDrawer(rid);});
       list.appendChild(div);
+
+      
     });
   }
   document.getElementById('rejectedOverlay').classList.add('open');
 }
 function closeRejectedModal(){
   document.getElementById('rejectedOverlay').classList.remove('open');
+}
+function openRejectedOfferDrawer(id){
+  var row=offersData.find(function(r){return String(r.ID||'')===id;});
+  if(!row)return;
+  _openedFromRejected=true;
+  _navItems=[];_navIndex=0;_navSupplier='';
+  renderDrawer(row);
+  document.getElementById('drawerOverlay').classList.add('open');
+  document.getElementById('detailDrawer').classList.add('open');
 }
   
 /* ════════════════════════════════
@@ -1781,6 +1820,7 @@ window.doConfirm=doConfirm;
 window.onAgentChange=onAgentChange;
 window.openRejectedModal=openRejectedModal;
 window.closeRejectedModal=closeRejectedModal;
+window.openRejectedOfferDrawer=openRejectedOfferDrawer;
 
 /* ════════════════════════════════
    INIT
