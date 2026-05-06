@@ -1653,6 +1653,7 @@ function closeMergeModal(){
 async function doMerge(){
   if(_mergeSelected.length<2){toast('Select at least 2 columns','error');return;}
   var targetSupplier=_mergeSelected[0];
+
   // Collect all raw supplier names for the source groups (not the target)
   var allRaw=[];
   offersData.forEach(function(r){var s=r['Supplier Name']||r.Supplier||'';if(s&&allRaw.indexOf(s)<0)allRaw.push(s);});
@@ -1666,25 +1667,69 @@ async function doMerge(){
 
   if(!sourceNames.length){toast('Nothing to merge','error');return;}
 
+  // ── Determine target email: most recent email on target supplier rows ──
+  function pickMostRecentEmail(rows){
+    var withEmail=rows.filter(function(r){
+      return String(r['Supplier Email']||'').trim()!=='';
+    });
+    if(!withEmail.length) return '';
+    withEmail.sort(function(a,b){
+      var da=new Date(a.Date||a.date||0), db=new Date(b.Date||b.date||0);
+      if(isNaN(da))da=new Date(0); if(isNaN(db))db=new Date(0);
+      return db-da;
+    });
+    return String(withEmail[0]['Supplier Email']||'').trim();
+  }
+
+  // Find target rows
+  var targetRows=offersData.filter(function(r){
+    var raw=r['Supplier Name']||r.Supplier||'';
+    var canonical=supMap[raw]||raw;
+    return canonical===targetSupplier;
+  });
+  var targetEmail=pickMostRecentEmail(targetRows);
+
+  // Fallback: if target has no email, use most recent email across the source rows
+  if(!targetEmail){
+    var sourceSetLower={};
+    sourceNames.forEach(function(s){sourceSetLower[s.toLowerCase().trim()]=true;});
+    var sourceRows=offersData.filter(function(r){
+      return sourceSetLower[String(r['Supplier Name']||'').toLowerCase().trim()];
+    });
+    targetEmail=pickMostRecentEmail(sourceRows);
+  }
+
   closeMergeModal();pStart();
   try{
-    var r=await api({action:'mergeSupplier',targetSupplier:targetSupplier,sourceSuppliers:sourceNames});
+    var r=await api({
+      action:'mergeSupplier',
+      targetSupplier:targetSupplier,
+      sourceSuppliers:sourceNames,
+      targetEmail:targetEmail   // ← NEW: backend should propagate this to all merged rows
+    });
     if(r&&r.success){
-      // Update local data
+      // Update local data — both Supplier Name AND Supplier Email
       var sourceSet={};
       sourceNames.forEach(function(s){sourceSet[s.toLowerCase().trim()]=true;});
       offersData.forEach(function(row){
         var rowSup=String(row['Supplier Name']||'').toLowerCase().trim();
-        if(sourceSet[rowSup])row['Supplier Name']=targetSupplier;
+        var isSource=sourceSet[rowSup];
+        var isTarget=String(row['Supplier Name']||'').trim()===targetSupplier;
+        if(isSource){
+          row['Supplier Name']=targetSupplier;
+          if(targetEmail) row['Supplier Email']=targetEmail;
+        } else if(isTarget && targetEmail){
+          // Also normalise existing target rows to the same email
+          row['Supplier Email']=targetEmail;
+        }
       });
-      _colourMap={};// reset colour cache
+      _colourMap={};
       populateFilters();renderView();updateChips();
-      toast('Merged '+r.updated+' offers into "'+targetSupplier+'"','success');
+      toast('Merged '+r.updated+' offers into "'+targetSupplier+'"'+(targetEmail?' · email unified':''),'success');
     }else{toast('Merge failed: '+(r.message||''),'error');}
   }catch(e){toast('Error','error');}
   finally{pDone();}
 }
-
 
 
 /* ════════════════════════════════
