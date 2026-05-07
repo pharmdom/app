@@ -316,6 +316,20 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
   .sc-cat-toolbar{padding:7px 12px}
   .sc-allcat-header{padding:10px 12px}
 }
+
+
+.sc-sup-action-wrap{position:relative;flex-shrink:0}
+.sc-sup-action-btn{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;}
+.sc-sup-action-btn:hover{background:rgba(24,71,212,.4);border-color:rgba(99,130,249,.4);color:#8fa8ff}
+.sc-sup-action-btn svg{width:13px;height:13px}
+.sc-sup-action-menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--navy2);border:1px solid rgba(255,255,255,.12);border-radius:var(--r);box-shadow:var(--sh-lg);z-index:300;min-width:140px;overflow:hidden;opacity:0;pointer-events:none;transform:translateY(-4px);transition:opacity .15s,transform .15s;}
+.sc-sup-action-menu.open{opacity:1;pointer-events:all;transform:translateY(0)}
+.sc-sup-action-item{display:flex;align-items:center;gap:8px;padding:9px 13px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.7);cursor:pointer;transition:background .12s;}
+.sc-sup-action-item:hover{background:rgba(255,255,255,.07);color:#fff}
+.sc-sup-action-item svg{width:12px;height:12px;flex-shrink:0;opacity:.7}
+.sc-sup-action-item.danger{color:#f87171}
+.sc-sup-action-item.danger:hover{background:rgba(239,68,68,.12)}
+  
 </style>
 
 <div class="sc-pbar" id="scPbar"></div>
@@ -548,7 +562,7 @@ let _toastN       = 0;
 function getAgentName() {
   try {
     const u = JSON.parse(sessionStorage.getItem('user') || '{}');
-    return ((u.firstName || '') + ' ' + (u.lastName || '')).trim() || '';
+    return (u.firstName || '').trim() || '';
   } catch(e) { return ''; }
 }
 
@@ -566,6 +580,45 @@ function initials(name){
   return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():(name||'?').slice(0,2).toUpperCase();
 }
 
+
+
+async function updateAllCatStatus(id, status) {
+  const agent = status ? getAgentName() : '';
+  try {
+    await Promise.all([
+      api({action:'updateCatalogField', id, field:'Status', value:status}),
+      api({action:'updateCatalogField', id, field:'Agent', value:agent})
+    ]);
+    const row = allCatalogData.find(r => String(r['ID']||'') === id);
+    if(row){ row['Status']=status; row['Agent']=agent; }
+    const sel = document.getElementById('ac_status_'+id);
+    if(sel) sel.className = 'sc-status-sel'+(status==='Approved'?' approved':status==='Rejected'?' rejected':'');
+    const agEl = document.getElementById('ac_agent_'+id);
+    if(agEl) agEl.textContent = agent||'—';
+    toast('Status updated','success');
+  } catch(e){ toast('Update failed','error'); }
+}
+
+function confirmDeleteAllCatProd(id, name){
+  document.getElementById('scConfirmDesc').textContent = `"${name}" will be permanently removed from the Catalog.`;
+  document.getElementById('scConfirmOk').onclick = () => doDeleteAllCatProd(id);
+  document.getElementById('scConfirmOverlay').classList.add('open');
+}
+async function doDeleteAllCatProd(id){
+  closeConfirm();
+  const tid = toast('Deleting…','loading',0);
+  try{
+    const r = await api({action:'deleteCatalog', id});
+    if(!r.success) throw new Error(r.message);
+    allCatalogData = allCatalogData.filter(x => String(x['ID']||'') !== id);
+    catalogData = catalogData.filter(x => String(x['ID']||'') !== id);
+    renderAllCatalog();
+    removeToast(tid);
+    toast('Product deleted','success');
+  }catch(e){ removeToast(tid); toast('Delete failed','error'); }
+}
+
+  
 /* ── PROGRESS BAR ── */
 let _pv=0,_pt=null;
 function pStart(){
@@ -580,6 +633,65 @@ function pDone(){
   setTimeout(()=>{b.classList.remove('active');b.style.transform='scaleX(0)';},380);
 }
 
+
+
+/* ── SUPPLIER ACTION MENU ── */
+function toggleSupActionMenu(e){
+  e.stopPropagation();
+  const m=document.getElementById('scSupActionMenu');
+  m.classList.toggle('open');
+}
+function closeSupActionMenu(){
+  const m=document.getElementById('scSupActionMenu');
+  if(m)m.classList.remove('open');
+}
+
+/* ── ADD SUPPLIER ── */
+function openAddSupplierModal(){
+  editingSupId = null;
+  document.getElementById('scEditModalTitle').textContent = 'Add Supplier';
+  document.getElementById('efName').value='';
+  document.getElementById('efMOQ').value='';
+  document.getElementById('efCashBack').value='';
+  document.getElementById('efAccountLimit').value='';
+  document.getElementById('efCard').value='';
+  document.getElementById('efContact').value='';
+  document.getElementById('efWhatsApp').value='';
+  document.getElementById('efNotes').value='';
+  document.getElementById('scEditModal').classList.add('open');
+}
+
+/* ── DELETE SUPPLIER ── */
+function confirmDeleteSupplier(sid, name){
+  document.getElementById('scConfirmDesc').textContent = `Delete "${name}" and all their catalog products? This cannot be undone.`;
+  document.getElementById('scConfirmOk').onclick = () => doDeleteSupplier(sid);
+  document.getElementById('scConfirmOverlay').classList.add('open');
+}
+async function doDeleteSupplier(sid){
+  closeConfirm();
+  const tid = toast('Deleting supplier…','loading',0);
+  try{
+    const r = await api({action:'deleteSupplier', supplierId: sid});
+    if(!r.success) throw new Error(r.message||'Failed');
+    allSuppliers = allSuppliers.filter(x => x['Supplier ID'] !== sid);
+    if(currentSupId === sid){
+      currentSupId = null;
+      document.getElementById('scSupFilterVal').textContent = 'Select a supplier…';
+      document.getElementById('scCatTitle').textContent = 'Catalog';
+      document.getElementById('scSupCard').innerHTML = '<div class="sc-left-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><p>Select a supplier</p></div>';
+      document.getElementById('scCatContent').innerHTML = '<div class="sc-state"><p>Select a supplier</p></div>';
+      document.getElementById('scCatCount').style.display='none';
+    }
+    renderSupDropdown();
+    removeToast(tid);
+    toast('Supplier deleted','success');
+  }catch(e){
+    removeToast(tid);
+    toast('Delete failed: '+e.message,'error');
+  }
+}
+
+  
 /* ── TOAST ── */
 function toast(msg,type,dur){
   const c=document.getElementById('scToasts');
@@ -839,9 +951,25 @@ function renderSupplierCard(s){
       <div class="sc-sup-hero-name">${esc(name)}</div>
       <div class="sc-sup-hero-id">${esc(s['Supplier ID']||'')}</div>
     </div>
-    <button class="sc-sup-edit-btn" onclick="openEditModal('${esc(s['Supplier ID']||'')}')" title="Edit supplier">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-    </button>`;
+        <div class="sc-sup-action-wrap">
+      <button class="sc-sup-action-btn" onclick="toggleSupActionMenu(event)" title="Actions">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      </button>
+      <div class="sc-sup-action-menu" id="scSupActionMenu">
+        <div class="sc-sup-action-item" onclick="closeSupActionMenu();openEditModal('${esc(s['Supplier ID']||'')}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Edit
+        </div>
+        <div class="sc-sup-action-item" onclick="closeSupActionMenu();openAddSupplierModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          Add Supplier
+        </div>
+        <div class="sc-sup-action-item danger" onclick="closeSupActionMenu();confirmDeleteSupplier('${esc(s['Supplier ID']||'')}','${esc(name)}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          Delete
+        </div>
+      </div>
+    </div>`;
   el.appendChild(hero);
 
   // KPIs: MOQ (£), Cash Back (%), Account Limit, Card
@@ -857,9 +985,8 @@ function renderSupplierCard(s){
   el.appendChild(kgrid);
 
   // Details
-  const contact = s['Contact'] || '';
   const contactHtml = contact
-    ? `<a href="mailto:${esc(contact)}">${esc(contact)}</a>`
+    ? `<a href="https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(contact)}" target="_blank" rel="noopener">${esc(contact)}</a>`
     : '—';
 
   const det=document.createElement('div');
@@ -975,8 +1102,13 @@ async function saveSupplierEdit(){
   try{
     const r=await api({action:'saveSupplier', ...updates});
     if(!r.success && r.message) throw new Error(r.message);
-    const idx=allSuppliers.findIndex(x=>x['Supplier ID']===editingSupId);
-    if(idx>=0) allSuppliers[idx]={...allSuppliers[idx],...updates};
+    if(!editingSupId){
+      // New supplier — reload
+      await loadSuppliers();
+    } else {
+      const idx=allSuppliers.findIndex(x=>x['Supplier ID']===editingSupId);
+      if(idx>=0) allSuppliers[idx]={...allSuppliers[idx],...updates};
+    }
     const s=allSuppliers.find(x=>x['Supplier ID']===editingSupId);
     if(s){
       renderSupplierCard(s);
@@ -1153,9 +1285,9 @@ function renderAllCatalog() {
     return;
   }
 
-  let html = `<table class="sc-allcat-table">
+let html = `<table class="sc-allcat-table">
 <thead><tr>
-  <th>EAN</th><th>Product Name</th><th>Supplier</th><th>Code</th><th>Case</th><th>Category</th><th>Cost</th><th>Status</th>
+  <th>EAN</th><th>Product Name</th><th>Supplier</th><th>Code</th><th>Case</th><th>Category</th><th>Cost</th><th>Status</th><th>Agent</th><th></th>
 </tr></thead><tbody>`;
 
   let prevEan = null;
@@ -1175,7 +1307,20 @@ function renderAllCatalog() {
       <td>${esc(r['Case'] || '—')}</td>
       <td>${r['Category'] ? `<span class="sc-badge blue">${esc(r['Category'])}</span>` : '<span style="color:var(--text4);font-size:11px">—</span>'}</td>
       <td><span class="cat-cost${!cost ? ' empty' : ''}">${cost ? '£' + parseFloat(cost).toFixed(2) : '—'}</span></td>
-      <td>${status ? `<span class="sc-badge ${statusCls}">${esc(status)}</span>` : '<span style="color:var(--text4);font-size:11px">—</span>'}</td>
+      
+      <td>
+        <select class="sc-status-sel ${statusCls}" id="ac_status_${esc(String(r['ID']||''))}" onchange="updateAllCatStatus('${esc(String(r['ID']||''))}', this.value)" onclick="event.stopPropagation()">
+          <option value="" ${!status?'selected':''}>—</option>
+          <option value="Approved" ${status==='Approved'?'selected':''}>Approved</option>
+          <option value="Rejected" ${status==='Rejected'?'selected':''}>Rejected</option>
+        </select>
+      </td>
+      <td id="ac_agent_${esc(String(r['ID']||''))}" style="font-size:11px;color:var(--text3);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r['Agent']||'—')}</td>
+      <td>
+        <button class="sc-del-btn" onclick="confirmDeleteAllCatProd('${esc(String(r['ID']||''))}','${esc(r['Product Name']||'')}')" title="Delete product">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </td>
     </tr>`;
   });
 
@@ -1247,6 +1392,7 @@ document.addEventListener('keydown',e=>{
   }
 });
 document.addEventListener('click',e=>{
+  closeSupActionMenu();
   if(dropdownOpen&&!document.getElementById('scSupFilter').contains(e.target)&&!document.getElementById('scSupDropdown').contains(e.target))
     closeSupDropdown();
   if(document.getElementById('scEditModal').classList.contains('open')&&e.target===document.getElementById('scEditModal'))
@@ -1270,6 +1416,11 @@ window.saveSupplierEdit=saveSupplierEdit;
 window.handleRefresh=handleRefresh;
 window.confirmDeleteProd=confirmDeleteProd;
 window.updateCatalogStatus=updateCatalogStatus;
+window.openAddSupplierModal=openAddSupplierModal;
+window.confirmDeleteSupplier=confirmDeleteSupplier;
+window.closeSupActionMenu=closeSupActionMenu;
+window.updateAllCatStatus=updateAllCatStatus;
+window.confirmDeleteAllCatProd=confirmDeleteAllCatProd;
 
 /* ── INIT ── */
 loadSuppliers();
