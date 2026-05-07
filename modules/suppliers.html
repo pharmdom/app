@@ -815,16 +815,8 @@ async function loadSuppliers(){
       loadCatalog(first);
       renderSupDropdown();
     } else if (currentSupId) {
-      const s = allSuppliers.find(x => x['Supplier Name'] === name);
-      if (s) {
-        currentSupId = s['Supplier ID'];
-        document.getElementById('scSupFilterVal').textContent = s['Supplier Name'] || 'Unknown';
-        document.getElementById('scCatTitle').textContent = (s['Supplier Name'] || 'Supplier') + ' — Catalog';
-        renderSupplierCard(s);
-        loadCatalog(s);
-        renderSupDropdown();
-      }
-      if (s) renderSupplierCard(s);
+  const s = allSuppliers.find(x => x['Supplier ID'] === currentSupId);
+  if (s) renderSupplierCard(s);
     }
   }catch(e){
     toast('Failed to load suppliers','error');
@@ -1164,18 +1156,27 @@ async function saveSupplierEdit(){
     const r=await api({action:'saveSupplier', ...updates});
     if(!r.success && r.message) throw new Error(r.message);
    if(isNew){
-      await loadSuppliers();
-    } else {
-      const idx=allSuppliers.findIndex(x=>x['Supplier ID']===editingSupId);
-      if(idx>=0) allSuppliers[idx]={...allSuppliers[idx],...updates};
-    }
-    const s=allSuppliers.find(x=>x['Supplier ID']===editingSupId);
-    if(s){
-      renderSupplierCard(s);
-      document.getElementById('scSupFilterVal').textContent=s['Supplier Name']||'Unknown';
-      document.getElementById('scCatTitle').textContent=(s['Supplier Name']||'Supplier')+' — Catalog';
-      loadSourcingStats(s['Supplier Name']||'');
-    }
+  await loadSuppliers();
+  const s = allSuppliers.find(x => x['Supplier Name'] === name);
+  if(s){
+    currentSupId = s['Supplier ID'];
+    document.getElementById('scSupFilterVal').textContent = s['Supplier Name'] || 'Unknown';
+    document.getElementById('scCatTitle').textContent = (s['Supplier Name'] || 'Supplier') + ' — Catalog';
+    renderSupplierCard(s);
+    loadCatalog(s);
+    renderSupDropdown();
+  }
+} else {
+  const idx = allSuppliers.findIndex(x => x['Supplier ID'] === editingSupId);
+  if(idx >= 0) allSuppliers[idx] = {...allSuppliers[idx], ...updates};
+  const s = allSuppliers.find(x => x['Supplier ID'] === editingSupId);
+  if(s){
+    renderSupplierCard(s);
+    document.getElementById('scSupFilterVal').textContent = s['Supplier Name'] || 'Unknown';
+    document.getElementById('scCatTitle').textContent = (s['Supplier Name'] || 'Supplier') + ' — Catalog';
+    loadSourcingStats(s['Supplier Name'] || '');
+  }
+}
     renderSupDropdown();
     closeEditModal();
     toast('Supplier updated','success');
