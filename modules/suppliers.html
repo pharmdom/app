@@ -985,9 +985,9 @@ function renderSupplierCard(s){
   el.appendChild(kgrid);
 
   // Details
+    const contact = s['Contact'] || '';
   const contactHtml = contact
-    ? `<a href="https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(contact)}" target="_blank" rel="noopener">${esc(contact)}</a>`
-    : '—';
+    ? `<a href__="https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(contact)}" target="_blank" rel="noopener">${esc(contact)}</a>`
 
   const det=document.createElement('div');
   det.className='sc-detail-section';
@@ -1080,7 +1080,7 @@ function closeEditModal(){
 }
 
 async function saveSupplierEdit(){
-  if(!editingSupId) return;
+  const isNew = !editingSupId;
   const name=document.getElementById('efName').value.trim();
   if(!name){toast('Supplier name is required','error');return;}
 
@@ -1102,8 +1102,7 @@ async function saveSupplierEdit(){
   try{
     const r=await api({action:'saveSupplier', ...updates});
     if(!r.success && r.message) throw new Error(r.message);
-    if(!editingSupId){
-      // New supplier — reload
+   if(isNew){
       await loadSuppliers();
     } else {
       const idx=allSuppliers.findIndex(x=>x['Supplier ID']===editingSupId);
