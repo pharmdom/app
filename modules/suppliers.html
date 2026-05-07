@@ -329,6 +329,17 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sc-sup-action-item svg{width:12px;height:12px;flex-shrink:0;opacity:.7}
 .sc-sup-action-item.danger{color:#f87171}
 .sc-sup-action-item.danger:hover{background:rgba(239,68,68,.12)}
+
+.sc-bulk-bar{display:flex;align-items:center;gap:8px;padding:8px 18px;background:#eef2fd;border-bottom:1px solid var(--accent-bd);flex-shrink:0;flex-wrap:wrap;}
+.sc-bulk-bar-count{font-size:12px;font-weight:700;color:var(--accent);flex:1}
+.sc-bulk-btn{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;border:1.5px solid;font-size:11px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;white-space:nowrap;background:var(--surface)}
+.sc-bulk-btn.approve{border-color:rgba(16,185,129,.4);color:#0b7a42}
+.sc-bulk-btn.reject{border-color:rgba(192,25,44,.3);color:var(--red)}
+.sc-bulk-btn.del{border-color:rgba(192,25,44,.25);color:var(--red)}
+.sc-bulk-btn.cancel{border-color:var(--border);color:var(--text3)}
+.sc-select-toggle{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer;transition:all .15s;flex-shrink:0;white-space:nowrap;}
+.sc-select-toggle:hover,.sc-select-toggle.active{border-color:var(--accent-bd);color:var(--accent);background:var(--accent-bg)}
+.sc-row-cb{width:14px;height:14px;cursor:pointer;accent-color:var(--accent);flex-shrink:0}
   
 </style>
 
@@ -351,10 +362,23 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
       <span class="sc-allcat-title">All Catalog</span>
       <span class="sc-allcat-count" id="scAllCatCount" style="display:none">0 products</span>
     </div>
+    
+    
     <div class="sc-allcat-search-wrap">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" class="sc-allcat-search-input" id="scAllCatSearch" placeholder="Search by EAN or product name…" oninput="renderAllCatalog()">
     </div>
+    <button class="sc-select-toggle" id="scAcSelectToggle" onclick="toggleAcBulkSelect()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 11 12 14 22 4"/></svg>
+      Select
+    </button>
+  </div>
+  <div class="sc-bulk-bar" id="scAcBulkBar" style="display:none">
+    <span class="sc-bulk-bar-count" id="scAcBulkCount">0 selected</span>
+    <button class="sc-bulk-btn approve" onclick="acBulkSetStatus('Approved')">✓ Approve</button>
+    <button class="sc-bulk-btn reject" onclick="acBulkSetStatus('Rejected')">✗ Reject</button>
+    <button class="sc-bulk-btn del" onclick="acBulkDelete()">🗑 Delete</button>
+    <button class="sc-bulk-btn cancel" onclick="toggleAcBulkSelect()">Cancel</button>
   </div>
   <div class="sc-allcat-body" id="scAllCatBody">
     <div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading…</p></div>
@@ -524,12 +548,24 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" class="sc-search-input" id="scCatSearch" placeholder="Search EAN, product…" oninput="renderCatalog()">
       </div>
+      
       <div class="sc-cat-filter-wrap">
         <select class="sc-cat-select" id="scCatCategoryFilter" onchange="renderCatalog()">
           <option value="">All Categories</option>
         </select>
         <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
+      <button class="sc-select-toggle" id="scSelectToggle" onclick="toggleBulkSelect()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 11 12 14 22 4"/></svg>
+        Select
+      </button>
+    </div>
+    <div class="sc-bulk-bar" id="scBulkBar" style="display:none">
+      <span class="sc-bulk-bar-count" id="scBulkCount">0 selected</span>
+      <button class="sc-bulk-btn approve" onclick="bulkSetStatus('Approved')">✓ Approve</button>
+      <button class="sc-bulk-btn reject" onclick="bulkSetStatus('Rejected')">✗ Reject</button>
+      <button class="sc-bulk-btn del" onclick="bulkDeleteSelected()">🗑 Delete</button>
+      <button class="sc-bulk-btn cancel" onclick="toggleBulkSelect()">Cancel</button>
     </div>
 
     <div class="sc-cat-content" id="scCatContent">
@@ -556,7 +592,11 @@ let allCatalogData = [];
 let currentSupId  = null;
 let dropdownOpen  = false;
 let editingSupId  = null;
-let _toastN       = 0;
+let _toastN = 0;
+let bulkSelectMode = false;
+let selectedIds    = new Set();
+let acBulkMode     = false;
+let acSelectedIds  = new Set();
 
 /* ── AGENT NAME (reads from shell sessionStorage) ── */
 function getAgentName() {
@@ -591,6 +631,8 @@ async function updateAllCatStatus(id, status) {
     ]);
     const row = allCatalogData.find(r => String(r['ID']||'') === id);
     if(row){ row['Status']=status; row['Agent']=agent; }
+    const catRow = catalogData.find(r => String(r['ID']||'') === id);
+    if(catRow){ catRow['Status']=status; catRow['Agent']=agent; }
     const sel = document.getElementById('ac_status_'+id);
     if(sel) sel.className = 'sc-status-sel'+(status==='Approved'?' approved':status==='Rejected'?' rejected':'');
     const agEl = document.getElementById('ac_agent_'+id);
@@ -1169,8 +1211,9 @@ function renderTable(data,cc){
   cc.innerHTML='';
   const outer=document.createElement('div');
   outer.className='sc-tbl-outer';
-  let html=`<table class="sc-cat-table">
+    let html=`<table class="sc-cat-table">
 <thead><tr>
+  ${bulkSelectMode?`<th style="width:32px"><input type="checkbox" class="sc-row-cb" onchange="document.querySelectorAll('.sc-row-cb-item').forEach(c=>{c.checked=this.checked;if(c.checked)selectedIds.add(c.dataset.id);else selectedIds.delete(c.dataset.id)});updateBulkCount()"></th>`:''}
   <th>EAN</th>
   <th>Product Name</th>
   <th>Code</th>
@@ -1190,6 +1233,7 @@ function renderTable(data,cc){
     const agent=r['Agent']||'';
     const statusCls=status==='Approved'?'approved':status==='Rejected'?'rejected':'';
     html+=`<tr style="animation-delay:${Math.min(i,20)*0.02}s">
+      ${bulkSelectMode?`<td><input type="checkbox" class="sc-row-cb sc-row-cb-item" data-id="${id}" ${selectedIds.has(id)?'checked':''} onchange="if(this.checked)selectedIds.add('${id}');else selectedIds.delete('${id}');updateBulkCount()"></td>`:''}
       <td><a class="ean-link" href="https://www.google.com/search?q=${encodeURIComponent(ean)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(ean||'—')}</a></td>
       <td style="font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r['Product Name']||'')}">${esc(r['Product Name']||'—')}</td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${esc(r['Code']||'—')}</td>
@@ -1228,8 +1272,10 @@ async function updateCatalogStatus(id, status) {
       api({action: 'updateCatalogField', id, field: 'Agent', value: agent})
     ]);
     // Update local data
-    const row = catalogData.find(r => String(r['ID'] || '') === id);
+        const row = catalogData.find(r => String(r['ID'] || '') === id);
     if (row) { row['Status'] = status; row['Agent'] = agent; }
+    const acRow = allCatalogData.find(r => String(r['ID'] || '') === id);
+    if (acRow) { acRow['Status'] = status; acRow['Agent'] = agent; }
     // Update DOM
     if (sel) sel.className = 'sc-status-sel' + (status === 'Approved' ? ' approved' : status === 'Rejected' ? ' rejected' : '');
     if (agentEl) agentEl.textContent = agent || '—';
@@ -1261,6 +1307,7 @@ async function openAllCatalog() {
 
 function closeAllCatalog() {
   document.getElementById('scAllCatOverlay').classList.remove('open');
+  if(acBulkMode){ acBulkMode=false; acSelectedIds.clear(); document.getElementById('scAcBulkBar').style.display='none'; }
 }
 
 function renderAllCatalog() {
@@ -1293,6 +1340,7 @@ function renderAllCatalog() {
 
 let html = `<table class="sc-allcat-table">
 <thead><tr>
+  ${acBulkMode?`<th style="width:32px"><input type="checkbox" class="sc-row-cb" onchange="document.querySelectorAll('.sc-ac-cb-item').forEach(c=>{c.checked=this.checked;if(c.checked)acSelectedIds.add(c.dataset.id);else acSelectedIds.delete(c.dataset.id)});updateAcBulkCount()"></th>`:''}
   <th>EAN</th><th>Product Name</th><th>Supplier</th><th>Code</th><th>Case</th><th>Category</th><th>Cost</th><th>Status</th><th>Agent</th><th></th>
 </tr></thead><tbody>`;
 
@@ -1305,8 +1353,10 @@ let html = `<table class="sc-allcat-table">
     const isNewGroup = ean && ean !== prevEan;
     prevEan = ean;
 
+    const rid = esc(String(r['ID']||''));
     html += `<tr class="${isNewGroup && i > 0 ? 'sc-ean-group-row' : ''}" style="animation-delay:${Math.min(i,30)*0.015}s">
-      <td><a class="ean-link" href="https://www.google.com/search?q=${encodeURIComponent(ean)}" target="_blank" rel="noopener">${esc(ean || '—')}</a></td>
+      ${acBulkMode?`<td><input type="checkbox" class="sc-row-cb sc-ac-cb-item" data-id="${rid}" ${acSelectedIds.has(rid)?'checked':''} onchange="if(this.checked)acSelectedIds.add('${rid}');else acSelectedIds.delete('${rid}');updateAcBulkCount()"></td>`:''}
+      <td><a class="ean-link" href__="https://www.google.com/search?q=${encodeURIComponent(ean)}" target="_blank" rel="noopener">${esc(ean || '—')}</a></td>
       <td style="font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r['Product Name'] || '')}">${esc(r['Product Name'] || '—')}</td>
       <td style="font-size:11.5px;color:var(--text3);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r['Supplier Name'] || r['Supplier'] || '—')}</td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${esc(r['Code'] || '—')}</td>
@@ -1341,6 +1391,93 @@ function confirmDeleteProd(id,name){
   document.getElementById('scConfirmOverlay').classList.add('open');
 }
 function closeConfirm(){document.getElementById('scConfirmOverlay').classList.remove('open');}
+
+/* ── BULK SELECT (supplier catalog) ── */
+function toggleBulkSelect(){
+  bulkSelectMode=!bulkSelectMode; selectedIds.clear();
+  document.getElementById('scSelectToggle').classList.toggle('active',bulkSelectMode);
+  document.getElementById('scBulkBar').style.display=bulkSelectMode?'':'none';
+  renderCatalog();
+}
+function updateBulkCount(){ document.getElementById('scBulkCount').textContent=selectedIds.size+' selected'; }
+async function bulkSetStatus(status){
+  if(!selectedIds.size) return;
+  const agent=status?getAgentName():'';
+  const ids=[...selectedIds];
+  const tid=toast('Updating '+ids.length+' products…','loading',0);
+  await Promise.all(ids.flatMap(id=>[
+    api({action:'updateCatalogField',id,field:'Status',value:status}),
+    api({action:'updateCatalogField',id,field:'Agent',value:agent})
+  ]));
+  ids.forEach(id=>{
+    const r=catalogData.find(x=>String(x['ID']||'')===id);
+    if(r){r['Status']=status;r['Agent']=agent;}
+    const ar=allCatalogData.find(x=>String(x['ID']||'')===id);
+    if(ar){ar['Status']=status;ar['Agent']=agent;}
+  });
+  removeToast(tid); toast('Updated '+ids.length+' products','success');
+  selectedIds.clear(); renderCatalog(); updateBulkCount();
+}
+async function bulkDeleteSelected(){
+  if(!selectedIds.size) return;
+  const ids=[...selectedIds];
+  document.getElementById('scConfirmDesc').textContent=`Delete ${ids.length} selected products? This cannot be undone.`;
+  document.getElementById('scConfirmOk').onclick=async()=>{
+    closeConfirm();
+    const tid=toast('Deleting '+ids.length+' products…','loading',0);
+    await api({action:'bulkDeleteCatalog',ids});
+    catalogData=catalogData.filter(x=>!ids.includes(String(x['ID']||'')));
+    allCatalogData=allCatalogData.filter(x=>!ids.includes(String(x['ID']||'')));
+    selectedIds.clear(); removeToast(tid); toast('Deleted '+ids.length+' products','success');
+    renderCatalog(); updateBulkCount();
+    const cnt=document.getElementById('scCatCount');
+    cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
+  };
+  document.getElementById('scConfirmOverlay').classList.add('open');
+}
+
+/* ── BULK SELECT (all catalog) ── */
+function toggleAcBulkSelect(){
+  acBulkMode=!acBulkMode; acSelectedIds.clear();
+  document.getElementById('scAcSelectToggle').classList.toggle('active',acBulkMode);
+  document.getElementById('scAcBulkBar').style.display=acBulkMode?'':'none';
+  renderAllCatalog();
+}
+function updateAcBulkCount(){ document.getElementById('scAcBulkCount').textContent=acSelectedIds.size+' selected'; }
+async function acBulkSetStatus(status){
+  if(!acSelectedIds.size) return;
+  const agent=status?getAgentName():'';
+  const ids=[...acSelectedIds];
+  const tid=toast('Updating '+ids.length+' products…','loading',0);
+  await Promise.all(ids.flatMap(id=>[
+    api({action:'updateCatalogField',id,field:'Status',value:status}),
+    api({action:'updateCatalogField',id,field:'Agent',value:agent})
+  ]));
+  ids.forEach(id=>{
+    const r=allCatalogData.find(x=>String(x['ID']||'')===id);
+    if(r){r['Status']=status;r['Agent']=agent;}
+    const cr=catalogData.find(x=>String(x['ID']||'')===id);
+    if(cr){cr['Status']=status;cr['Agent']=agent;}
+  });
+  removeToast(tid); toast('Updated '+ids.length+' products','success');
+  acSelectedIds.clear(); renderAllCatalog(); updateAcBulkCount();
+}
+async function acBulkDelete(){
+  if(!acSelectedIds.size) return;
+  const ids=[...acSelectedIds];
+  document.getElementById('scConfirmDesc').textContent=`Delete ${ids.length} selected products? This cannot be undone.`;
+  document.getElementById('scConfirmOk').onclick=async()=>{
+    closeConfirm();
+    const tid=toast('Deleting '+ids.length+' products…','loading',0);
+    await api({action:'bulkDeleteCatalog',ids});
+    allCatalogData=allCatalogData.filter(x=>!ids.includes(String(x['ID']||'')));
+    catalogData=catalogData.filter(x=>!ids.includes(String(x['ID']||'')));
+    acSelectedIds.clear(); removeToast(tid); toast('Deleted '+ids.length+' products','success');
+    renderAllCatalog(); updateAcBulkCount();
+  };
+  document.getElementById('scConfirmOverlay').classList.add('open');
+}
+  
 async function doDeleteProd(id){
   closeConfirm();
   const tid=toast('Deleting…','loading',0);
@@ -1428,6 +1565,14 @@ window.confirmDeleteSupplier=confirmDeleteSupplier;
 window.closeSupActionMenu=closeSupActionMenu;
 window.updateAllCatStatus=updateAllCatStatus;
 window.confirmDeleteAllCatProd=confirmDeleteAllCatProd;
+window.toggleBulkSelect=toggleBulkSelect;
+window.updateBulkCount=updateBulkCount;
+window.bulkSetStatus=bulkSetStatus;
+window.bulkDeleteSelected=bulkDeleteSelected;
+window.toggleAcBulkSelect=toggleAcBulkSelect;
+window.updateAcBulkCount=updateAcBulkCount;
+window.acBulkSetStatus=acBulkSetStatus;
+window.acBulkDelete=acBulkDelete;
 
 /* ── INIT ── */
 loadSuppliers();
