@@ -815,7 +815,15 @@ async function loadSuppliers(){
       loadCatalog(first);
       renderSupDropdown();
     } else if (currentSupId) {
-      const s = allSuppliers.find(x => x['Supplier ID'] === currentSupId);
+      const s = allSuppliers.find(x => x['Supplier Name'] === name);
+      if (s) {
+        currentSupId = s['Supplier ID'];
+        document.getElementById('scSupFilterVal').textContent = s['Supplier Name'] || 'Unknown';
+        document.getElementById('scCatTitle').textContent = (s['Supplier Name'] || 'Supplier') + ' — Catalog';
+        renderSupplierCard(s);
+        loadCatalog(s);
+        renderSupDropdown();
+      }
       if (s) renderSupplierCard(s);
     }
   }catch(e){
@@ -828,6 +836,10 @@ async function loadSuppliers(){
 async function loadCatalog(supplier){
   const cc=document.getElementById('scCatContent');
   cc.innerHTML=`<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading catalog…</p></div>`;
+  bulkSelectMode = false;
+  selectedIds.clear();
+  document.getElementById('scSelectToggle').classList.remove('active');
+  document.getElementById('scBulkBar').style.display = 'none';
   try{
     const r=await api({action:'getCatalogBySupplier',supplierName:supplier['Supplier Name']||''});
     if(!r.success) throw new Error(r.message||'Failed');
@@ -1349,7 +1361,7 @@ let html = `<table class="sc-allcat-table">
     const ean = r['EAN'] || '';
     const cost = r['Cost'] || '';
     const status = r['Status'] || '';
-    const statusCls = status === 'Approved' ? 'green' : status === 'Rejected' ? 'red' : 'neutral';
+    const statusCls = status === 'Approved' ? 'approved' : status === 'Rejected' ? 'rejected' : '';
     const isNewGroup = ean && ean !== prevEan;
     prevEan = ean;
 
@@ -1390,8 +1402,12 @@ function confirmDeleteProd(id,name){
   document.getElementById('scConfirmOk').onclick=()=>doDeleteProd(id);
   document.getElementById('scConfirmOverlay').classList.add('open');
 }
-function closeConfirm(){document.getElementById('scConfirmOverlay').classList.remove('open');}
 
+function closeConfirm() {
+  document.getElementById('scConfirmOverlay').classList.remove('open');
+  document.getElementById('scConfirmOk').onclick = null; 
+}
+  
 /* ── BULK SELECT (supplier catalog) ── */
 function toggleBulkSelect(){
   bulkSelectMode=!bulkSelectMode; selectedIds.clear();
