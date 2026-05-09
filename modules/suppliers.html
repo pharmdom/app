@@ -587,8 +587,9 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbyUakRDM0bBv2QzdA_WO-xz
 
 /* ── STATE ── */
 let allSuppliers  = [];
-let catalogData   = [];
-let allCatalogData = [];
+let catalogData   = [];      // filtered view for current supplier
+let allCatalogData = [];     // all products, fetched once
+let catalogLoaded = false;   // flag so we only fetch once
 let currentSupId  = null;
 let dropdownOpen  = false;
 let editingSupId  = null;
@@ -828,48 +829,37 @@ async function loadSuppliers(){
 
 /* ── LOAD CATALOG ── */
 async function loadCatalog(supplier){
-  const cc=document.getElementById('scCatContent');
-  cc.innerHTML=`<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading catalog…</p></div>`;
+  const cc = document.getElementById('scCatContent');
   bulkSelectMode = false;
   selectedIds.clear();
   document.getElementById('scSelectToggle').classList.remove('active');
   document.getElementById('scBulkBar').style.display = 'none';
-  try{
-    const r=await api({action:'getCatalogBySupplier',supplierName:supplier['Supplier Name']||''});
-    if(!r.success) throw new Error(r.message||'Failed');
-    let rows=r.rows||[];
 
-    if(rows.length===0){
-      const r2=await api({action:'getCatalog'});
-      if(r2.success&&r2.rows){
-        rows=r2.rows.filter(row=>supplierNamesMatch(supplier['Supplier Name'],row['Supplier Name']||row['Supplier']||''));
-      }
-    } else {
-      try{
-        const r2=await api({action:'getCatalog'});
-        if(r2.success&&r2.rows){
-          const existingIds=new Set(rows.map(r=>String(r['ID']||'')));
-          const extra=r2.rows.filter(row=>{
-            if(existingIds.has(String(row['ID']||''))) return false;
-            return supplierNamesMatch(supplier['Supplier Name'],row['Supplier Name']||row['Supplier']||'');
-          });
-          rows=[...rows,...extra];
-        }
-      }catch(e2){}
+  if (!catalogLoaded) {
+    cc.innerHTML = `<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading catalog…</p></div>`;
+    try {
+      const r = await api({action: 'getCatalog'});
+      if (!r.success) throw new Error(r.message || 'Failed');
+      allCatalogData = r.rows || [];
+      catalogLoaded = true;
+    } catch(e) {
+      cc.innerHTML = `<div class="sc-state"><p>Failed to load catalog</p><span>${esc(e.message)}</span></div>`;
+      return;
     }
-
-    catalogData=rows;
-    populateCategoryFilter(catalogData);
-    renderCatalog();
-    const cnt=document.getElementById('scCatCount');
-    cnt.style.display='';
-    cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
-
-    // Load sourcing summaries
-    loadSourcingStats(supplier['Supplier Name']||'');
-  }catch(e){
-    cc.innerHTML=`<div class="sc-state"><p>Failed to load catalog</p><span>${esc(e.message)}</span></div>`;
   }
+
+  catalogData = allCatalogData.filter(row =>
+    supplierNamesMatch(supplier['Supplier Name'], row['Supplier Name'] || row['Supplier'] || '')
+  );
+
+  populateCategoryFilter(catalogData);
+  renderCatalog();
+
+  const cnt = document.getElementById('scCatCount');
+  cnt.style.display = '';
+  cnt.textContent = catalogData.length + ' product' + (catalogData.length !== 1 ? 's' : '');
+
+  loadSourcingStats(supplier['Supplier Name'] || '');
 }
 
 /* ── SOURCING STATS ── */
@@ -914,6 +904,7 @@ async function handleRefresh(){
   btn.classList.add('spinning');
   const tid=toast('Refreshing…','loading',0);
   try{
+    catalogLoaded = false; 
     await loadSuppliers();
     if(currentSupId){
       const s=allSuppliers.find(x=>x['Supplier ID']===currentSupId);
