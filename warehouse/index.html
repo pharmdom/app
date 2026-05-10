@@ -7,604 +7,129 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --sidebar-w: 256px;
-      --topbar-h: 64px;
-      --accent: #0d9488;
-      --accent-h: #14b8a6;
-      --accent-soft: rgba(13,148,136,0.12);
-      --accent-glow: rgba(13,148,136,0.28);
-      --bg: #f5f6fa;
-      --white: #ffffff;
-      --text-primary: #0d0f14;
-      --text-2: #374151;
-      --text-3: #6b7280;
-      --text-4: #9ca3af;
-      --border: #e5e7eb;
-      --radius: 12px;
-      --radius-sm: 8px;
-      --shadow: 0 1px 3px rgba(0,0,0,0.08);
-      --shadow-md: 0 4px 16px rgba(0,0,0,0.1);
+      --sidebar-w: 256px; --topbar-h: 64px;
+      --blue: #0d9488; --blue-h: #14b8a6;
+      --blue-soft: rgba(13,148,136,0.12); --blue-glow: rgba(13,148,136,0.28);
+      --bg: #f5f6fa; --white: #ffffff;
+      --text-primary: #0d0f14; --text-2: #374151; --text-3: #6b7280; --text-4: #9ca3af;
+      --border: #e5e7eb; --radius: 12px; --radius-sm: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08); --shadow-md: 0 4px 16px rgba(0,0,0,0.1);
       --success: #22c55e;
     }
-
     html, body { height: 100%; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text-primary); display: flex; height: 100vh; overflow: hidden; }
 
-    body {
-      font-family: 'Inter', system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--text-primary);
-      display: flex;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    /* ── SIDEBAR ── */
     .sidebar {
-      width: var(--sidebar-w);
-      min-width: var(--sidebar-w);
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      z-index: 20;
-      overflow: hidden;
+      width: var(--sidebar-w); min-width: var(--sidebar-w);
+      display: flex; flex-direction: column; position: relative; z-index: 20; overflow: hidden;
       background: linear-gradient(160deg, #0b1a1e 0%, #06100d 100%);
       transition: width 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1);
     }
+    .sidebar-orb-1 { position: absolute; width: 320px; height: 320px; background: radial-gradient(circle, rgba(13,148,136,0.22), transparent 70%); top: -100px; left: -100px; border-radius: 50%; pointer-events: none; filter: blur(40px); animation: orbDrift 18s ease-in-out infinite; }
+    .sidebar-orb-2 { position: absolute; width: 200px; height: 200px; background: radial-gradient(circle, rgba(16,185,129,0.15), transparent 70%); bottom: 60px; right: -60px; border-radius: 50%; pointer-events: none; filter: blur(50px); animation: orbDrift 22s ease-in-out infinite reverse; animation-delay: -8s; }
+    @keyframes orbDrift { 0%, 100% { transform: translate(0,0); } 33% { transform: translate(15px,-20px); } 66% { transform: translate(-10px,15px); } }
+    .sidebar-mesh { position: absolute; inset: 0; opacity: 0.25; background-image: linear-gradient(rgba(13,148,136,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(13,148,136,0.07) 1px, transparent 1px); background-size: 32px 32px; mask-image: radial-gradient(ellipse 90% 90% at 30% 40%, black 20%, transparent 80%); pointer-events: none; }
+    .sidebar::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(13,148,136,0.6), transparent); z-index: 3; }
+    .sidebar::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 1px; background: linear-gradient(180deg, transparent, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.06) 80%, transparent); z-index: 3; }
 
-    .sidebar-orb-1 {
-      position: absolute;
-      width: 320px; height: 320px;
-      background: radial-gradient(circle, rgba(13,148,136,0.22), transparent 70%);
-      top: -100px; left: -100px;
-      border-radius: 50%;
-      pointer-events: none;
-      filter: blur(40px);
-      animation: orbDrift 18s ease-in-out infinite;
-    }
-
-    .sidebar-orb-2 {
-      position: absolute;
-      width: 200px; height: 200px;
-      background: radial-gradient(circle, rgba(16,185,129,0.15), transparent 70%);
-      bottom: 60px; right: -60px;
-      border-radius: 50%;
-      pointer-events: none;
-      filter: blur(50px);
-      animation: orbDrift 22s ease-in-out infinite reverse;
-      animation-delay: -8s;
-    }
-
-    @keyframes orbDrift {
-      0%, 100% { transform: translate(0, 0); }
-      33% { transform: translate(15px, -20px); }
-      66% { transform: translate(-10px, 15px); }
-    }
-
-    .sidebar-mesh {
-      position: absolute;
-      inset: 0;
-      opacity: 0.25;
-      background-image:
-        linear-gradient(rgba(13,148,136,0.07) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(13,148,136,0.07) 1px, transparent 1px);
-      background-size: 32px 32px;
-      mask-image: radial-gradient(ellipse 90% 90% at 30% 40%, black 20%, transparent 80%);
-      pointer-events: none;
-    }
-
-    .sidebar::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(13,148,136,0.6), transparent);
-      z-index: 3;
-    }
-
-    .sidebar::after {
-      content: '';
-      position: absolute;
-      top: 0; right: 0; bottom: 0;
-      width: 1px;
-      background: linear-gradient(180deg, transparent, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.06) 80%, transparent);
-      z-index: 3;
-    }
-
-    .sidebar-header {
-      padding: 20px 16px 16px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      position: relative;
-      z-index: 2;
-    }
-
-    .sidebar-logo {
-      width: 32px; height: 32px;
-      object-fit: contain;
-      border-radius: 8px;
-      flex-shrink: 0;
-      filter: brightness(1.1);
-    }
-
-    .sidebar-brand-name {
-      font-size: 14px;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: -0.3px;
-      line-height: 1.2;
-    }
-
-    .sidebar-brand-sub {
-      font-size: 10px;
-      color: rgba(255,255,255,0.28);
-      letter-spacing: 0.7px;
-      text-transform: uppercase;
-      margin-top: 1px;
-    }
-
-    .sidebar-nav {
-      flex: 1;
-      overflow-y: auto;
-      padding: 12px 10px;
-      scrollbar-width: none;
-      position: relative;
-      z-index: 2;
-    }
-
+    .sidebar-header { padding: 20px 16px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 10px; position: relative; z-index: 2; }
+    .sidebar-logo { width: 32px; height: 32px; object-fit: contain; border-radius: 8px; flex-shrink: 0; filter: brightness(1.1); }
+    .sidebar-brand-name { font-size: 14px; font-weight: 700; color: #fff; letter-spacing: -0.3px; line-height: 1.2; }
+    .sidebar-brand-sub { font-size: 10px; color: rgba(255,255,255,0.28); letter-spacing: 0.7px; text-transform: uppercase; margin-top: 1px; }
+    .sidebar-nav { flex: 1; overflow-y: auto; padding: 12px 10px; scrollbar-width: none; position: relative; z-index: 2; }
     .sidebar-nav::-webkit-scrollbar { display: none; }
-
-    .nav-section-label {
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.2);
-      padding: 12px 8px 6px;
-    }
-
-    .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: all 0.18s ease;
-      color: rgba(255,255,255,0.48);
-      font-size: 13.5px;
-      font-weight: 500;
-      margin-bottom: 2px;
-      user-select: none;
-    }
-
-    .nav-item:hover {
-      background: rgba(255,255,255,0.06);
-      color: rgba(255,255,255,0.85);
-    }
-
-    .nav-item.active {
-      background: rgba(13,148,136,0.82);
-      color: #fff;
-      box-shadow: 0 2px 12px rgba(13,148,136,0.38);
-    }
-
-    /* Collapsed: group header highlights when its child is active */
-    .sidebar.collapsed .nav-group-header.active-group {
-      background: rgba(13,148,136,0.82);
-      color: #fff;
-      box-shadow: 0 2px 12px rgba(13,148,136,0.38);
-    }
+    .nav-section-label { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.2); padding: 12px 8px 6px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.18s ease; color: rgba(255,255,255,0.48); font-size: 13.5px; font-weight: 500; margin-bottom: 2px; user-select: none; }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
+    .nav-item.active { background: rgba(13,148,136,0.82); color: #fff; box-shadow: 0 2px 12px rgba(13,148,136,0.38); }
+    .sidebar.collapsed .nav-group-header.active-group { background: rgba(13,148,136,0.82); color: #fff; box-shadow: 0 2px 12px rgba(13,148,136,0.38); }
     .sidebar.collapsed .nav-group-header.active-group svg { opacity: 1; }
-
-    /* On hover (expanded), remove group highlight — child item takes over */
-    .sidebar.collapsed:hover .nav-group-header.active-group {
-      background: none;
-      color: rgba(255,255,255,0.48);
-      box-shadow: none;
-    }
+    .sidebar.collapsed:hover .nav-group-header.active-group { background: none; color: rgba(255,255,255,0.48); box-shadow: none; }
     .sidebar.collapsed:hover .nav-group-header.active-group svg { opacity: 0.65; }
-
     .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.65; transition: opacity 0.18s; }
     .nav-item:hover svg, .nav-item.active svg { opacity: 1; }
     .nav-item-label { flex: 1; }
-
-    /* Group */
-    .nav-group-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: all 0.18s ease;
-      color: rgba(255,255,255,0.48);
-      font-size: 13.5px;
-      font-weight: 500;
-      user-select: none;
-      margin-bottom: 2px;
-    }
-
+    .nav-group-header { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.18s ease; color: rgba(255,255,255,0.48); font-size: 13.5px; font-weight: 500; user-select: none; margin-bottom: 2px; }
     .nav-group-header:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
     .nav-group-header svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.65; }
     .nav-group-header:hover svg { opacity: 1; }
     .nav-group-label { flex: 1; }
-
-    .nav-chevron {
-      width: 14px !important; height: 14px !important;
-      opacity: 0.7 !important;
-      transition: transform 0.25s ease !important;
-    }
-
+    .nav-chevron { width: 14px !important; height: 14px !important; opacity: 0.7 !important; transition: transform 0.25s ease !important; }
     .nav-chevron.open { transform: rotate(90deg); opacity: 1 !important; }
-
-    .nav-children {
-      overflow: hidden;
-      max-height: 0;
-      transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1);
-      padding-left: 14px;
-    }
-
+    .nav-children { overflow: hidden; max-height: 0; transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1); padding-left: 14px; }
     .nav-children.open { max-height: 400px; }
 
-    /* ── COLLAPSED SIDEBAR ── */
     .sidebar.collapsed { width: 64px; min-width: 64px; }
-    .sidebar.collapsed .sidebar-brand-name,
-    .sidebar.collapsed .sidebar-brand-sub,
-    .sidebar.collapsed .nav-item-label,
-    .sidebar.collapsed .nav-group-label,
-    .sidebar.collapsed .nav-section-label,
-    .sidebar.collapsed .nav-chevron,
-    .sidebar.collapsed .sidebar-user-name,
-    .sidebar.collapsed .sidebar-user-role,
-    .sidebar.collapsed .nav-children { display: none; }
+    .sidebar.collapsed .sidebar-brand-name, .sidebar.collapsed .sidebar-brand-sub, .sidebar.collapsed .nav-item-label, .sidebar.collapsed .nav-group-label, .sidebar.collapsed .nav-section-label, .sidebar.collapsed .nav-chevron, .sidebar.collapsed .sidebar-user-name, .sidebar.collapsed .sidebar-user-role, .sidebar.collapsed .nav-children { display: none; }
     .sidebar.collapsed .sidebar-header { justify-content: center; padding: 20px 8px; }
-    .sidebar.collapsed .nav-item,
-    .sidebar.collapsed .nav-group-header { justify-content: center; padding: 10px 0; width: 100%; box-sizing: border-box; }
+    .sidebar.collapsed .nav-item, .sidebar.collapsed .nav-group-header { justify-content: center; padding: 10px 0; width: 100%; box-sizing: border-box; }
     .sidebar.collapsed .nav-group { width: 100%; }
     .sidebar.collapsed .sidebar-user-card { justify-content: center; padding: 10px; }
     .sidebar.collapsed .sidebar-nav { padding: 12px 0; }
-
-    /* Hover-to-expand in collapsed mode */
     .sidebar.collapsed:hover { width: var(--sidebar-w); }
-    .sidebar.collapsed:hover .sidebar-brand-name,
-    .sidebar.collapsed:hover .sidebar-brand-sub,
-    .sidebar.collapsed:hover .nav-item-label,
-    .sidebar.collapsed:hover .nav-group-label,
-    .sidebar.collapsed:hover .nav-section-label,
-    .sidebar.collapsed:hover .nav-chevron,
-    .sidebar.collapsed:hover .sidebar-user-name,
-    .sidebar.collapsed:hover .sidebar-user-role { display: block; }
-    .sidebar.collapsed:hover .nav-item,
-    .sidebar.collapsed:hover .nav-group-header { justify-content: flex-start; padding: 10px 12px; }
+    .sidebar.collapsed:hover .sidebar-brand-name, .sidebar.collapsed:hover .sidebar-brand-sub, .sidebar.collapsed:hover .nav-item-label, .sidebar.collapsed:hover .nav-group-label, .sidebar.collapsed:hover .nav-section-label, .sidebar.collapsed:hover .nav-chevron, .sidebar.collapsed:hover .sidebar-user-name, .sidebar.collapsed:hover .sidebar-user-role { display: block; }
+    .sidebar.collapsed:hover .nav-item, .sidebar.collapsed:hover .nav-group-header { justify-content: flex-start; padding: 10px 12px; }
     .sidebar.collapsed:hover .sidebar-header { justify-content: flex-start; padding: 20px 16px; }
     .sidebar.collapsed:hover .sidebar-user-card { justify-content: flex-start; padding: 10px 12px; }
     .sidebar.collapsed:hover .sidebar-nav { padding: 12px 10px; }
     .sidebar.collapsed:hover .nav-children.open { display: block; }
-
-    .sidebar-collapse-btn {
-      margin-left: auto;
-      width: 24px; height: 24px;
-      border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: rgba(255,255,255,0.05);
-      color: rgba(255,255,255,0.4);
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      transition: all 0.2s;
-    }
+    .sidebar-collapse-btn { margin-left: auto; width: 24px; height: 24px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.4); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
     .sidebar-collapse-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
     .sidebar.collapsed .sidebar-collapse-btn { display: none; }
 
-    /* Sidebar footer */
-    .sidebar-footer {
-      padding: 10px;
-      border-top: 1px solid rgba(255,255,255,0.06);
-      position: relative;
-      z-index: 2;
-    }
+    .sidebar-footer { padding: 10px; border-top: 1px solid rgba(255,255,255,0.06); position: relative; z-index: 2; }
+    .sidebar-user-card { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm); }
+    .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #0d9488 0%, #10b981 100%); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .sidebar-user-name { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar-user-role { font-size: 11px; color: rgba(255,255,255,0.22); margin-top: 1px; }
 
-    .sidebar-user-card {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: var(--radius-sm);
-    }
-
-    .sidebar-avatar {
-      width: 30px; height: 30px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent) 0%, #10b981 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 700;
-      color: #fff;
-      flex-shrink: 0;
-    }
-
-    .sidebar-user-name {
-      font-size: 13px;
-      font-weight: 600;
-      color: rgba(255,255,255,0.65);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .sidebar-user-role {
-      font-size: 11px;
-      color: rgba(255,255,255,0.22);
-      margin-top: 1px;
-    }
-
-    /* ── MAIN ── */
     .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
-
-    /* ── TOPBAR ── */
-    .topbar {
-      height: var(--topbar-h);
-      background: var(--white);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 28px;
-      flex-shrink: 0;
-      box-shadow: var(--shadow);
-      z-index: 10;
-      position: relative;
-    }
-
+    .topbar { height: var(--topbar-h); background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 28px; flex-shrink: 0; box-shadow: var(--shadow); z-index: 10; position: relative; }
     .topbar-left { display: flex; align-items: center; gap: 12px; }
-
-    .page-title {
-      font-size: 16px;
-      font-weight: 600;
-      letter-spacing: -0.3px;
-      color: var(--text-primary);
-    }
-
-    .breadcrumb {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: var(--text-4);
-      margin-top: 2px;
-    }
-
-    .breadcrumb span { color: var(--text-3); }
-    .breadcrumb svg { width: 12px; height: 12px; }
-
+    .page-title { font-size: 16px; font-weight: 600; letter-spacing: -0.3px; color: var(--text-primary); }
+    .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-4); margin-top: 2px; }
+    .breadcrumb span { color: var(--text-3); } .breadcrumb svg { width: 12px; height: 12px; }
     .topbar-right { display: flex; align-items: center; gap: 8px; }
-
-    .topbar-btn {
-      width: 36px; height: 36px;
-      border-radius: var(--radius-sm);
-      background: none;
-      border: 1px solid var(--border);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-3);
-      transition: all 0.2s ease;
-      position: relative;
-    }
-
+    .topbar-btn { width: 36px; height: 36px; border-radius: var(--radius-sm); background: none; border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-3); transition: all 0.2s ease; position: relative; }
     .topbar-btn:hover { background: var(--bg); border-color: #d1d5db; color: var(--text-2); }
     .topbar-btn svg { width: 16px; height: 16px; }
-
-    .notif-dot {
-      position: absolute;
-      top: 7px; right: 7px;
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: var(--accent);
-      border: 2px solid var(--white);
-    }
-
+    .notif-dot { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--blue); border: 2px solid var(--white); }
     .user-menu-wrap { position: relative; }
-
-    .topbar-user {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 5px 12px 5px 5px;
-      border-radius: 100px;
-      border: 1px solid var(--border);
-      cursor: pointer;
-      transition: all 0.2s ease;
-      background: var(--white);
-      user-select: none;
-    }
-
+    .topbar-user { display: flex; align-items: center; gap: 8px; padding: 5px 12px 5px 5px; border-radius: 100px; border: 1px solid var(--border); cursor: pointer; transition: all 0.2s ease; background: var(--white); user-select: none; }
     .topbar-user:hover { border-color: #d1d5db; background: var(--bg); }
-
-    .topbar-avatar {
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent) 0%, #10b981 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 700;
-      color: #fff;
-    }
-
+    .topbar-avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #0d9488 0%, #10b981 100%); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
     .topbar-user-name { font-size: 13px; font-weight: 500; color: var(--text-2); }
-
-    .topbar-chevron {
-      width: 14px; height: 14px;
-      color: var(--text-4);
-      transition: transform 0.25s ease;
-    }
-
+    .topbar-chevron { width: 14px; height: 14px; color: var(--text-4); transition: transform 0.25s ease; }
     .topbar-user.open .topbar-chevron { transform: rotate(180deg); }
-
-    /* ── DROPDOWN ── */
-    .user-dropdown {
-      position: absolute;
-      top: calc(100% + 10px);
-      right: 0;
-      width: 230px;
-      background: var(--white);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-md);
-      z-index: 9999;
-      overflow: hidden;
-      opacity: 0;
-      transform: translateY(-8px) scale(0.97);
-      pointer-events: none;
-      transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
-      transform-origin: top right;
-    }
-
-    .user-dropdown.open {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      pointer-events: auto;
-    }
-
-    .dropdown-header {
-      padding: 14px 16px 12px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .dropdown-avatar-lg {
-      width: 36px; height: 36px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent) 0%, #10b981 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 700;
-      color: #fff;
-      flex-shrink: 0;
-    }
-
-    .dropdown-name {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .dropdown-role {
-      font-size: 11px;
-      color: var(--text-4);
-      margin-top: 2px;
-    }
-
+    .user-dropdown { position: absolute; top: calc(100% + 10px); right: 0; width: 230px; background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); z-index: 999; overflow: hidden; opacity: 0; transform: translateY(-8px) scale(0.97); pointer-events: none; transition: all 0.2s cubic-bezier(0.16,1,0.3,1); transform-origin: top right; }
+    .user-dropdown.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+    .dropdown-header { padding: 14px 16px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .dropdown-avatar-lg { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #0d9488 0%, #10b981 100%); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .dropdown-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .dropdown-role { font-size: 11px; color: var(--text-4); margin-top: 2px; }
     .dropdown-body { padding: 6px; }
-
-    .dropdown-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 9px 10px;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-2);
-      transition: all 0.15s ease;
-    }
-
+    .dropdown-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-2); transition: all 0.15s ease; }
     .dropdown-item:hover { background: var(--bg); color: var(--text-primary); }
     .dropdown-item svg { width: 15px; height: 15px; color: var(--text-4); flex-shrink: 0; }
     .dropdown-item:hover svg { color: var(--text-2); }
-
     .dropdown-divider { height: 1px; background: var(--border); margin: 4px 6px; }
-
-    .dropdown-item.danger { color: #dc2626; }
-    .dropdown-item.danger:hover { background: #fef2f2; color: #b91c1c; }
-    .dropdown-item.danger svg { color: #dc2626; }
-
-    /* ── CONTENT ── */
+    .dropdown-item.danger { color: #dc2626; } .dropdown-item.danger:hover { background: #fef2f2; color: #b91c1c; } .dropdown-item.danger svg { color: #dc2626; }
     .content-wrap { flex: 1; overflow-y: auto; position: relative; }
-
-    .content {
-      padding: 15px;
-      min-height: 100%;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
-
+    .content { padding: 15px; min-height: 100%; opacity: 0; transition: opacity 0.3s ease; }
     .content.show { opacity: 1; }
-
-    @media (max-width: 480px) {
-      .content { padding: 10px; }
-      .topbar { padding: 0 16px; }
-    }
-
-    .page-loader {
-      position: absolute;
-      inset: 0;
-      background: var(--bg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 5;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s ease;
-    }
-
+    @media (max-width: 480px) { .content { padding: 10px; } .topbar { padding: 0 16px; } }
+    .page-loader { position: absolute; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 5; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
     .page-loader.active { opacity: 1; pointer-events: auto; }
-
     .loader-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-
-    .loader-ring {
-      width: 36px; height: 36px;
-      border: 3px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
-
+    .loader-ring { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; }
     .loader-text { font-size: 13px; color: var(--text-4); font-weight: 500; }
-
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Mobile */
-    .sidebar-toggle {
-      display: none;
-      width: 36px; height: 36px;
-      border-radius: var(--radius-sm);
-      background: none;
-      border: 1px solid var(--border);
-      cursor: pointer;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-3);
-    }
-
+    .sidebar-toggle { display: none; width: 36px; height: 36px; border-radius: var(--radius-sm); background: none; border: 1px solid var(--border); cursor: pointer; align-items: center; justify-content: center; color: var(--text-3); }
     .sidebar-toggle svg { width: 16px; height: 16px; }
-
-    .sidebar-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 40;
-    }
-
+    .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
     @media (max-width: 768px) {
       .sidebar { position: fixed; top: 0; left: 0; bottom: 0; transform: translateX(-100%); z-index: 50; }
       .sidebar.open { transform: translateX(0); }
@@ -615,24 +140,17 @@
     }
   </style>
 </head>
-
 <body>
-
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
-
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-orb-1"></div>
-    <div class="sidebar-orb-2"></div>
-    <div class="sidebar-mesh"></div>
+    <div class="sidebar-orb-1"></div><div class="sidebar-orb-2"></div><div class="sidebar-mesh"></div>
   </aside>
 
   <div class="main">
     <header class="topbar">
       <div class="topbar-left">
         <button class="sidebar-toggle" onclick="toggleSidebar()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-          </svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
         <div>
           <div class="page-title" id="pageTitle">Overview</div>
@@ -643,48 +161,37 @@
           </div>
         </div>
       </div>
-
       <div class="topbar-right">
         <button class="topbar-btn" title="Notifications">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-          </svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <div class="notif-dot"></div>
         </button>
-
         <div class="user-menu-wrap">
           <div class="topbar-user" id="topbarUser" onclick="toggleDropdown()">
-            <div class="topbar-avatar" id="topbarAvatar">WH</div>
+            <div class="topbar-avatar" id="topbarAvatar">DO</div>
             <span class="topbar-user-name" id="topbarName">Warehouse</span>
-            <svg class="topbar-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
+            <svg class="topbar-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
-
           <div class="user-dropdown" id="userDropdown">
             <div class="dropdown-header">
-              <div class="dropdown-avatar-lg" id="dropdownAvatar">WH</div>
+              <div class="dropdown-avatar-lg" id="dropdownAvatar">DO</div>
               <div>
                 <div class="dropdown-name" id="dropdownName">Warehouse User</div>
                 <div class="dropdown-role">Warehouse</div>
               </div>
             </div>
             <div class="dropdown-body">
+              <div class="dropdown-item" onclick="loadPageFromDropdown('users')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Team Management
+              </div>
               <div class="dropdown-item" onclick="loadPageFromDropdown('settings')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                </svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                 Settings
               </div>
               <div class="dropdown-divider"></div>
               <div class="dropdown-item danger" onclick="logout()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                  <polyline points="16 17 21 12 16 7"/>
-                  <line x1="21" y1="12" x2="9" y2="12"/>
-                </svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 Sign out
               </div>
             </div>
@@ -692,27 +199,19 @@
         </div>
       </div>
     </header>
-
     <div class="content-wrap">
-      <div class="page-loader" id="pageLoader">
-        <div class="loader-wrap">
-          <div class="loader-ring"></div>
-          <div class="loader-text">Loading…</div>
-        </div>
-      </div>
+      <div class="page-loader" id="pageLoader"><div class="loader-wrap"><div class="loader-ring"></div><div class="loader-text">Loading…</div></div></div>
       <div class="content" id="content"></div>
     </div>
   </div>
 
   <script>
-    /* ── AUTH ── */
     window.API_URL = "https://script.google.com/macros/s/AKfycbxN7boYXLeNiwUj63BH1XOd-MhNRaAc0LIxoTuQK2ml-GCkePbPV2iCKceFGVjDxh26/exec";
     const user = JSON.parse(sessionStorage.getItem("user"));
     if (!user || user.role !== "Warehouse") window.location.href = "../login";
 
-    const fullName = ((user.firstName || "") + " " + (user.lastName || "")).trim() || "Warehouse";
+    const fullName = ((user.firstName || "") + " " + (user.lastName || "")).trim() || "Digital Ops";
     const initials = ((user.firstName || "?")[0] + (user.lastName || "?")[0]).toUpperCase();
-
     document.getElementById("topbarName").textContent = fullName;
     document.getElementById("topbarAvatar").textContent = initials;
     document.getElementById("dropdownAvatar").textContent = initials;
@@ -720,140 +219,118 @@
 
     function hasPermission(p) { return user.permissions && user.permissions.includes(p); }
 
-    /* ── NAV CONFIG ── */
     const pages = {
-      overview: { title: "Overview", section: "Warehouse", file: "overview.html" },
-      settings: { title: "Settings", section: "Warehouse", file: "settings.html" }
+      overview: { title: "Overview",        section: "Warehouse", file: "overview.html" },
+      users:    { title: "Team Management", section: "Warehouse", file: "users.html" },
+      settings: { title: "Settings",        section: "Warehouse", file: "settings.html" }
     };
 
     const modules = {
-      sourcing:       { navTitle: "Sourcing",          pageTitle: "Sourcing",           section: "Modules", permission: "sourcing",        file: "../modules/sourcing.html",        parent: "products" },
-      listing:        { navTitle: "Listing & Veeqo",   pageTitle: "Listing & Veeqo",    section: "Modules", permission: "listing",         file: "../modules/listing.html",         parent: "products" },
-      suppliers:      { navTitle: "Suppliers",          pageTitle: "Suppliers",           section: "Modules", permission: "suppliers",       file: "../modules/suppliers.html",       parent: "suppliers" },
-      fba:            { navTitle: "FBA",                pageTitle: "FBA (Warehouse)",     section: "Modules", permission: "fba",            file: "../modules/fba.html",             parent: "warehouse" },
-      deliverychecks: { navTitle: "Delivery Checks",    pageTitle: "Delivery Checks",     section: "Modules", permission: "deliverychecks", file: "../modules/deliverychecks.html",  parent: "warehouse" },
-      packagingfault: { navTitle: "Packaging Faults",   pageTitle: "Packaging Faults",    section: "Modules", permission: "packagingfault", file: "../modules/packagingfault.html",  parent: "warehouse" },
-      invoices:       { navTitle: "Invoices",           pageTitle: "Invoices",            section: "Modules", permission: "invoices",       file: "../modules/invoices.html",        parent: "invoices" },
-      rota:           { navTitle: "Rota",               pageTitle: "Rota",                section: "Modules", permission: "rota",           file: "../modules/rota.html",            parent: "rota" },
-      paycheck:       { navTitle: "Paycheck",           pageTitle: "Rota - Paycheck",     section: "Modules", permission: "paycheck",       file: "../modules/paycheck.html",        parent: "rota" },
-      intelligence:   { navTitle: "Intelligence",       pageTitle: "Rota - Intelligence", section: "Modules", permission: "intelligence",   file: "../modules/intelligence.html",    parent: "rota" },
+      sourcing:         { navTitle: "Sourcing",          pageTitle: "Sourcing",           section: "Modules", permission: "sourcing",        file: "../modules/sourcing.html",        parent: "products" },
+      listing:          { navTitle: "Listing & Veeqo",   pageTitle: "Listing & Veeqo",    section: "Modules", permission: "listing",         file: "../modules/listing.html",         parent: "products" },
+      fbaoppurtunities: { navTitle: "FBA Oppurtunities", pageTitle: "FBA Oppurtunities",  section: "Modules", permission: "fbaoppurtunities",file: "../modules/fbaoppurtunities.html",parent: "products" },
+      planner:          { navTitle: "Planner",           pageTitle: "Planner",            section: "Modules", permission: "planner",         file: "../modules/planner.html",         parent: "products", highlight: "sourcing" },
+      suppliers:        { navTitle: "Suppliers",         pageTitle: "Suppliers",          section: "Modules", permission: "suppliers",       file: "../modules/suppliers.html",       parent: "procurement" },
+      offers:           { navTitle: "Offers",            pageTitle: "Offers",             section: "Modules", permission: "offers",          file: "../modules/offers.html",          parent: "procurement" },
+      fba:              { navTitle: "FBA",               pageTitle: "FBA (Warehouse)",    section: "Modules", permission: "fba",            file: "../modules/fba.html",             parent: "warehouse" },
+      inventory:        { navTitle: "Inventory",         pageTitle: "Inventory",          section: "Modules", permission: "inventory",      file: "../modules/inventory.html",       parent: "warehouse" },
+      deliverychecks:   { navTitle: "Delivery Checks",   pageTitle: "Delivery Checks",    section: "Modules", permission: "deliverychecks", file: "../modules/deliverychecks.html",  parent: "warehouse" },
+      packagingfault:   { navTitle: "Packaging Faults",  pageTitle: "Packaging Faults",   section: "Modules", permission: "packagingfault", file: "../modules/packagingfault.html",  parent: "warehouse" },
+      invoices:         { navTitle: "Invoices",          pageTitle: "Invoices",           section: "Modules", permission: "invoices",       file: "../modules/invoices.html",        parent: "invoices" },
+      rota:             { navTitle: "Rota",              pageTitle: "Rota",               section: "Modules", permission: "rota",           file: "../modules/rota.html",            parent: "rota" },
+      paycheck:         { navTitle: "Paycheck",          pageTitle: "Rota — Paycheck",    section: "Modules", permission: "paycheck",       file: "../modules/paycheck.html",        parent: "rota" },
+      intelligence:     { navTitle: "Intelligence",      pageTitle: "Rota — Intelligence",section: "Modules", permission: "intelligence",   file: "../modules/intelligence.html",    parent: "rota" },
     };
 
-    /* ── ICONS ── */
     const ic = {
-      overview:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
-      products:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
-      sourcing:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
-      listing:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
-      suppliers:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
-      warehouse:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
-      fba:            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
-      deliverychecks: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
-      packagingfault: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/><line x1="12" y1="9" x2="12" y2="11"/><line x1="12" y1="13" x2="12.01" y2="13"/></svg>`,
-      invoices:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
-      rota:           `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
-      paycheck:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
-      intelligence:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
-      chevron:        `<svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`,
+      overview:         `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
+      products:         `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+      sourcing:         `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+      listing:          `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
+      fbaoppurtunities: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
+      planner:          `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>`,
+      procurement:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
+      suppliers:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+      offers:           `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`,
+      warehouse:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+      fba:              `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
+      inventory:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
+      deliverychecks:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+      packagingfault:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/><line x1="12" y1="9" x2="12" y2="11"/><line x1="12" y1="13" x2="12.01" y2="13"/></svg>`,
+      invoices:         `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
+      rota:             `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+      paycheck:         `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
+      intelligence:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+      chevron:          `<svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`,
     };
 
-    /* ── SIDEBAR BUILD ── */
     function buildSidebar() {
       const s = document.getElementById("sidebar");
-
       s.insertAdjacentHTML("beforeend", `
         <div class="sidebar-header">
           <img class="sidebar-logo" src="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png" alt="Logo">
-          <div>
-            <div class="sidebar-brand-name">Pharm &amp; Dom</div>
-          </div>
-          <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" onclick="toggleCollapse()" title="Toggle sidebar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
+          <div><div class="sidebar-brand-name">Pharm &amp; Dom</div></div>
+          <button class="sidebar-collapse-btn" onclick="toggleCollapse()" title="Toggle sidebar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
         </div>
         <nav class="sidebar-nav" id="sidebarNav"></nav>
         <div class="sidebar-footer">
           <div class="sidebar-user-card">
             <div class="sidebar-avatar">${initials}</div>
-            <div>
-              <div class="sidebar-user-name">${fullName}</div>
-              <div class="sidebar-user-role">Warehouse</div>
-            </div>
+            <div><div class="sidebar-user-name">${fullName}</div><div class="sidebar-user-role">Warehouse</div></div>
           </div>
         </div>
       `);
 
       const nav = document.getElementById("sidebarNav");
       let html = `<div class="nav-section-label">Warehouse</div>`;
-
-      html += `
-        <div class="nav-item" id="nav-overview" onclick="loadPage('overview')">
-          ${ic.overview}
-          <span class="nav-item-label">Overview</span>
-        </div>`;
+      html += `<div class="nav-item" id="nav-overview" onclick="loadPage('overview')">${ic.overview}<span class="nav-item-label">Overview</span></div>`;
 
       const perms = {
-        sourcing:       hasPermission("sourcing"),
-        listing:        hasPermission("listing"),
-        suppliers:      hasPermission("suppliers"),
-        fba:            hasPermission("fba"),
-        deliverychecks: hasPermission("deliverychecks"),
-        packagingfault: hasPermission("packagingfault"),
-        invoices:       hasPermission("invoices"),
-        rota:           hasPermission("rota"),
-        paycheck:       hasPermission("paycheck"),
-        intelligence:   hasPermission("intelligence"),
+        sourcing: hasPermission("sourcing"), listing: hasPermission("listing"),
+        fbaoppurtunities: hasPermission("fbaoppurtunities"), planner: hasPermission("planner"),
+        suppliers: hasPermission("suppliers"), offers: hasPermission("offers"),
+        fba: hasPermission("fba"), inventory: hasPermission("inventory"),
+        deliverychecks: hasPermission("deliverychecks"), packagingfault: hasPermission("packagingfault"),
+        invoices: hasPermission("invoices"), rota: hasPermission("rota"),
+        paycheck: hasPermission("paycheck"), intelligence: hasPermission("intelligence"),
       };
 
-      const hasAnyModule = Object.values(perms).some(Boolean);
-
-      if (hasAnyModule) {
+      if (Object.values(perms).some(Boolean)) {
         html += `<div class="nav-section-label">Modules</div>`;
 
-        // ── PRODUCTS GROUP ──
-        if (perms.sourcing || perms.listing) {
+        if (perms.sourcing || perms.listing || perms.fbaoppurtunities || perms.planner) {
           html += navGroup("products", "Products", ic.products, [
-            perms.sourcing ? navItem("sourcing", ic.sourcing, modules.sourcing.navTitle) : "",
-            perms.listing  ? navItem("listing",  ic.listing,  modules.listing.navTitle)  : "",
+            perms.sourcing         ? navItem("sourcing",         ic.sourcing,         modules.sourcing.navTitle)         : "",
+            perms.listing          ? navItem("listing",          ic.listing,          modules.listing.navTitle)          : "",
+            perms.fbaoppurtunities ? navItem("fbaoppurtunities", ic.fbaoppurtunities, modules.fbaoppurtunities.navTitle) : "",
+            perms.planner          ? navItem("planner",          ic.planner,          modules.planner.navTitle)          : "",
           ]);
         }
 
-        // ── SUPPLIERS (standalone) ──
-        if (perms.suppliers) {
-          html += `
-            <div class="nav-item" id="nav-suppliers" onclick="loadModule('suppliers')">
-              ${ic.suppliers}
-              <span class="nav-item-label">${modules.suppliers.navTitle}</span>
-            </div>`;
+        if (perms.suppliers || perms.offers) {
+          html += navGroup("procurement", "Procurement", ic.procurement, [
+            perms.offers    ? navItem("offers",    ic.offers,    modules.offers.navTitle)    : "",
+            perms.suppliers ? navItem("suppliers", ic.suppliers, modules.suppliers.navTitle) : "",
+          ]);
         }
 
-        // ── WAREHOUSE GROUP ──
-        if (perms.fba || perms.deliverychecks || perms.packagingfault) {
+        if (perms.fba || perms.inventory || perms.deliverychecks || perms.packagingfault) {
           html += navGroup("warehouse", "Warehouse", ic.warehouse, [
             perms.fba            ? navItem("fba",            ic.fba,            modules.fba.navTitle)            : "",
+            perms.inventory      ? navItem("inventory",      ic.inventory,      modules.inventory.navTitle)      : "",
             perms.deliverychecks ? navItem("deliverychecks", ic.deliverychecks, modules.deliverychecks.navTitle) : "",
             perms.packagingfault ? navItem("packagingfault", ic.packagingfault, modules.packagingfault.navTitle) : "",
           ]);
         }
 
-        // ── INVOICES (standalone) ──
         if (perms.invoices) {
-          html += `
-            <div class="nav-item" id="nav-invoices" onclick="loadModule('invoices')">
-              ${ic.invoices}
-              <span class="nav-item-label">${modules.invoices.navTitle}</span>
-            </div>`;
+          html += `<div class="nav-item" id="nav-invoices" onclick="loadModule('invoices')">${ic.invoices}<span class="nav-item-label">${modules.invoices.navTitle}</span></div>`;
         }
 
-        // ── ROTA (standalone) ──
         if (perms.rota || perms.paycheck || perms.intelligence) {
-          html += `
-            <div class="nav-item" id="nav-rota" onclick="loadModule('rota')">
-              ${ic.rota}
-              <span class="nav-item-label">${modules.rota.navTitle}</span>
-            </div>`;
+          html += `<div class="nav-item" id="nav-rota" onclick="loadModule('rota')">${ic.rota}<span class="nav-item-label">${modules.rota.navTitle}</span></div>`;
         }
       }
 
@@ -861,34 +338,23 @@
     }
 
     function navGroup(id, label, icon, childrenHtml) {
-      return `
-        <div class="nav-group">
-          <div class="nav-group-header" onclick="toggleGroup('${id}')" id="group-header-${id}">
-            ${icon}
-            <span class="nav-group-label">${label}</span>
-            <span id="chevron-${id}">${ic.chevron}</span>
-          </div>
-          <div class="nav-children" id="children-${id}">
-            ${childrenHtml.join("")}
-          </div>
-        </div>`;
+      return `<div class="nav-group">
+        <div class="nav-group-header" onclick="toggleGroup('${id}')" id="group-header-${id}">
+          ${icon}<span class="nav-group-label">${label}</span><span id="chevron-${id}">${ic.chevron}</span>
+        </div>
+        <div class="nav-children" id="children-${id}">${childrenHtml.join("")}</div>
+      </div>`;
     }
 
     function navItem(key, icon, label) {
-      return `
-        <div class="nav-item" id="nav-${key}" onclick="loadModule('${key}')">
-          ${icon}
-          <span class="nav-item-label">${label}</span>
-        </div>`;
+      return `<div class="nav-item" id="nav-${key}" onclick="loadModule('${key}')">${icon}<span class="nav-item-label">${label}</span></div>`;
     }
 
-    /* ── GROUP TOGGLE — closes others first (same as admin) ── */
     function toggleGroup(id) {
       const children = document.getElementById(`children-${id}`);
       const chevron  = document.getElementById(`chevron-${id}`)?.querySelector(".nav-chevron");
       if (!children) return;
       const isOpen = children.classList.contains("open");
-      // Close all other groups first
       document.querySelectorAll(".nav-children.open").forEach(el => {
         if (el.id !== `children-${id}`) {
           el.classList.remove("open");
@@ -912,26 +378,22 @@
       document.querySelectorAll(".nav-chevron.open").forEach(el => el.classList.remove("open"));
     }
 
-    /* ── ACTIVE NAV (same two-param signature as admin) ── */
     function setActiveNav(navId, groupId) {
       document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
       document.querySelectorAll(".nav-group-header").forEach(el => el.classList.remove("active-group"));
-
       let el = document.getElementById(navId);
       if (!el && groupId) el = document.getElementById(`nav-${groupId}`);
       if (el) el.classList.add("active");
-
       if (groupId) {
         const header = document.getElementById(`group-header-${groupId}`);
         if (header) header.classList.add("active-group");
       }
     }
 
-    /* ── DROPDOWN ── */
     function toggleDropdown() {
-      const trigger  = document.getElementById("topbarUser");
+      const trigger = document.getElementById("topbarUser");
       const dropdown = document.getElementById("userDropdown");
-      const isOpen   = dropdown.classList.contains("open");
+      const isOpen = dropdown.classList.contains("open");
       dropdown.classList.toggle("open", !isOpen);
       trigger.classList.toggle("open", !isOpen);
     }
@@ -950,7 +412,6 @@
       }
     });
 
-    /* ── PAGE LOADING ── */
     let currentKey = null;
 
     async function loadPage(key) {
@@ -968,14 +429,11 @@
       if (!mod || !hasPermission(mod.permission)) return;
       if (currentKey === key) return;
       currentKey = key;
-
       const groupId = mod.parent;
       closeAllGroups();
-      if (groupId && document.getElementById(`children-${groupId}`)) {
-        openGroup(groupId);
-      }
-
-      setActiveNav(`nav-${key}`, groupId);
+      if (groupId && document.getElementById(`children-${groupId}`)) openGroup(groupId);
+      const highlightKey = mod.highlight || key;
+      setActiveNav(`nav-${highlightKey}`, groupId);
       updateHeader(mod.pageTitle);
       await fetchAndRender(mod.file);
       closeSidebar();
@@ -984,12 +442,12 @@
     window.loadModule = loadModule;
 
     async function fetchAndRender(file) {
-      const loader  = document.getElementById("pageLoader");
+      const loader = document.getElementById("pageLoader");
       const content = document.getElementById("content");
       content.classList.remove("show");
       loader.classList.add("active");
       try {
-        const res  = await fetch(file);
+        const res = await fetch(file);
         const html = await res.text();
         await new Promise(r => setTimeout(r, 180));
         content.innerHTML = html;
@@ -1013,27 +471,11 @@
       document.getElementById("breadcrumbPage").textContent = title;
     }
 
-    /* ── MOBILE ── */
-    function toggleSidebar() {
-      document.getElementById("sidebar").classList.toggle("open");
-      document.getElementById("sidebarOverlay").classList.toggle("active");
-    }
+    function toggleSidebar() { document.getElementById("sidebar").classList.toggle("open"); document.getElementById("sidebarOverlay").classList.toggle("active"); }
+    function closeSidebar() { document.getElementById("sidebar").classList.remove("open"); document.getElementById("sidebarOverlay").classList.remove("active"); }
+    function toggleCollapse() { document.getElementById("sidebar").classList.toggle("collapsed"); }
+    function logout() { sessionStorage.removeItem("user"); window.location.href = "../login"; }
 
-    function closeSidebar() {
-      document.getElementById("sidebar").classList.remove("open");
-      document.getElementById("sidebarOverlay").classList.remove("active");
-    }
-
-    function toggleCollapse() {
-      document.getElementById("sidebar").classList.toggle("collapsed");
-    }
-
-    function logout() {
-      sessionStorage.removeItem("user");
-      window.location.href = "../login";
-    }
-
-    /* ── INIT ── */
     buildSidebar();
     loadPage("overview");
   </script>
