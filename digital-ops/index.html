@@ -4,9 +4,9 @@
   <title>Digital Ops | Pharm & Dom</title>
   <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="preconnect" href__="https://fonts.googleapis.com">
-  <link rel="preconnect" href__="https://fonts.gstatic.com" crossorigin>
-  <link href__="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -51,9 +51,9 @@
       flex-direction: column;
       position: relative;
       z-index: 20;
-      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
       overflow: hidden;
       background: linear-gradient(160deg, #130b1e 0%, #0a0612 100%);
+      transition: width 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1);
     }
 
     .sidebar-orb-1 {
@@ -195,10 +195,27 @@
       box-shadow: 0 2px 12px rgba(124,58,237,0.38);
     }
 
+    /* Collapsed: group header highlights when its child is active */
+    .sidebar.collapsed .nav-group-header.active-group {
+      background: rgba(124,58,237,0.82);
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(124,58,237,0.38);
+    }
+    .sidebar.collapsed .nav-group-header.active-group svg { opacity: 1; }
+
+    /* On hover (expanded), remove group highlight — child item takes over */
+    .sidebar.collapsed:hover .nav-group-header.active-group {
+      background: none;
+      color: rgba(255,255,255,0.48);
+      box-shadow: none;
+    }
+    .sidebar.collapsed:hover .nav-group-header.active-group svg { opacity: 0.65; }
+
     .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.65; transition: opacity 0.18s; }
     .nav-item:hover svg, .nav-item.active svg { opacity: 1; }
     .nav-item-label { flex: 1; }
 
+    /* Group */
     .nav-group-header {
       display: flex;
       align-items: center;
@@ -211,6 +228,7 @@
       font-size: 13.5px;
       font-weight: 500;
       user-select: none;
+      margin-bottom: 2px;
     }
 
     .nav-group-header:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
@@ -235,6 +253,57 @@
 
     .nav-children.open { max-height: 400px; }
 
+    /* ── COLLAPSED SIDEBAR ── */
+    .sidebar.collapsed { width: 64px; min-width: 64px; }
+    .sidebar.collapsed .sidebar-brand-name,
+    .sidebar.collapsed .sidebar-brand-sub,
+    .sidebar.collapsed .nav-item-label,
+    .sidebar.collapsed .nav-group-label,
+    .sidebar.collapsed .nav-section-label,
+    .sidebar.collapsed .nav-chevron,
+    .sidebar.collapsed .sidebar-user-name,
+    .sidebar.collapsed .sidebar-user-role,
+    .sidebar.collapsed .nav-children { display: none; }
+    .sidebar.collapsed .sidebar-header { justify-content: center; padding: 20px 8px; }
+    .sidebar.collapsed .nav-item,
+    .sidebar.collapsed .nav-group-header { justify-content: center; padding: 10px 0; width: 100%; box-sizing: border-box; }
+    .sidebar.collapsed .nav-group { width: 100%; }
+    .sidebar.collapsed .sidebar-user-card { justify-content: center; padding: 10px; }
+    .sidebar.collapsed .sidebar-nav { padding: 12px 0; }
+
+    /* Hover-to-expand in collapsed mode */
+    .sidebar.collapsed:hover { width: var(--sidebar-w); }
+    .sidebar.collapsed:hover .sidebar-brand-name,
+    .sidebar.collapsed:hover .sidebar-brand-sub,
+    .sidebar.collapsed:hover .nav-item-label,
+    .sidebar.collapsed:hover .nav-group-label,
+    .sidebar.collapsed:hover .nav-section-label,
+    .sidebar.collapsed:hover .nav-chevron,
+    .sidebar.collapsed:hover .sidebar-user-name,
+    .sidebar.collapsed:hover .sidebar-user-role { display: block; }
+    .sidebar.collapsed:hover .nav-item,
+    .sidebar.collapsed:hover .nav-group-header { justify-content: flex-start; padding: 10px 12px; }
+    .sidebar.collapsed:hover .sidebar-header { justify-content: flex-start; padding: 20px 16px; }
+    .sidebar.collapsed:hover .sidebar-user-card { justify-content: flex-start; padding: 10px 12px; }
+    .sidebar.collapsed:hover .sidebar-nav { padding: 12px 10px; }
+    .sidebar.collapsed:hover .nav-children.open { display: block; }
+
+    .sidebar-collapse-btn {
+      margin-left: auto;
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.05);
+      color: rgba(255,255,255,0.4);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .sidebar-collapse-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    .sidebar.collapsed .sidebar-collapse-btn { display: none; }
+
+    /* Sidebar footer */
     .sidebar-footer {
       padding: 10px;
       border-top: 1px solid rgba(255,255,255,0.06);
@@ -476,8 +545,13 @@
       opacity: 0;
       transition: opacity 0.3s ease;
     }
-    
+
     .content.show { opacity: 1; }
+
+    @media (max-width: 480px) {
+      .content { padding: 10px; }
+      .topbar { padding: 0 16px; }
+    }
 
     .page-loader {
       position: absolute;
@@ -536,74 +610,9 @@
       .sidebar.open { transform: translateX(0); }
       .sidebar-toggle { display: flex; }
       .sidebar-overlay.active { display: block; }
+      .sidebar.collapsed { width: var(--sidebar-w); min-width: var(--sidebar-w); }
+      .sidebar.collapsed:hover { width: var(--sidebar-w); }
     }
-
-
-    .sidebar.collapsed { width: 64px; min-width: 64px; }
-.sidebar.collapsed .sidebar-brand-name,
-.sidebar.collapsed .sidebar-brand-sub,
-.sidebar.collapsed .nav-item-label,
-.sidebar.collapsed .nav-group-label,
-.sidebar.collapsed .nav-section-label,
-.sidebar.collapsed .nav-chevron,
-.sidebar.collapsed .sidebar-user-name,
-.sidebar.collapsed .sidebar-user-role,
-.sidebar.collapsed .nav-children { display: none; }
-.sidebar.collapsed .sidebar-header { justify-content: center; padding: 20px 8px; }
-.sidebar.collapsed .nav-item,
-.sidebar.collapsed .nav-group-header { justify-content: center; padding: 10px 0; width: 100%; box-sizing: border-box; }
-.sidebar.collapsed .nav-group { width: 100%; }
-.sidebar.collapsed .sidebar-user-card { justify-content: center; padding: 10px; }
-.sidebar { transition: width 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1); }
-
-.sidebar.collapsed:hover { width: var(--sidebar-w); }
-.sidebar.collapsed:hover .sidebar-brand-name,
-.sidebar.collapsed:hover .sidebar-brand-sub,
-.sidebar.collapsed:hover .nav-item-label,
-.sidebar.collapsed:hover .nav-group-label,
-.sidebar.collapsed:hover .nav-section-label,
-.sidebar.collapsed:hover .nav-chevron,
-.sidebar.collapsed:hover .sidebar-user-name,
-.sidebar.collapsed:hover .sidebar-user-role { display: block; }
-.sidebar.collapsed:hover .nav-item,
-.sidebar.collapsed:hover .nav-group-header { justify-content: flex-start; padding: 10px 12px; }
-.sidebar.collapsed:hover .sidebar-header { justify-content: flex-start; padding: 20px 16px; }
-.sidebar.collapsed:hover .sidebar-user-card { justify-content: flex-start; padding: 10px 12px; }
-.sidebar.collapsed:hover .nav-children.open { display: block; }
-
-.sidebar.collapsed .nav-group-header.active-group {
-  background: rgba(124,58,237,0.82);
-  color: #fff;
-  box-shadow: 0 2px 12px rgba(124,58,237,0.38);
-}
-.sidebar.collapsed .nav-group-header.active-group svg { opacity: 1; }
-.sidebar.collapsed:hover .nav-group-header.active-group {
-  background: none;
-  color: rgba(255,255,255,0.48);
-  box-shadow: none;
-}
-.sidebar.collapsed:hover .nav-group-header.active-group svg { opacity: 0.65; }
-
-.sidebar-collapse-btn {
-  margin-left: auto;
-  width: 24px; height: 24px;
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.05);
-  color: rgba(255,255,255,0.4);
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.2s;
-}
-.sidebar-collapse-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
-.sidebar.collapsed .sidebar-collapse-btn { display: none; }
-
-@media (max-width: 768px) {
-  .sidebar.collapsed { width: var(--sidebar-w); min-width: var(--sidebar-w); }
-  .sidebar.collapsed:hover { width: var(--sidebar-w); }
-}
-    
   </style>
 </head>
 
@@ -669,9 +678,7 @@
                 </svg>
                 Settings
               </div>
-
               <div class="dropdown-divider"></div>
-
               <div class="dropdown-item danger" onclick="logout()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -720,42 +727,37 @@
     };
 
     const modules = {
-      sourcing:  { navTitle: "Sourcing",        pageTitle: "Sourcing",        section: "Modules", permission: "sourcing",  file: "../modules/sourcing.html" },
-      listing:   { navTitle: "Listing & Veeqo", pageTitle: "Listing & Veeqo", section: "Modules", permission: "listing",   file: "../modules/listing.html" },
-      suppliers: { navTitle: "Suppliers",        pageTitle: "Suppliers",        section: "Modules", permission: "suppliers", file: "../modules/suppliers.html" },
-      
-      fba: { navTitle: "FBA", pageTitle: "FBA (Warehouse)", section: "Modules", permission: "fba", file: "../modules/fba.html", parent: "warehouse" },
-
-      deliverychecks: { navTitle: "Delivery Checks", pageTitle: "Delivery Checks", section: "Modules", permission: "deliverychecks", file: "../modules/deliverychecks.html", parent: "warehouse" },
-
-      packagingfault: { navTitle: "Packaging Faults", pageTitle: "Packaging Faults", section: "Modules", permission: "packagingfault", file: "../modules/packagingfault.html", parent: "warehouse" },
-
-      invoices:{ navTitle: "Invoices", pageTitle: "Invoices", section: "Modules", permission: "invoices", file: "../modules/invoices.html", parent: "invoices" },
-
-      rota:     { navTitle: "Rota", pageTitle: "Rota", section: "Modules", permission: "rota", file: "../modules/rota.html", parent: "rota" },
-
-      paycheck: { navTitle: "Paycheck", pageTitle: "Rota - Paycheck", section: "Modules", permission: "paycheck", file: "../modules/paycheck.html", parent: "rota" },
-      
-      intelligence:{ navTitle: "Intelligence", pageTitle: "Rota - Intelligence", section: "Modules", permission: "intelligence", file: "../modules/intelligence.html", parent: "rota" },
-      };
+      sourcing:       { navTitle: "Sourcing",          pageTitle: "Sourcing",           section: "Modules", permission: "sourcing",        file: "../modules/sourcing.html",        parent: "products" },
+      listing:        { navTitle: "Listing & Veeqo",   pageTitle: "Listing & Veeqo",    section: "Modules", permission: "listing",         file: "../modules/listing.html",         parent: "products" },
+      suppliers:      { navTitle: "Suppliers",          pageTitle: "Suppliers",           section: "Modules", permission: "suppliers",       file: "../modules/suppliers.html",       parent: "suppliers" },
+      fba:            { navTitle: "FBA",                pageTitle: "FBA (Warehouse)",     section: "Modules", permission: "fba",            file: "../modules/fba.html",             parent: "warehouse" },
+      deliverychecks: { navTitle: "Delivery Checks",    pageTitle: "Delivery Checks",     section: "Modules", permission: "deliverychecks", file: "../modules/deliverychecks.html",  parent: "warehouse" },
+      packagingfault: { navTitle: "Packaging Faults",   pageTitle: "Packaging Faults",    section: "Modules", permission: "packagingfault", file: "../modules/packagingfault.html",  parent: "warehouse" },
+      invoices:       { navTitle: "Invoices",           pageTitle: "Invoices",            section: "Modules", permission: "invoices",       file: "../modules/invoices.html",        parent: "invoices" },
+      rota:           { navTitle: "Rota",               pageTitle: "Rota",                section: "Modules", permission: "rota",           file: "../modules/rota.html",            parent: "rota" },
+      paycheck:       { navTitle: "Paycheck",           pageTitle: "Rota - Paycheck",     section: "Modules", permission: "paycheck",       file: "../modules/paycheck.html",        parent: "rota" },
+      intelligence:   { navTitle: "Intelligence",       pageTitle: "Rota - Intelligence", section: "Modules", permission: "intelligence",   file: "../modules/intelligence.html",    parent: "rota" },
+    };
 
     /* ── ICONS ── */
     const ic = {
-      overview:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
-      sourcing:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
-      listing:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
-      suppliers: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>`,
-      rota:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
-      invoices:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
-      products:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
-      chevron:   `<svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`,
-      fba: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8"/><path d="M3 8l9 5 9-5"/><path d="M12 13v9"/><path d="M9 17l2 2 4-4"/></svg>`,
-      packagingfault: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v9"/><line x1="12" y1="3" x2="12" y2="13"/><circle cx="18" cy="5" r="4" fill="currentColor" stroke="none" opacity="0.15"/><line x1="18" y1="3.5" x2="18" y2="5.5" stroke-width="2"/><line x1="18" y1="6.5" x2="18.01" y2="6.5" stroke-width="2.5"/></svg>`,
-      deliverychecks: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M9 12l2 2 4-4"/></svg>`,
-      warehouse: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8"/><path d="M3 8l9 5 9-5"/><path d="M12 13v9"/></svg>`
-     };
+      overview:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
+      products:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+      sourcing:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+      listing:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
+      suppliers:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+      warehouse:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+      fba:            `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
+      deliverychecks: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+      packagingfault: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/><line x1="12" y1="9" x2="12" y2="11"/><line x1="12" y1="13" x2="12.01" y2="13"/></svg>`,
+      invoices:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
+      rota:           `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+      paycheck:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
+      intelligence:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+      chevron:        `<svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`,
+    };
 
-    /* ── BUILD SIDEBAR ── */
+    /* ── SIDEBAR BUILD ── */
     function buildSidebar() {
       const s = document.getElementById("sidebar");
 
@@ -763,7 +765,7 @@
         <div class="sidebar-header">
           <img class="sidebar-logo" src="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png" alt="Logo">
           <div>
-            <div class="sidebar-brand-name">Pharm & Dom</div>
+            <div class="sidebar-brand-name">Pharm &amp; Dom</div>
           </div>
           <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" onclick="toggleCollapse()" title="Toggle sidebar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
@@ -771,7 +773,6 @@
             </svg>
           </button>
         </div>
-        
         <nav class="sidebar-nav" id="sidebarNav"></nav>
         <div class="sidebar-footer">
           <div class="sidebar-user-card">
@@ -793,105 +794,137 @@
           <span class="nav-item-label">Overview</span>
         </div>`;
 
-      const hasSourcing  = hasPermission("sourcing");
-      const hasListing   = hasPermission("listing");
-      const hasSuppliers = hasPermission("suppliers");
-      const hasRota      = hasPermission("rota");
-      const hasPaycheck     = hasPermission("paycheck");
-      const hasIntelligence = hasPermission("intelligence");
-      const hasFBA = hasPermission("fba");
-      const hasDeliverychecks = hasPermission("deliverychecks");
-      const hasInvoices = hasPermission("invoices");
-      const hasPackagingfault = hasPermission("packagingfault");
+      const perms = {
+        sourcing:       hasPermission("sourcing"),
+        listing:        hasPermission("listing"),
+        suppliers:      hasPermission("suppliers"),
+        fba:            hasPermission("fba"),
+        deliverychecks: hasPermission("deliverychecks"),
+        packagingfault: hasPermission("packagingfault"),
+        invoices:       hasPermission("invoices"),
+        rota:           hasPermission("rota"),
+        paycheck:       hasPermission("paycheck"),
+        intelligence:   hasPermission("intelligence"),
+      };
 
+      const hasAnyModule = Object.values(perms).some(Boolean);
 
-      if (hasSourcing || hasListing || hasSuppliers || hasRota || hasPaycheck || hasIntelligence || hasFBA || hasInvoices || hasDeliverychecks || hasPackagingfault) {
+      if (hasAnyModule) {
         html += `<div class="nav-section-label">Modules</div>`;
 
-        if (hasSourcing || hasListing) {
-          html += `<div class="nav-group">
-            <div class="nav-group-header" onclick="toggleGroup('products')">
-              ${ic.products}
-              <span class="nav-group-label">Products</span>
-              <span id="chevron-products">${ic.chevron}</span>
-            </div>
-            <div class="nav-children" id="children-products">`;
-
-          if (hasSourcing) html += `
-            <div class="nav-item" id="nav-sourcing" onclick="loadModule('sourcing')">
-              ${ic.sourcing}
-              <span class="nav-item-label">${modules.sourcing.navTitle}</span>
-            </div>`;
-
-          if (hasListing) html += `
-            <div class="nav-item" id="nav-listing" onclick="loadModule('listing')">
-              ${ic.listing}
-              <span class="nav-item-label">${modules.listing.navTitle}</span>
-            </div>`;
-
-          html += `</div></div>`;
+        // ── PRODUCTS GROUP ──
+        if (perms.sourcing || perms.listing) {
+          html += navGroup("products", "Products", ic.products, [
+            perms.sourcing ? navItem("sourcing", ic.sourcing, modules.sourcing.navTitle) : "",
+            perms.listing  ? navItem("listing",  ic.listing,  modules.listing.navTitle)  : "",
+          ]);
         }
 
-        if (hasSuppliers) html += `
-          <div class="nav-item" id="nav-suppliers" onclick="loadModule('suppliers')">
-            ${ic.suppliers}
-            <span class="nav-item-label">${modules.suppliers.navTitle}</span>
-          </div>`;
+        // ── SUPPLIERS (standalone) ──
+        if (perms.suppliers) {
+          html += `
+            <div class="nav-item" id="nav-suppliers" onclick="loadModule('suppliers')">
+              ${ic.suppliers}
+              <span class="nav-item-label">${modules.suppliers.navTitle}</span>
+            </div>`;
+        }
 
-            // FBA (separate item)
-if (hasFBA || hasDeliverychecks || hasPackagingfault) {
-  html += `<div class="nav-group">
-    <div class="nav-group-header" onclick="toggleGroup('warehouse')">
-      ${ic.warehouse}
-      <span class="nav-group-label">Warehouse</span>
-      <span id="chevron-warehouse">${ic.chevron}</span>
-    </div>
-    <div class="nav-children" id="children-warehouse">`;
+        // ── WAREHOUSE GROUP ──
+        if (perms.fba || perms.deliverychecks || perms.packagingfault) {
+          html += navGroup("warehouse", "Warehouse", ic.warehouse, [
+            perms.fba            ? navItem("fba",            ic.fba,            modules.fba.navTitle)            : "",
+            perms.deliverychecks ? navItem("deliverychecks", ic.deliverychecks, modules.deliverychecks.navTitle) : "",
+            perms.packagingfault ? navItem("packagingfault", ic.packagingfault, modules.packagingfault.navTitle) : "",
+          ]);
+        }
 
-  if (hasFBA) html += `
-    <div class="nav-item" id="nav-fba" onclick="loadModule('fba')">
-      ${ic.fba}
-      <span class="nav-item-label">FBA</span>
-    </div>`;
+        // ── INVOICES (standalone) ──
+        if (perms.invoices) {
+          html += `
+            <div class="nav-item" id="nav-invoices" onclick="loadModule('invoices')">
+              ${ic.invoices}
+              <span class="nav-item-label">${modules.invoices.navTitle}</span>
+            </div>`;
+        }
 
-  if (hasDeliverychecks) html += `
-    <div class="nav-item" id="nav-deliverychecks" onclick="loadModule('deliverychecks')">
-      ${ic.deliverychecks}
-      <span class="nav-item-label">Delivery Checks</span>
-    </div>`;
-
-  if (hasPackagingfault) html += `
-  <div class="nav-item" id="nav-packagingfault" onclick="loadModule('packagingfault')">
-    ${ic.packagingfault}
-    <span class="nav-item-label">Packaging Faults</span>
-  </div>`;
-
-  html += `</div></div>`;
-}
-
-          if (hasInvoices) html += `
-              <div class="nav-item" id="nav-invoices" onclick="loadModule('invoices')">
-                ${ic.invoices}
-                <span class="nav-item-label">${modules.invoices.navTitle}</span>
-              </div>`;
-        
-        
-        if (hasRota) html += `
-          <div class="nav-item" id="nav-rota" onclick="loadModule('rota')">
-            ${ic.rota}
-            <span class="nav-item-label">${modules.rota.navTitle}</span>
-          </div>`;
-        
+        // ── ROTA (standalone) ──
+        if (perms.rota || perms.paycheck || perms.intelligence) {
+          html += `
+            <div class="nav-item" id="nav-rota" onclick="loadModule('rota')">
+              ${ic.rota}
+              <span class="nav-item-label">${modules.rota.navTitle}</span>
+            </div>`;
+        }
       }
+
       nav.innerHTML = html;
     }
 
+    function navGroup(id, label, icon, childrenHtml) {
+      return `
+        <div class="nav-group">
+          <div class="nav-group-header" onclick="toggleGroup('${id}')" id="group-header-${id}">
+            ${icon}
+            <span class="nav-group-label">${label}</span>
+            <span id="chevron-${id}">${ic.chevron}</span>
+          </div>
+          <div class="nav-children" id="children-${id}">
+            ${childrenHtml.join("")}
+          </div>
+        </div>`;
+    }
+
+    function navItem(key, icon, label) {
+      return `
+        <div class="nav-item" id="nav-${key}" onclick="loadModule('${key}')">
+          ${icon}
+          <span class="nav-item-label">${label}</span>
+        </div>`;
+    }
+
+    /* ── GROUP TOGGLE — closes others first (same as admin) ── */
     function toggleGroup(id) {
       const children = document.getElementById(`children-${id}`);
       const chevron  = document.getElementById(`chevron-${id}`)?.querySelector(".nav-chevron");
       if (!children) return;
-      children.classList.toggle("open");
-      if (chevron) chevron.classList.toggle("open");
+      const isOpen = children.classList.contains("open");
+      // Close all other groups first
+      document.querySelectorAll(".nav-children.open").forEach(el => {
+        if (el.id !== `children-${id}`) {
+          el.classList.remove("open");
+          const ch = document.getElementById(el.id.replace("children-", "chevron-"))?.querySelector(".nav-chevron");
+          if (ch) ch.classList.remove("open");
+        }
+      });
+      children.classList.toggle("open", !isOpen);
+      if (chevron) chevron.classList.toggle("open", !isOpen);
+    }
+
+    function openGroup(id) {
+      const children = document.getElementById(`children-${id}`);
+      const chevron  = document.getElementById(`chevron-${id}`)?.querySelector(".nav-chevron");
+      if (children) children.classList.add("open");
+      if (chevron)  chevron.classList.add("open");
+    }
+
+    function closeAllGroups() {
+      document.querySelectorAll(".nav-children.open").forEach(el => el.classList.remove("open"));
+      document.querySelectorAll(".nav-chevron.open").forEach(el => el.classList.remove("open"));
+    }
+
+    /* ── ACTIVE NAV (same two-param signature as admin) ── */
+    function setActiveNav(navId, groupId) {
+      document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
+      document.querySelectorAll(".nav-group-header").forEach(el => el.classList.remove("active-group"));
+
+      let el = document.getElementById(navId);
+      if (!el && groupId) el = document.getElementById(`nav-${groupId}`);
+      if (el) el.classList.add("active");
+
+      if (groupId) {
+        const header = document.getElementById(`group-header-${groupId}`);
+        if (header) header.classList.add("active-group");
+      }
     }
 
     /* ── DROPDOWN ── */
@@ -924,26 +957,32 @@ if (hasFBA || hasDeliverychecks || hasPackagingfault) {
       if (currentKey === key) return;
       currentKey = key;
       closeAllGroups();
-      setActiveNav(`nav-${key}`);
+      setActiveNav(`nav-${key}`, null);
       updateHeader(pages[key].title);
       await fetchAndRender(pages[key].file);
       closeSidebar();
     }
 
-        async function loadModule(key) {
-      if (!modules[key] || !hasPermission(modules[key].permission)) return;
+    async function loadModule(key) {
+      const mod = modules[key];
+      if (!mod || !hasPermission(mod.permission)) return;
       if (currentKey === key) return;
       currentKey = key;
-      const parent = modules[key].parent || key;
+
+      const groupId = mod.parent;
       closeAllGroups();
-      openGroup(parent);
-      setActiveNav(`nav-${key}`);
-      updateHeader(modules[key].pageTitle);
-      await fetchAndRender(modules[key].file);
+      if (groupId && document.getElementById(`children-${groupId}`)) {
+        openGroup(groupId);
+      }
+
+      setActiveNav(`nav-${key}`, groupId);
+      updateHeader(mod.pageTitle);
+      await fetchAndRender(mod.file);
       closeSidebar();
     }
-  window.loadModule = loadModule;
-    
+
+    window.loadModule = loadModule;
+
     async function fetchAndRender(file) {
       const loader  = document.getElementById("pageLoader");
       const content = document.getElementById("content");
@@ -974,15 +1013,6 @@ if (hasFBA || hasDeliverychecks || hasPackagingfault) {
       document.getElementById("breadcrumbPage").textContent = title;
     }
 
-function setActiveNav(id) {
-  document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
-  document.querySelectorAll(".nav-group-header").forEach(el => el.classList.remove("active-group"));
-  const el = document.getElementById(id);
-  if (el) el.classList.add("active");
-  const parent = el?.closest(".nav-group")?.querySelector(".nav-group-header");
-  if (parent) parent.classList.add("active-group");
-}
-
     /* ── MOBILE ── */
     function toggleSidebar() {
       document.getElementById("sidebar").classList.toggle("open");
@@ -994,27 +1024,15 @@ function setActiveNav(id) {
       document.getElementById("sidebarOverlay").classList.remove("active");
     }
 
+    function toggleCollapse() {
+      document.getElementById("sidebar").classList.toggle("collapsed");
+    }
+
     function logout() {
       sessionStorage.removeItem("user");
       window.location.href = "../login";
     }
 
-    function toggleCollapse() {
-  document.getElementById("sidebar").classList.toggle("collapsed");
-}
-
-    function closeAllGroups() {
-  document.querySelectorAll(".nav-children.open").forEach(el => el.classList.remove("open"));
-  document.querySelectorAll(".nav-chevron.open").forEach(el => el.classList.remove("open"));
-}
-
-function openGroup(id) {
-  const children = document.getElementById(`children-${id}`);
-  const chevron  = document.getElementById(`chevron-${id}`)?.querySelector(".nav-chevron");
-  if (children) children.classList.add("open");
-  if (chevron)  chevron.classList.add("open");
-}
-    
     /* ── INIT ── */
     buildSidebar();
     loadPage("overview");
