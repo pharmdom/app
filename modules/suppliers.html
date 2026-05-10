@@ -784,13 +784,8 @@ function supplierNamesMatch(supName, rowSupName) {
   const a = normaliseSupName(supName);
   const b = normaliseSupName(rowSupName);
   if (a === b) return true;
-  if (a.includes(b) || b.includes(a)) return true;
-  const wa = a.split(' ').filter(w => w.length > 2);
-  const wb = b.split(' ').filter(w => w.length > 2);
-  if (wa.length && wb.length) {
-    const setA = new Set(wa);
-    for (const w of wb) { if (setA.has(w)) return true; }
-  }
+
+  // Abbreviation checks only
   const abbrA = supName.replace(/[^a-zA-Z\s]/g, '').trim().split(/\s+/).map(w => w[0]).join('').toLowerCase();
   const abbrB = rowSupName.replace(/[^a-zA-Z\s]/g, '').trim().split(/\s+/).map(w => w[0]).join('').toLowerCase();
   const rawA = supName.toLowerCase().replace(/[^a-z]/g, '');
@@ -798,6 +793,7 @@ function supplierNamesMatch(supName, rowSupName) {
   if (abbrA.length >= 2 && abbrA === rawB) return true;
   if (abbrB.length >= 2 && abbrB === rawA) return true;
   if (abbrA.length >= 2 && abbrA === abbrB) return true;
+
   return false;
 }
 
@@ -1307,14 +1303,25 @@ async function updateCatalogStatus(id, status) {
 /* ── ALL CATALOG ── */
 async function openAllCatalog() {
   document.getElementById('scAllCatOverlay').classList.add('open');
-  document.getElementById('scAllCatBody').innerHTML = '<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading all products…</p></div>';
   document.getElementById('scAllCatSearch').value = '';
-  document.getElementById('scAllCatCount').style.display = 'none';
 
+  if (catalogLoaded && allCatalogData.length) {
+    // Data already in memory — render instantly
+    const cnt = document.getElementById('scAllCatCount');
+    cnt.textContent = allCatalogData.length + ' product' + (allCatalogData.length !== 1 ? 's' : '');
+    cnt.style.display = '';
+    renderAllCatalog();
+    return;
+  }
+
+  // First time — fetch once
+  document.getElementById('scAllCatBody').innerHTML = '<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading all products…</p></div>';
+  document.getElementById('scAllCatCount').style.display = 'none';
   try {
     const r = await api({action: 'getCatalog'});
     if (!r.success) throw new Error(r.message || 'Failed');
     allCatalogData = r.rows || [];
+    catalogLoaded = true;
     const cnt = document.getElementById('scAllCatCount');
     cnt.textContent = allCatalogData.length + ' product' + (allCatalogData.length !== 1 ? 's' : '');
     cnt.style.display = '';
@@ -1324,6 +1331,7 @@ async function openAllCatalog() {
   }
 }
 
+  
 function closeAllCatalog() {
   document.getElementById('scAllCatOverlay').classList.remove('open');
   if(acBulkMode){ acBulkMode=false; acSelectedIds.clear(); document.getElementById('scAcBulkBar').style.display='none'; }
