@@ -810,14 +810,17 @@ async function loadSuppliers(){
     allSuppliers=r.suppliers||[];
     renderSupDropdown();
     if (!currentSupId && allSuppliers.length > 0) {
-      const first = allSuppliers[0];
-      currentSupId = first['Supplier ID'];
-      document.getElementById('scSupFilterVal').textContent = first['Supplier Name'] || 'Unknown';
-      document.getElementById('scCatTitle').textContent = (first['Supplier Name'] || 'Supplier') + ' — Catalog';
-      renderSupplierCard(first);
-      loadCatalog(first);
+      const preferred = allSuppliers.find(s =>
+        (s['Supplier Name'] || '').toLowerCase().includes('clear value trading')
+      ) || allSuppliers[0];
+      currentSupId = preferred['Supplier ID'];
+      document.getElementById('scSupFilterVal').textContent = preferred['Supplier Name'] || 'Unknown';
+      document.getElementById('scCatTitle').textContent = (preferred['Supplier Name'] || 'Supplier') + ' — Catalog';
+      renderSupplierCard(preferred);
+      loadCatalog(preferred);
       renderSupDropdown();
-    } else if (currentSupId) {
+    }
+    else if (currentSupId) {
   const s = allSuppliers.find(x => x['Supplier ID'] === currentSupId);
   if (s) renderSupplierCard(s);
     }
