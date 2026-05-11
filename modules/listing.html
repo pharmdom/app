@@ -708,6 +708,14 @@ if (cost && ebayPack) {
 
 }
 
+// Auto-calculate FBA Opportunity only when not manually set via toggleBool
+const fbaQty   = parseFloat(row['QTY Purchased']) || 0;
+const fbaSales = parseFloat(row['Sales']) || 0;
+const calculatedFba = (fbaQty >= 100 && fbaQty >= fbaSales * 2) ? 'Yes' : 'No';
+// Only apply if not already explicitly saved (backend is source of truth for manual overrides)
+if (!row['_fbaManual']) {
+  row['FBA Opportunity'] = calculatedFba;
+}
   
 }
 
@@ -1032,7 +1040,7 @@ let body='';
       +(stage === 'ready' || stage === 'listed'
         ? boolDropCard(id,'Delivery Received',row['Arrived'],'Arrived')
         : '')
-      +boolDropCard(id,'FBA Opportunity',row['FBA Opportunity'],'FBA Opportunity')
+      +readCard('FBA Opportunity', toBool(row['FBA Opportunity']) ? 'Yes' : 'No')
       +'</div></div>'
       +sec('Financials')+'<div class="info-grid">'
       +editCard(id,'QTY Purchased',row['QTY Purchased']||'','number','QTY Purchased')
@@ -1260,6 +1268,8 @@ async function toggleBool(id,key,newBoolVal) {
   const v = newBoolVal ? 'Yes' : 'No';
 
   row[key] = v;
+
+  if (key === 'FBA Opportunity') row['_fbaManual'] = true;
 
   applyAutoFields(row);
 
