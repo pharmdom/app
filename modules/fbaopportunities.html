@@ -990,6 +990,27 @@ function showResult(status){
     row['Status']=newStatus;
     updateChips();
   }
+  // Guarantee a save fires even if user makes no further changes
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(function(){
+    var changes={'Status':newStatus};
+    var fields=[
+      {el:'rec-parcel-weight-val',key:'Parcel Weight'},
+      {el:'rec-standard-pack-val',key:'Standard Pack Size'},
+      {el:'rec-under-1kg-val',    key:'<=1kg per sale'},
+      {el:'rec-asin-sales-val',   key:'ASIN Sales'},
+      {el:'rec-profit-dg-val',    key:'Profit (DG)'},
+      {el:'fba-profitable',       key:'Profitable'},
+      {el:'fba-fees',             key:'FBA Fees'},
+      {el:'fba-dg',               key:'DG'},
+      {el:'fba-competition',      key:'Competition'}
+    ];
+    fields.forEach(function(f){
+      var el=document.getElementById(f.el);
+      if(el&&el.value!=='')changes[f.key]=el.value;
+    });
+    persistRow(row['Opportunity ID'],changes);
+  },1200);
 }
 
 function updateSelectColour(el){
