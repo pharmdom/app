@@ -419,6 +419,7 @@ var _viewMode = 'grid'; // 'grid' or 'list'
 var _filteredIds = []; // for prev/next nav
 var _delConfirm = false;
 var _statusFilter = '';
+var _saveTimer = null;
 
 /* ════════════════ PROGRESS BAR ════════════════ */
 var _pv=0,_pt=null;
@@ -897,7 +898,8 @@ function renderFooter(id){
       +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>'
       +'Delete'
       +'</button>'
-      +'<div style="flex:1"></div>';
+      +'<div style="flex:1"></div>'
+      +'<span id="save-indicator" style="font-size:11px;font-weight:600;transition:color .2s"></span>';
   }
 }
 
@@ -1028,6 +1030,8 @@ function evaluateRecFromRow(row){
 function saveRecFields(){
   var row=allData.find(function(r){return String(r['Opportunity ID']||'')===_openId;});
   if(!row)return;
+
+  // Update in-memory immediately
   var pw=document.getElementById('rec-parcel-weight-val');
   var sp=document.getElementById('rec-standard-pack-val');
   var uk=document.getElementById('rec-under-1kg-val');
@@ -1039,7 +1043,33 @@ function saveRecFields(){
   if(as)row['ASIN Sales']=as.value;
   if(pd)row['Profit (DG)']=pd.value;
   updateChips();
+
+  // Debounce sheet save — waits 1.2s after last change before writing
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(function(){
+    persistRow(row);
+  }, 1200);
 }
+
+async function persistRow(row){
+  var ind=document.getElementById('save-indicator');
+  if(ind){ind.textContent='Saving…';ind.style.color='var(--text4)';}
+  try{
+    var r=await api({action:'saveRow', data: row});
+    if(r&&r.success){
+      if(ind){ind.textContent='Saved ✓';ind.style.color='var(--green)';}
+      setTimeout(function(){if(ind)ind.textContent='';},2500);
+    } else {
+      if(ind){ind.textContent='Save failed';ind.style.color='var(--red)';}
+      toast('Save failed: '+(r&&r.message?r.message:'unknown error'),'error');
+    }
+  }catch(e){
+    if(ind){ind.textContent='Save failed';ind.style.color='var(--red)';}
+    toast('Network error while saving','error');
+  }
+}
+
+  
 /* ════════════════ DELETE ════════════════ */
 function startDelete(){_delConfirm=true;renderFooter(_openId);}
 function cancelDelete(){_delConfirm=false;renderFooter(_openId);}
