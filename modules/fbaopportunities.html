@@ -569,6 +569,53 @@ function updateChips(){
   setChip('chipRejected',rejected+' Rejected');
   updateChipActiveState();
 }
+
+
+function updateCardInPlace(row){
+  var id=String(row['Opportunity ID']||'');
+  var status=getRowStatus(row);
+  // Grid card
+  var cards=document.querySelectorAll('.fba-card');
+  cards.forEach(function(card){
+    if(card._opportunityId===id){
+      card.className='fba-card '+status;
+      var badge=card.querySelector('.fba-status-badge');
+      if(badge){
+        badge.className='fba-status-badge '+status;
+        badge.textContent=status==='approved'?'Approved':status==='rejected'?'Rejected':'Pending';
+      }
+    }
+  });
+  // List item
+  var items=document.querySelectorAll('.fba-list-item');
+  items.forEach(function(item){
+    if(item._opportunityId===id){
+      item.className='fba-list-item '+status;
+      var badge=item.querySelector('.fba-status-badge');
+      if(badge){
+        badge.className='fba-status-badge '+status;
+        badge.textContent=status==='approved'?'Approved':status==='rejected'?'Rejected':'Pending';
+      }
+    }
+  });
+}
+
+function updateHeroBadge(row){
+  var status=getRowStatus(row);
+  var badgeClass=status==='approved'?'approved':status==='rejected'?'rejected':'pending';
+  var badgeLabel=status==='approved'?'Approved':status==='rejected'?'Rejected':'FBA Opportunity';
+  var badgeIcon=status==='approved'
+    ?'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+    :status==='rejected'
+    ?'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+    :'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
+  var badge=document.querySelector('.drw-stage-badge');
+  if(badge){
+    badge.className='drw-stage-badge '+badgeClass;
+    badge.innerHTML=badgeIcon+esc(badgeLabel);
+  }
+}
+  
   
 function setChip(id,txt){
   var el=document.getElementById(id);if(!el)return;
@@ -666,6 +713,7 @@ function buildCard(r){
   if(r['Competition']!==undefined&&r['Competition']!=='')html+='<span class="fba-flag na">Competition: '+esc(String(r['Competition']))+'</span>';
   html+='</div>';
   card.innerHTML=html;
+  card._opportunityId=String(r['Opportunity ID']||'');
   card.addEventListener('click',function(){openDrawer(String(r['Opportunity ID']||''));});
   return card;
 }
@@ -688,8 +736,9 @@ function buildListItem(r){
     +'<span class="fba-status-badge '+badgeClass+'">'+esc(badgeText)+'</span>'
     +(r['DG']!==undefined&&r['DG']!==''?'<span class="fba-flag '+(dg?'yes':'no')+'">DG: '+esc(toBoolLabel(r['DG']))+'</span>':'')
     +'</div>';
-  item.addEventListener('click',function(){openDrawer(String(r['Opportunity ID']||''));});
-  return item;
+    item._opportunityId=String(r['Opportunity ID']||'');
+    item.addEventListener('click',function(){openDrawer(String(r['Opportunity ID']||''));});
+    return item;
 }
 
 function showEmpty(title,sub){
@@ -971,6 +1020,8 @@ function hide(id){
 }
   
 function showResult(status){
+  var body=document.getElementById('drawerBody');
+  var scrollTop=body?body.scrollTop:0;
   var wrap=document.getElementById('rec-status-result');
   var inner=document.getElementById('rec-status-inner');
   var icon=document.getElementById('rec-status-icon');
@@ -994,8 +1045,8 @@ function showResult(status){
   if(row['Status']!==newStatus){
     row['Status']=newStatus;
     updateChips();
-    renderView(); // update cards/list instantly in background
-    renderDrawer(row); // re-render hero badge to match decision
+    updateCardInPlace(row); // update only this card, no full re-render
+    updateHeroBadge(row);   // update only the hero badge, no full drawer re-render
   }
   // Guarantee a save fires even if user makes no further changes
   clearTimeout(_saveTimer);
@@ -1018,6 +1069,8 @@ function showResult(status){
     });
     persistRow(row['Opportunity ID'],changes);
   },1200);
+
+  if(body)requestAnimationFrame(function(){body.scrollTop=scrollTop;});
 }
 
 function updateSelectColour(el){
@@ -1242,8 +1295,8 @@ function inputAmountCard(fieldId, label, currentVal, iconSvg){
 function inputWholeCard(fieldId, label, currentVal, iconSvg){
   var cur=parseInt(currentVal);
   return '<div class="info-card"><label>'+(iconSvg||'')+esc(label)+'</label>'
-    +'<input type="number" id="'+fieldId+'" step="1" min="0" placeholder="e.g. 2"'+(isNaN(cur)?'':' value="'+cur+'"')+' oninput="onRecChange()" style="margin-top:2px">'
-    +'</div>';
++'<input type="number" id="'+fieldId+'" step="1" min="0" placeholder="e.g. 2"'+(isNaN(cur)?'':' value="'+cur+'"')+' oninput="onRecChange()" style="margin-top:2px;width:100%">'
++'</div>';
 }
   
 /* ════════════════ TOAST ════════════════ */
