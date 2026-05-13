@@ -442,10 +442,14 @@ function fmtDate(v){if(!v)return '—';try{var d=new Date(v);return isNaN(d)?Str
 
 /* ════════════════ STATUS CALCULATION ════════════════ */
 function calculateStatus(row) {
-  // Prefer live DOM values when inputs are present (FBA tab is open)
+  // Only read live DOM values when this row is the one currently open in the drawer
+  var isOpen = _openId && String(row['Opportunity ID']||'') === _openId;
   function liveOrRow(elId, rowKey) {
-    var el = document.getElementById(elId);
-    return el ? el.value : String(row[rowKey]||'');
+    if(isOpen){
+      var el = document.getElementById(elId);
+      if(el) return el.value;
+    }
+    return String(row[rowKey]||'');
   }
 
   var dg = String(liveOrRow('fba-dg','DG')).trim().toLowerCase();
