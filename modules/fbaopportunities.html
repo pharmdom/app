@@ -165,11 +165,14 @@ body{overflow:hidden}
 .drawer-hero{padding:16px 20px 14px;background:linear-gradient(140deg,var(--navy2) 0%,#0d1631 100%);position:relative;overflow:hidden;flex-shrink:0;}
 .drawer-hero::before{content:'';position:absolute;top:-50px;right:-50px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.03);}
 .drawer-hero::after{content:'';position:absolute;bottom:-25px;left:30px;width:100px;height:100px;border-radius:50%;background:rgba(24,71,212,.1);}
-.drw-close{position:absolute;top:13px;right:13px;width:28px;height:28px;border:none;border-radius:7px;background:rgba(255,255,255,.1);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.6);transition:all .15s;z-index:2;}
+.drw-close{width:28px;height:28px;border:none;border-radius:7px;background:rgba(255,255,255,.1);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.6);transition:all .15s;z-index:2;flex-shrink:0;}
 .drw-close:hover{background:rgba(255,255,255,.2);color:#fff}
+.drw-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;position:relative;z-index:2;}
+.drw-topbar-left{display:flex;align-items:center;gap:6px;}
+.drw-nav-counter{font-size:10px;font-weight:600;color:rgba(255,255,255,.45);white-space:nowrap;}
 
 /* DRAWER NAV */
-.drw-nav{position:absolute;top:13px;left:13px;display:flex;gap:5px;z-index:2;}
+.drw-nav{display:flex;align-items:center;gap:5px;z-index:2;}
 .drw-nav-btn{width:28px;height:28px;border:none;border-radius:7px;background:rgba(255,255,255,.1);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.6);transition:all .15s;}
 .drw-nav-btn:hover{background:rgba(255,255,255,.2);color:#fff}
 .drw-nav-btn:disabled{opacity:.3;cursor:default}
@@ -337,6 +340,9 @@ body{overflow:hidden}
   .fba-grid{grid-template-columns:1fr}
   .tnav-chips{display:none}
 }
+
+
+.tnav-chip.chip-active{outline:2px solid currentColor;outline-offset:1px;}
 </style>
 </head>
 <body>
@@ -513,15 +519,22 @@ function setView(mode){
 
 function filterByStatus(status){
   _statusFilter = (_statusFilter === status && status !== '') ? '' : status;
-  // Update chip active state
+  updateChipActiveState();
+  renderView();
+}
+
+function updateChipActiveState(){
   ['chipTotal','chipApproved','chipRejected'].forEach(function(id){
     var el=document.getElementById(id);
-    if(el)el.style.outline='none';
+    if(el)el.classList.remove('chip-active');
   });
-  var activeChip = status===''?'chipTotal':status==='approved'?'chipApproved':'chipRejected';
-  var el=document.getElementById(activeChip);
-  if(el)el.style.outline='2px solid currentColor';
-  renderView();
+  if(_statusFilter===''){
+    // no filter — highlight Total chip only when explicitly showing all
+  } else {
+    var activeChip=_statusFilter==='approved'?'chipApproved':'chipRejected';
+    var el=document.getElementById(activeChip);
+    if(el)el.classList.add('chip-active');
+  }
 }
   
 
@@ -533,8 +546,8 @@ function updateChips(){
   setChip('chipTotal',total+' FBA Products');
   setChip('chipApproved',approved+' Approved');
   setChip('chipRejected',rejected+' Rejected');
+  updateChipActiveState();
 }
-
   
 function setChip(id,txt){
   var el=document.getElementById(id);if(!el)return;
@@ -712,8 +725,10 @@ function renderDrawer(row){
     ?'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
     :'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
 
-  document.getElementById('drawerHero').innerHTML=
+document.getElementById('drawerHero').innerHTML=
     '<div class="drawer-hero">'
+    +'<div class="drw-topbar">'
+    +'<div class="drw-topbar-left">'
     +'<div class="drw-nav">'
     +'<button class="drw-nav-btn" onclick="navDrawer(-1)" '+(idx<=0?'disabled':'')+' title="Previous">'
     +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>'
@@ -722,16 +737,16 @@ function renderDrawer(row){
     +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
     +'</button>'
     +'</div>'
-    +'<button class="drw-close" onclick="closeDrawer()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
-    +'<div style="margin-top:4px">'
-    +'<div class="drw-stage-badge '+badgeClass+'">'+badgeIcon+esc(badgeLabel)+'</div>'
+    +(total>1?'<span class="drw-nav-counter">'+(idx+1)+' / '+total+'</span>':'')
     +'</div>'
+    +'<button class="drw-close" onclick="closeDrawer()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
+    +'</div>'
+    +'<div class="drw-stage-badge '+badgeClass+'">'+badgeIcon+esc(badgeLabel)+'</div>'
     +'<div class="drw-name">'+esc(name)+'</div>'
     +'<div class="drw-meta-row">'
     +(row['ASINs']?'<span class="drw-asin">'+esc(row['ASINs'])+'</span>':'')
     +(row['ASINs']&&dateStr!=='—'?'<span class="drw-meta-sep"></span>':'')
     +(dateStr!=='—'?'<span class="drw-date">'+esc(dateStr)+'</span>':'')
-    +(total>1?'<span class="drw-meta-sep"></span><span class="drw-date">'+(idx+1)+' / '+total+'</span>':'')
     +'</div>'
     +'<div class="drw-kpis">'
     +drwKpi('QTY',qty)
@@ -757,9 +772,9 @@ function renderDrawer(row){
       +'</div></div>'
       +sec('Financials')
       +'<div class="info-grid">'
-      +readCard('Unit Cost',fmt(row['Unit Cost']),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>')
       +readCard('QTY Purchased',row['QTY Purchased']||'—','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>')
       +readCard('Sales',fmtNum(row['Sales']),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>')
+      +readCard('Unit Cost',fmt(row['Unit Cost']),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>')
       +'</div></div>';
   }
 
@@ -1155,6 +1170,7 @@ window.setView=setView;
 window.navDrawer=navDrawer;
 window.onRecChange=onRecChange;
 window.filterByStatus=filterByStatus;
+window.updateChipActiveState=updateChipActiveState;
 window.startDelete=startDelete;
 window.cancelDelete=cancelDelete;
 window.confirmDelete=confirmDelete;
