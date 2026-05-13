@@ -914,23 +914,6 @@ document.getElementById('drawerHero').innerHTML=
       +'</div>'
       +'</div></div>'
 
-      // <=1kg per sale
-      +'<div class="rec-field" id="rec-under-1kg">'
-      +'<div class="rec-field-inner">'
-      +'<label>'
-      +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
-      +'≤1kg Per Sale'
-      +'</label>'
-      +'<div class="select-wrap">'
-      +'<select id="rec-under-1kg-val" onchange="onRecChange()" class="'+(row['<=1kg per sale']?'val-'+(toBool(row['<=1kg per sale'])?'yes':'no'):'val-empty')+'">'
-      +'<option value="">Select…</option>'
-      +'<option value="Yes"'+(toBool(row['<=1kg per sale'])?' selected':'')+'>Yes</option>'
-      +'<option value="No"'+(!row['<=1kg per sale']&&row['<=1kg per sale']!==''?'':(!toBool(row['<=1kg per sale'])&&row['<=1kg per sale']?' selected':''))+'>No</option>'
-      +'</select>'
-      +'<svg class="sel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>'
-      +'</div>'
-      +'</div></div>'
-
       // ASIN Sales
       +'<div class="rec-field" id="rec-asin-sales">'
       +'<div class="rec-field-inner">'
@@ -1124,35 +1107,35 @@ function evaluateRec(row){
   // Always show parcel weight
   show('rec-parcel-weight');
 
-  // Step 1: parcel weight filled → show standard pack size
+// Step 1: parcel weight filled → derive <=1kg automatically
   if(v.parcelWeight!==null && !isNaN(v.parcelWeight)){
     show('rec-standard-pack');
   } else {
     hide('rec-standard-pack');
-    hide('rec-under-1kg');
     hide('rec-asin-sales');
     hide('rec-profit-dg');
     hide('rec-status-result');
     return;
   }
 
-  // Standard pack size filled
-  if(!v.standardPack){
-    hide('rec-under-1kg');hide('rec-asin-sales');hide('rec-profit-dg');hide('rec-status-result');return;
-  }
-  if(v.standardPack==='No'){
-    hide('rec-under-1kg');hide('rec-asin-sales');hide('rec-profit-dg');
-    showResult('rejected');return;
-  }
-
-  // show under 1kg
-  show('rec-under-1kg');
-  if(!v.underOneKg){hide('rec-asin-sales');hide('rec-profit-dg');hide('rec-status-result');return;}
-  if(v.underOneKg==='No'){
+  // Derive <=1kg from parcel weight (<=1000g = Yes, >1000g = No)
+  var underOneKgDerived = v.parcelWeight <= 1000 ? 'yes' : 'no';
+  if(underOneKgDerived === 'no'){
     hide('rec-asin-sales');hide('rec-profit-dg');
     showResult('rejected');return;
   }
 
+  // Standard pack size filled
+  if(!v.standardPack){
+    hide('rec-asin-sales');hide('rec-profit-dg');hide('rec-status-result');return;
+  }
+  if(v.standardPack==='No'){
+    hide('rec-asin-sales');hide('rec-profit-dg');
+    showResult('rejected');return;
+  }
+
+
+  
   // show ASIN sales
   show('rec-asin-sales');
   if(v.asinSales===null){hide('rec-profit-dg');hide('rec-status-result');return;}
@@ -1195,7 +1178,7 @@ function saveRecFields(){
   var fields=[
     {el:'rec-parcel-weight-val', key:'Parcel Weight'},
     {el:'rec-standard-pack-val', key:'Standard Pack Size'},
-    {el:'rec-under-1kg-val',     key:'<=1kg per sale'},
+    {el:'rec-parcel-weight-val', key:'<=1kg per sale', derived: true},
     {el:'rec-asin-sales-val',    key:'ASIN Sales'},
     {el:'rec-profit-dg-val',     key:'Profit (DG)'},
     {el:'fba-profitable',        key:'Profitable'},
@@ -1203,16 +1186,23 @@ function saveRecFields(){
     {el:'fba-dg',                key:'DG'},
     {el:'fba-competition',       key:'Competition'}
   ];
-  fields.forEach(function(f){
+fields.forEach(function(f){
     var el=document.getElementById(f.el);
     if(el){
       var v=el.value;
-      // Don't overwrite sheet with empty string for number fields — keep existing value
       if(v===''&&(f.key==='Competition'||f.key==='FBA Fees'||f.key==='ASIN Sales'||f.key==='Profit (DG)'||f.key==='Parcel Weight')){
         return;
       }
-      changes[f.key]=v;
-      row[f.key]=v;
+      if(f.derived){
+        // Derive <=1kg from parcel weight
+        var pw=parseFloat(v);
+        var derived=isNaN(pw)?'':(pw<=1000?'Yes':'No');
+        changes[f.key]=derived;
+        row[f.key]=derived;
+      } else {
+        changes[f.key]=v;
+        row[f.key]=v;
+      }
     }
   });
 
