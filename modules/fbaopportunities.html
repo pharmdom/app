@@ -683,6 +683,24 @@ function openDrawer(id){
   renderDrawer(row);
   document.getElementById('drawerOverlay').classList.add('open');
   document.getElementById('detailDrawer').classList.add('open');
+  // Silently refresh this row's data from the sheet in the background
+  refreshOpenRow(id);
+}
+
+async function refreshOpenRow(id){
+  try{
+    var r=await api({action:'getFbaOpportunities'});
+    if(r&&r.success&&r.data){
+      var fresh=r.data.find(function(r){return String(r['Opportunity ID']||'')===id;});
+      if(fresh&&_openId===id){
+        // Merge fresh data into allData
+        var idx=allData.findIndex(function(r){return String(r['Opportunity ID']||'')===id;});
+        if(idx!==-1)allData[idx]=fresh;
+        // Re-render drawer silently only if no pending save
+        if(!_saveTimer)renderDrawer(fresh);
+      }
+    }
+  }catch(e){/* silent fail — user still sees cached data */}
 }
 
 function closeDrawer(){
@@ -1046,31 +1064,43 @@ function saveRecFields(){
   var row=allData.find(function(r){return String(r['Opportunity ID']||'')===_openId;});
   if(!row)return;
 
-  // Update in-memory immediately
-  var pw=document.getElementById('rec-parcel-weight-val');
-  var sp=document.getElementById('rec-standard-pack-val');
-  var uk=document.getElementById('rec-under-1kg-val');
-  var as=document.getElementById('rec-asin-sales-val');
-  var pd=document.getElementById('rec-profit-dg-val');
-  if(pw)row['Parcel Weight']=pw.value;
-  if(sp)row['Standard Pack Size']=sp.value;
-  if(uk)row['<=1kg per sale']=uk.value;
-  if(as)row['ASIN Sales']=as.value;
-  if(pd)row['Profit (DG)']=pd.value;
+  // Collect only the fields currently visible/editable
+  var changes={};
+  var fields=[
+    {el:'rec-parcel-weight-val', key:'Parcel Weight'},
+    {el:'rec-standard-pack-val', key:'Standard Pack Size'},
+    {el:'rec-under-1kg-val',     key:'<=1kg per sale'},
+    {el:'rec-asin-sales-val',    key:'ASIN Sales'},
+    {el:'rec-profit-dg-val',     key:'Profit (DG)'},
+    {el:'fba-profitable',        key:'Profitable'},
+    {el:'fba-fees',              key:'FBA Fees'},
+    {el:'fba-dg',                key:'DG'}
+  ];
+  fields.forEach(function(f){
+    var el=document.getElementById(f.el);
+    if(el){
+      changes[f.key]=el.value;
+      row[f.key]=el.value; // update in-memory immediately
+    }
+  });
+
   updateChips();
 
-  // Debounce sheet save — waits 1.2s after last change before writing
+  // Debounce sheet save
   clearTimeout(_saveTimer);
   _saveTimer=setTimeout(function(){
-    persistRow(row);
+    persistRow(row['Opportunity ID'], changes);
   }, 1200);
 }
 
-async function persistRow(row){
+  
+async function persistRow(opportunityId, changes){
   var ind=document.getElementById('save-indicator');
   if(ind){ind.textContent='Saving…';ind.style.color='var(--text4)';}
+  // Always include the ID so Apps Script can find the row
+  changes['Opportunity ID']=opportunityId;
   try{
-    var r=await api({action:'saveRow', data: row});
+    var r=await api({action:'saveRow', data: changes});
     if(r&&r.success){
       if(ind){ind.textContent='Saved ✓';ind.style.color='var(--green)';}
       setTimeout(function(){if(ind)ind.textContent='';},2500);
@@ -1134,7 +1164,7 @@ function inputAmountCard(fieldId, label, currentVal, iconSvg){
   return '<div class="info-card"><label>'+(iconSvg||'')+esc(label)+'</label>'
     +'<div class="pound-wrap">'
     +'<span>£</span>'
-    +'<input type="number" id="'+fieldId+'" step="0.01" min="0" placeholder="0.00"'+(isNaN(cur)?'':' value="'+cur.toFixed(2)+'"')+'>'
+    +'<input type="number" id="'+fieldId+'" step="0.01" min="0" placeholder="0.00"'+(isNaN(cur)?'':' value="'+cur.toFixed(2)+'"')+' oninput="onRecChange()">'
     +'</div>'
     +'</div>';
 }
@@ -1174,7 +1204,9 @@ window.updateChipActiveState=updateChipActiveState;
 window.startDelete=startDelete;
 window.cancelDelete=cancelDelete;
 window.confirmDelete=confirmDelete;
+window.refreshOpenRow=refreshOpenRow;
 
+  
 /* ════════════════ INIT ════════════════ */
 loadData();
 
