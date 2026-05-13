@@ -947,6 +947,7 @@ function hide(id){
   var el=document.getElementById(id);
   if(el&&el.classList.contains('visible'))el.classList.remove('visible');
 }
+  
 function showResult(status){
   var wrap=document.getElementById('rec-status-result');
   var inner=document.getElementById('rec-status-inner');
@@ -963,6 +964,19 @@ function showResult(status){
   val.textContent=status==='approved'?'✓ Approved':'✗ Rejected';
   sub.textContent=status==='approved'?'All conditions met — ready for FBA.':'This is not a good opportunity.';
   wrap.classList.add('visible');
+
+  // Write status back to allData and save to sheet
+  var row=allData.find(function(r){return String(r['Opportunity ID']||'')===_openId;});
+  if(!row)return;
+  var newStatus=status==='approved'?'Approved':'Rejected';
+  if(row['Status']!==newStatus){
+    row['Status']=newStatus;
+    updateChips();
+    clearTimeout(_saveTimer);
+    _saveTimer=setTimeout(function(){
+      persistRow(row['Opportunity ID'],{'Status':newStatus,'Opportunity ID':row['Opportunity ID']});
+    },1200);
+  }
 }
 
 function updateSelectColour(el){
@@ -1035,8 +1049,10 @@ function evaluateRec(row){
   show('rec-asin-sales');
   if(v.asinSales===null){hide('rec-profit-dg');hide('rec-status-result');return;}
 
-  // check competition condition
-  var comp=parseInt(row['Competition'])||0;
+// check competition condition — read from live input if available
+  var compEl=document.getElementById('fba-competition');
+  var comp=compEl&&compEl.value!==''?parseInt(compEl.value):parseInt(row['Competition']);
+  if(isNaN(comp))comp=0;
   var compOk=false;
   if((comp===1||comp===2)&&v.asinSales>=75)compOk=true;
   if(comp===0&&v.asinSales>=10)compOk=true;
@@ -1082,8 +1098,13 @@ function saveRecFields(){
   fields.forEach(function(f){
     var el=document.getElementById(f.el);
     if(el){
-      changes[f.key]=el.value;
-      row[f.key]=el.value; // update in-memory immediately
+      var v=el.value;
+      // Don't overwrite sheet with empty string for number fields — keep existing value
+      if(v===''&&(f.key==='Competition'||f.key==='FBA Fees'||f.key==='ASIN Sales'||f.key==='Profit (DG)'||f.key==='Parcel Weight')){
+        return;
+      }
+      changes[f.key]=v;
+      row[f.key]=v;
     }
   });
 
