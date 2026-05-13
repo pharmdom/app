@@ -442,14 +442,19 @@ function fmtDate(v){if(!v)return '—';try{var d=new Date(v);return isNaN(d)?Str
 
 /* ════════════════ STATUS CALCULATION ════════════════ */
 function calculateStatus(row) {
-  var dg = String(row['DG']||'').trim().toLowerCase();
-  var profit = parseFloat(row['Profit (DG)']);
-  var standardPack = String(row['Standard Pack Size']||'').trim().toLowerCase();
-  var underOneKg = String(row['<=1kg per sale']||'').trim().toLowerCase();
-  var competition = parseInt(row['Competition']);
-  var asinSales = parseFloat(row['ASIN Sales']);
+  // Prefer live DOM values when inputs are present (FBA tab is open)
+  function liveOrRow(elId, rowKey) {
+    var el = document.getElementById(elId);
+    return el ? el.value : String(row[rowKey]||'');
+  }
 
-  // If any key field is missing/empty, status is pending
+  var dg = String(liveOrRow('fba-dg','DG')).trim().toLowerCase();
+  var profit = parseFloat(liveOrRow('rec-profit-dg-val','Profit (DG)'));
+  var standardPack = String(liveOrRow('rec-standard-pack-val','Standard Pack Size')).trim().toLowerCase();
+  var underOneKg = String(liveOrRow('rec-under-1kg-val','<=1kg per sale')).trim().toLowerCase();
+  var competition = parseInt(liveOrRow('fba-competition','Competition'));
+  var asinSales = parseFloat(liveOrRow('rec-asin-sales-val','ASIN Sales'));
+
   if (!dg || isNaN(profit) || !standardPack || !underOneKg || isNaN(competition) || isNaN(asinSales)) {
     return 'pending';
   }
@@ -465,9 +470,21 @@ function calculateStatus(row) {
   if ((competition === 1 || competition === 2) && asinSales >= 75) compOk = true;
   if (competition === 0 && asinSales >= 10) compOk = true;
 
-  return (profitOk && packOk && kgOk && compOk) ? 'approved' : 'rejected';
+  var result = (profitOk && packOk && kgOk && compOk) ? 'approved' : 'rejected';
+
+  // Write result back to allData so saveRecFields picks it up
+  if (row && result !== 'pending') {
+    var newStatus = result === 'approved' ? 'Approved' : 'Rejected';
+    if (row['Status'] !== newStatus) {
+      row['Status'] = newStatus;
+      updateChips();
+    }
+  }
+
+  return result;
 }
 
+  
 function getRowStatus(row) {
   var s = String(row['Status']||'').trim().toLowerCase();
   if (s === 'approved') return 'approved';
@@ -730,7 +747,7 @@ function renderDrawer(row){
   var qty=String(row['QTY Purchased']||'—');
   var unitCost=fmt(row['Unit Cost']);
   var fbaFees=fmt(row['FBA Fees']);
-  var status=getRowStatus(row);
+  var status = getRowStatus(row);
   var idx=_filteredIds.indexOf(id);
   var total=_filteredIds.length;
 
