@@ -965,17 +965,13 @@ function showResult(status){
   sub.textContent=status==='approved'?'All conditions met — ready for FBA.':'This is not a good opportunity.';
   wrap.classList.add('visible');
 
-  // Write status back to allData and save to sheet
+// Write status back to allData — the next saveRecFields call will carry it to the sheet
   var row=allData.find(function(r){return String(r['Opportunity ID']||'')===_openId;});
   if(!row)return;
   var newStatus=status==='approved'?'Approved':'Rejected';
   if(row['Status']!==newStatus){
     row['Status']=newStatus;
     updateChips();
-    clearTimeout(_saveTimer);
-    _saveTimer=setTimeout(function(){
-      persistRow(row['Opportunity ID'],{'Status':newStatus,'Opportunity ID':row['Opportunity ID']});
-    },1200);
   }
 }
 
@@ -1107,6 +1103,11 @@ function saveRecFields(){
       row[f.key]=v;
     }
   });
+
+  // Also carry the current Status value so it persists alongside field changes
+  if(row['Status']){
+    changes['Status']=row['Status'];
+  }
 
   updateChips();
 
