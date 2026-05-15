@@ -367,7 +367,6 @@ textarea.form-inp{resize:vertical;min-height:72px}
       </div>
       <div class="step-body">
         <div class="agents-grid" id="agentsGrid"></div>
-        <button class="btn btn-primary btn-sm" style="margin-top:10px;width:100%" onclick="confirmStep('stepAgent','stepDate')">Continue →</button>
       </div>
     </div>
 
@@ -383,8 +382,22 @@ textarea.form-inp{resize:vertical;min-height:72px}
       </div>
       <div class="step-body">
         <div class="date-row" id="dateQuickPills" style="margin-bottom:8px"></div>
-        <input type="date" class="form-inp" id="blockDate" onchange="onDateChange()">
-        <button class="btn btn-primary btn-sm" style="margin-top:10px;width:100%" onclick="confirmStep('stepDate','stepSupplier')">Continue →</button>
+<input type="date" class="form-inp" id="blockDate" onchange="onDateChange()" style="margin-bottom:14px">
+        <div class="form-row-2" style="margin-bottom:0">
+          <div>
+            <div class="form-label">Hours Allocated</div>
+            <div class="hours-stepper">
+              <button class="hours-step-btn" onclick="stepHours(-0.5)">−</button>
+              <div><div class="hours-val" id="hoursVal">2</div><div class="hours-sub">hours</div></div>
+              <button class="hours-step-btn" onclick="stepHours(0.5)">+</button>
+            </div>
+          </div>
+          <div>
+            <div class="form-label">Start Time</div>
+            <input type="time" class="form-inp" id="blockTime" value="09:00">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" style="margin-top:14px;width:100%" onclick="confirmStep('stepDate','stepSupplier')">Continue →</button>
       </div>
     </div>
 
@@ -420,20 +433,7 @@ textarea.form-inp{resize:vertical;min-height:72px}
         </div>
       </div>
       <div class="step-body">
-        <div class="form-row-2" style="margin-bottom:14px">
-          <div>
-            <div class="form-label">Hours Allocated</div>
-            <div class="hours-stepper">
-              <button class="hours-step-btn" onclick="stepHours(-0.5)">−</button>
-              <div><div class="hours-val" id="hoursVal">2</div><div class="hours-sub">hours</div></div>
-              <button class="hours-step-btn" onclick="stepHours(0.5)">+</button>
-            </div>
-          </div>
-          <div>
-            <div class="form-label">Start Time</div>
-            <input type="time" class="form-inp" id="blockTime" value="09:00">
-          </div>
-        </div>
+            
         <div class="form-label" style="margin-bottom:6px">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><rect x="2" y="3" width="7" height="7" rx="1"/><rect x="15" y="3" width="7" height="7" rx="1"/><rect x="2" y="14" width="7" height="7" rx="1"/><rect x="15" y="14" width="7" height="7" rx="1"/></svg>
           Category Focus <span style="font-size:10px;color:var(--text4);font-weight:400;text-transform:none;letter-spacing:0">(select multiple)</span>
@@ -952,6 +952,7 @@ function renderAgentsGrid(selectedKey){
       _formAgent=a.key;
       g.querySelectorAll('.agent-sel-card').forEach(function(c){c.classList.remove('selected');});
       card.classList.add('selected');
+      setTimeout(function(){confirmStep('stepAgent','stepDate');},220);
     });
     g.appendChild(card);
   });
@@ -994,20 +995,42 @@ window.confirmStep=function(currentId, nextId){
   var changeBtn=document.getElementById(currentId+'Change');
   if(changeBtn)changeBtn.style.display='';
   updateStepSummary(currentId);
+  // Close all other steps first
+  ['stepAgent','stepDate','stepSupplier','stepDetails'].forEach(function(id){
+    if(id!==nextId){
+      var el=document.getElementById(id);
+      if(el)el.classList.remove('active','editing');
+    }
+  });
   next.classList.add('active');
   next.scrollIntoView({behavior:'smooth',block:'nearest'});
 };
 window.editStep=function(id){
+  // Close all others first
+  ['stepAgent','stepDate','stepSupplier','stepDetails'].forEach(function(otherId){
+    if(otherId!==id){
+      var other=document.getElementById(otherId);
+      if(other)other.classList.remove('active','editing');
+    }
+  });
   var el=document.getElementById(id);
   if(!el)return;
   el.classList.add('editing');
-  el.querySelector('.step-body').style.display='block';
 };
 window.toggleStep=function(id){
   var el=document.getElementById(id);
   if(!el)return;
   if(el.classList.contains('completed')){
-    el.classList.toggle('editing');
+    var isEditing=el.classList.contains('editing');
+    // Close all others
+    ['stepAgent','stepDate','stepSupplier','stepDetails'].forEach(function(otherId){
+      if(otherId!==id){
+        var other=document.getElementById(otherId);
+        if(other)other.classList.remove('active','editing');
+      }
+    });
+    if(isEditing)el.classList.remove('editing');
+    else el.classList.add('editing');
   }
 };
 function updateStepSummary(id){
@@ -1126,6 +1149,9 @@ function updateCatSelected(){
 var _supSearchTimer=null;
 window.onSupSearch=function(val){
   clearTimeout(_supSearchTimer);
+  // Clear supplier ID and website as soon as user starts retyping
+  document.getElementById('blockSupId').value='';
+  document.getElementById('blockWebsite').value='';
   if(!val||val.length<2){hideSupDropdown();return;}
   _supSearchTimer=setTimeout(function(){filterSuppliers(val);},200);
 };
