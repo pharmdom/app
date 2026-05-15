@@ -2462,19 +2462,41 @@ window.toggleDrawerBatch = toggleDrawerBatch;
    DRAG & DROP for upload area
 ══════════════════════════════════════════════════ */
 (function() {
-  const area = document.getElementById('nBarcodeUploadArea');
-  if (!area) return;
-  area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragging'); });
-  area.addEventListener('dragleave', () => area.classList.remove('dragging'));
-  area.addEventListener('drop', e => {
-    e.preventDefault();
-    area.classList.remove('dragging');
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-      document.getElementById('nBarcodeFile').files = e.dataTransfer.files;
-      previewBarcodeImage(document.getElementById('nBarcodeFile'));
-    }
-  });
+  const ALLOWED = ['image/png','image/jpeg','image/webp','application/pdf'];
+
+  function setupDragDrop(areaId, fileInputId, previewFn) {
+    const area = document.getElementById(areaId);
+    if (!area) return;
+    area.addEventListener('dragover', e => {
+      e.preventDefault();
+      area.classList.add('dragging');
+    });
+    area.addEventListener('dragleave', e => {
+      if (!area.contains(e.relatedTarget)) area.classList.remove('dragging');
+    });
+    area.addEventListener('drop', e => {
+      e.preventDefault();
+      area.classList.remove('dragging');
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      if (!ALLOWED.includes(file.type)) {
+        alert('Unsupported file type. Please use PNG, JPG, WEBP, or PDF.');
+        return;
+      }
+      // Inject the file into the hidden input and trigger the preview function
+      try {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        document.getElementById(fileInputId).files = dt.files;
+      } catch(e) {
+        // DataTransfer not supported — fall through, preview still works via direct call
+      }
+      previewFn({ files: [file] });
+    });
+  }
+
+  setupDragDrop('nProductImgUploadArea', 'nProductImgFile', previewProductImage);
+  setupDragDrop('nBarcodeUploadArea',    'nBarcodeFile',    previewBarcodeImage);
 })();
 
 /* ══════════════════════════════════════════════════
