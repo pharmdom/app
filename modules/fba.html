@@ -1795,12 +1795,29 @@ function previewBarcodeImage(inputEl) {
   const file = inputEl.files[0];
   if (!file) return;
   nBarcodeFile = file;
+  document.getElementById('nBarcodeUploadArea').style.display = 'none';
+  document.getElementById('nBarcodePreview').style.display = 'block';
+
+  if (file.type === 'application/pdf') {
+    // Show a PDF badge instead of a broken image
+    document.getElementById('nBarcodePreviewImg').style.display = 'none';
+    const existing = document.getElementById('nBarcodePdfBadge');
+    if (!existing) {
+      document.getElementById('nBarcodePreview').insertAdjacentHTML('afterbegin',
+        '<div id="nBarcodePdfBadge" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;font-size:12px;font-weight:600;color:#1e40af;margin-bottom:8px">'
+        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+        + file.name + '</div>');
+    }
+    return;
+  }
+
+  // Image file — show preview as normal
+  const existing = document.getElementById('nBarcodePdfBadge');
+  if (existing) existing.remove();
+  const img = document.getElementById('nBarcodePreviewImg');
+  img.style.display = 'block';
   const reader = new FileReader();
-  reader.onload = function(e) {
-    document.getElementById('nBarcodeUploadArea').style.display = 'none';
-    document.getElementById('nBarcodePreview').style.display = 'block';
-    document.getElementById('nBarcodePreviewImg').src = e.target.result;
-  };
+  reader.onload = function(e) { img.src = e.target.result; };
   reader.readAsDataURL(file);
 }
 function clearBarcodeImage() {
@@ -1810,6 +1827,9 @@ function clearBarcodeImage() {
   document.getElementById('nBarcodeUploadArea').style.display = 'block';
   document.getElementById('nBarcodePreview').style.display = 'none';
   document.getElementById('nBarcodePreviewImg').src = '';
+  document.getElementById('nBarcodePreviewImg').style.display = 'block';
+  const badge = document.getElementById('nBarcodePdfBadge'); 
+  if (badge) badge.remove(); 
 }
 
 function previewProductImage(inputEl) {
