@@ -1246,13 +1246,23 @@ async function persistRow(opportunityId, changes){
 /* ════════════════ DELETE ════════════════ */
 function startDelete(){_delConfirm=true;renderFooter(_openId);}
 function cancelDelete(){_delConfirm=false;renderFooter(_openId);}
-function confirmDelete(){
+async function confirmDelete(){
   var id=_openId;
   allData=allData.filter(function(r){return String(r['Opportunity ID']||'')!==id;});
   closeDrawer();
   renderView();
   updateChips();
-  toast('Opportunity removed','info');
+  toast('Deleting…','info');
+  try{
+    var r=await api({action:'deleteRow',data:{'Opportunity ID':id}});
+    if(r&&r.success){
+      toast('Opportunity deleted','success');
+    }else{
+      toast('Delete failed: '+(r&&r.message?r.message:'unknown error'),'error');
+    }
+  }catch(e){
+    toast('Network error while deleting','error');
+  }
 }
 
 /* ════════════════ DRAWER HELPERS ════════════════ */
