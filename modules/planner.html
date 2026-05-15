@@ -311,6 +311,31 @@ textarea.form-inp{resize:vertical;min-height:72px}
 /* Highlight current day column */
 .cal-cell.today{background:linear-gradient(180deg,rgba(24,71,212,.03) 0%,transparent 100%)}
 .cal-day-hdr.today{background:var(--accent-bg)}
+
+
+/* ═══ MODAL STEP FLOW ═══ */
+.step-section{margin-bottom:12px;border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden;transition:all .2s}
+.step-section.completed{border-color:var(--accent-bd);background:var(--accent-bg)}
+.step-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;user-select:none;transition:background .15s}
+.step-header:hover{background:var(--surface2)}
+.step-section.completed .step-header{background:var(--accent-bg)}
+.step-header-left{display:flex;align-items:center;gap:8px}
+.step-num{width:20px;height:20px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--text4);flex-shrink:0;transition:all .2s}
+.step-section.completed .step-num{background:var(--accent);color:#fff}
+.step-section.active .step-num{background:var(--accent);color:#fff}
+.step-label{font-size:12px;font-weight:700;color:var(--text2)}
+.step-summary{font-size:11px;color:var(--accent);font-weight:600;margin-left:4px}
+.step-change{font-size:11px;color:var(--accent);font-weight:600;padding:2px 8px;border-radius:20px;border:1px solid var(--accent-bd);background:var(--surface);transition:all .15s}
+.step-change:hover{background:var(--accent-bg)}
+.step-body{padding:12px 14px;border-top:1px solid var(--border);display:none}
+.step-section.active .step-body{display:block}
+.step-section.completed .step-body{display:none}
+.step-section.completed.editing .step-body{display:block}
+
+/* Multi-select category */
+.cat-btn.multi-active{border-color:var(--accent);color:var(--accent);background:var(--accent-bg);position:relative}
+.cat-btn.multi-active::after{content:'✓';position:absolute;top:-5px;right:-5px;width:14px;height:14px;background:var(--accent);color:#fff;border-radius:50%;font-size:8px;display:flex;align-items:center;justify-content:center;line-height:14px;text-align:center}
+.cat-sub-btn.multi-active{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
 </style>
 
 
@@ -330,80 +355,95 @@ textarea.form-inp{resize:vertical;min-height:72px}
       </button>
     </div>
 
-    <!-- Agent -->
-    <div class="form-row">
-      <div class="form-label">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        Agent
+    <!-- Step 1: Agent -->
+    <div class="step-section active" id="stepAgent">
+      <div class="step-header" onclick="toggleStep('stepAgent')">
+        <div class="step-header-left">
+          <div class="step-num">1</div>
+          <div class="step-label">Agent</div>
+          <div class="step-summary" id="stepAgentSummary"></div>
+        </div>
+        <button class="step-change" id="stepAgentChange" style="display:none" onclick="event.stopPropagation();editStep('stepAgent')">Change</button>
       </div>
-      <div class="agents-grid" id="agentsGrid">
-        <!-- filled by JS -->
+      <div class="step-body">
+        <div class="agents-grid" id="agentsGrid"></div>
+        <button class="btn btn-primary btn-sm" style="margin-top:10px;width:100%" onclick="confirmStep('stepAgent','stepDate')">Continue →</button>
       </div>
     </div>
 
-    <!-- Date -->
-    <div class="form-row">
-      <div class="form-label">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        Date
+    <!-- Step 2: Date -->
+    <div class="step-section" id="stepDate">
+      <div class="step-header" onclick="toggleStep('stepDate')">
+        <div class="step-header-left">
+          <div class="step-num">2</div>
+          <div class="step-label">Date</div>
+          <div class="step-summary" id="stepDateSummary"></div>
+        </div>
+        <button class="step-change" id="stepDateChange" style="display:none" onclick="event.stopPropagation();editStep('stepDate')">Change</button>
       </div>
-      <div class="date-row" id="dateQuickPills">
-        <!-- quick pills filled by JS -->
+      <div class="step-body">
+        <div class="date-row" id="dateQuickPills" style="margin-bottom:8px"></div>
+        <input type="date" class="form-inp" id="blockDate" onchange="onDateChange()">
+        <button class="btn btn-primary btn-sm" style="margin-top:10px;width:100%" onclick="confirmStep('stepDate','stepSupplier')">Continue →</button>
       </div>
-      <input type="date" class="form-inp" id="blockDate" style="margin-top:8px">
     </div>
 
-    <!-- Supplier -->
-    <div class="form-row">
-      <div class="form-label">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-        Supplier
+    <!-- Step 3: Supplier -->
+    <div class="step-section" id="stepSupplier">
+      <div class="step-header" onclick="toggleStep('stepSupplier')">
+        <div class="step-header-left">
+          <div class="step-num">3</div>
+          <div class="step-label">Supplier</div>
+          <div class="step-summary" id="stepSupplierSummary"></div>
+        </div>
+        <button class="step-change" id="stepSupplierChange" style="display:none" onclick="event.stopPropagation();editStep('stepSupplier')">Change</button>
       </div>
-      <div class="inp-wrap" style="position:relative">
-        <input type="text" class="form-inp" id="supSearch" placeholder="Search supplier name…" autocomplete="off" oninput="onSupSearch(this.value)">
-        <div class="sup-dropdown" id="supDropdown" style="display:none"></div>
-      </div>
-      <input type="hidden" id="blockSupId">
-      <div class="form-row" style="margin-top:8px;margin-bottom:0">
+      <div class="step-body">
+        <div class="inp-wrap" style="position:relative;margin-bottom:8px">
+          <input type="text" class="form-inp" id="supSearch" placeholder="Search supplier name…" autocomplete="off" oninput="onSupSearch(this.value)">
+          <div class="sup-dropdown" id="supDropdown" style="display:none"></div>
+        </div>
+        <input type="hidden" id="blockSupId">
         <div class="form-label" style="margin-bottom:4px">Supplier Website / Doc URL</div>
-        <input type="url" class="form-inp" id="blockWebsite" placeholder="https://…">
+        <input type="url" class="form-inp" id="blockWebsite" placeholder="https://…" style="margin-bottom:10px">
+        <button class="btn btn-primary btn-sm" style="width:100%" onclick="confirmStep('stepSupplier','stepDetails')">Continue →</button>
       </div>
     </div>
 
-    <!-- Hours & Time -->
-    <div class="form-row-2">
-      <div>
-        <div class="form-label">Hours Allocated</div>
-        <div class="hours-stepper">
-          <button class="hours-step-btn" onclick="stepHours(-0.5)">−</button>
-          <div>
-            <div class="hours-val" id="hoursVal">2</div>
-            <div class="hours-sub">hours</div>
-          </div>
-          <button class="hours-step-btn" onclick="stepHours(0.5)">+</button>
+    <!-- Step 4: Hours, Time, Category, Notes -->
+    <div class="step-section" id="stepDetails">
+      <div class="step-header" onclick="toggleStep('stepDetails')">
+        <div class="step-header-left">
+          <div class="step-num">4</div>
+          <div class="step-label">Details</div>
+          <div class="step-summary" id="stepDetailsSummary"></div>
         </div>
       </div>
-      <div>
-        <div class="form-label">Start Time</div>
-        <input type="time" class="form-inp" id="blockTime" value="09:00">
+      <div class="step-body">
+        <div class="form-row-2" style="margin-bottom:14px">
+          <div>
+            <div class="form-label">Hours Allocated</div>
+            <div class="hours-stepper">
+              <button class="hours-step-btn" onclick="stepHours(-0.5)">−</button>
+              <div><div class="hours-val" id="hoursVal">2</div><div class="hours-sub">hours</div></div>
+              <button class="hours-step-btn" onclick="stepHours(0.5)">+</button>
+            </div>
+          </div>
+          <div>
+            <div class="form-label">Start Time</div>
+            <input type="time" class="form-inp" id="blockTime" value="09:00">
+          </div>
+        </div>
+        <div class="form-label" style="margin-bottom:6px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><rect x="2" y="3" width="7" height="7" rx="1"/><rect x="15" y="3" width="7" height="7" rx="1"/><rect x="2" y="14" width="7" height="7" rx="1"/><rect x="15" y="14" width="7" height="7" rx="1"/></svg>
+          Category Focus <span style="font-size:10px;color:var(--text4);font-weight:400;text-transform:none;letter-spacing:0">(select multiple)</span>
+        </div>
+        <div class="cat-main-grid" id="catMainGrid"></div>
+        <div class="cat-subs" id="catSubsWrap" style="display:none;margin-bottom:8px"></div>
+        <div style="margin-bottom:12px;font-size:11px;color:var(--text4)" id="catSelected"></div>
+        <div class="form-label" style="margin-bottom:6px">Notes / Instructions</div>
+        <textarea class="form-inp" id="blockNotes" placeholder="e.g. Don't focus on X brands&#10;e.g. 50% of the sheet checked till row 342"></textarea>
       </div>
-    </div>
-
-    <!-- Category -->
-    <div class="form-row">
-      <div class="form-label">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="7" height="7" rx="1"/><rect x="15" y="3" width="7" height="7" rx="1"/><rect x="2" y="14" width="7" height="7" rx="1"/><rect x="15" y="14" width="7" height="7" rx="1"/></svg>
-        Category Focus
-      </div>
-      <div class="cat-main-grid" id="catMainGrid"></div>
-      <div class="cat-subs" id="catSubsWrap" style="display:none"></div>
-      <div style="margin-top:6px;font-size:11px;color:var(--text4)" id="catSelected"></div>
-    </div>
-
-    <!-- Notes -->
-    <div class="form-row">
-      <div class="form-label">Notes / Instructions</div>
-      <textarea class="form-inp" id="blockNotes" placeholder="e.g. Don't focus on X brands&#10;e.g. 50% of the sheet checked till row 342"></textarea>
     </div>
 
     <div class="modal-footer">
@@ -843,9 +883,11 @@ function openBlockModal(agentKey, dateStr){
   if(dateStr) document.getElementById('blockDate').value=dateStr;
   else document.getElementById('blockDate').value=toISO(new Date());
   renderHours();
+  _formCatSelections={};
   renderCatGrid();
   document.getElementById('catSubsWrap').style.display='none';
   document.getElementById('catSelected').textContent='';
+  resetSteps();
   document.getElementById('blockOverlay').classList.add('open');
   setTimeout(function(){document.getElementById('supSearch').focus();},200);
 }
@@ -868,12 +910,22 @@ function openBlockModalForEdit(blk){
   renderDatePills(blk.date||toISO(new Date()));
   document.getElementById('blockDate').value=blk.date||toISO(new Date());
   renderHours();
-  renderCatGrid();
+  _formCatSelections={};
   if(_formCatMain){
-    document.getElementById('catSubsWrap').style.display='';
-    renderSubCats();
+    _formCatSelections[_formCatMain]=_formCatSub?[_formCatSub]:[];
   }
+  renderCatGrid();
+  renderSubCats();
   updateCatSelected();
+  // In edit mode open all steps as completed/editing
+  resetSteps();
+  ['stepAgent','stepDate','stepSupplier','stepDetails'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el){el.classList.add('completed','editing');el.classList.remove('active');}
+    var changeBtn=document.getElementById(id+'Change');
+    if(changeBtn)changeBtn.style.display='';
+    updateStepSummary(id);
+  });
   document.getElementById('blockOverlay').classList.add('open');
 }
 
@@ -932,44 +984,142 @@ window.stepHours=function(delta){
   renderHours();
 };
 
-/* Categories */
+/* ── Step flow controls ── */
+window.confirmStep=function(currentId, nextId){
+  var current=document.getElementById(currentId);
+  var next=document.getElementById(nextId);
+  if(!current||!next)return;
+  current.classList.remove('active','editing');
+  current.classList.add('completed');
+  var changeBtn=document.getElementById(currentId+'Change');
+  if(changeBtn)changeBtn.style.display='';
+  updateStepSummary(currentId);
+  next.classList.add('active');
+  next.scrollIntoView({behavior:'smooth',block:'nearest'});
+};
+window.editStep=function(id){
+  var el=document.getElementById(id);
+  if(!el)return;
+  el.classList.add('editing');
+  el.querySelector('.step-body').style.display='block';
+};
+window.toggleStep=function(id){
+  var el=document.getElementById(id);
+  if(!el)return;
+  if(el.classList.contains('completed')){
+    el.classList.toggle('editing');
+  }
+};
+function updateStepSummary(id){
+  if(id==='stepAgent'){
+    var agent=AGENTS.find(function(a){return a.key===_formAgent;});
+    var el=document.getElementById('stepAgentSummary');
+    if(el)el.textContent=agent?'· '+agent.name.split(' ')[0]:'';
+  }
+  if(id==='stepDate'){
+    var el=document.getElementById('stepDateSummary');
+    var d=document.getElementById('blockDate').value;
+    if(el&&d)el.textContent='· '+new Date(d+'T00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+  }
+  if(id==='stepSupplier'){
+    var el=document.getElementById('stepSupplierSummary');
+    var n=(document.getElementById('supSearch').value||'').trim();
+    if(el)el.textContent=n?'· '+n:'';
+  }
+}
+function onDateChange(){
+  var d=document.getElementById('blockDate').value;
+  if(!d)return;
+  var iso=d;
+  var row=document.getElementById('dateQuickPills');
+  if(row){row.querySelectorAll('.date-pill').forEach(function(p){p.classList.toggle('active',p.dataset.date===iso);});}
+}
+window.onDateChange=onDateChange;
+
+function resetSteps(){
+  ['stepAgent','stepDate','stepSupplier','stepDetails'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(!el)return;
+    el.classList.remove('completed','editing');
+    if(id==='stepAgent')el.classList.add('active');
+    else el.classList.remove('active');
+    var summary=document.getElementById(id+'Summary');
+    if(summary)summary.textContent='';
+    var changeBtn=document.getElementById(id+'Change');
+    if(changeBtn)changeBtn.style.display='none';
+  });
+}
+
+/* Categories — multi-select */
+var _formCatSelections={};  // { 'Electronics': ['TVs','Audio'], 'Clothing': [] }
+
 function renderCatGrid(){
   var g=document.getElementById('catMainGrid');
   g.innerHTML='';
   Object.keys(CATEGORIES).forEach(function(cat){
     var btn=document.createElement('button');
-    btn.className='cat-btn'+(cat===_formCatMain?' active':'');
+    var isActive=!!_formCatSelections[cat];
+    btn.className='cat-btn'+(isActive?' multi-active':'');
     btn.textContent=cat;
     btn.addEventListener('click',function(){
-      if(_formCatMain===cat){_formCatMain='';_formCatSub='';document.getElementById('catSubsWrap').style.display='none';}
-      else{_formCatMain=cat;_formCatSub='';}
+      if(_formCatSelections[cat]){
+        delete _formCatSelections[cat];
+      }else{
+        _formCatSelections[cat]=[];
+      }
+      _formCatMain=Object.keys(_formCatSelections)[0]||'';
       renderCatGrid();
-      if(_formCatMain){document.getElementById('catSubsWrap').style.display='';renderSubCats();}
+      renderSubCats();
       updateCatSelected();
     });
     g.appendChild(btn);
   });
 }
+
 function renderSubCats(){
   var wrap=document.getElementById('catSubsWrap');
   wrap.innerHTML='';
-  var subs=CATEGORIES[_formCatMain]||[];
-  subs.forEach(function(sub){
-    var btn=document.createElement('button');
-    btn.className='cat-sub-btn'+(sub===_formCatSub?' active':'');
-    btn.textContent=sub;
-    btn.addEventListener('click',function(){
-      _formCatSub=(_formCatSub===sub?'':sub);
-      renderSubCats();
-      updateCatSelected();
+  var activeCats=Object.keys(_formCatSelections);
+  if(!activeCats.length){wrap.style.display='none';return;}
+  wrap.style.display='';
+  activeCats.forEach(function(cat){
+    var subs=CATEGORIES[cat]||[];
+    if(!subs.length)return;
+    var lbl=document.createElement('div');
+    lbl.style.cssText='font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);margin-bottom:5px;margin-top:6px';
+    lbl.textContent=cat;
+    wrap.appendChild(lbl);
+    subs.forEach(function(sub){
+      var btn=document.createElement('button');
+      var selected=(_formCatSelections[cat]||[]).indexOf(sub)>-1;
+      btn.className='cat-sub-btn'+(selected?' multi-active':'');
+      btn.textContent=sub;
+      btn.addEventListener('click',function(){
+        var arr=_formCatSelections[cat]||[];
+        var idx=arr.indexOf(sub);
+        if(idx>-1)arr.splice(idx,1);
+        else arr.push(sub);
+        _formCatSelections[cat]=arr;
+        renderSubCats();
+        updateCatSelected();
+      });
+      wrap.appendChild(btn);
     });
-    wrap.appendChild(btn);
   });
 }
+
 function updateCatSelected(){
   var el=document.getElementById('catSelected');
-  if(_formCatMain){el.textContent='Selected: '+_formCatMain+(_formCatSub?' › '+_formCatSub:'');}
-  else el.textContent='';
+  var parts=[];
+  Object.keys(_formCatSelections).forEach(function(cat){
+    var subs=_formCatSelections[cat];
+    parts.push(cat+(subs.length?' ('+subs.join(', ')+')':''));
+  });
+  el.textContent=parts.length?'Selected: '+parts.join(' · '):'';
+  // Keep legacy single-select fields for API compat
+  var cats=Object.keys(_formCatSelections);
+  _formCatMain=cats[0]||'';
+  _formCatSub=(_formCatSelections[_formCatMain]||[])[0]||'';
 }
 
 /* Supplier search */
