@@ -1051,7 +1051,8 @@ function renderTable() {
   const pageData = filtered.slice(start, start + perPage);
 
   tbody.innerHTML = pageData.map(row => {
-    const date    = row['Created At'] ? new Date(row['Created At']).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+    const parsedDate = parseDate(row['Created At']);
+    const date = parsedDate ? parsedDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
     const amtROIN = parseFloat(row['Amt. ROI'] || row['Amount ROI']);
     const roiN    = parseFloat(row['ROI']);
     const amtRoi  = !isNaN(amtROIN) ? '<span class="' + (amtROIN >= 0 ? 'roi-positive' : 'roi-negative') + '">£' + amtROIN.toFixed(2) + '</span>' : '<span class="muted">—</span>';
@@ -1150,10 +1151,12 @@ function renderDrawer(row) {
   const costN      = parseFloat(row['Total Cost'] || row['Cost']);
   const roiN       = parseFloat(row['ROI']);
 
-  const purchasedBadge = isPurchased
+const isOffer = String(row['Source'] || '').trim().toLowerCase() === 'offer';
+const purchasedBadge = (isPurchased
     ? '<span class="drawer-status-badge purchased"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Purchased</span>'
-    : '<span class="drawer-status-badge not-purchased"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Not Purchased</span>';
-
+    : '<span class="drawer-status-badge not-purchased"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Not Purchased</span>')
+  + (isOffer ? '<span class="drawer-status-badge" style="background:rgba(139,92,246,.18);border:1px solid rgba(139,92,246,.35);color:#c4b5fd;margin-left:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Offer</span>' : '');
+    
   const approvedCount = approvals.filter(a => a.status !== 'rejected').length;
   const rejectedCount = approvals.filter(a => a.status === 'rejected').length;
 
@@ -1983,6 +1986,16 @@ const notesArr = notesTxt ? JSON.stringify([{ name: noteAuthor, text: notesTxt, 
 }
 
 /* ══ HELPERS ══ */
+
+    function parseDate(val) {
+      if (!val) return null;
+      // Try DD/MM/YYYY
+      const dmyMatch = String(val).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (dmyMatch) return new Date(+dmyMatch[3], +dmyMatch[2]-1, +dmyMatch[1]);
+      const d = new Date(val);
+      return isNaN(d) ? null : d;
+    }
+  
 function getLoggedUser() {
   try {
     const u = JSON.parse(localStorage.getItem('user') || '{}');
