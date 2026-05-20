@@ -778,18 +778,16 @@ window.saveBlock=async function(){
   if(!supName){shake(document.getElementById('stepSupplier'));toast('Please enter a supplier name','error');return;}
   if(!_editingBlockId&&_plannerBlocks.filter(function(b){return b.agent===_formAgent&&b.date===date;}).length>=3){toast('Maximum 3 blocks per agent per day','error');return;}
   var blk={id:_editingBlockId||uuid(),agent:_formAgent,date:date,supplierName:supName,supplierId:document.getElementById('blockSupId').value,website:document.getElementById('blockWebsite').value||'',hours:_formHours,time:document.getElementById('blockTime').value||'09:00',categoryMain:_formCatMain,categorySub:_formCatSub,notes:document.getElementById('blockNotes').value||'',createdAt:new Date().toISOString()};
-  var sb=document.getElementById('blockSaveBtn');sb.disabled=false;sb.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>Save Block';
-  if(!_formAgent){shake(document.getElementById('stepAgent'));toast('Please select an agent','error');return;}
-  if(!date){shake(document.getElementById('stepDate'));toast('Please select a date','error');return;}
-  if(!supName){shake(document.getElementById('stepSupplier'));toast('Please enter a supplier name','error');return;}
-  if(!_editingBlockId&&_plannerBlocks.filter(function(b){return b.agent===_formAgent&&b.date===date;}).length>=3){toast('Maximum 3 blocks per agent per day','error');return;}
-  sb.disabled=true;sb.innerHTML='<span class="spinner spin-sm" style="border-top-color:#fff;border-color:rgba(255,255,255,.3)"></span>Saving\u2026';
-  pStart(); 
+  var sb=document.getElementById('blockSaveBtn');sb.disabled=true;sb.innerHTML='<span class="spinner spin-sm" style="border-top-color:#fff;border-color:rgba(255,255,255,.3)"></span>Saving\u2026';
+  pStart();
   try{
     var r=await api({action:_editingBlockId?'updateBlock':'addBlock',block:blk});
+    if(r&&r.success){
+      if(_editingBlockId){var idx=_plannerBlocks.findIndex(function(b){return b.id===_editingBlockId;});if(idx>-1)_plannerBlocks[idx]=blk;else _plannerBlocks.push(blk);_openDrawerBlockId=blk.id;}
+      else{if(r.id)blk.id=r.id;_plannerBlocks.push(blk);}
       closeBlockModal();renderAll();toast(_editingBlockId?'Block updated':'Block added','success');
     }else{toast('Failed to save: '+(r.message||''),'error');sb.disabled=false;sb.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>Save Block';}
-  }catch(e){toast('Error saving block','error');sb.disabled=false;sb.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>Save Block';}
+  }catch(e){toast('Error saving block','error');sb.disabled=false;sb.innerHTML='Save Block';}
   finally{pDone();}
 };
 
