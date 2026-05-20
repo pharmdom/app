@@ -578,11 +578,13 @@ function buildDayBlock(blocks){
   var wrap=document.createElement('div');wrap.className='day-block';
   blocks.forEach(function(blk){
     var item=document.createElement('div');item.className='day-block-item';
-    var cat=(blk.categoryMain||'')+(blk.categorySub?' \u203a '+blk.categorySub:'');
+    var _cm=(blk.categoryMain||'').split('||')[0];
+    var _cs=(blk.categorySub||'').split('||')[0].split(',')[0];
+    var cat=_cm+(_cs?' \u203a '+_cs:'');
    item.innerHTML='<div class="dbi-left">'
   +'<div class="dbi-sup" title="'+esc(blk.supplierName||'\u2014')+'">'+esc(blk.supplierName||'\u2014')+'</div>'
   +(cat?'<div class="dbi-meta" style="display:flex;align-items:center;gap:3px">'
-    +(CAT_ICONS[blk.categoryMain]?'<span style="display:inline-flex;align-items:center;opacity:.55;flex-shrink:0">'+CAT_ICONS[blk.categoryMain].replace('stroke-width="2"','stroke-width="2"').replace(/width="[^"]*"/,'width="10"').replace(/height="[^"]*"/,'height="10"')+'</span>':'' )
+    +(CAT_ICONS[_cm]?'<span style="display:inline-flex;align-items:center;opacity:.55;flex-shrink:0">'+CAT_ICONS[_cm].replace('stroke-width="2"','stroke-width="2"').replace(/width="[^"]*"/,'width="10"').replace(/height="[^"]*"/,'height="10"')+'</span>':'' )
     +'<span>'+esc(cat)+'</span></div>':'')
   +'</div>'
   +'<div class="dbi-right">'
@@ -630,7 +632,13 @@ function openBlockModal(agentKey,dateStr){
 function openBlockModalForEdit(blk){
   _editingBlockId=blk.id;_formHours=parseFloat(blk.hours)||2;_formAgent=blk.agent||'';
   _formCatMain=blk.categoryMain||'';_formCatSub=blk.categorySub||'';_formCatSelections={};
-  if(_formCatMain)_formCatSelections[_formCatMain]=_formCatSub?[_formCatSub]:[];
+  if(_formCatMain){
+    var _cats=_formCatMain.split('||');
+    var _subs=_formCatSub.split('||');
+    _cats.forEach(function(cat,i){
+      _formCatSelections[cat]=_subs[i]?_subs[i].split(',').filter(Boolean):[];
+    });
+  }
   document.getElementById('blockModalTitle').textContent='Edit Sourcing Block';
   document.getElementById('blockModalSub').textContent='Update block details';
   document.getElementById('supSearch').value=blk.supplierName||'';
@@ -744,7 +752,11 @@ function renderSubCats(){
 function updateCatSelected(){
   var el=document.getElementById('catSelected'),parts=[];
   Object.keys(_formCatSelections).forEach(function(cat){var s=_formCatSelections[cat];parts.push(cat+(s.length?' ('+s.join(', ')+')':''));});
-  var cats=Object.keys(_formCatSelections);_formCatMain=cats[0]||'';_formCatSub=(_formCatSelections[_formCatMain]||[])[0]||'';
+  el.textContent=parts.length?'Selected: '+parts.join(' \u00b7 '):'';
+  // Serialize all selections into the two sheet fields using || as delimiter
+  var cats=Object.keys(_formCatSelections);
+  _formCatMain=cats.join('||');
+  _formCatSub=cats.map(function(cat){return (_formCatSelections[cat]||[]).join(',');}).join('||');
 }
 
 var _sst=null;
@@ -806,7 +818,9 @@ function renderDrawer(blk){
   var agent=AGENTS.find(function(a){return a.key===blk.agent;})||{name:blk.agent,key:blk.agent,img:''};
   var col=agentColour(blk.agent);
   var catMain=blk.categoryMain||'',catSub=blk.categorySub||'';
-  var catBlock=catMain?'<div class="drw-cat-block"><div class="drw-cat-lbl">Category</div><div class="drw-cat-main">'+esc(catMain)+'</div>'+(catSub?'<div class="drw-cat-subs"><span class="drw-cat-sub-pill">'+esc(catSub)+'</span></div>':'')+'</div>':'';
+  // Render all categories if multiple
+  var _catParts=(catMain||'').split('||').filter(Boolean);
+  var _subParts=(catSub||'').split('||');
   document.getElementById('drawerHeroWrap').innerHTML=
     '<div class="drawer-hero" style="background:linear-gradient(140deg,'+col.dark+' 0%,'+col.darkEnd+' 100%)">'
     +'<button class="drw-close" onclick="closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
@@ -814,7 +828,12 @@ function renderDrawer(blk){
     +'<div class="drw-name">'+esc(blk.supplierName||'\u2014')+'</div>'
     +'<div style="display:flex;align-items:stretch;gap:6px;position:relative;z-index:1;margin-top:6px">'
     +'<div class="drw-kpi" style="flex:0 0 auto;min-width:72px"><div class="drw-kpi-lbl">Hours</div><div class="drw-kpi-val">'+esc(blk.hours+'h')+'</div></div>'
-    +(catMain?'<div class="drw-kpi" style="flex:1"><div class="drw-kpi-lbl">Category</div><div class="drw-kpi-val" style="font-size:12px;font-weight:700">'+esc(catMain)+'</div>'+(catSub?'<div style="margin-top:3px"><span class="drw-cat-sub-pill">'+esc(catSub)+'</span></div>':'')+'</div>':'')
+    +(_catParts.length?'<div class="drw-kpi" style="flex:1"><div class="drw-kpi-lbl">Category</div>'
+  +_catParts.map(function(cat,i){
+    var sub=(_subParts[i]||'').split(',').filter(Boolean);
+    return '<div class="drw-kpi-val" style="font-size:11px;font-weight:700;margin-bottom:2px">'+esc(cat)+'</div>'
+      +(sub.length?'<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:3px">'+sub.map(function(s){return '<span class="drw-cat-sub-pill">'+esc(s)+'</span>';}).join('')+'</div>':'');
+  }).join('')+'</div>':'')
     +'</div>'+'</div>';
   var body='';
   if(blk.website)body+='<div class="det-sec-lbl">Links</div><a href="'+esc(blk.website)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;background:var(--accent-bg);border:1px solid var(--accent-bd);border-radius:var(--r-sm);font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;margin-bottom:14px;word-break:break-all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'+esc(blk.website)+'</a>';
