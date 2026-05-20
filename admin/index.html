@@ -747,7 +747,7 @@
       sourcing:  { navTitle: "Sourcing",        pageTitle: "Sourcing",           section: "Modules", permission: "sourcing",        file: "../modules/sourcing.html",        parent: "products" },
       listing:   { navTitle: "Listing & Veeqo", pageTitle: "Listing & Veeqo",    section: "Modules", permission: "listing",         file: "../modules/listing.html",         parent: "products" },
       fbaopportunities:   { navTitle: "FBA Opportunities", pageTitle: "FBA Opportunities",    section: "Modules", permission: "fbaopportunities",         file: "../modules/fbaopportunities.html",         parent: "products" },
-      planner:   { navTitle: "Planner", pageTitle: "Planner", section: "Modules", permission: "planner", file: "../modules/planner.html", parent: "products", highlight: "sourcing" },
+      calendar:   { navTitle: "Calendar", pageTitle: "Calendar", section: "Modules", permission: "calendar", file: "../modules/calendar.html", parent: "products", highlight: "sourcing" },
       // Procurement group
       suppliers: { navTitle: "Suppliers",        pageTitle: "Suppliers",          section: "Modules", permission: "suppliers",       file: "../modules/suppliers.html",       parent: "procurement" },
       offers:    { navTitle: "Offers",            pageTitle: "Offers",             section: "Modules", permission: "offers",          file: "../modules/offers.html",          parent: "procurement" },
@@ -776,7 +776,7 @@
       sourcing:       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
       listing:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
       fbaopportunities:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
-      planner:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>`,
+      calendar:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>`,
 
       // Procurement group
       procurement:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
@@ -842,7 +842,7 @@
         sourcing:       hasPermission("sourcing"),
         listing:        hasPermission("listing"),
         fbaopportunities:        hasPermission("fbaopportunities"),
-        planner:        hasPermission("planner"),
+        calendar:        hasPermission("calendar"),
         suppliers:      hasPermission("suppliers"),
         offers:     hasPermission("offers"),
         fba:            hasPermission("fba"),
@@ -861,7 +861,7 @@
         html += `<div class="nav-section-label">Modules</div>`;
 
         // ── PRODUCTS GROUP ──
-        if (perms.sourcing || perms.listing || perms.fbaopportunities || perms.planner) {
+        if (perms.sourcing || perms.listing || perms.fbaopportunities || perms.calendar) {
           html += navGroup("products", "Products", ic.products, [
             perms.sourcing  ? navItem("sourcing",  ic.sourcing,  modules.sourcing.navTitle)  : "",
             perms.listing   ? navItem("listing",   ic.listing,   modules.listing.navTitle)   : "",
@@ -968,14 +968,14 @@
       document.querySelectorAll(".nav-group-header").forEach(el => el.classList.remove("active-group"));
 
       // Highlight the nav item — if it doesn't exist in the DOM (internal page like
-      // paycheck / intelligence / planner), fall back to the parent's standalone nav item
+      // paycheck / intelligence / calendar), fall back to the parent's standalone nav item
       let el = document.getElementById(navId);
       if (!el && groupId) el = document.getElementById(`nav-${groupId}`);
       if (el) el.classList.add("active");
 
       // Highlight the group header (for collapsed sidebar — groups only).
       // Also used as the collapsed highlight when the active page is an internal
-      // page whose parent is a group (e.g. Planner → Products group).
+      // page whose parent is a group (e.g. calendar → Products group).
       if (groupId) {
         const header = document.getElementById(`group-header-${groupId}`);
         if (header) {
@@ -1041,7 +1041,7 @@
       }
 
       // Set active on the nav item AND mark its group header.
-      // If the module defines a highlight override (e.g. Planner → Sourcing), use that nav item instead.
+      // If the module defines a highlight override (e.g. calendar → Sourcing), use that nav item instead.
       const highlightKey = mod.highlight || key;
       setActiveNav(`nav-${highlightKey}`, groupId);
       updateHeader(mod.pageTitle);
