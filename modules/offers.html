@@ -880,7 +880,7 @@ body{overflow:hidden}
 (function(){
 'use strict';
 
-var API_URL = 'https://script.google.com/macros/s/AKfycbwt1sg2sgDxCuwZ6KOFONX6IHany8CcOZyJMLjIkHn08e3d-cVsLOhGpIW0Hj3XYigB/exec';
+var API_URL = window.API.offers;
 
 var offersData   = [];
 var currentView  = 'kanban';
@@ -1056,7 +1056,28 @@ function onAgentChange(val){
 async function loadOffers(){
   pStart();
   try{
+    if(window.AppCache && window.AppCache.offers){
+      var cached = window.AppCache.offers;
+      var h = cached.headers || [];
+      offersData = sortDesc((cached.rows || []).map(function(row){
+        var o={}; h.forEach(function(k,i){ o[k]=row[i]!=null?row[i]:''; }); return o;
+      }));
+      populateFilters(); renderView(); animateChips();
+      pDone();
+      return;
+    }
     var r=await api({action:'getOffers'});
+    if(r&&r.success){
+      if(window.AppCache) window.AppCache.offers = r;
+      var h=r.headers||[];
+      offersData=sortDesc((r.rows||[]).map(function(row){
+        var o={};h.forEach(function(k,i){o[k]=row[i]!=null?row[i]:'';});return o;
+      }));
+      populateFilters();renderView();animateChips();
+    }else{toast('Failed to load offers','error');showEmpty('Failed to load','Check your API connection');}
+  }catch(e){toast('Network error','error');showEmpty('Network error','Could not reach the API');}
+  finally{pDone();}
+}
     if(r&&r.success){
       var h=r.headers||[];
       offersData=sortDesc((r.rows||[]).map(function(row){
@@ -1512,6 +1533,7 @@ async function doDeleteOffer(id){
       offersData=offersData.filter(function(x){return String(x.ID||'')!==id;});
       populateFilters();renderView();updateChips();
       toast('Offer deleted','success');
+      if(window.AppCache) window.AppCache.offers = null
       advanceAfterAction(id);
     }else toast('Failed to delete','error');
   }catch(e){toast('Error','error');}
@@ -1545,6 +1567,7 @@ async function doRejectOffer(){
       if(rec){rec.Approval='Rejected';rec.Note=reason;rec.Agent=_agentName;}
       populateFilters();renderView();updateChips();
       toast('Offer rejected','info');
+      if(window.AppCache) window.AppCache.offers = null;
       advanceAfterAction(id);
     }else{toast('Failed to reject: '+(r.message||''),'error');}
   }catch(e){toast('Error','error');}
@@ -1570,6 +1593,7 @@ async function doApproveOffer(id, btn){
       offersData=offersData.filter(function(x){return String(x.ID||'')!==id;});
       populateFilters();renderView();updateChips();
       toast('Approved — '+(r.opportunityId||''),'success');
+      if(window.AppCache) window.AppCache.offers = null;
       advanceAfterAction(id);
     }else{
       toast('Failed to approve: '+(r.message||''),'error');
@@ -1726,6 +1750,7 @@ async function doMerge(){
       _colourMap={};
       populateFilters();renderView();updateChips();
       toast('Merged '+r.updated+' offers into "'+targetSupplier+'"'+(targetEmail?' · email unified':''),'success');
+      if(window.AppCache) window.AppCache.offers = null;
     }else{toast('Merge failed: '+(r.message||''),'error');}
   }catch(e){toast('Error','error');}
   finally{pDone();}
