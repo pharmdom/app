@@ -682,7 +682,7 @@ html, body {
 /* ══════════════════════════════════════════════════
    CONFIG
 ══════════════════════════════════════════════════ */
-const API_URL = 'https://script.google.com/macros/s/AKfycbwkNSoXzt19aH4dig7U6KhI-gDylEH3A61Tyct1VNCT-TxGLrlqyN3BTCL9nNu1Ycq6/exec';
+const API_URL = window.API.fba;
 const DRIVE_FOLDER_ID = '12rw2ZE0kkdOSieCqK-PlT91LltyLOMKw';
 
 /* ══════════════════════════════════════════════════
@@ -789,12 +789,35 @@ function getBucket(row) {
 ══════════════════════════════════════════════════ */
 async function loadData() {
   try {
-    const [fbaRes, whRes] = await Promise.all([
-      fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({action:'getFBA'}) }),
-      fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({action:'getWarehouse'}) })
-    ]);
-    const fbaJson = await fbaRes.json();
-    const whJson  = await whRes.json();
+    let fbaJson, whJson;
+
+    const fbaFromCache = window.AppCache && window.AppCache.fba;
+    const whFromCache  = window.AppCache && window.AppCache.fbaWarehouse;
+
+    if (fbaFromCache && whFromCache) {
+      fbaJson = fbaFromCache;
+      whJson  = whFromCache;
+    } else if (fbaFromCache && !whFromCache) {
+      fbaJson = fbaFromCache;
+      const whRes = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({action:'getWarehouse'}) });
+      whJson = await whRes.json();
+      if(window.AppCache) window.AppCache.fbaWarehouse = whJson;
+    } else if (!fbaFromCache && whFromCache) {
+      whJson = whFromCache;
+      const fbaRes = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({action:'getFBA'}) });
+      fbaJson = await fbaRes.json();
+      if(window.AppCache) window.AppCache.fba = fbaJson;
+    } else {
+      const [fbaRes, whRes] = await Promise.all([
+        fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({action:'getFBA'}) }),
+        fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify({action:'getWarehouse'}) })
+      ]);
+      fbaJson = await fbaRes.json();
+      whJson  = await whRes.json();
+      if(window.AppCache) window.AppCache.fba         = fbaJson;
+      if(window.AppCache) window.AppCache.fbaWarehouse = whJson;
+    }
+
     if (!fbaJson.success) throw new Error(fbaJson.message || 'FBA API error');
     const fbaHeaders = fbaJson.headers || [];
     fbaData = (fbaJson.rows || []).map(row => {
@@ -809,7 +832,7 @@ async function loadData() {
         whHeaders.forEach((h, i) => { obj[h] = row[i] ?? ''; });
         return obj;
       });
-    warehouseData.sort((a, b) => new Date(b['Date Created']) - new Date(a['Date Created']));
+      warehouseData.sort((a, b) => new Date(b['Date Created']) - new Date(a['Date Created']));
     } else {
       warehouseData = [];
     }
@@ -1562,6 +1585,7 @@ async function deleteRecord(id) {
       document.getElementById('drawerOverlay').classList.remove('visible');
       applyFilters();
       showToast('Record deleted', 'success');
+      if(window.AppCache) window.AppCache.fbaWarehouse = null;
     }, 420);
   } else {
     if (card) card.classList.remove('card-deleting');
@@ -1599,6 +1623,7 @@ async function deleteFBAProduct(id) {
       document.getElementById('drawerOverlay').classList.remove('visible');
       renderProductsTable();
       showToast('Product deleted', 'success');
+      if(window.AppCache) window.AppCache.fba = null;
     }, 420);
   } else {
     btn.classList.remove('deleting');
@@ -1985,6 +2010,7 @@ async function createRecord() {
     const idx = fbaData.findIndex(r => r['ID'] === tempId);
     if (idx > -1) fbaData[idx]['ID'] = result.id;
     renderProductsTable();
+    if(window.AppCache) window.AppCache.fba = null;
   } else if (!result || !result.success) {
     fbaData = fbaData.filter(r => r['ID'] !== tempId);
     renderProductsTable();
@@ -2263,6 +2289,7 @@ if (validRows.length === 1) {
   if (result && result.success && result.id) {
     const idx = warehouseData.findIndex(r => r['ID'] === tempId);
     if (idx > -1) warehouseData[idx]['ID'] = result.id;
+    if(window.AppCache) window.AppCache.fbaWarehouse = null;
   } else if (!result || !result.success) {
     warehouseData = warehouseData.filter(r => r['ID'] !== tempId);
     showToast('Error adding work for ' + data.labelCode, 'error');
