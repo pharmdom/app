@@ -814,16 +814,23 @@ let currentDrawerId = null; // track open drawer product
 
 /* ══ INIT ══ */
 async function init() {
-  await loadUsers();
-  await loadSuppliers();
-  await loadData();
+  const cache = window.AppCache || {};
+  if (cache.sourcing)  { const d = cache.sourcing;  allData = d.data || []; applyFilters(); updateStats(); }
+  if (cache.users)     { const d = cache.users;     const allowedIds = ['USR-0008','USR-0009','USR-0010']; users = (d.users||[]).filter(u=>allowedIds.includes(u.userId)).map(u=>({id:u.userId,name:(u.firstName+' '+u.lastName).trim()})); }
+  if (cache.suppliers) { const d = cache.suppliers; suppliers = (d.suppliers||[]).map(s=>({name:s['Supplier Name']||s.name||'',code:s['Code']||s.code||''})); }
+
+  // Fall back to fetching anything the cache missed
+  if (!cache.sourcing)   await loadData();
+  if (!cache.users)      await loadUsers();
+  if (!cache.suppliers)  await loadSuppliers();
+
   startPolling();
 }
 
 function startPolling() {
   setInterval(async () => {
     try {
-      const res = await fetch(API_URL, {
+      const res = await fetch(window.API.sourcing, {
         method: 'POST',
         body: JSON.stringify({ action: 'getSourcing' }),
         headers: { 'Content-Type': 'text/plain' }
@@ -847,7 +854,7 @@ function startPolling() {
 /* ══ DATA ══ */
 async function loadData() {
   try {
-    const res  = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getSourcing' }), headers: { 'Content-Type': 'text/plain' } });
+    const res  = await fetch(window.API.sourcing, { method: 'POST', body: JSON.stringify({ action: 'getSourcing' }), headers: { 'Content-Type': 'text/plain' } });
     const data = await res.json();
     allData = data.data || [];
     applyFilters();
@@ -860,7 +867,7 @@ async function loadData() {
 
 async function loadUsers() {
   try {
-    const res  = await fetch(API_URL, {
+    const res  = await fetch(window.API.sourcing, {
       method: 'POST',
       body: JSON.stringify({ action: 'getUsers' }),
       headers: { 'Content-Type': 'text/plain' }
@@ -886,7 +893,7 @@ async function loadUsers() {
   
 async function loadSuppliers() {
   try {
-    const res  = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getSuppliers' }), headers: { 'Content-Type': 'text/plain' } });
+    const res  = await fetch(window.API.sourcing, { method: 'POST', body: JSON.stringify({ action: 'getSuppliers' }), headers: { 'Content-Type': 'text/plain' } });
     const data = await res.json();
     
 suppliers = (data.suppliers || []).map(s => ({
@@ -1476,7 +1483,7 @@ function closeDrawer() {
 async function deleteProduct(id) {
   const toastId = showToast('Deleting…', 'loading', 0);
   try {
-    await fetch(API_URL, {
+    await fetch(window.API.sourcing, {
       method: 'POST',
       body: JSON.stringify({ action: 'deleteSourcing', opportunityId: id }),
       headers: { 'Content-Type': 'text/plain' }
@@ -1553,7 +1560,7 @@ function staticCard(label, value, extraClass) {
 async function saveField(opportunityId, field, value) {
   const toastId = showToast('Saving…', 'loading', 0);
   try {
-    await fetch(API_URL, {
+    await fetch(window.API.sourcing, {
       method: 'POST',
       body: JSON.stringify({ action: 'updateSourcing', opportunityId, field, value }),
       headers: { 'Content-Type': 'text/plain' }
@@ -1579,14 +1586,14 @@ async function saveField(opportunityId, field, value) {
 async function saveFieldAndRefresh(opportunityId, field, value) {
   const toastId = showToast('Saving & recalculating…', 'loading', 0);
   try {
-    await fetch(API_URL, {
+    await fetch(window.API.sourcing, {
       method: 'POST',
       body: JSON.stringify({ action: 'updateSourcing', opportunityId, field, value }),
       headers: { 'Content-Type': 'text/plain' }
     });
 
     // Fetch fresh data to get recalculated values
-    const res  = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getSourcing' }), headers: { 'Content-Type': 'text/plain' } });
+    const res  = await fetch(window.API.sourcing, { method: 'POST', body: JSON.stringify({ action: 'getSourcing' }), headers: { 'Content-Type': 'text/plain' } });
     const data = await res.json();
     allData = data.data || [];
 
@@ -1662,7 +1669,7 @@ async function decideProduct(id, decision) {
 
   const toastId = showToast('Saving decision…', 'loading', 0);
   try {
-const res2 = await fetch(API_URL, {
+const res2 = await fetch(window.API.sourcing, {
   method: 'POST',
   body: JSON.stringify({
     action: 'appendApproval',
@@ -1706,7 +1713,7 @@ const newNote = { name: selectedUser, text, date: new Date().toLocaleDateString(
 
 const toastId = showToast('Adding note…', 'loading', 0);
 try {
-  await fetch(API_URL, {
+  await fetch(window.API.sourcing, {
     method: 'POST',
     body: JSON.stringify({ action: 'appendNote', opportunityId: id, note: newNote }),
     headers: { 'Content-Type': 'text/plain' }
@@ -1950,10 +1957,10 @@ const notesArr = notesTxt ? JSON.stringify([{ name: noteAuthor, text: notesTxt, 
   };
 
   try {
-    const res  = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain' } });
+    const res  = await fetch(window.API.sourcing, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain' } });
     const data = await res.json();
     if (data.opportunityId) {
-    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'logSourcingTime', opportunityId: data.opportunityId, agent: payload.agent, supplierName: payload.supplierName, productName: payload.productName, seconds, formatted: formatTime(seconds), asins: payload.asins, costOfUnit: payload.costOfUnit, costOfSale: payload.costOfSale, netProfit: payload.netProfit, keepa: payload.keepa, primaryFulfillment: payload.primaryFulfillment, supplierCheapest: payload.supplierCheapest, unitQuantity: payload.unitQuantity, packing: payload.packing, seasonality: payload.seasonality, competition: payload.competition, supplierStock: payload.supplierStock, code: payload.code }), headers: { 'Content-Type': 'text/plain' } });
+    await fetch(window.API.sourcing, { method: 'POST', body: JSON.stringify({ action: 'logSourcingTime', opportunityId: data.opportunityId, agent: payload.agent, supplierName: payload.supplierName, productName: payload.productName, seconds, formatted: formatTime(seconds), asins: payload.asins, costOfUnit: payload.costOfUnit, costOfSale: payload.costOfSale, netProfit: payload.netProfit, keepa: payload.keepa, primaryFulfillment: payload.primaryFulfillment, supplierCheapest: payload.supplierCheapest, unitQuantity: payload.unitQuantity, packing: payload.packing, seasonality: payload.seasonality, competition: payload.competition, supplierStock: payload.supplierStock, code: payload.code }), headers: { 'Content-Type': 'text/plain' } });
     }
 
   
