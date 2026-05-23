@@ -456,6 +456,8 @@ window.AppCache.refresh = async function(key) {
     async function loadPage(key) {
       if (currentKey === key) return;
       currentKey = key;
+      sessionStorage.setItem('currentPage', key);
+      history.pushState({ page: key }, '', window.location.pathname + '?p=' + key);
       closeAllGroups();
       setActiveNav(`nav-${key}`, null);
       updateHeader(pages[key].title);
@@ -468,6 +470,8 @@ window.AppCache.refresh = async function(key) {
       if (!mod || !hasPermission(mod.permission)) return;
       if (currentKey === key) return;
       currentKey = key;
+      sessionStorage.setItem('currentPage', key);
+      history.pushState({ page: key }, '', window.location.pathname + '?p=' + key);
       const groupId = mod.parent;
       closeAllGroups();
       if (groupId && document.getElementById(`children-${groupId}`)) openGroup(groupId);
@@ -480,6 +484,15 @@ window.AppCache.refresh = async function(key) {
 
     window.loadModule = loadModule;
 
+
+    window.addEventListener('popstate', function(e) {
+      if (e.state && e.state.page) {
+        const key = e.state.page;
+        if (modules[key]) loadModule(key);
+        else if (pages[key]) loadPage(key);
+      }
+    });
+    
     async function fetchAndRender(file) {
       const loader = document.getElementById("pageLoader");
       const content = document.getElementById("content");
@@ -516,7 +529,14 @@ window.AppCache.refresh = async function(key) {
     function logout() { sessionStorage.removeItem("user"); window.location.href = "../login"; }
 
     buildSidebar();
-    loadPage("overview");
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlPage = urlParams.get('p');
+    const savedPage = urlPage || sessionStorage.getItem('currentPage');
+    const isModule = savedPage && modules[savedPage];
+    const isPage = savedPage && pages[savedPage];
+    if (isModule) loadModule(savedPage);
+    else if (isPage) loadPage(savedPage);
+    else loadPage('overview');
   </script>
 </body>
 </html>
