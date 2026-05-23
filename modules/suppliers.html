@@ -583,8 +583,8 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 (function(){
 'use strict';
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbyUakRDM0bBv2QzdA_WO-xzvmQ9B6kWu-wPc0yRuKE2dZjG8-UID3bI1ZEYaSoFMjhC0A/exec';
-
+const API_URL = window.API.suppliers;
+  
 /* ── STATE ── */
 let allSuppliers  = [];
 let catalogData   = [];      // filtered view for current supplier
@@ -659,6 +659,7 @@ async function doDeleteAllCatProd(id){
     renderAllCatalog();
     removeToast(tid);
     toast('Product deleted','success');
+    if(window.AppCache) window.AppCache.suppliersCatalog = null;
   }catch(e){ removeToast(tid); toast('Delete failed','error'); }
 }
 
@@ -736,6 +737,7 @@ async function doDeleteSupplier(sid){
     renderSupDropdown();
     removeToast(tid);
     toast('Supplier deleted','success');
+    if(window.AppCache) window.AppCache.suppliers = null;
   }catch(e){
     removeToast(tid);
     toast('Delete failed: '+e.message,'error');
@@ -801,24 +803,44 @@ function supplierNamesMatch(supName, rowSupName) {
 async function loadSuppliers(){
   pStart();
   try{
+    if(window.AppCache && window.AppCache.suppliers && window.AppCache.suppliers.suppliers){
+      allSuppliers = window.AppCache.suppliers.suppliers || [];
+      renderSupDropdown();
+      if(!currentSupId && allSuppliers.length > 0){
+        const preferred = allSuppliers.find(s =>
+          (s['Supplier Name']||'').toLowerCase().includes('clear value trading')
+        ) || allSuppliers[0];
+        currentSupId = preferred['Supplier ID'];
+        document.getElementById('scSupFilterVal').textContent = preferred['Supplier Name']||'Unknown';
+        document.getElementById('scCatTitle').textContent = (preferred['Supplier Name']||'Supplier')+' — Catalog';
+        renderSupplierCard(preferred);
+        loadCatalog(preferred);
+        renderSupDropdown();
+      } else if(currentSupId){
+        const s = allSuppliers.find(x => x['Supplier ID'] === currentSupId);
+        if(s) renderSupplierCard(s);
+      }
+      pDone();
+      return;
+    }
     const r=await api({action:'getSuppliers'});
     if(!r.success) throw new Error(r.message||'Failed');
     allSuppliers=r.suppliers||[];
+    if(window.AppCache) window.AppCache.suppliers = r;
     renderSupDropdown();
-    if (!currentSupId && allSuppliers.length > 0) {
+    if(!currentSupId && allSuppliers.length > 0){
       const preferred = allSuppliers.find(s =>
-        (s['Supplier Name'] || '').toLowerCase().includes('clear value trading')
+        (s['Supplier Name']||'').toLowerCase().includes('clear value trading')
       ) || allSuppliers[0];
       currentSupId = preferred['Supplier ID'];
-      document.getElementById('scSupFilterVal').textContent = preferred['Supplier Name'] || 'Unknown';
-      document.getElementById('scCatTitle').textContent = (preferred['Supplier Name'] || 'Supplier') + ' — Catalog';
+      document.getElementById('scSupFilterVal').textContent = preferred['Supplier Name']||'Unknown';
+      document.getElementById('scCatTitle').textContent = (preferred['Supplier Name']||'Supplier')+' — Catalog';
       renderSupplierCard(preferred);
       loadCatalog(preferred);
       renderSupDropdown();
-    }
-    else if (currentSupId) {
-  const s = allSuppliers.find(x => x['Supplier ID'] === currentSupId);
-  if (s) renderSupplierCard(s);
+    } else if(currentSupId){
+      const s = allSuppliers.find(x => x['Supplier ID'] === currentSupId);
+      if(s) renderSupplierCard(s);
     }
   }catch(e){
     toast('Failed to load suppliers','error');
@@ -834,18 +856,24 @@ async function loadCatalog(supplier){
   document.getElementById('scSelectToggle').classList.remove('active');
   document.getElementById('scBulkBar').style.display = 'none';
 
-  if (!catalogLoaded) {
-    cc.innerHTML = `<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading catalog…</p></div>`;
-    try {
-      const r = await api({action: 'getCatalog'});
-      if (!r.success) throw new Error(r.message || 'Failed');
-      allCatalogData = r.rows || [];
+if (!catalogLoaded) {
+    if(window.AppCache && window.AppCache.suppliersCatalog){
+      allCatalogData = window.AppCache.suppliersCatalog;
       catalogLoaded = true;
-    } catch(e) {
+    } else {
+      cc.innerHTML = `<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading catalog…</p></div>`;
+      try {
+        const r = await api({action: 'getCatalog'});
+        if (!r.success) throw new Error(r.message || 'Failed');
+        allCatalogData = r.rows || [];
+        catalogLoaded = true;
+        if(window.AppCache) window.AppCache.suppliersCatalog = allCatalogData;
+      } catch(e) {
       cc.innerHTML = `<div class="sc-state"><p>Failed to load catalog</p><span>${esc(e.message)}</span></div>`;
       return;
     }
   }
+}
 
   catalogData = allCatalogData.filter(row =>
     supplierNamesMatch(supplier['Supplier Name'], row['Supplier Name'] || row['Supplier'] || '')
@@ -1182,6 +1210,7 @@ async function saveSupplierEdit(){
     renderSupDropdown();
     closeEditModal();
     toast('Supplier updated','success');
+    if(window.AppCache) window.AppCache.suppliers = null;
   }catch(e){
     toast('Save failed: '+e.message,'error');
   }
@@ -1461,7 +1490,7 @@ async function bulkDeleteSelected(){
     await api({action:'bulkDeleteCatalog',ids});
     catalogData=catalogData.filter(x=>!ids.includes(String(x['ID']||'')));
     allCatalogData=allCatalogData.filter(x=>!ids.includes(String(x['ID']||'')));
-    selectedIds.clear(); removeToast(tid); toast('Deleted '+ids.length+' products','success');
+    selectedIds.clear(); removeToast(tid); toast('Deleted '+ids.length+' products','success');if(window.AppCache) window.AppCache.suppliersCatalog = null;
     renderCatalog(); updateBulkCount();
     const cnt=document.getElementById('scCatCount');
     cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
@@ -1505,7 +1534,7 @@ async function acBulkDelete(){
     await api({action:'bulkDeleteCatalog',ids});
     allCatalogData=allCatalogData.filter(x=>!ids.includes(String(x['ID']||'')));
     catalogData=catalogData.filter(x=>!ids.includes(String(x['ID']||'')));
-    acSelectedIds.clear(); removeToast(tid); toast('Deleted '+ids.length+' products','success');
+    acSelectedIds.clear(); removeToast(tid); toast('Deleted '+ids.length+' products','success');if(window.AppCache) window.AppCache.suppliersCatalog = null;
     renderAllCatalog(); updateAcBulkCount();
   };
   document.getElementById('scConfirmOverlay').classList.add('open');
@@ -1523,6 +1552,7 @@ async function doDeleteProd(id){
     cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
     removeToast(tid);
     toast('Product deleted','success');
+    if(window.AppCache) window.AppCache.suppliersCatalog = null;
   }catch(e){removeToast(tid);toast('Delete failed','error');}
 }
 
