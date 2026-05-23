@@ -1569,12 +1569,13 @@ async function saveField(opportunityId, field, value) {
   if (idx > -1) allData[idx][field] = value;
   removeToast(toastId);
   showToast('Saved', 'success');
-  updateStats();
-  applyFilters();
-  renderTable();
+  if (window.AppCache) window.AppCache.sourcing = { data: allData };
+  updateTableRow(opportunityId);
+  if (['Purchased','Approved','Approvals'].includes(field)) {
+    updateStats();
+  }
   if (currentDrawerId === opportunityId) {
-    const updatedRow = allData.find(p => p['Opportunity ID'] === opportunityId);
-    if (updatedRow) renderDrawer(updatedRow);
+    updateDrawerField(opportunityId, field, value);
   }
   } catch (e) {
     removeToast(toastId);
@@ -1582,6 +1583,71 @@ async function saveField(opportunityId, field, value) {
   }
 }
 
+
+
+function updateTableRow(opportunityId) {
+  const row = allData.find(p => p['Opportunity ID'] === opportunityId);
+  if (!row) return;
+  const tr = document.querySelector(`#tableBody tr[data-id="${CSS.escape(opportunityId)}"]`);
+  if (!tr) return;
+
+  const parsedDate = parseDate(row['Created At']);
+  const date = parsedDate ? parsedDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+  const amtROIN = parseFloat(row['Amt. ROI'] || row['Amount ROI']);
+  const roiN    = parseFloat(row['ROI']);
+  const amtRoi  = !isNaN(amtROIN) ? '<span class="' + (amtROIN >= 0 ? 'roi-positive' : 'roi-negative') + '">£' + amtROIN.toFixed(2) + '</span>' : '<span class="muted">—</span>';
+  const roi     = !isNaN(roiN)    ? '<span class="' + (roiN >= 0 ? 'roi-positive' : 'roi-negative') + '">' + (roiN * 100).toFixed(1) + '%</span>' : '<span class="muted">—</span>';
+
+  const approvalsArr  = parseJSON(row['Approvals'], []);
+  const approvedCount = approvalsArr.filter(a => a.status !== 'rejected').length;
+  const rejectedCount = approvalsArr.filter(a => a.status === 'rejected').length;
+  let approvalCell = '';
+  if (approvedCount > 0 && rejectedCount === 0) {
+    approvalCell = '<span class="approval-count-pill yes-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' + approvedCount + '</span>';
+  } else if (rejectedCount > 0 && approvedCount === 0) {
+    approvalCell = '<span class="approval-count-pill no-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' + rejectedCount + '</span>';
+  } else if (approvedCount > 0 && rejectedCount > 0) {
+    approvalCell = '<span class="approval-count-pill yes-pill" style="margin-right:3px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' + approvedCount + '</span><span class="approval-count-pill no-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' + rejectedCount + '</span>';
+  } else {
+    approvalCell = '<span class="muted">—</span>';
+  }
+
+  const isPurchased = isBoolYes(row['Purchased']);
+  const purchased = isPurchased
+    ? '<span class="yn-yes"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Yes</span>'
+    : '<span class="yn-no"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>No</span>';
+
+  const cells = tr.querySelectorAll('td');
+  if (cells[0]) cells[0].innerHTML = date;
+  if (cells[1]) cells[1].innerHTML = escHtml(row['Product Name'] || '—');
+  if (cells[2]) cells[2].innerHTML = escHtml(row['Supplier Name'] || '—');
+  if (cells[3]) cells[3].innerHTML = amtRoi;
+  if (cells[4]) cells[4].innerHTML = roi;
+  if (cells[5]) cells[5].innerHTML = approvalCell;
+  if (cells[6]) cells[6].innerHTML = purchased;
+  if (cells[7]) cells[7].innerHTML = escHtml((row['Agent'] || '—').split(' ')[0]);
+}
+
+function updateDrawerField(opportunityId, field, value) {
+  // Only update specific elements without re-rendering the whole drawer
+  // For simple text/select fields, the input already shows the new value
+  // since the user just typed/selected it. We only need to update
+  // the hero section elements that mirror data.
+  const row = allData.find(p => p['Opportunity ID'] === opportunityId);
+  if (!row) return;
+
+  // Update supplier meta line in hero
+  if (field === 'Supplier Name') {
+    const meta = document.querySelector('.drawer-product-meta');
+    if (meta) meta.textContent = value;
+  }
+  // Update product name in hero
+  if (field === 'Product Name') {
+    const name = document.querySelector('.drawer-product-name');
+    if (name) name.textContent = value;
+  }
+}
+  
 /* ── Save financial + refresh KPIs immediately ── */
 async function saveFieldAndRefresh(opportunityId, field, value) {
   const toastId = showToast('Saving & recalculating…', 'loading', 0);
@@ -1608,9 +1674,10 @@ async function saveFieldAndRefresh(opportunityId, field, value) {
       }
     }
 
-    applyFilters();
+    if (window.AppCache) window.AppCache.sourcing = { data: allData };
+    updateTableRow(opportunityId);
+    
     updateStats();
-    renderTable();
     removeToast(toastId);
     showToast('Saved & recalculated', 'success');
   } catch (e) {
