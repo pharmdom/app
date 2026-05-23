@@ -205,7 +205,8 @@
     window.API = {
     sourcing: "https://script.google.com/macros/s/AKfycbxN7boYXLeNiwUj63BH1XOd-MhNRaAc0LIxoTuQK2ml-GCkePbPV2iCKceFGVjDxh26/exec",
     fbaopportunities: "https://script.google.com/macros/s/AKfycby-t4NbfPTv39Rv4KxfYpnx9YInPazJbzw_4PYaFlevCydoFHPeQJ-BuEHpdPYgnkDTDw/exec",
-    offers: "https://script.google.com/macros/s/AKfycbwt1sg2sgDxCuwZ6KOFONX6IHany8CcOZyJMLjIkHn08e3d-cVsLOhGpIW0Hj3XYigB/exec"
+    offers: "https://script.google.com/macros/s/AKfycbwt1sg2sgDxCuwZ6KOFONX6IHany8CcOZyJMLjIkHn08e3d-cVsLOhGpIW0Hj3XYigB/exec",
+    suppliers: "https://script.google.com/macros/s/AKfycbyUakRDM0bBv2QzdA_WO-xzvmQ9B6kWu-wPc0yRuKE2dZjG8-UID3bI1ZEYaSoFMjhC0A/exec"
     };
 
 window.AppCache = {};
@@ -232,6 +233,14 @@ window.AppCache.offers           = offers;
   } catch(e) {
     console.warn('Prefetch failed', e);
   }
+
+  // Non-critical: catalog prefetch — fire and forget, never blocks critical path
+  Promise.all([
+    fetch(window.API.suppliers, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'getCatalog' }) })
+      .then(r => r.json())
+      .then(data => { if(data.success) window.AppCache.suppliersCatalog = data.rows || []; })
+  ]).catch(() => {});
+
 })();
 
 window.AppCache.refresh = async function(key) {
