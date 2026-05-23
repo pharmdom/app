@@ -202,7 +202,48 @@
   </div>
 
   <script>
-    window.API_URL = "https://script.google.com/macros/s/AKfycbxN7boYXLeNiwUj63BH1XOd-MhNRaAc0LIxoTuQK2ml-GCkePbPV2iCKceFGVjDxh26/exec";
+    window.API = {
+  sourcing: "https://script.google.com/macros/s/AKfycbxN7boYXLeNiwUj63BH1XOd-MhNRaAc0LIxoTuQK2ml-GCkePbPV2iCKceFGVjDxh26/exec"
+};
+
+window.AppCache = {};
+
+(async function prefetch() {
+  try {
+    const [sourcingRes, usersRes, suppliersRes, listingRes] = await Promise.all([
+      fetch(window.API.sourcing, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'getSourcing' }) }),
+      fetch(window.API.sourcing, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'getUsers' }) }),
+      fetch(window.API.sourcing, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'getSuppliers' }) }),
+      fetch(window.API.sourcing, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'getListing' }) }),
+    ]);
+    const [sourcing, users, suppliers, listing] = await Promise.all([
+      sourcingRes.json(), usersRes.json(), suppliersRes.json(), listingRes.json()
+    ]);
+    window.AppCache.sourcing  = sourcing;
+    window.AppCache.users     = users;
+    window.AppCache.suppliers = suppliers;
+    window.AppCache.listing   = listing;
+  } catch(e) {
+    console.warn('Prefetch failed', e);
+  }
+})();
+
+window.AppCache.refresh = async function(key) {
+  const actions = {
+    sourcing:  'getSourcing',
+    users:     'getUsers',
+    suppliers: 'getSuppliers',
+    listing:   'getListing',
+  };
+  if (!actions[key]) return;
+  try {
+    const res  = await fetch(window.API.sourcing, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: actions[key] }) });
+    const data = await res.json();
+    window.AppCache[key] = data;
+  } catch(e) {
+    console.warn('Cache refresh failed for', key, e);
+  }
+};
     const user = JSON.parse(sessionStorage.getItem("user"));
     if (!user || user.role !== "Digital Ops") window.location.href = "../login";
 
