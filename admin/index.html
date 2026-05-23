@@ -719,7 +719,8 @@
 
 window.API = {
   sourcing: "https://script.google.com/macros/s/AKfycbxN7boYXLeNiwUj63BH1XOd-MhNRaAc0LIxoTuQK2ml-GCkePbPV2iCKceFGVjDxh26/exec",
-  fbaopportunities: "https://script.google.com/macros/s/AKfycby-t4NbfPTv39Rv4KxfYpnx9YInPazJbzw_4PYaFlevCydoFHPeQJ-BuEHpdPYgnkDTDw/exec"     
+  fbaopportunities: "https://script.google.com/macros/s/AKfycby-t4NbfPTv39Rv4KxfYpnx9YInPazJbzw_4PYaFlevCydoFHPeQJ-BuEHpdPYgnkDTDw/exec",
+  offers: "https://script.google.com/macros/s/AKfycbwt1sg2sgDxCuwZ6KOFONX6IHany8CcOZyJMLjIkHn08e3d-cVsLOhGpIW0Hj3XYigB/exec"
 };
 
 // Cache
@@ -727,21 +728,23 @@ window.AppCache = {};
 
 (async function prefetch() {
   try {
-const [sourcingRes, usersRes, suppliersRes, listingRes, fbaOppRes] = await Promise.all([
+const [sourcingRes, usersRes, suppliersRes, listingRes, fbaOppRes, offersRes] = await Promise.all([
   fetch(window.API.sourcing, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'getSourcing' }) }),
   fetch(window.API.sourcing, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'getUsers' }) }),
   fetch(window.API.sourcing, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'getSuppliers' }) }),
   fetch(window.API.sourcing, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'getListing' }) }),
   fetch(window.API.fbaopportunities, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'getFbaOpportunities' }) }),
+  fetch(window.API.offers, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'getOffers' }) }),
 ]);
-const [sourcing, users, suppliers, listing, fbaopportunities] = await Promise.all([
-  sourcingRes.json(), usersRes.json(), suppliersRes.json(), listingRes.json(), fbaOppRes.json()
+const [sourcing, users, suppliers, listing, fbaopportunities, offers] = await Promise.all([
+  sourcingRes.json(), usersRes.json(), suppliersRes.json(), listingRes.json(), fbaOppRes.json(), offersRes.json()
 ]);
 window.AppCache.sourcing         = sourcing;
 window.AppCache.users            = users;
 window.AppCache.suppliers        = suppliers;
 window.AppCache.listing          = listing;
 window.AppCache.fbaopportunities = fbaopportunities;
+window.AppCache.offers           = offers;
   } catch(e) {
     console.warn('Prefetch failed', e);
   }
