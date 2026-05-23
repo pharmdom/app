@@ -1388,8 +1388,17 @@ async function saveField(id,field,value) {
       showToast('Saved','success');
     }catch(e){console.error(e);showToast('Error saving','error');}
   }else{showToast('Saved','success');}
-  if(document.getElementById('detailDrawer').classList.contains('open')) renderDrawer(allData[idx]);
-  updateStats(allData);applyFilters();
+  if (window.AppCache) window.AppCache.listing = allData;
+  if (document.getElementById('detailDrawer').classList.contains('open')) renderDrawer(allData[idx]);
+  // only re-render kanban if a stage-determining field changed
+  const stageFields = ['Warehouse','Arrived','Title Clear','Weight Correct','Dimensions Set','Merged','Bundled','Consumer Multi-buy','B2B Multi-buy','B2B Pricing','Seller Toolkit (STK)'];
+  if (stageFields.includes(field)) {
+    applyFilters();
+    updateStats(allData);
+  } else {
+    updateStats(allData);
+    refreshCard(allData[idx]['Opportunity ID']);
+  }
 }
 
 async function saveAutoFieldsToSheet(row) {
