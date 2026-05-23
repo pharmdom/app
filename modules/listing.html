@@ -720,6 +720,42 @@ if (!row['_fbaManual']) {
 }
 
 /* ─── INIT & LOAD ───────────────────────────────────────────────── */
+function startPolling() {
+  setInterval(async () => {
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'getListing' })
+      });
+      const data = await res.json();
+      const fresh = Array.isArray(data) ? data : (data.data || []);
+      fresh.forEach(applyAutoFields);
+
+      // Only update if data actually changed — avoid unnecessary re-renders
+      if (JSON.stringify(fresh) === JSON.stringify(allData)) return;
+
+      allData = fresh;
+      if (window.AppCache) window.AppCache.listing = allData;
+
+      applyFilters();
+      updateStats(allData);
+
+      // If a drawer is open, refresh it with latest data
+      const drawer = document.getElementById('detailDrawer');
+      if (drawer.classList.contains('open')) {
+        const id = drawer.dataset.currentId;
+        const updatedRow = allData.find(p => (p['Opportunity ID'] || '') === id);
+        if (updatedRow) renderDrawer(updatedRow);
+        else closeDrawer();
+      }
+    } catch(e) {
+      console.warn('Listing poll failed', e);
+    }
+  }, 30000);
+}
+
+  
 async function init() {
   const cache = window.AppCache || {};
   if (cache.listing) {
@@ -731,6 +767,7 @@ async function init() {
   } else {
     await loadData();
   }
+  startPolling();
 }
 
 async function loadData() {
