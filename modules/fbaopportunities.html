@@ -506,12 +506,20 @@ async function api(body){
 async function loadData(){
   pStart();
   try{
+    const cache = window.AppCache;
+    if(cache && cache.fbaopportunities){
+      allData = cache.fbaopportunities.data || cache.fbaopportunities || [];
+      renderView();
+      updateChips();
+      pDone();
+      return;
+    }
     var r=await api({action:'getFbaOpportunities'});
     if(r&&r.success){
       allData=r.data||[];
+      if(window.AppCache) window.AppCache.fbaopportunities = r;
       renderView();
       updateChips();
-      toast('Loaded '+allData.length+' opportunities','success');
     }else{
       showEmpty('Failed to load','Check your API connection');
       toast('Failed to load data','error');
