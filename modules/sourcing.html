@@ -1283,8 +1283,13 @@ async function saveProduct() {
   const agentName = document.getElementById('f_agent').value.trim();
   const supplierCheapestRaw = document.getElementById('f_supplierCheapest').value;
 
-  const { count } = await sb.from('sourcing').select('*', { count: 'exact', head: true });
-  const opportunityId = 'SRC-' + String((count || 0) + 1).padStart(6, '0');
+  const { data: maxRow } = await sb.from('sourcing')
+  .select('opportunity_id')
+  .order('opportunity_id', { ascending: false })
+  .limit(1)
+  .single();
+const lastNum = maxRow ? parseInt(maxRow.opportunity_id.replace('SRC-', '')) : 0;
+const opportunityId = 'SRC-' + String(lastNum + 1).padStart(6, '0');
 
   const toastId = showToast('Saving product…', 'loading', 0);
 
