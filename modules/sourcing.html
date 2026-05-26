@@ -505,7 +505,8 @@ col.col-agent     { width: 110px; }
 </div>
 
 <script>
-(function () {
+
+  (function () {
 
 const sb = window.sb;
 
@@ -517,6 +518,7 @@ let startTime, timerInterval;
 let activeTab = 'overview';
 let activeStatFilter = null;
 let currentDrawerId = null;
+let asinSaveTimer = null;
 
 /* ══ REALTIME ══ */
 let realtimeChannel = null;
@@ -524,17 +526,15 @@ let realtimeChannel = null;
 function startRealtime() {
   realtimeChannel = sb
     .channel('sourcing-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'sourcing' }, async () => {
-      await refreshData();
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'sourcing_approvals' }, async () => {
-      await refreshData();
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'sourcing_notes' }, async () => {
-      await refreshData();
-    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'sourcing' }, async () => { await refreshData(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'sourcing_approvals' }, async () => { await refreshData(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'sourcing_notes' }, async () => { await refreshData(); })
     .subscribe();
 }
+
+window.addEventListener('beforeunload', () => {
+  if (realtimeChannel) sb.removeChannel(realtimeChannel);
+});
 
 async function refreshData() {
   const fresh = await fetchSourcing();
@@ -548,15 +548,11 @@ async function refreshData() {
   }
 }
 
-/* ══ FETCH HELPERS ══ */
+/* ══ FETCH ══ */
 async function fetchSourcing() {
   const { data, error } = await sb
     .from('sourcing')
-    .select(`
-      *,
-      sourcing_notes ( id, author_name, text, created_at ),
-      sourcing_approvals ( id, approver_name, status, created_at )
-    `)
+    .select(`*, sourcing_notes(id, author_name, text, created_at), sourcing_approvals(id, approver_name, status, created_at)`)
     .order('created_at', { ascending: false });
   if (error) { console.error(error); return []; }
   return data || [];
@@ -605,7 +601,11 @@ function isRejected(p) {
 
 /* ══ STAT FILTER ══ */
 function filterByStatus(type) {
-  if (activeStatFilter === type) { activeStatFilter = null; document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active-filter')); currentPage = 1; applyFilters(); return; }
+  if (activeStatFilter === type) {
+    activeStatFilter = null;
+    document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active-filter'));
+    currentPage = 1; applyFilters(); return;
+  }
   activeStatFilter = type;
   document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active-filter'));
   const map = { needApproval: 'statApproval', toPurchase: 'statPurchase', rejected: 'statRejected', all: 'statTotal' };
@@ -636,9 +636,9 @@ function applyFilters(resetPage) {
   filtered = allData.filter(p => {
     if (q && !((p.product_name||'').toLowerCase().includes(q) || (p.supplier_name||'').toLowerCase().includes(q) || (p.agent||'').toLowerCase().includes(q))) return false;
     if (fPurchased === 'yes' && !p.purchased) return false;
-    if (fPurchased === 'no'  && (p.purchased || !p.approved)) return false;
-    if (fApproved  === 'yes' && !p.approved)  return false;
-    if (fApproved  === 'no'  &&  p.approved)  return false;
+    if (fPurchased === 'no'  && p.purchased) return false;
+    if (fApproved  === 'yes' && !p.approved) return false;
+    if (fApproved  === 'no'  &&  p.approved) return false;
     if (fApproved  === 'rejected' && !isRejected(p)) return false;
     if (fPacking && p.packing !== fPacking) return false;
     if (fSeason  && p.seasonality !== fSeason) return false;
@@ -650,6 +650,9 @@ function applyFilters(resetPage) {
     return true;
   });
 
+  // Keep most-recent-first order
+  filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
   const anyActive = fPurchased || fApproved || fPacking || fSeason || fComp || fStock;
   document.getElementById('filterDot').style.display = (anyActive || activeStatFilter) ? 'inline-block' : 'none';
   document.getElementById('filterClearBtn').classList.toggle('visible', !!(anyActive || activeStatFilter));
@@ -660,7 +663,10 @@ function applyFilters(resetPage) {
 }
 
 function clearFilters() {
-  ['fPurchased','fApproved','fPacking','fSeasonality','fCompetition','fSupplierStock'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).classList.remove('active'); });
+  ['fPurchased','fApproved','fPacking','fSeasonality','fCompetition','fSupplierStock'].forEach(id => {
+    document.getElementById(id).value = '';
+    document.getElementById(id).classList.remove('active');
+  });
   document.getElementById('filterDot').style.display = 'none';
   document.getElementById('filterClearBtn').classList.remove('visible');
   activeStatFilter = null;
@@ -703,7 +709,7 @@ function renderTable() {
       ? '<span class="yn-yes"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Yes</span>'
       : '<span class="yn-no"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>No</span>';
 
-    return `<tr data-id="${escAttr(row.opportunity_id)}" style="cursor:pointer">
+    return `<tr data-id="${escAttr(row.opportunity_id)}">
       <td class="mtd">${date}</td>
       <td class="product-cell" title="${escAttr(row.product_name||'')}">${escHtml(row.product_name||'—')}</td>
       <td>${escHtml(row.supplier_name||'—')}</td>
@@ -758,13 +764,14 @@ function renderDrawer(row) {
   const cost      = parseFloat(row.total_cost);
   const roi       = parseFloat(row.roi);
 
-const purchasedBadge = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;position:relative;z-index:1;">` +
+  const purchasedBadge =
+    `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;position:relative;z-index:1;">` +
     (isPurchased
       ? '<span class="drawer-status-badge purchased" style="margin-bottom:0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Purchased</span>'
-      : '<span class="drawer-status-badge not-purchased" style="margin-bottom:0;white-space:nowrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Not Purchased</span>') +
+      : '<span class="drawer-status-badge not-purchased" style="margin-bottom:0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Not Purchased</span>') +
     (isOffer ? '<span class="drawer-status-badge" style="background:rgba(139,92,246,.18);border:1px solid rgba(139,92,246,.35);color:#c4b5fd;margin-bottom:0">Offer</span>' : '') +
     `</div>`;
-  
+
   const approvedCount = approvals.filter(a => a.status === 'approved').length;
   const rejectedCount = approvals.filter(a => a.status === 'rejected').length;
 
@@ -774,11 +781,11 @@ const purchasedBadge = `<div style="display:flex;align-items:center;gap:6px;marg
       ${purchasedBadge}
       <div class="drawer-product-name">${escHtml(row.product_name||'Product Details')}</div>
       <div class="drawer-product-meta">${escHtml(row.supplier_name||'')}</div>
-      <div class="drawer-kpi-row" id="drawerKpiRow">
-        ${kpiCard('Amt. ROI',   !isNaN(amtROI)    ? '£'+amtROI.toFixed(2)      : '—', amtROI >= 0    ? 'positive' : 'negative', 'amtroi')}
-        ${kpiCard('After Pack', !isNaN(afterPack) ? '£'+afterPack.toFixed(2)   : '—', afterPack >= 0 ? 'positive' : 'negative', 'pack')}
-        ${kpiCard('Cost',       !isNaN(cost)      ? '£'+cost.toFixed(2)        : '—', '', 'cost')}
-        ${kpiCard('ROI',        !isNaN(roi)       ? (roi*100).toFixed(1)+'%'   : '—', roi >= 0       ? 'positive' : 'negative', 'roi')}
+      <div class="drawer-kpi-row">
+        ${kpiCard('Amt. ROI',   !isNaN(amtROI)    ? '£'+amtROI.toFixed(2)    : '—', amtROI >= 0    ? 'positive' : 'negative', 'amtroi')}
+        ${kpiCard('After Pack', !isNaN(afterPack) ? '£'+afterPack.toFixed(2) : '—', afterPack >= 0 ? 'positive' : 'negative', 'pack')}
+        ${kpiCard('Cost',       !isNaN(cost)      ? '£'+cost.toFixed(2)      : '—', '', 'cost')}
+        ${kpiCard('ROI',        !isNaN(roi)       ? (roi*100).toFixed(1)+'%' : '—', roi >= 0       ? 'positive' : 'negative', 'roi')}
       </div>
     </div>
     <div class="drawer-tabs">
@@ -804,7 +811,7 @@ const purchasedBadge = `<div style="display:flex;align-items:center;gap:6px;marg
       `<div class="info-grid">
         ${editCard(id,'supplier_name',row.supplier_name||'','supplier')}
         ${editCard(id,'code',row.code||'','text','EAN')}
-        ${editCard(id,'supplier_cheapest',row.supplier_cheapest||'','select:Yes,No')}
+        ${editCard(id,'supplier_cheapest',row.supplier_cheapest != null ? (row.supplier_cheapest ? 'Yes' : 'No') : '','select:Yes,No')}
         ${editCard(id,'supplier_stock',row.supplier_stock||'','select:Low,Medium,High')}
         ${editCard(id,'primary_fulfillment',row.primary_fulfillment||'','select:FBM,FBA')}
       </div>`);
@@ -820,9 +827,9 @@ const purchasedBadge = `<div style="display:flex;align-items:center;gap:6px;marg
       </div>`)
     + section('Calculated',
       `<div class="info-grid">
-        ${staticCard('% ROI', row.percentage_roi ? (parseFloat(row.percentage_roi)*100).toFixed(1)+'%' : '—')}
-        ${staticCard('Total Cost', row.total_cost ? '£'+parseFloat(row.total_cost).toFixed(2) : '—')}
-        ${staticCard('After Pack', row.after_pack ? '£'+parseFloat(row.after_pack).toFixed(2) : '—')}
+        ${staticCard('% ROI', row.percentage_roi != null ? (parseFloat(row.percentage_roi)*100).toFixed(1)+'%' : '—')}
+        ${staticCard('Total Cost', row.total_cost != null ? '£'+parseFloat(row.total_cost).toFixed(2) : '—')}
+        ${staticCard('After Pack', row.after_pack != null ? '£'+parseFloat(row.after_pack).toFixed(2) : '—')}
       </div>`);
   }
 
@@ -1002,13 +1009,18 @@ function asinCard(id, asinValue) {
 
 /* ══ SAVE FIELD ══ */
 async function saveField(opportunityId, field, value) {
+  // Cast supplier_cheapest to boolean before saving
+  let saveValue = value;
+  if (field === 'supplier_cheapest') {
+    saveValue = value === 'Yes' ? true : value === 'No' ? false : null;
+  }
   const toastId = showToast('Saving…', 'loading', 0);
-  const update = { [field]: value, last_updated: new Date().toISOString() };
+  const update = { [field]: saveValue, last_updated: new Date().toISOString() };
   const { error } = await sb.from('sourcing').update(update).eq('opportunity_id', opportunityId);
   removeToast(toastId);
   if (error) { showToast('Failed to save', 'error'); return; }
   const idx = allData.findIndex(p => p.opportunity_id === opportunityId);
-  if (idx > -1) allData[idx][field] = value;
+  if (idx > -1) allData[idx][field] = saveValue;
   showToast('Saved', 'success');
   renderTable();
   updateStats();
@@ -1020,7 +1032,6 @@ async function saveFieldAndRefresh(opportunityId, field, value) {
   const { error } = await sb.from('sourcing').update(update).eq('opportunity_id', opportunityId);
   removeToast(toastId);
   if (error) { showToast('Failed to save', 'error'); return; }
-  // Re-fetch this row to get recalculated values from DB trigger
   const { data } = await sb.from('sourcing').select(`*, sourcing_notes(*), sourcing_approvals(*)`).eq('opportunity_id', opportunityId).single();
   if (data) {
     const idx = allData.findIndex(p => p.opportunity_id === opportunityId);
@@ -1054,7 +1065,6 @@ async function onPurchasedChange(id, value) {
   await saveField(id, 'purchased', value === 'true');
 }
 
-let asinSaveTimer = null;
 function saveAsins(id) {
   clearTimeout(asinSaveTimer);
   asinSaveTimer = setTimeout(() => {
@@ -1109,19 +1119,13 @@ function applyYNColors() {
 async function decideProduct(id, decision) {
   const selectedUser = document.getElementById('approvalUser')?.value;
   if (!selectedUser) { showToast('Please select a user', 'error'); return; }
-
   const toastId = showToast('Saving decision…', 'loading', 0);
-
-  // Remove existing decision from same user then insert new one
   await sb.from('sourcing_approvals').delete().eq('opportunity_id', id).eq('approver_name', selectedUser);
   const { error } = await sb.from('sourcing_approvals').insert({ opportunity_id: id, approver_name: selectedUser, status: decision });
-
   removeToast(toastId);
   if (error) { showToast('Failed to save decision', 'error'); return; }
-
   showToast(selectedUser + (decision === 'approved' ? ' approved' : ' rejected'), decision === 'approved' ? 'success' : 'error');
   activeTab = 'approvals';
-  // Real-time will refresh, but also refresh immediately
   await refreshData();
 }
 
@@ -1132,7 +1136,6 @@ async function addNote(id) {
   if (!selectedUser) { showToast('Please select a user', 'error'); return; }
   if (!text)         { showToast('Please write something', 'error'); return; }
   if (text.length > 2000) { showToast('Note too long (max 2000 characters)', 'error'); return; }
-
   const toastId = showToast('Adding note…', 'loading', 0);
   const { error } = await sb.from('sourcing_notes').insert({ opportunity_id: id, author_name: selectedUser, text });
   removeToast(toastId);
@@ -1271,18 +1274,15 @@ async function saveProduct() {
   if (firstError) { firstError.scrollIntoView({ behavior:'smooth', block:'center' }); firstError.focus(); showToast('Please complete all required fields', 'error'); return; }
 
   const productName = document.getElementById('f_productName').value.trim();
-  const duplicate   = allData.find(p => (p.product_name||'').trim().toLowerCase() === productName.toLowerCase());
-  if (duplicate) { showToast('A product with this name already exists', 'error'); return; }
-
   const btn = document.getElementById('saveBtn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;margin-right:5px"></span>Saving…';
 
-  const seconds  = Math.floor((Date.now() - startTime) / 1000);
-  const notesTxt = document.getElementById('f_notes').value.trim();
+  const seconds   = Math.floor((Date.now() - startTime) / 1000);
+  const notesTxt  = document.getElementById('f_notes').value.trim();
   const agentName = document.getElementById('f_agent').value.trim();
+  const supplierCheapestRaw = document.getElementById('f_supplierCheapest').value;
 
-  // Generate opportunity ID
   const { count } = await sb.from('sourcing').select('*', { count: 'exact', head: true });
   const opportunityId = 'SRC-' + String((count || 0) + 1).padStart(6, '0');
 
@@ -1301,7 +1301,7 @@ async function saveProduct() {
     unit_quantity:        parseInt(document.getElementById('f_unitQuantity').value) || 0,
     keepa:                document.getElementById('f_keepa').value,
     primary_fulfillment:  document.getElementById('f_primaryFulfillment').value,
-    supplier_cheapest:    document.getElementById('f_supplierCheapest').value,
+    supplier_cheapest:    supplierCheapestRaw === 'Yes' ? true : supplierCheapestRaw === 'No' ? false : null,
     packing:              document.getElementById('f_packing').value,
     seasonality:          document.getElementById('f_seasonality').value,
     competition:          document.getElementById('f_competition').value,
@@ -1320,12 +1320,10 @@ async function saveProduct() {
     return;
   }
 
-  // Save initial note if provided
   if (notesTxt) {
     await sb.from('sourcing_notes').insert({ opportunity_id: opportunityId, author_name: agentName || 'Unknown', text: notesTxt });
   }
 
-  // Log sourcing time
   await sb.from('sourcing_hours').insert({
     opportunity_id: opportunityId, agent: agentName,
     supplier_name: insertData.supplier_name, product_name: productName,
@@ -1356,11 +1354,11 @@ function checkQtyPurchased(id, inputEl) {
   if (isNaN(qty) || qty <= 0) return;
   const row = allData.find(p => p.opportunity_id === id);
   if (!row) return;
-  const sasRaw   = parseFloat(row.keepa || '');
+  const sasRaw    = parseFloat(row.keepa || '');
   const threshold = !isNaN(sasRaw) && sasRaw > 0 ? sasRaw * 2 : null;
   if (threshold !== null && qty > threshold) {
-    const overlay    = document.getElementById('qtyWarnOverlay');
-    const cancelBtn  = document.getElementById('qtyWarnCancel');
+    const overlay     = document.getElementById('qtyWarnOverlay');
+    const cancelBtn   = document.getElementById('qtyWarnCancel');
     const continueBtn = document.getElementById('qtyWarnContinue');
     const freshCancel   = cancelBtn.cloneNode(true);
     const freshContinue = continueBtn.cloneNode(true);
@@ -1430,4 +1428,5 @@ window.checkQtyPurchased = checkQtyPurchased;
 
 init();
 })();
+  
 </script>
