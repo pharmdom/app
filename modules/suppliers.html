@@ -1123,47 +1123,58 @@ async function acBulkDelete(){
 }
 
 /* ── ALL CATALOG ── */
+/* ── ALL CATALOG ── */
+let _acAllData = [];  // full dataset for search
+
 async function openAllCatalog(){
   document.getElementById('scAllCatOverlay').classList.add('open');
   document.getElementById('scAllCatSearch').value='';
   document.getElementById('scAllCatBody').innerHTML=`<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading all catalog…</p></div>`;
   const{data:all,error}=await sb.from('catalog').select('*').order('product_name').limit(50000);
   if(error){toast('Failed: '+error.message,'error');return;}
-  allCatalogData=all||[];
+  _acAllData=all||[];
+  allCatalogData=_acAllData;
   renderAllCatalog();
 }
+
 function closeAllCatalog(){
   document.getElementById('scAllCatOverlay').classList.remove('open');
   if(acBulkMode){acBulkMode=false;acSelectedIds.clear();document.getElementById('scAcBulkBar').style.display='none';}
 }
+
 function renderAllCatalog(){
   const q=(document.getElementById('scAllCatSearch').value||'').toLowerCase().trim();
-  let data=allCatalogData;
-  if(q)data=data.filter(r=>(String(r.ean||'')+' '+String(r.product_name||'')).toLowerCase().includes(q));
+  let data=_acAllData;
+  if(q)data=data.filter(r=>(String(r.ean||'')+' '+String(r.product_name||'')+' '+String(r.supplier_name||'')).toLowerCase().includes(q));
+
   data=[...data].sort((a,b)=>{
     const ea=String(a.ean||''),eb=String(b.ean||'');
     if(ea!==eb)return ea.localeCompare(eb);
     return(parseFloat(a.cost)||999999)-(parseFloat(b.cost)||999999);
   });
+
+  const total=data.length;
+  const display=data.slice(0,1000);
+
   const cnt=document.getElementById('scAllCatCount');
-  cnt.textContent=data.length+' product'+(data.length!==1?'s':'');
+  cnt.textContent=total.toLocaleString()+' product'+(total!==1?'s':'');
   cnt.style.display='';
+
   const body=document.getElementById('scAllCatBody');
-  if(!data.length){body.innerHTML='<div class="sc-state"><p>No products found</p></div>';return;}
+  if(!total){body.innerHTML='<div class="sc-state"><p>No products found</p></div>';return;}
+
   let html=`<table class="sc-allcat-table"><thead><tr>
     ${acBulkMode?'<th style="width:32px"><input type="checkbox" class="sc-row-cb" onchange="document.querySelectorAll(\'.sc-ac-cb-item\').forEach(c=>{c.checked=this.checked;if(c.checked)acSelectedIds.add(c.dataset.id);else acSelectedIds.delete(c.dataset.id)});updateAcBulkCount()"></th>':''}
     <th>EAN</th><th>Product Name</th><th>Supplier</th><th>Code</th><th>Case</th><th>Category</th><th>Cost</th><th>Status</th><th>Agent</th><th></th>
   </tr></thead><tbody>`;
-  let prevEan=null;
-  data.forEach((r,i)=>{
+
+  display.forEach((r,i)=>{
     const ean=r.ean||'';
     const cost=fmtCost(r.cost);
     const status=r.status||'';
     const statusCls=status==='Approved'?'approved':status==='Rejected'?'rejected':'';
-    const isNewGroup=ean&&ean!==prevEan;
-    prevEan=ean;
     const rid=esc(String(r.id||''));
-    html+=`<tr class="${isNewGroup&&i>0?'sc-ean-group-row':''}" style="animation-delay:${Math.min(i,30)*0.015}s">
+    html+=`<tr>
       ${acBulkMode?`<td><input type="checkbox" class="sc-row-cb sc-ac-cb-item" data-id="${rid}" ${acSelectedIds.has(rid)?'checked':''} onchange="if(this.checked)acSelectedIds.add('${rid}');else acSelectedIds.delete('${rid}');updateAcBulkCount()"></td>`:''}
       <td><a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener">${esc(ean||'—')}</a></td>
       <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.product_name||'')}">${esc(r.product_name||'—')}</td>
@@ -1187,8 +1198,22 @@ function renderAllCatalog(){
       </td>
     </tr>`;
   });
+
   html+='</tbody></table>';
+
+  if(total>1000){
+    html+=`<div style="padding:16px 20px;text-align:center;font-size:12.5px;color:var(--text3);border-top:1px solid var(--border);background:var(--surface2)">
+      Showing first 1,000 of <strong>${total.toLocaleString()}</strong> products${q?' matching <em>"'+esc(q)+'"</em>':''} — use search to narrow results
+    </div>`;
+  }
+
   body.innerHTML=html;
+}
+
+  
+function closeAllCatalog(){
+  document.getElementById('scAllCatOverlay').classList.remove('open');
+  if(acBulkMode){acBulkMode=false;acSelectedIds.clear();document.getElementById('scAcBulkBar').style.display='none';}
 }
 
 /* ── IMPORT DRAWER ── */
@@ -1449,6 +1474,7 @@ document.addEventListener('click',e=>{
 });
 
 /* ── EXPOSE GLOBALS ── */
+window._acAllData=_acAllData;
 window.toggleSupDropdown=toggleSupDropdown;
 window.filterSupDropdown=filterSupDropdown;
 window.selectSupplier=selectSupplier;
