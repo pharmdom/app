@@ -522,7 +522,11 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         Refresh
       </button>
-    </div>
+      <button class="sc-hdr-btn" onclick="openImportDrawer()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Add Items
+    </button>
+ </div>
 
     <div class="sc-cat-toolbar">
       <div class="sc-search-wrap">
@@ -1004,4 +1008,467 @@ async function updateStatus(id,status){
       if(r){r.status=status;r.agent=agent;}
     });
     const sel=document.getElementById('status_'+id);
-    if(sel)sel.classNam
+    if(sel)sel.className='sc-status-sel'+(status==='Approved'?' approved':status==='Rejected'?' rejected':'');
+    const agEl=document.getElementById('agent_'+id);
+    if(agEl)agEl.textContent=agent||'—';
+    toast('Status updated','success');
+  }catch(e){toast('Update failed: '+e.message,'error');}
+}
+
+/* ── DELETE PRODUCT ── */
+function confirmDelProd(id,name){
+  document.getElementById('scConfirmTitle').textContent='Delete Product?';
+  document.getElementById('scConfirmDesc').textContent=`"${name}" will be permanently removed from the Catalog.`;
+  document.getElementById('scConfirmOk').onclick=()=>doDelProd(id);
+  document.getElementById('scConfirmOverlay').classList.add('open');
+}
+async function doDelProd(id){
+  closeConfirm();
+  const tid=toast('Deleting…','loading',0);
+  try{
+    const{error}=await sb.from('catalog').delete().eq('id',id);
+    if(error)throw error;
+    catalogData=catalogData.filter(x=>String(x.id||'')!==id);
+    allCatalogData=allCatalogData.filter(x=>String(x.id||'')!==id);
+    renderCatalog();
+    const cnt=document.getElementById('scCatCount');
+    cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
+    removeToast(tid);toast('Product deleted','success');
+  }catch(e){removeToast(tid);toast('Delete failed: '+e.message,'error');}
+}
+
+/* ── BULK (catalog) ── */
+function toggleBulkSelect(){
+  bulkSelectMode=!bulkSelectMode;selectedIds.clear();
+  document.getElementById('scSelectToggle').classList.toggle('active',bulkSelectMode);
+  document.getElementById('scBulkBar').style.display=bulkSelectMode?'':'none';
+  renderCatalog();
+}
+function updateBulkCount(){document.getElementById('scBulkCount').textContent=selectedIds.size+' selected';}
+async function bulkSetStatus(status){
+  if(!selectedIds.size)return;
+  const agent=status?getAgent():'';
+  const ids=[...selectedIds];
+  const tid=toast('Updating '+ids.length+'…','loading',0);
+  try{
+    await sb.from('catalog').update({status:status||null,agent:agent||null}).in('id',ids);
+    ids.forEach(id=>{
+      [catalogData,allCatalogData].forEach(arr=>{const r=arr.find(x=>String(x.id||'')===id);if(r){r.status=status;r.agent=agent;}});
+    });
+    removeToast(tid);toast('Updated '+ids.length+' products','success');
+    selectedIds.clear();renderCatalog();updateBulkCount();
+  }catch(e){removeToast(tid);toast('Failed: '+e.message,'error');}
+}
+async function bulkDeleteSelected(){
+  if(!selectedIds.size)return;
+  const ids=[...selectedIds];
+  document.getElementById('scConfirmDesc').textContent=`Delete ${ids.length} selected products? This cannot be undone.`;
+  document.getElementById('scConfirmOk').onclick=async()=>{
+    closeConfirm();
+    const tid=toast('Deleting…','loading',0);
+    await sb.from('catalog').delete().in('id',ids);
+    catalogData=catalogData.filter(x=>!ids.includes(String(x.id||'')));
+    allCatalogData=allCatalogData.filter(x=>!ids.includes(String(x.id||'')));
+    selectedIds.clear();removeToast(tid);toast('Deleted '+ids.length,'success');
+    renderCatalog();updateBulkCount();
+    const cnt=document.getElementById('scCatCount');
+    cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
+  };
+  document.getElementById('scConfirmOverlay').classList.add('open');
+}
+
+/* ── BULK (all catalog) ── */
+function toggleAcBulkSelect(){
+  acBulkMode=!acBulkMode;acSelectedIds.clear();
+  document.getElementById('scAcSelectToggle').classList.toggle('active',acBulkMode);
+  document.getElementById('scAcBulkBar').style.display=acBulkMode?'':'none';
+  renderAllCatalog();
+}
+function updateAcBulkCount(){document.getElementById('scAcBulkCount').textContent=acSelectedIds.size+' selected';}
+async function acBulkSetStatus(status){
+  if(!acSelectedIds.size)return;
+  const agent=status?getAgent():'';
+  const ids=[...acSelectedIds];
+  const tid=toast('Updating '+ids.length+'…','loading',0);
+  await sb.from('catalog').update({status:status||null,agent:agent||null}).in('id',ids);
+  ids.forEach(id=>{
+    [allCatalogData,catalogData].forEach(arr=>{const r=arr.find(x=>String(x.id||'')===id);if(r){r.status=status;r.agent=agent;}});
+  });
+  removeToast(tid);toast('Updated '+ids.length,'success');
+  acSelectedIds.clear();renderAllCatalog();updateAcBulkCount();
+}
+async function acBulkDelete(){
+  if(!acSelectedIds.size)return;
+  const ids=[...acSelectedIds];
+  document.getElementById('scConfirmDesc').textContent=`Delete ${ids.length} selected products?`;
+  document.getElementById('scConfirmOk').onclick=async()=>{
+    closeConfirm();
+    const tid=toast('Deleting…','loading',0);
+    await sb.from('catalog').delete().in('id',ids);
+    allCatalogData=allCatalogData.filter(x=>!ids.includes(String(x.id||'')));
+    catalogData=catalogData.filter(x=>!ids.includes(String(x.id||'')));
+    acSelectedIds.clear();removeToast(tid);toast('Deleted '+ids.length,'success');
+    renderAllCatalog();updateAcBulkCount();
+  };
+  document.getElementById('scConfirmOverlay').classList.add('open');
+}
+
+/* ── ALL CATALOG ── */
+function openAllCatalog(){
+  document.getElementById('scAllCatOverlay').classList.add('open');
+  document.getElementById('scAllCatSearch').value='';
+  renderAllCatalog();
+}
+function closeAllCatalog(){
+  document.getElementById('scAllCatOverlay').classList.remove('open');
+  if(acBulkMode){acBulkMode=false;acSelectedIds.clear();document.getElementById('scAcBulkBar').style.display='none';}
+}
+function renderAllCatalog(){
+  const q=(document.getElementById('scAllCatSearch').value||'').toLowerCase().trim();
+  let data=allCatalogData;
+  if(q)data=data.filter(r=>(String(r.ean||'')+' '+String(r.product_name||'')).toLowerCase().includes(q));
+  data=[...data].sort((a,b)=>{
+    const ea=String(a.ean||''),eb=String(b.ean||'');
+    if(ea!==eb)return ea.localeCompare(eb);
+    return(parseFloat(a.cost)||999999)-(parseFloat(b.cost)||999999);
+  });
+  const cnt=document.getElementById('scAllCatCount');
+  cnt.textContent=data.length+' product'+(data.length!==1?'s':'');
+  cnt.style.display='';
+  const body=document.getElementById('scAllCatBody');
+  if(!data.length){body.innerHTML='<div class="sc-state"><p>No products found</p></div>';return;}
+  let html=`<table class="sc-allcat-table"><thead><tr>
+    ${acBulkMode?'<th style="width:32px"><input type="checkbox" class="sc-row-cb" onchange="document.querySelectorAll(\'.sc-ac-cb-item\').forEach(c=>{c.checked=this.checked;if(c.checked)acSelectedIds.add(c.dataset.id);else acSelectedIds.delete(c.dataset.id)});updateAcBulkCount()"></th>':''}
+    <th>EAN</th><th>Product Name</th><th>Supplier</th><th>Code</th><th>Case</th><th>Category</th><th>Cost</th><th>Status</th><th>Agent</th><th></th>
+  </tr></thead><tbody>`;
+  let prevEan=null;
+  data.forEach((r,i)=>{
+    const ean=r.ean||'';
+    const cost=fmtCost(r.cost);
+    const status=r.status||'';
+    const statusCls=status==='Approved'?'approved':status==='Rejected'?'rejected':'';
+    const isNewGroup=ean&&ean!==prevEan;
+    prevEan=ean;
+    const rid=esc(String(r.id||''));
+    html+=`<tr class="${isNewGroup&&i>0?'sc-ean-group-row':''}" style="animation-delay:${Math.min(i,30)*0.015}s">
+      ${acBulkMode?`<td><input type="checkbox" class="sc-row-cb sc-ac-cb-item" data-id="${rid}" ${acSelectedIds.has(rid)?'checked':''} onchange="if(this.checked)acSelectedIds.add('${rid}');else acSelectedIds.delete('${rid}');updateAcBulkCount()"></td>`:''}
+      <td><a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener">${esc(ean||'—')}</a></td>
+      <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.product_name||'')}">${esc(r.product_name||'—')}</td>
+      <td style="font-size:11.5px;color:var(--text3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.supplier_name||'—')}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${esc(r.code||'—')}</td>
+      <td>${esc(String(r.case_size||'—'))}</td>
+      <td>${r.category?`<span class="sc-badge blue">${esc(r.category)}</span>`:'<span style="color:var(--text4);font-size:11px">—</span>'}</td>
+      <td><span class="cat-cost${!cost?' empty':''}">${cost?'£'+cost:'—'}</span></td>
+      <td>
+        <select class="sc-status-sel ${statusCls}" id="ac_status_${rid}" onchange="updateStatus('${rid}',this.value)">
+          <option value="" ${!status?'selected':''}>—</option>
+          <option value="Approved" ${status==='Approved'?'selected':''}>Approved</option>
+          <option value="Rejected" ${status==='Rejected'?'selected':''}>Rejected</option>
+        </select>
+      </td>
+      <td id="ac_agent_${rid}" style="font-size:11px;color:var(--text3)">${esc(r.agent||'—')}</td>
+      <td>
+        <button class="sc-del-btn" onclick="confirmDelProd('${rid}','${esc(r.product_name||'')}');closeAllCatalog()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </td>
+    </tr>`;
+  });
+  html+='</tbody></table>';
+  body.innerHTML=html;
+}
+
+/* ── IMPORT DRAWER ── */
+function openImportDrawer(){
+  if(!currentSupId){toast('Select a supplier first','error');return;}
+  importRows=[];
+  importSupId=currentSupId;
+  const sup=allSuppliers.find(x=>x.supplier_id===currentSupId);
+  document.getElementById('scImportDrawerTitle').textContent='Add Items — '+(sup?sup.name:'');
+  document.getElementById('scImportBtn').disabled=true;
+  buildImportUI();
+  document.getElementById('scImportDrawerOverlay').classList.add('open');
+  document.getElementById('scImportDrawer').classList.add('open');
+}
+function closeImportDrawer(){
+  document.getElementById('scImportDrawerOverlay').classList.remove('open');
+  document.getElementById('scImportDrawer').classList.remove('open');
+  importRows=[];
+}
+
+function buildImportUI(){
+  document.getElementById('scImportDrawerBody').innerHTML=`
+    <p style="font-size:12.5px;color:var(--text3);margin-bottom:16px;line-height:1.55">Upload a CSV or Excel file. Required: <strong>EAN</strong> and <strong>Product Name</strong>. Optional: Code, Cost, Case, Category, Status, Agent, Barcode, Image URL.</p>
+    <div class="sc-import-zone" id="scImportZone" onclick="document.getElementById('scFileInput').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleFileDrop(event)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <p>Click to upload or drag & drop</p>
+      <span>CSV or XLSX — max 5MB</span>
+      <input type="file" id="scFileInput" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(this.files[0])">
+    </div>
+    <div id="scImportResult"></div>`;
+}
+
+function handleFileDrop(e){
+  e.preventDefault();
+  document.getElementById('scImportZone').classList.remove('dragover');
+  const f=e.dataTransfer.files[0];
+  if(f)handleFileSelect(f);
+}
+
+function handleFileSelect(file){
+  if(!file)return;
+  if(file.size>5*1024*1024){showImportError('File too large (max 5MB)');return;}
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(ext==='csv'){
+    const reader=new FileReader();
+    reader.onload=e=>parseCSV(e.target.result);
+    reader.readAsText(file);
+  }else if(ext==='xlsx'||ext==='xls'){
+    if(!window.XLSX){showImportError('XLSX library not loaded');return;}
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      parseCSV(XLSX.utils.sheet_to_csv(ws));
+    };
+    reader.readAsArrayBuffer(file);
+  }else{showImportError('Unsupported file type. Use CSV or XLSX.');}
+}
+
+function parseCSV(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2){showImportError('File is empty or has no data rows.');return;}
+  const headers=splitCSVLine(lines[0]).map(h=>h.trim().replace(/^"|"$/g,''));
+  const rows=lines.slice(1).map(line=>{
+    const vals=splitCSVLine(line);
+    const obj={};
+    headers.forEach((h,i)=>obj[h]=(vals[i]||'').trim().replace(/^"|"$/g,''));
+    return obj;
+  }).filter(r=>Object.values(r).some(v=>v));
+  if(!rows.length){showImportError('No data rows found.');return;}
+  importRows=rows;
+  showImportPreview(headers,rows);
+}
+
+function splitCSVLine(line){
+  const result=[];let cur='';let inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+    else if(c===','&&!inQ){result.push(cur);cur='';}
+    else cur+=c;
+  }
+  result.push(cur);return result;
+}
+
+const COL_MAP={
+  ean:['ean','barcode','gtin','ean13','ean/upc'],
+  product_name:['product name','productname','name','title','description','product'],
+  code:['code','sku','supplier code','product code','item code'],
+  cost:['cost','price','unit cost','wholesale price','buy price'],
+  case_size:['case','case size','pack size','pack','qty per case','case qty'],
+  category:['category','cat','type','department'],
+  status:['status'],
+  agent:['agent','approved by'],
+  barcode:['barcode','internal barcode'],
+  product_image:['image','image url','product image','photo','img'],
+};
+
+function detectMapping(headers){
+  const map={};
+  Object.entries(COL_MAP).forEach(([col,aliases])=>{
+    const found=headers.find(h=>aliases.includes(h.toLowerCase().trim()));
+    map[col]=found||'';
+  });
+  return map;
+}
+
+let currentMapping={};
+
+function showImportPreview(headers,rows){
+  currentMapping=detectMapping(headers);
+  const preview=rows.slice(0,5);
+  document.getElementById('scImportResult').innerHTML=`
+    <div class="sc-import-preview">
+      <div class="sc-import-preview-head">
+        <div class="sc-import-preview-title">Preview</div>
+        <div class="sc-import-preview-count">${rows.length} rows</div>
+      </div>
+      <table class="sc-import-preview-table">
+        <thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
+        <tbody>${preview.map(r=>`<tr>${headers.map(h=>`<td>${esc(r[h]||'')}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>
+    </div>
+    <div class="sc-import-mapping">
+      <div class="sc-import-mapping-title">Column Mapping</div>
+      ${Object.entries(COL_MAP).map(([col])=>{
+        const opts=['<option value="">— ignore —</option>',...headers.map(h=>`<option value="${esc(h)}" ${currentMapping[col]===h?'selected':''}>${esc(h)}</option>`)].join('');
+        return`<div class="sc-mapping-row"><label>${col.replace(/_/g,' ')}</label><select data-col="${col}" onchange="currentMapping['${col}']=this.value">${opts}</select></div>`;
+      }).join('')}
+    </div>`;
+  document.getElementById('scImportBtn').disabled=false;
+}
+
+function showImportError(msg){
+  document.getElementById('scImportResult').innerHTML=`<div class="sc-import-error">${esc(msg)}</div>`;
+  document.getElementById('scImportBtn').disabled=true;
+}
+
+async function doImport(){
+  if(!importRows.length){toast('No data to import','error');return;}
+  const sup=allSuppliers.find(x=>x.supplier_id===importSupId);
+  if(!sup){toast('Supplier not found','error');return;}
+  const btn=document.getElementById('scImportBtn');
+  btn.disabled=true;
+  const today=new Date();
+  const dateStr=`${String(today.getDate()).padStart(2,'0')}/${String(today.getMonth()+1).padStart(2,'0')}/${today.getFullYear()}`;
+  const maxNum=allCatalogData.reduce((mx,c)=>{const n=parseInt((c.id||'').replace(/[^0-9]/g,''));return isNaN(n)?mx:Math.max(mx,n);},0);
+  const get=col=>currentMapping[col]?importRows[0][currentMapping[col]]!==undefined:false;
+  const toInsert=importRows.map((row,i)=>{
+    const getVal=col=>currentMapping[col]?(row[currentMapping[col]]||'').trim():'';
+    const costRaw=getVal('cost').replace(/[£$,]/g,'').trim();
+    return{
+      id:'CAT-'+String(maxNum+i+1).padStart(4,'0'),
+      ean:getVal('ean')||null,
+      product_name:getVal('product_name')||row[Object.keys(row)[0]]||'Unknown',
+      code:getVal('code')||null,
+      cost:costRaw?parseFloat(costRaw)||null:null,
+      case_size:getVal('case_size')||null,
+      category:getVal('category')||null,
+      status:getVal('status')||'Approved',
+      agent:getVal('agent')||'System',
+      barcode:getVal('barcode')||null,
+      product_image:getVal('product_image')||null,
+      supplier_id:importSupId,
+      supplier_name:sup.name,
+      supplier_email:sup.contact||null,
+      date:dateStr,
+    };
+  });
+  const tid=toast('Importing '+toInsert.length+' items…','loading',0);
+  try{
+    const BATCH=500;
+    for(let i=0;i<toInsert.length;i+=BATCH){
+      const{error}=await sb.from('catalog').insert(toInsert.slice(i,i+BATCH));
+      if(error)throw error;
+    }
+    allCatalogData.push(...toInsert);
+    catalogData=allCatalogData.filter(c=>c.supplier_id===importSupId);
+    populateCategoryFilter(catalogData);
+    renderCatalog();
+    const cnt=document.getElementById('scCatCount');
+    cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
+    const s=allSuppliers.find(x=>x.supplier_id===importSupId);
+    if(s)renderSupplierCard(s);
+    removeToast(tid);toast('Imported '+toInsert.length+' items','success');
+    closeImportDrawer();
+  }catch(e){
+    removeToast(tid);toast('Import failed: '+e.message,'error');
+    btn.disabled=false;
+  }
+}
+
+/* ── REFRESH ── */
+async function handleRefresh(){
+  const btn=document.getElementById('scRefreshBtn');
+  btn.classList.add('spinning');
+  const tid=toast('Refreshing…','loading',0);
+  try{
+    const[{data:sups,error:sErr},{data:cats,error:cErr}]=await Promise.all([
+      sb.from('suppliers').select('*').order('name'),
+      sb.from('catalog').select('*').order('product_name'),
+    ]);
+    if(sErr)throw sErr;if(cErr)throw cErr;
+    allSuppliers=sups||[];allCatalogData=cats||[];catalogLoaded=true;
+    renderSupDropdown();
+    if(currentSupId){
+      const s=allSuppliers.find(x=>x.supplier_id===currentSupId);
+      if(s){
+        catalogData=allCatalogData.filter(c=>c.supplier_id===currentSupId);
+        renderSupplierCard(s);populateCategoryFilter(catalogData);renderCatalog();
+        const cnt=document.getElementById('scCatCount');
+        cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
+      }
+    }
+    removeToast(tid);toast('Refreshed','success');
+  }catch(e){removeToast(tid);toast('Refresh failed: '+e.message,'error');}
+  setTimeout(()=>btn.classList.remove('spinning'),700);
+}
+
+/* ── CONFIRM ── */
+function closeConfirm(){
+  document.getElementById('scConfirmOverlay').classList.remove('open');
+  document.getElementById('scConfirmOk').onclick=null;
+}
+
+/* ── TOAST ── */
+let _tn=0;
+function toast(msg,type,dur){
+  const c=document.getElementById('scToasts');
+  const id='sct_'+(++_tn);
+  const t=document.createElement('div');
+  t.className='sc-toast '+(type||'info');t.id=id;
+  const icons={success:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',error:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',loading:'<span class="sc-spin sc-spin-sm" style="flex-shrink:0"></span>',info:''};
+  t.innerHTML=(icons[type]||'')+`<span>${esc(msg)}</span>`;
+  c.appendChild(t);
+  const ms=dur===undefined?3000:dur;
+  if(ms>0)setTimeout(()=>t.remove(),ms);
+  return id;
+}
+function removeToast(id){document.getElementById(id)?.remove();}
+
+/* ── KEYBOARD / CLICK OUTSIDE ── */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if(document.getElementById('scAllCatOverlay').classList.contains('open')){closeAllCatalog();return;}
+    if(document.getElementById('scImportDrawer').classList.contains('open')){closeImportDrawer();return;}
+    if(document.getElementById('scEditDrawer').classList.contains('open')){closeEditDrawer();return;}
+    if(document.getElementById('scConfirmOverlay').classList.contains('open')){closeConfirm();return;}
+    if(dropdownOpen){closeSupDropdown();return;}
+  }
+});
+document.addEventListener('click',e=>{
+  const menu=document.getElementById('scSupActionMenu');
+  if(menu&&menu.classList.contains('open')&&!menu.contains(e.target)&&!e.target.closest('#scSupActionBtn'))closeSupActionMenu();
+  if(dropdownOpen&&!document.getElementById('scSupFilter').contains(e.target)&&!document.getElementById('scSupDropdown').contains(e.target))closeSupDropdown();
+});
+
+/* ── EXPOSE GLOBALS ── */
+window.toggleSupDropdown=toggleSupDropdown;
+window.filterSupDropdown=filterSupDropdown;
+window.selectSupplier=selectSupplier;
+window.renderCatalog=renderCatalog;
+window.renderAllCatalog=renderAllCatalog;
+window.openAllCatalog=openAllCatalog;
+window.closeAllCatalog=closeAllCatalog;
+window.closeConfirm=closeConfirm;
+window.openEditDrawer=openEditDrawer;
+window.openAddDrawer=openAddDrawer;
+window.closeEditDrawer=closeEditDrawer;
+window.saveSupplierEdit=saveSupplierEdit;
+window.handleRefresh=handleRefresh;
+window.confirmDelProd=confirmDelProd;
+window.updateStatus=updateStatus;
+window.confirmDeleteSupplier=confirmDeleteSupplier;
+window.closeSupActionMenu=closeSupActionMenu;
+window.toggleBulkSelect=toggleBulkSelect;
+window.updateBulkCount=updateBulkCount;
+window.bulkSetStatus=bulkSetStatus;
+window.bulkDeleteSelected=bulkDeleteSelected;
+window.toggleAcBulkSelect=toggleAcBulkSelect;
+window.updateAcBulkCount=updateAcBulkCount;
+window.acBulkSetStatus=acBulkSetStatus;
+window.acBulkDelete=acBulkDelete;
+window.toggleSupActionMenu=toggleSupActionMenu;
+window.openImportDrawer=openImportDrawer;
+window.closeImportDrawer=closeImportDrawer;
+window.handleFileSelect=handleFileSelect;
+window.handleFileDrop=handleFileDrop;
+window.doImport=doImport;
+window.currentMapping=currentMapping;
+window.selectedIds=selectedIds;
+window.acSelectedIds=acSelectedIds;
+
+init();
+})();
+</script>
