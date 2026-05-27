@@ -1012,14 +1012,20 @@ async function updateStatus(id,status){
   try{
     const{error}=await sb.from('catalog').update({status:status||null,agent:agent||null}).eq('id',id);
     if(error)throw error;
-    [catalogData,allCatalogData].forEach(arr=>{
+    [catalogData,allCatalogData,_acAllData].forEach(arr=>{
       const r=arr.find(x=>String(x.id||'')===id);
       if(r){r.status=status;r.agent=agent;}
     });
+    // Update supplier catalog view
     const sel=document.getElementById('status_'+id);
     if(sel)sel.className='sc-status-sel'+(status==='Approved'?' approved':status==='Rejected'?' rejected':'');
     const agEl=document.getElementById('agent_'+id);
     if(agEl)agEl.textContent=agent||'—';
+    // Update all catalog view
+    const acSel=document.getElementById('ac_status_'+id);
+    if(acSel)acSel.className='sc-status-sel'+(status==='Approved'?' approved':status==='Rejected'?' rejected':'');
+    const acAgEl=document.getElementById('ac_agent_'+id);
+    if(acAgEl)acAgEl.textContent=agent||'—';
     toast('Status updated','success');
   }catch(e){toast('Update failed: '+e.message,'error');}
 }
@@ -1031,6 +1037,7 @@ function confirmDelProd(id,name){
   document.getElementById('scConfirmOk').onclick=()=>doDelProd(id);
   document.getElementById('scConfirmOverlay').classList.add('open');
 }
+
 async function doDelProd(id){
   closeConfirm();
   const tid=toast('Deleting…','loading',0);
@@ -1039,9 +1046,14 @@ async function doDelProd(id){
     if(error)throw error;
     catalogData=catalogData.filter(x=>String(x.id||'')!==id);
     allCatalogData=allCatalogData.filter(x=>String(x.id||'')!==id);
+    _acAllData=_acAllData.filter(x=>String(x.id||'')!==id);
     renderCatalog();
     const cnt=document.getElementById('scCatCount');
     cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
+    // If All Catalog is open, re-render it too
+    if(document.getElementById('scAllCatOverlay').classList.contains('open')){
+      renderAllCatalog();
+    }
     removeToast(tid);toast('Product deleted','success');
   }catch(e){removeToast(tid);toast('Delete failed: '+e.message,'error');}
 }
@@ -1193,7 +1205,7 @@ function renderAllCatalog(){
       </td>
       <td id="ac_agent_${rid}" style="font-size:11px;color:var(--text3)">${esc(r.agent||'—')}</td>
       <td>
-        <button class="sc-del-btn" onclick="confirmDelProd('${rid}','${esc(r.product_name||'')}');closeAllCatalog()">
+        <button class="sc-del-btn" onclick="confirmDelProd('${rid}','${esc(r.product_name||'')}')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
         </button>
       </td>
