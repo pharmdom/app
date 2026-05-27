@@ -369,6 +369,16 @@ col.col-agent     { width: 110px; }
   .drawer-kpi-row { grid-template-columns: 1fr 1fr; }
   .table-card { height: calc(100vh - 280px); }
 }
+
+
+.date-preset-btn {
+  width: 100%; padding: 6px 10px; border: none; border-radius: 7px;
+  background: transparent; font-size: 12.5px; font-family: inherit;
+  color: #374151; cursor: pointer; text-align: left; transition: background .1s;
+}
+.date-preset-btn:hover { background: #f1f5f9; }
+.date-preset-btn.active { background: #eff6ff; color: #2563eb; font-weight: 600; }
+  
 </style>
 
 <div class="page-wrapper">
@@ -417,8 +427,28 @@ col.col-agent     { width: 110px; }
   <div class="filter-bar">
     <div class="filter-pills" id="filterPills">
       <select class="filter-select" id="fSupplier" onchange="applyFilters(true)"><option value="">Supplier: All</option></select>
-      <input type="date" class="filter-select" id="fDateFrom" onchange="applyFilters(true)" title="Date from" style="max-width:130px;">
-      <input type="date" class="filter-select" id="fDateTo" onchange="applyFilters(true)" title="Date to" style="max-width:130px;">
+      <div style="position:relative;display:inline-block;" id="dateRangeWrap">
+        <button class="filter-select" id="dateRangeBtn" onclick="toggleDatePicker(event)" style="cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;max-width:none;background:#fff;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span id="dateRangeLabel">Date: All</span>
+        </button>
+        <div id="datePickerPanel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:600;padding:8px;min-width:220px;">
+          <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:8px;">
+            <button class="date-preset-btn" onclick="setDatePreset('today')">Today</button>
+            <button class="date-preset-btn" onclick="setDatePreset('yesterday')">Yesterday</button>
+            <button class="date-preset-btn" onclick="setDatePreset('thisweek')">This Week</button>
+            <button class="date-preset-btn" onclick="setDatePreset('lastweek')">Last Week</button>
+            <button class="date-preset-btn" onclick="setDatePreset('thismonth')">This Month</button>
+            <button class="date-preset-btn" onclick="setDatePreset('lastmonth')">Last Month</button>
+            <button class="date-preset-btn" onclick="setDatePreset('all')">All Time</button>
+          </div>
+          <div style="border-top:1px solid #f1f5f9;padding-top:8px;display:flex;flex-direction:column;gap:5px;">
+            <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;">Custom Range</div>
+            <input type="date" id="fDateFrom" class="filter-select" style="max-width:100%;width:100%;" onchange="onCustomDateChange()">
+            <input type="date" id="fDateTo" class="filter-select" style="max-width:100%;width:100%;" onchange="onCustomDateChange()">
+          </div>
+        </div>
+      </div>
       
       <select class="filter-select" id="fPurchased"    onchange="applyFilters(true)"><option value="">Purchased: All</option><option value="yes">Purchased: Yes</option><option value="no">Purchased: No</option></select>
       <select class="filter-select" id="fApproved"     onchange="applyFilters(true)"><option value="">Approved: All</option><option value="yes">Approved: Yes</option><option value="no">Approved: No</option><option value="rejected">Approved: Rejected</option></select>
@@ -541,6 +571,7 @@ window.addEventListener('beforeunload', () => {
 async function refreshData() {
   const fresh = await fetchSourcing();
   allData = fresh;
+  populateSupplierFilter();
   applyFilters();
   updateStats();
   if (currentDrawerId) {
@@ -573,20 +604,28 @@ async function fetchSuppliers() {
   const { data } = await sb.from('suppliers').select('name, code').order('name');
   suppliers = data || [];
 
+// keep suppliers array for the drawer/modal dropdowns, but populate filter from data
+}
+
+
+function populateSupplierFilter() {
   const sel = document.getElementById('fSupplier');
-if (sel) {
-  suppliers.forEach(s => {
+  if (!sel) return;
+  // Remove all options except the first "Supplier: All"
+  while (sel.options.length > 1) sel.remove(1);
+  const names = [...new Set(allData.map(p => p.supplier_name).filter(Boolean))].sort();
+  names.forEach(name => {
     const o = document.createElement('option');
-    o.value = s.name; o.textContent = s.name;
+    o.value = name; o.textContent = name;
     sel.appendChild(o);
   });
 }
-}
 
+    
 /* ══ INIT ══ */
 async function init() {
   await Promise.all([
-    fetchSourcing().then(d => { allData = d; applyFilters(); updateStats(); }),
+    fetchSourcing().then(d => { allData = d; populateSupplierFilter(); applyFilters(); updateStats(); }),
     fetchUsers(),
     fetchSuppliers(),
   ]);
@@ -683,6 +722,9 @@ function clearFilters() {
     const el = document.getElementById(id);
     if (el) { el.value = ''; el.classList.remove('active'); }
   });
+  document.getElementById('dateRangeLabel').textContent = 'Date: All';
+  document.getElementById('dateRangeBtn').classList.remove('active');
+  document.querySelectorAll('.date-preset-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('fDateFrom').value = '';
   document.getElementById('fDateTo').value = '';
   document.getElementById('filterDot').style.display = 'none';
@@ -691,7 +733,7 @@ function clearFilters() {
   document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active-filter'));
   currentPage = 1; applyFilters();
 }
-
+    
 /* ══ TABLE ══ */
 function renderTable() {
   const tbody = document.getElementById('tableBody');
@@ -764,6 +806,79 @@ function openDrawer(id) {
   document.getElementById('drawerOverlay').classList.add('visible');
 }
 
+
+  function toggleDatePicker(e) {
+  e.stopPropagation();
+  const panel = document.getElementById('datePickerPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', () => {
+  const panel = document.getElementById('datePickerPanel');
+  if (panel) panel.style.display = 'none';
+});
+document.getElementById('datePickerPanel')?.addEventListener('click', e => e.stopPropagation());
+
+function setDatePreset(preset) {
+  const from = document.getElementById('fDateFrom');
+  const to   = document.getElementById('fDateTo');
+  const now  = new Date();
+  const fmt  = d => d.toISOString().split('T')[0];
+  document.querySelectorAll('.date-preset-btn').forEach(b => b.classList.remove('active'));
+
+  let fromDate, toDate, label;
+  if (preset === 'today') {
+    fromDate = toDate = now; label = 'Today';
+  } else if (preset === 'yesterday') {
+    const y = new Date(now); y.setDate(y.getDate() - 1);
+    fromDate = toDate = y; label = 'Yesterday';
+  } else if (preset === 'thisweek') {
+    const day = now.getDay() || 7;
+    fromDate = new Date(now); fromDate.setDate(now.getDate() - day + 1);
+    toDate = now; label = 'This Week';
+  } else if (preset === 'lastweek') {
+    const day = now.getDay() || 7;
+    toDate = new Date(now); toDate.setDate(now.getDate() - day);
+    fromDate = new Date(toDate); fromDate.setDate(toDate.getDate() - 6);
+    label = 'Last Week';
+  } else if (preset === 'thismonth') {
+    fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    toDate = now; label = 'This Month';
+  } else if (preset === 'lastmonth') {
+    fromDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    toDate = new Date(now.getFullYear(), now.getMonth(), 0);
+    label = 'Last Month';
+  } else {
+    from.value = ''; to.value = '';
+    document.getElementById('dateRangeLabel').textContent = 'Date: All';
+    document.getElementById('dateRangeBtn').classList.remove('active');
+    document.getElementById('datePickerPanel').style.display = 'none';
+    applyFilters(true); return;
+  }
+  from.value = fmt(fromDate);
+  to.value   = fmt(toDate);
+  document.getElementById('dateRangeLabel').textContent = label;
+  document.getElementById('dateRangeBtn').classList.add('active');
+  const activeBtn = [...document.querySelectorAll('.date-preset-btn')].find(b => b.textContent.trim() === label);
+  if (activeBtn) activeBtn.classList.add('active');
+  document.getElementById('datePickerPanel').style.display = 'none';
+  applyFilters(true);
+}
+
+function onCustomDateChange() {
+  const from = document.getElementById('fDateFrom').value;
+  const to   = document.getElementById('fDateTo').value;
+  document.querySelectorAll('.date-preset-btn').forEach(b => b.classList.remove('active'));
+  if (from || to) {
+    const label = (from || '…') + ' → ' + (to || '…');
+    document.getElementById('dateRangeLabel').textContent = label;
+    document.getElementById('dateRangeBtn').classList.add('active');
+  } else {
+    document.getElementById('dateRangeLabel').textContent = 'Date: All';
+    document.getElementById('dateRangeBtn').classList.remove('active');
+  }
+  applyFilters(true);
+}
+    
 function closeDrawer() {
   document.getElementById('detailDrawer').classList.remove('open');
   document.getElementById('drawerOverlay').classList.remove('visible');
@@ -1448,6 +1563,9 @@ window.applyYNColors = applyYNColors; window.deleteProduct = deleteProduct;
 window.showDeleteConfirm = showDeleteConfirm; window.onDrawerSupplierChange = onDrawerSupplierChange;
 window.fillSupplierCode = fillSupplierCode; window.toggleNavDrop = toggleNavDrop;
 window.checkQtyPurchased = checkQtyPurchased;
+window.toggleDatePicker = toggleDatePicker;
+window.setDatePreset = setDatePreset;
+window.onCustomDateChange = onCustomDateChange;
 
 init();
 })();
