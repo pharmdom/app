@@ -1,1621 +1,884 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --navy: #1e1f25;
-  --navy2: #26272e;
-  --navy3: #2f3038;
-  --surface:#ffffff;
-  --surface2:#f7f9fc;
-  --surface3:#f0f4fa;
-  --border:#e3eaf5;
-  --border2:#edf1f9;
-  --text:#0c1526;
-  --text2:#2d3f5c;
-  --text3:#5a6f8c;
-  --text4:#96a8c0;
-  --accent:#1847d4;
-  --accent2:#2a5eed;
-  --accent-bg:#eef2fd;
-  --accent-bd:#c4d3f9;
-  --green:#0b7a42;
-  --green-bg:#eafaf1;
-  --green-bd:#6ee7a8;
-  --red:#c0192c;
-  --red-bg:#fef1f2;
-  --red-bd:#fca5a5;
-  --amber:#b45309;
-  --amber-bg:#fffbeb;
-  --amber-bd:#fde68a;
-  --r:10px;--r-sm:7px;--r-lg:14px;--r-xl:20px;
-  --font:'DM Sans',system-ui,sans-serif;
-  --mono:'DM Mono',monospace;
-  --sh-xs:0 1px 3px rgba(12,21,38,.06);
-  --sh-sm:0 2px 8px rgba(12,21,38,.08),0 1px 3px rgba(12,21,38,.04);
-  --sh:0 6px 24px rgba(12,21,38,.1),0 2px 8px rgba(12,21,38,.05);
-  --sh-lg:0 20px 56px rgba(12,21,38,.15),0 6px 18px rgba(12,21,38,.08);
-  --left-w:280px;
-  --transition:.22s cubic-bezier(.4,0,.2,1);
+  --bg:#eef1f8;--surface:#fff;--surface2:#f5f7fc;--border:#e2e8f5;--border2:#ecf0f9;
+  --text:#0c1526;--text2:#2a3a54;--text3:#64748b;--text4:#98a7bc;
+  --accent:#1847d4;--accent-l:#2a5eed;--accent-bg:#eef2fd;--accent-bd:#c4d3f9;
+  --green:#0c7a42;--green-bg:#ecfdf5;--green-bd:#86efac;
+  --red:#b91c1c;--red-bg:#fef2f2;--red-bd:#fecaca;
+  --amber:#92400e;--amber-bg:#fffbeb;--amber-bd:#fcd34d;
+  --navy:#0c1526;--navy2:#141d2e;
+  --r:10px;--r-sm:7px;--r-lg:14px;
+  --font:'Plus Jakarta Sans',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
+  --sh-sm:0 1px 3px rgba(12,21,38,.06),0 1px 2px rgba(12,21,38,.04);
+  --sh:0 4px 16px rgba(12,21,38,.08),0 2px 6px rgba(12,21,38,.04);
+  --sh-lg:0 20px 50px rgba(12,21,38,.14),0 6px 16px rgba(12,21,38,.07);
 }
+html,body{font-family:var(--font);font-size:14px;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;height:100%;}
+body{overflow:hidden}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
+::-webkit-scrollbar-thumb:hover{background:var(--text4)}
 
-html,body{font-family:var(--font);font-size:14px;color:var(--text);background:var(--surface3);-webkit-font-smoothing:antialiased;height:100%;overflow:hidden;}
-.content-wrap{overflow-x:hidden}
+/* ── LAYOUT ── */
+.app{display:flex;flex-direction:column;height:100vh;overflow:hidden;background:radial-gradient(ellipse at 20% 0%,rgba(24,71,212,.04) 0%,transparent 60%),var(--bg);}
+.topnav{display:flex;align-items:center;gap:10px;padding:8px 18px;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex-shrink:0;z-index:10;}
+.tnav-title{font-size:13px;font-weight:800;color:var(--text);letter-spacing:-.2px}
+.tnav-sep{width:1px;height:16px;background:var(--border);flex-shrink:0}
+.tnav-actions{display:flex;align-items:center;gap:6px;margin-left:auto}
+.nav-btn{display:flex;align-items:center;gap:5px;padding:6px 13px;border-radius:var(--r-sm);background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.nav-btn svg{width:13px;height:13px;flex-shrink:0}
+.nav-btn:hover{background:var(--border);color:var(--text)}
+.nav-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.nav-btn.primary:hover{background:var(--accent-l)}
+.nav-btn:disabled{opacity:.5;cursor:default}
 
-.sc-root{display:flex;height:100vh;max-height:100vh;overflow:hidden;background:var(--surface3);position:relative;}
+.body{display:flex;flex:1;min-height:0;overflow:hidden;}
 
-/* LEFT */
-.sc-left{width:var(--left-w);min-width:var(--left-w);flex-shrink:0;display:flex;flex-direction:column;background:var(--navy);overflow:hidden;position:relative;}
-.sc-left::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 10% 0%,rgba(24,71,212,.18) 0%,transparent 55%),radial-gradient(ellipse at 90% 100%,rgba(24,71,212,.10) 0%,transparent 55%);pointer-events:none;z-index:0;}
-.sc-left-inner{display:flex;flex-direction:column;height:100%;position:relative;z-index:1;overflow:hidden;}
-.sc-left-top{padding:14px 16px 10px;flex-shrink:0;position:relative;z-index:10;}
+/* ── LEFT PANEL ── */
+.left-panel{width:300px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--border);background:var(--surface);overflow:hidden;}
+.sup-search-wrap{padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.sup-search{position:relative}
+.sup-search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text4);width:13px;height:13px;pointer-events:none}
+.sup-search input{width:100%;padding:7px 9px 7px 29px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12.5px;font-family:var(--font);background:var(--surface2);color:var(--text);outline:none;transition:all .15s;}
+.sup-search input:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(24,71,212,.07)}
+.sup-list{flex:1;overflow-y:auto;padding:8px}
+.sup-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r);cursor:pointer;transition:all .15s;border:1.5px solid transparent;margin-bottom:3px;}
+.sup-item:hover{background:var(--surface2)}
+.sup-item.active{background:var(--accent-bg);border-color:var(--accent-bd);}
+.sup-avatar{width:34px;height:34px;border-radius:9px;background:var(--accent-bg);border:1px solid var(--accent-bd);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--accent);flex-shrink:0;letter-spacing:-.3px;}
+.sup-item-name{font-size:12.5px;font-weight:700;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sup-item-count{font-size:10px;font-weight:700;color:var(--text4);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:1px 7px;flex-shrink:0;}
+.sup-item.active .sup-item-count{background:var(--accent-bg);border-color:var(--accent-bd);color:var(--accent)}
 
-.sc-sup-filter{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:var(--r);padding:9px 12px;cursor:pointer;transition:background var(--transition);position:relative;}
-.sc-sup-filter:hover{background:rgba(255,255,255,.11)}
-.sc-sup-filter-icon{width:28px;height:28px;border-radius:7px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.sc-sup-filter-icon svg{width:14px;height:14px;color:rgba(255,255,255,.7)}
-.sc-sup-filter-text{flex:1;min-width:0}
-.sc-sup-filter-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:rgba(255,255,255,.4);margin-bottom:1px}
-.sc-sup-filter-value{font-size:12.5px;font-weight:700;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.sc-sup-filter-caret{width:16px;height:16px;color:rgba(255,255,255,.35);flex-shrink:0;transition:transform .2s}
-.sc-sup-filter.open .sc-sup-filter-caret{transform:rotate(180deg)}
+/* ── MAIN PANEL ── */
+.main-panel{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;}
 
-.sc-sup-dropdown{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--navy2);border:1px solid rgba(255,255,255,.12);border-radius:var(--r-lg);box-shadow:var(--sh-lg);z-index:200;overflow:hidden;opacity:0;pointer-events:none;transform:translateY(-6px);transition:opacity .18s,transform .18s;max-height:280px;display:flex;flex-direction:column;}
-.sc-sup-dropdown.open{opacity:1;pointer-events:all;transform:translateY(0)}
-.sc-sup-dropdown-search{padding:10px 12px 6px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0}
-.sc-sup-dropdown-search input{width:100%;padding:6px 10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:var(--r-sm);font-size:12.5px;font-family:var(--font);color:#fff;outline:none;transition:border-color .15s;}
-.sc-sup-dropdown-search input::placeholder{color:rgba(255,255,255,.3)}
-.sc-sup-dropdown-search input:focus{border-color:rgba(99,130,249,.6)}
-.sc-sup-dropdown-list{overflow-y:auto;flex:1;padding:6px}
-.sc-sup-dropdown-list::-webkit-scrollbar{width:3px}
-.sc-sup-dropdown-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
-.sc-sup-opt{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-sm);cursor:pointer;transition:background .12s;}
-.sc-sup-opt:hover{background:rgba(255,255,255,.07)}
-.sc-sup-opt.active{background:rgba(24,71,212,.35);border:1px solid rgba(99,130,249,.3)}
-.sc-sup-opt-av{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0}
-.sc-sup-opt-info{flex:1;min-width:0}
-.sc-sup-opt-name{font-size:12.5px;font-weight:700;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.sc-sup-opt-meta{font-size:10.5px;color:rgba(255,255,255,.4);margin-top:1px}
+/* Supplier detail header */
+.sup-detail{flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--border);}
+.sup-detail-hero{padding:14px 18px 0;background:linear-gradient(140deg,var(--navy2) 0%,#0d1631 100%);position:relative;overflow:hidden;}
+.sup-detail-hero::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.025);}
+.sup-detail-hero::after{content:'';position:absolute;bottom:-30px;left:40px;width:120px;height:120px;border-radius:50%;background:rgba(24,71,212,.08);}
+.sup-hero-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;position:relative;z-index:1;}
+.sup-hero-name{font-size:18px;font-weight:800;color:#fff;line-height:1.25;flex:1;min-width:0;padding-right:12px;}
+.sup-hero-edit-btn{width:28px;height:28px;border:none;border-radius:7px;background:rgba(255,255,255,.1);cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.6);transition:all .15s;flex-shrink:0;}
+.sup-hero-edit-btn:hover{background:rgba(255,255,255,.2);color:#fff}
+.sup-hero-edit-btn svg{width:13px;height:13px}
+.sup-hero-meta{display:flex;align-items:center;gap:10px;margin-bottom:12px;position:relative;z-index:1;flex-wrap:wrap}
+.sup-hero-meta-item{display:flex;align-items:center;gap:5px;font-size:11px;color:rgba(255,255,255,.55);}
+.sup-hero-meta-item svg{width:11px;height:11px;flex-shrink:0;opacity:.7}
+.sup-hero-meta-item a{color:rgba(255,255,255,.55);text-decoration:none;}
+.sup-hero-meta-item a:hover{color:#fff}
+.sup-kpis{display:flex;gap:8px;position:relative;z-index:1;padding-bottom:14px;flex-wrap:wrap}
+.sup-kpi{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:8px 12px;min-width:80px;}
+.sup-kpi-lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.38);margin-bottom:3px}
+.sup-kpi-val{font-size:15px;font-weight:800;color:#fff;white-space:nowrap}
+.sup-stats-bar{display:flex;gap:0;border-top:1px solid var(--border);background:var(--surface);}
+.sup-stat{flex:1;padding:8px 14px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:1px;}
+.sup-stat:last-child{border-right:none}
+.sup-stat-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4)}
+.sup-stat-val{font-size:14px;font-weight:800;color:var(--text2)}
+.sup-stat-val.green{color:var(--green)}
+.sup-stat-val.amber{color:var(--amber)}
 
-.sc-sup-card{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 16px 16px;min-height:0;}
-.sc-sup-card::-webkit-scrollbar{width:3px}
-.sc-sup-card::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
+/* empty state */
+.no-supplier{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;color:var(--text4);padding:40px}
+.no-supplier svg{width:40px;height:40px;opacity:.35}
+.no-supplier p{font-size:14px;font-weight:700;color:var(--text3)}
+.no-supplier span{font-size:12px;color:var(--text4)}
 
-.sc-sup-hero{display:flex;align-items:center;gap:12px;margin-bottom:16px;animation:fadeSlideUp .3s ease both;}
-@keyframes fadeSlideUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-.sc-sup-av-lg{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0;box-shadow:0 4px 14px rgba(0,0,0,.25);}
-.sc-sup-hero-info{flex:1;min-width:0}
-.sc-sup-hero-name{font-size:13.5px;font-weight:800;color:#fff;line-height:1.25;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.sc-sup-hero-id{font-size:10.5px;color:rgba(255,255,255,.35);font-family:var(--mono)}
-.sc-sup-edit-btn{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .15s;}
-.sc-sup-edit-btn:hover{background:rgba(24,71,212,.4);border-color:rgba(99,130,249,.4);color:#8fa8ff}
-.sc-sup-edit-btn svg{width:13px;height:13px}
+/* ── CATALOG TOOLBAR ── */
+.cat-toolbar{display:flex;align-items:center;gap:8px;padding:9px 18px;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
+.cat-tb-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.cat-tb-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.search-box{position:relative;min-width:140px;max-width:240px;flex:1}
+.search-box svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text4);width:13px;height:13px;pointer-events:none}
+.search-box input{width:100%;padding:7px 9px 7px 28px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12.5px;font-family:var(--font);background:var(--surface2);color:var(--text);outline:none;transition:all .15s;}
+.search-box input:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(24,71,212,.07)}
+.cat-count{font-size:11px;font-weight:600;color:var(--text4);white-space:nowrap}
 
-.sc-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px;animation:fadeSlideUp .3s .05s ease both;}
-.sc-kpi{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);border-radius:var(--r);padding:10px 12px;transition:background .15s;}
-.sc-kpi:hover{background:rgba(255,255,255,.09)}
-.sc-kpi-label{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.35);margin-bottom:4px;display:flex;align-items:center;gap:4px}
-.sc-kpi-label svg{width:9px;height:9px;flex-shrink:0}
-.sc-kpi-val{font-size:14px;font-weight:700;color:#fff;line-height:1}
-.sc-kpi-val.small{font-size:11.5px}
+/* filter pill */
+.filter-pill{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;background:var(--surface2);border:1.5px solid var(--border);font-size:11.5px;font-weight:600;color:var(--text3);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.filter-pill:hover{border-color:var(--accent-bd);color:var(--accent)}
+.filter-pill select{border:none;background:none;font-family:var(--font);font-size:11.5px;font-weight:600;color:var(--text3);cursor:pointer;outline:none;padding:0;-webkit-appearance:none;appearance:none;}
+.filter-pill select:focus{outline:none}
+.filter-pill.active{background:var(--accent-bg);border-color:var(--accent-bd);color:var(--accent)}
+.filter-pill.active select{color:var(--accent)}
 
-.sc-detail-section{margin-bottom:14px;animation:fadeSlideUp .3s .1s ease both}
-.sc-detail-head{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:rgba(255,255,255,.25);margin-bottom:8px;display:flex;align-items:center;gap:8px;}
-.sc-detail-head::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.07)}
-.sc-detail-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)}
-.sc-detail-row:last-child{border-bottom:none}
-.sc-detail-key{font-size:11.5px;color:rgba(255,255,255,.4);display:flex;align-items:center;gap:6px;flex-shrink:0}
-.sc-detail-key svg{width:11px;height:11px;flex-shrink:0;opacity:.7}
-.sc-detail-val{font-size:12px;font-weight:600;color:rgba(255,255,255,.85);text-align:right;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:160px}
-.sc-detail-val a{color:#8fa8ff;text-decoration:none;font-weight:600}
-.sc-detail-val a:hover{text-decoration:underline}
+/* ── CATALOG TABLE ── */
+.cat-wrap{flex:1;overflow:auto;min-height:0;}
+.cat-table{width:100%;border-collapse:collapse;}
+.cat-table th{position:sticky;top:0;background:var(--surface2);border-bottom:1.5px solid var(--border);padding:8px 14px;text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);white-space:nowrap;z-index:2;}
+.cat-table td{padding:9px 14px;border-bottom:1px solid var(--border2);font-size:12.5px;color:var(--text2);vertical-align:middle;}
+.cat-table tr:hover td{background:var(--surface2)}
+.cat-table tr:last-child td{border-bottom:none}
+.td-name{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;}
+.td-ean{font-family:var(--mono);font-size:11px;color:var(--text4)}
+.td-code{font-family:var(--mono);font-size:11px;color:var(--text3)}
+.td-cost{font-weight:700;color:var(--text2)}
+.td-case{color:var(--text3)}
+.td-cat{font-size:11px}
+.status-pill{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;}
+.status-pill.approved{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd)}
+.status-pill.pending{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd)}
+.status-pill.other{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.agent-chip{display:inline-flex;align-items:center;font-size:11px;font-weight:600;color:var(--text3)}
+.del-btn{width:26px;height:26px;border:none;border-radius:6px;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text4);transition:all .15s;}
+.del-btn:hover{background:var(--red-bg);color:var(--red)}
+.del-btn svg{width:13px;height:13px}
+.img-thumb{width:30px;height:30px;border-radius:6px;object-fit:cover;border:1px solid var(--border);background:var(--surface2);}
+.img-placeholder{width:30px;height:30px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text4);}
+.img-placeholder svg{width:13px;height:13px}
 
-.sc-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:100px;font-size:10.5px;font-weight:700}
-.sc-badge.green{background:rgba(16,185,129,.2);color:#34d399;border:1px solid rgba(16,185,129,.25)}
-.sc-badge.red{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.2)}
-.sc-badge.amber{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.2)}
-.sc-badge.blue{background:rgba(99,130,249,.2);color:#8fa8ff;border:1px solid rgba(99,130,249,.25)}
-.sc-badge.neutral{background:rgba(255,255,255,.08);color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.1)}
+/* pager */
+.cat-pager{display:flex;align-items:center;gap:8px;padding:8px 18px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.pager-info{font-size:12px;color:var(--text4);font-weight:600;flex:1}
+.pager-btn{display:flex;align-items:center;gap:4px;padding:5px 11px;border-radius:var(--r-sm);background:var(--surface2);border:1px solid var(--border);color:var(--text3);font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s;}
+.pager-btn:hover{background:var(--border);color:var(--text)}
+.pager-btn:disabled{opacity:.4;cursor:default}
+.pager-btn svg{width:12px;height:12px}
 
-.sc-notes-section{margin-top:14px;animation:fadeSlideUp .3s .15s ease both}
-.sc-note-pill{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:var(--r);padding:10px 12px;margin-bottom:7px;transition:background .15s;}
-.sc-note-pill:hover{background:rgba(255,255,255,.08)}
-.sc-note-pill-meta{display:flex;align-items:center;gap:6px;margin-bottom:5px}
-.sc-note-av{width:20px;height:20px;border-radius:50%;background:rgba(99,130,249,.3);color:#8fa8ff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;flex-shrink:0;}
-.sc-note-author{font-size:11px;font-weight:700;color:rgba(255,255,255,.6)}
-.sc-note-date{font-size:10px;color:rgba(255,255,255,.25);margin-left:auto}
-.sc-note-text{font-size:11.5px;color:rgba(255,255,255,.5);line-height:1.5}
+/* empty table */
+.table-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;gap:10px;text-align:center;}
+.table-empty svg{width:36px;height:36px;color:var(--text4);opacity:.5}
+.table-empty p{font-size:13px;font-weight:700;color:var(--text3)}
+.table-empty span{font-size:12px;color:var(--text4)}
 
-.sc-left-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 20px;gap:10px;text-align:center}
-.sc-left-empty svg{opacity:.2}
-.sc-left-empty p{font-size:13px;font-weight:600;color:rgba(255,255,255,.35)}
+/* ── ALL CATALOG OVERLAY ── */
+.overlay{position:fixed;inset:0;background:rgba(12,21,38,.4);z-index:1200;opacity:0;pointer-events:none;transition:opacity .25s;backdrop-filter:blur(3px);}
+.overlay.open{opacity:1;pointer-events:all}
+.overlay-panel{position:fixed;top:0;right:0;width:900px;max-width:100vw;height:100vh;background:var(--surface);box-shadow:-12px 0 50px rgba(12,21,38,.15);z-index:1300;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);}
+.overlay.open .overlay-panel{transform:translateX(0)}
+.overlay-head{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.overlay-title{font-size:14px;font-weight:800;color:var(--text);flex:1}
+.overlay-close{width:28px;height:28px;border:none;border-radius:7px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);transition:all .15s;}
+.overlay-close:hover{background:var(--border);color:var(--text)}
+.overlay-close svg{width:13px;height:13px}
+.overlay-toolbar{display:flex;align-items:center;gap:8px;padding:9px 18px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
+.overlay-count{font-size:11px;color:var(--text4);font-weight:600;margin-left:auto}
+.overlay-body{flex:1;overflow:auto;min-height:0;}
 
-.sc-divider{width:1px;background:var(--border);flex-shrink:0}
+/* ── EDIT DRAWER ── */
+.drawer-overlay{position:fixed;inset:0;background:rgba(12,21,38,.35);z-index:1400;opacity:0;pointer-events:none;transition:opacity .25s;backdrop-filter:blur(2px);}
+.drawer-overlay.open{opacity:1;pointer-events:all}
+.edit-drawer{position:fixed;top:0;right:0;width:440px;max-width:100vw;height:100vh;background:var(--surface);box-shadow:-12px 0 50px rgba(12,21,38,.18);z-index:1500;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);}
+.edit-drawer.open{transform:translateX(0)}
+.edit-drawer-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.edit-drawer-title{font-size:14px;font-weight:800;color:var(--text);flex:1}
+.edit-drawer-body{flex:1;overflow-y:auto;padding:18px}
+.edit-drawer-foot{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;justify-content:flex-end;background:var(--surface2);flex-shrink:0;}
 
-/* RIGHT */
-.sc-right{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;background:var(--surface3)}
-.sc-right-top{display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
-.sc-right-title{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
-.sc-right-title-icon{width:32px;height:32px;border-radius:9px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.sc-right-title-icon svg{width:15px;height:15px;color:var(--accent)}
-.sc-right-title-text{font-size:13.5px;font-weight:800;color:var(--text);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.sc-right-title-count{font-size:11px;font-weight:700;background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-bd);padding:2px 9px;border-radius:100px;flex-shrink:0;}
+/* form */
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:5px}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-weight:600;font-family:var(--font);background:var(--surface2);color:var(--text2);outline:none;transition:all .15s;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(24,71,212,.07)}
+.form-group textarea{resize:vertical;min-height:70px}
+.form-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-section{margin-bottom:20px}
+.form-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text4);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.form-section-title::after{content:'';flex:1;height:1px;background:var(--border2)}
 
-.sc-refresh-btn{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer;transition:all .15s;flex-shrink:0;white-space:nowrap;}
-.sc-refresh-btn:hover{border-color:var(--accent-bd);color:var(--accent);background:var(--accent-bg)}
-.sc-refresh-btn svg{width:13px;height:13px;transition:transform .5s}
-.sc-refresh-btn.spinning svg{animation:spinOnce .6s ease}
-@keyframes spinOnce{to{transform:rotate(360deg)}}
+/* ── PROGRESS BAR ── */
+.pbar{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),#4f80f7);z-index:9999;transform:scaleX(0);transform-origin:left;transition:transform .3s ease;opacity:0;}
+.pbar.active{opacity:1}
 
-.sc-allcat-btn{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer;transition:all .15s;flex-shrink:0;white-space:nowrap;}
-.sc-allcat-btn:hover{border-color:var(--accent-bd);color:var(--accent);background:var(--accent-bg)}
-.sc-allcat-btn svg{width:13px;height:13px}
-
-.sc-cat-toolbar{display:flex;align-items:center;gap:8px;padding:8px 18px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
-.sc-search-wrap{position:relative;flex:1;min-width:140px;max-width:280px}
-.sc-search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--text4);pointer-events:none}
-.sc-search-input{width:100%;padding:6px 10px 6px 30px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12.5px;font-family:var(--font);background:var(--surface2);color:var(--text);outline:none;transition:all .15s;}
-.sc-search-input:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(24,71,212,.07)}
-
-.sc-cat-filter-wrap{position:relative;display:inline-flex;align-items:center}
-.sc-cat-filter-wrap svg.arr{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:10px;height:10px;color:var(--text4);pointer-events:none}
-.sc-cat-select{padding:6px 26px 6px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-weight:600;font-family:var(--font);background:var(--surface2);color:var(--text2);outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;transition:border-color .15s;max-width:150px;}
-.sc-cat-select:focus{border-color:var(--accent)}
-
-.sc-cat-content{flex:1;overflow:hidden;min-height:0;display:flex;flex-direction:column}
-
-/* TABLE */
-.sc-tbl-outer{flex:1;overflow:auto;min-height:0}
-.sc-tbl-outer::-webkit-scrollbar{width:4px;height:4px}
-.sc-tbl-outer::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
-.sc-cat-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:700px}
-.sc-cat-table thead{position:sticky;top:0;z-index:2}
-.sc-cat-table th{background:var(--surface);padding:9px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.55px;color:var(--text4);border-bottom:2px solid var(--border);white-space:nowrap;}
-.sc-cat-table td{padding:9px 14px;border-bottom:1px solid var(--border2);color:var(--text2);vertical-align:middle}
-.sc-cat-table tbody tr{transition:background .1s;animation:rowFadeIn .2s ease both}
-@keyframes rowFadeIn{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:translateX(0)}}
-.sc-cat-table tbody tr:hover td{background:var(--accent-bg)}
-.sc-cat-table tbody tr:last-child td{border-bottom:none}
-.ean-link{font-family:var(--mono);font-size:10.5px;color:var(--text3);text-decoration:none;transition:color .12s}
-.ean-link:hover{color:var(--accent);text-decoration:underline}
-.cat-cost{display:inline-flex;font-size:12px;font-weight:800;color:var(--green);background:var(--green-bg);border:1px solid var(--green-bd);padding:2px 9px;border-radius:100px}
-.cat-cost.empty{background:transparent;border-color:transparent;color:var(--text4);font-weight:500;font-size:11px}
-
-/* Status select */
-.sc-status-sel{padding:3px 8px;border-radius:100px;font-size:10.5px;font-weight:700;font-family:var(--font);border:1.5px solid var(--border);background:var(--surface2);color:var(--text3);cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;transition:all .15s;min-width:90px;}
-.sc-status-sel:focus{border-color:var(--accent)}
-.sc-status-sel.approved{background:rgba(16,185,129,.15);border-color:rgba(16,185,129,.3);color:#0b7a42}
-.sc-status-sel.rejected{background:rgba(192,25,44,.1);border-color:rgba(192,25,44,.25);color:var(--red)}
-
-.sc-del-btn{width:26px;height:26px;border-radius:6px;background:transparent;border:1px solid transparent;color:var(--text4);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;padding:0;}
-.sc-del-btn:hover{background:var(--red-bg);border-color:var(--red-bd);color:var(--red)}
-.sc-del-btn svg{width:11px;height:11px}
-
-/* All Catalog Overlay */
-.sc-allcat-overlay{position:fixed;inset:0;background:var(--surface3);z-index:9000;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .22s;}
-.sc-allcat-overlay.open{opacity:1;pointer-events:all}
-.sc-allcat-header{display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
-.sc-allcat-header-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
-.sc-allcat-back{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer;transition:all .15s;white-space:nowrap;}
-.sc-allcat-back:hover{border-color:var(--accent-bd);color:var(--accent);background:var(--accent-bg)}
-.sc-allcat-back svg{width:12px;height:12px}
-.sc-allcat-title{font-size:14px;font-weight:800;color:var(--text)}
-.sc-allcat-count{font-size:11px;font-weight:700;background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-bd);padding:2px 9px;border-radius:100px;}
-.sc-allcat-search-wrap{position:relative;flex:1;min-width:200px;max-width:380px}
-.sc-allcat-search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--text4);pointer-events:none}
-.sc-allcat-search-input{width:100%;padding:7px 10px 7px 32px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12.5px;font-family:var(--font);background:var(--surface2);color:var(--text);outline:none;transition:all .15s;}
-.sc-allcat-search-input:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(24,71,212,.07)}
-.sc-allcat-body{flex:1;overflow:auto;min-height:0}
-.sc-allcat-body::-webkit-scrollbar{width:4px;height:4px}
-.sc-allcat-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
-.sc-allcat-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:800px}
-.sc-allcat-table thead{position:sticky;top:0;z-index:2}
-.sc-allcat-table th{background:var(--surface);padding:9px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.55px;color:var(--text4);border-bottom:2px solid var(--border);white-space:nowrap;}
-.sc-allcat-table td{padding:9px 14px;border-bottom:1px solid var(--border2);color:var(--text2);vertical-align:middle}
-.sc-allcat-table tbody tr:hover td{background:var(--accent-bg)}
-.sc-allcat-table tbody tr:last-child td{border-bottom:none}
-.sc-ean-group-row td{background:rgba(24,71,212,.03)!important}
-
-/* Edit Supplier Modal */
-.sc-modal-overlay{position:fixed;inset:0;background:rgba(12,21,38,.5);z-index:1200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(4px);}
-.sc-modal-overlay.open{opacity:1;pointer-events:all}
-.sc-modal-box{background:var(--surface);border-radius:var(--r-xl);width:540px;max-width:95vw;max-height:90vh;box-shadow:var(--sh-lg);display:flex;flex-direction:column;overflow:hidden;animation:modalIn .22s cubic-bezier(.4,0,.2,1);}
-@keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
-.sc-modal-head{display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid var(--border);flex-shrink:0;}
-.sc-modal-head-icon{width:36px;height:36px;border-radius:10px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.sc-modal-head-icon svg{width:16px;height:16px;color:var(--accent)}
-.sc-modal-head-title{font-size:15px;font-weight:800;flex:1}
-.sc-modal-head-close{width:28px;height:28px;border-radius:7px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);transition:all .12s;}
-.sc-modal-head-close:hover{background:var(--red-bg);border-color:var(--red-bd);color:var(--red)}
-.sc-modal-head-close svg{width:12px;height:12px}
-.sc-modal-body{flex:1;overflow-y:auto;padding:20px}
-.sc-modal-body::-webkit-scrollbar{width:4px}
-.sc-modal-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
-.sc-modal-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;background:var(--surface2)}
-.sc-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-.sc-form-full{grid-column:1/-1}
-.sc-field-group{display:flex;flex-direction:column;gap:5px}
-.sc-field-group label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3)}
-.sc-field-group input,.sc-field-group select,.sc-field-group textarea{padding:8px 11px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12.5px;font-family:var(--font);color:var(--text);background:var(--surface);outline:none;transition:all .15s;}
-.sc-field-group input:focus,.sc-field-group select:focus,.sc-field-group textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(24,71,212,.07);}
-.sc-field-group textarea{resize:vertical;min-height:80px;line-height:1.5}
-.sc-input-prefix{position:relative;display:flex;align-items:center}
-.sc-input-prefix span{position:absolute;left:11px;font-size:12.5px;color:var(--text3);font-weight:600;pointer-events:none}
-.sc-input-prefix input{padding-left:22px;width:100%}
-.sc-input-suffix{position:relative;display:flex;align-items:center}
-.sc-input-suffix span{position:absolute;right:11px;font-size:12.5px;color:var(--text3);font-weight:600;pointer-events:none}
-.sc-input-suffix input{padding-right:22px;width:100%}
-.sc-section-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text4);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
-
-/* Lightbox */
-.sc-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:9000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
-.sc-lightbox.open{opacity:1;pointer-events:all}
-.sc-lightbox img{max-width:88vw;max-height:86vh;border-radius:10px;object-fit:contain}
-.sc-lb-close{position:absolute;top:18px;right:18px;width:38px;height:38px;background:rgba(255,255,255,.12);border:none;border-radius:50%;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;transition:background .15s}
-.sc-lb-close:hover{background:rgba(255,255,255,.22)}
-
-/* Delete Confirm */
-.sc-confirm-overlay{position:fixed;inset:0;background:rgba(12,21,38,.45);z-index:1100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s;backdrop-filter:blur(3px)}
-.sc-confirm-overlay.open{opacity:1;pointer-events:all}
-.sc-confirm-box{background:var(--surface);border-radius:var(--r-xl);padding:24px;width:360px;max-width:92vw;box-shadow:var(--sh-lg)}
-.sc-confirm-icon{width:44px;height:44px;border-radius:12px;background:var(--red-bg);display:flex;align-items:center;justify-content:center;margin-bottom:12px}
-.sc-confirm-icon svg{width:20px;height:20px;color:var(--red)}
-.sc-confirm-title{font-size:15px;font-weight:800;margin-bottom:6px}
-.sc-confirm-desc{font-size:13px;color:var(--text3);line-height:1.55;margin-bottom:20px}
-.sc-confirm-btns{display:flex;gap:8px;justify-content:flex-end}
-
-/* Toasts */
-.sc-toasts{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:7px;pointer-events:none}
-.sc-toast{display:flex;align-items:center;gap:9px;padding:10px 14px;border-radius:var(--r);font-size:12.5px;font-weight:600;box-shadow:var(--sh-lg);animation:toastIn .2s ease;max-width:300px;pointer-events:auto;border-left:3px solid rgba(255,255,255,.2)}
-.sc-toast.info{background:var(--navy2);color:#fff}
-.sc-toast.success{background:#14532d;color:#fff;border-left-color:var(--green)}
-.sc-toast.error{background:#7f1d1d;color:#fff;border-left-color:var(--red)}
-.sc-toast.loading{background:#1e3a8a;color:#fff;border-left-color:var(--accent)}
-@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-
-/* Spinner */
-.sc-spin{display:inline-block;border-radius:50%;border:2.5px solid rgba(255,255,255,.15);border-top-color:#fff;animation:spin .6s linear infinite}
-.sc-spin.dark{border-color:var(--border);border-top-color:var(--accent)}
-.sc-spin-sm{width:14px;height:14px;border-width:2px}
-.sc-spin-md{width:24px;height:24px;border-width:3px}
+/* ── SPINNER ── */
+.spinner{display:inline-block;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .65s linear infinite;}
+.spin-sm{width:14px;height:14px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* Buttons */
-.sc-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r-sm);border:1.5px solid;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;white-space:nowrap}
-.sc-btn svg{width:12px;height:12px;flex-shrink:0}
-.sc-btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
-.sc-btn-primary:hover{background:var(--accent2)}
-.sc-btn-primary:disabled{opacity:.5;cursor:not-allowed}
-.sc-btn-secondary{background:var(--surface);border-color:var(--border);color:var(--text3)}
-.sc-btn-secondary:hover{border-color:var(--text4);color:var(--text)}
-.sc-btn-danger{background:var(--surface);border-color:var(--red-bd);color:var(--red)}
-.sc-btn-danger:hover{background:var(--red-bg)}
-.sc-btn-sm{padding:5px 10px;font-size:11px;border-radius:6px}
+/* ── TOAST ── */
+.toasts{position:fixed;top:16px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:7px;pointer-events:none;}
+.toast{display:flex;align-items:center;gap:9px;padding:11px 15px;background:var(--navy2);color:#fff;border-radius:var(--r);font-size:13px;font-weight:600;box-shadow:var(--sh-lg);animation:toastIn .22s ease;max-width:320px;pointer-events:auto;border-left:3px solid rgba(255,255,255,.15);}
+.toast.success{background:#14532d;border-left-color:var(--green)}
+.toast.error{background:#7f1d1d;border-left-color:var(--red)}
+.toast.info{background:#1e3a8a;border-left-color:var(--accent)}
+@keyframes toastIn{from{opacity:0;transform:translateY(-8px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
 
-/* States */
-.sc-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;gap:10px;text-align:center;flex:1}
-.sc-state svg{opacity:.25}
-.sc-state p{font-size:13px;font-weight:700;color:var(--text3)}
-.sc-state span{font-size:12px;color:var(--text4)}
+/* del confirm inline */
+.del-confirm-row{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--red-bg);border-top:1px solid var(--red-bd);flex-shrink:0;}
+.del-confirm-row span{font-size:12px;color:var(--red);font-weight:600;flex:1}
+.btn-yes{padding:5px 12px;border-radius:6px;background:var(--red);color:#fff;border:none;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;}
+.btn-yes:hover{background:#991b1b}
+.btn-no{padding:5px 12px;border-radius:6px;background:var(--surface);color:var(--text3);border:1.5px solid var(--border);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;}
+.btn-no:hover{background:var(--border2)}
 
-/* Progress bar */
-.sc-pbar{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),#6495fb);z-index:9998;transform:scaleX(0);transform-origin:left;transition:transform .3s ease;opacity:0}
-.sc-pbar.active{opacity:1}
-
-/* Responsive */
-@media(max-width:900px){:root{--left-w:240px}}
-@media(max-width:768px){
-  .sc-root{flex-direction:column}
-  .sc-left{width:100%!important;min-width:100%!important;height:auto;max-height:40vh;border-bottom:2px solid var(--border)}
-  .sc-divider{display:none}
-  .sc-right{flex:1}
-  .sc-form-grid{grid-template-columns:1fr}
-  .sc-cat-table{min-width:600px}
-}
-@media(max-width:480px){
-  :root{--left-w:100%}
-  .sc-right-top{padding:9px 12px}
-  .sc-cat-toolbar{padding:7px 12px}
-  .sc-allcat-header{padding:10px 12px}
-}
-
-
-.sc-sup-action-wrap{position:relative;flex-shrink:0}
-.sc-sup-action-btn{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;}
-.sc-sup-action-btn:hover{background:rgba(24,71,212,.4);border-color:rgba(99,130,249,.4);color:#8fa8ff}
-.sc-sup-action-btn svg{width:13px;height:13px}
-.sc-sup-action-menu{position:fixed;background:var(--navy2);border:1px solid rgba(255,255,255,.12);border-radius:var(--r);box-shadow:var(--sh-lg);z-index:9500;min-width:140px;overflow:hidden;opacity:0;pointer-events:none;transform:translateY(-4px);transition:opacity .15s,transform .15s;}
-.sc-sup-action-menu.open{opacity:1;pointer-events:all;transform:translateY(0)}
-.sc-sup-action-item{display:flex;align-items:center;gap:8px;padding:16.5px 13px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.7);cursor:pointer;transition:background .12s;}
-.sc-sup-action-item:hover{background:rgba(255,255,255,.07);color:#fff}
-.sc-sup-action-item svg{width:12px;height:12px;flex-shrink:0;opacity:.7}
-.sc-sup-action-item.danger{color:#f87171}
-.sc-sup-action-item.danger:hover{background:rgba(239,68,68,.12)}
-
-.sc-bulk-bar{display:flex;align-items:center;gap:8px;padding:8px 18px;background:#eef2fd;border-bottom:1px solid var(--accent-bd);flex-shrink:0;flex-wrap:wrap;}
-.sc-bulk-bar-count{font-size:12px;font-weight:700;color:var(--accent);flex:1}
-.sc-bulk-btn{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;border:1.5px solid;font-size:11px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;white-space:nowrap;background:var(--surface)}
-.sc-bulk-btn.approve{border-color:rgba(16,185,129,.4);color:#0b7a42}
-.sc-bulk-btn.reject{border-color:rgba(192,25,44,.3);color:var(--red)}
-.sc-bulk-btn.del{border-color:rgba(192,25,44,.25);color:var(--red)}
-.sc-bulk-btn.cancel{border-color:var(--border);color:var(--text3)}
-.sc-select-toggle{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer;transition:all .15s;flex-shrink:0;white-space:nowrap;}
-.sc-select-toggle:hover,.sc-select-toggle.active{border-color:var(--accent-bd);color:var(--accent);background:var(--accent-bg)}
-.sc-row-cb{width:14px;height:14px;cursor:pointer;accent-color:var(--accent);flex-shrink:0}
-  
+@media(max-width:900px){.left-panel{width:240px}.overlay-panel{width:100vw}}
+@media(max-width:600px){.body{flex-direction:column}.left-panel{width:100%;height:200px;border-right:none;border-bottom:1px solid var(--border)}}
 </style>
 
-<div class="sc-pbar" id="scPbar"></div>
-
-<!-- Lightbox -->
-<div class="sc-lightbox" id="scLightbox" onclick="closeLightbox()">
-  <button class="sc-lb-close" onclick="event.stopPropagation();closeLightbox()">&#10005;</button>
-  <img id="scLbImg" src="" alt="">
-</div>
+<div class="pbar" id="pbar"></div>
+<div class="toasts" id="toasts"></div>
 
 <!-- All Catalog Overlay -->
-<div class="sc-allcat-overlay" id="scAllCatOverlay">
-  <div class="sc-allcat-header">
-    <div class="sc-allcat-header-left">
-      <button class="sc-allcat-back" onclick="closeAllCatalog()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Back
-      </button>
-      <span class="sc-allcat-title">All Catalog</span>
-      <span class="sc-allcat-count" id="scAllCatCount" style="display:none">0 products</span>
-    </div>
-    
-    
-    <div class="sc-allcat-search-wrap">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" class="sc-allcat-search-input" id="scAllCatSearch" placeholder="Search by EAN or product name…" oninput="renderAllCatalog()">
-    </div>
-    <button class="sc-select-toggle" id="scAcSelectToggle" onclick="toggleAcBulkSelect()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 11 12 14 22 4"/></svg>
-      Select
-    </button>
-  </div>
-  <div class="sc-bulk-bar" id="scAcBulkBar" style="display:none">
-    <span class="sc-bulk-bar-count" id="scAcBulkCount">0 selected</span>
-    <button class="sc-bulk-btn approve" onclick="acBulkSetStatus('Approved')">✓ Approve</button>
-    <button class="sc-bulk-btn reject" onclick="acBulkSetStatus('Rejected')">✗ Reject</button>
-    <button class="sc-bulk-btn del" onclick="acBulkDelete()">🗑 Delete</button>
-    <button class="sc-bulk-btn cancel" onclick="toggleAcBulkSelect()">Cancel</button>
-  </div>
-  <div class="sc-allcat-body" id="scAllCatBody">
-    <div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading…</p></div>
-  </div>
-</div>
-
-<!-- Edit Supplier Modal -->
-<div class="sc-modal-overlay" id="scEditModal">
-  <div class="sc-modal-box">
-    <div class="sc-modal-head">
-      <div class="sc-modal-head-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      </div>
-      <div class="sc-modal-head-title" id="scEditModalTitle">Edit Supplier</div>
-      <button class="sc-modal-head-close" onclick="closeEditModal()">
+<div class="overlay" id="allCatalogOverlay">
+  <div class="overlay-panel">
+    <div class="overlay-head">
+      <div class="overlay-title">All Catalog</div>
+      <span id="allCatCount" class="overlay-count"></span>
+      <button class="overlay-close" onclick="closeAllCatalog()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div class="sc-modal-body">
-      <div class="sc-section-label">Basic Information</div>
-      <div class="sc-form-grid">
-        <div class="sc-field-group sc-form-full">
-          <label>Supplier Name *</label>
-          <input type="text" id="efName" placeholder="e.g. Intamarque Ltd">
-        </div>
-        <div class="sc-field-group">
-          <label>MOQ (£)</label>
-          <div class="sc-input-prefix">
-            <span>£</span>
-            <input type="number" id="efMOQ" placeholder="e.g. 5000" min="0" step="0.01">
-          </div>
-        </div>
-        <div class="sc-field-group">
-          <label>Cash Back (%)</label>
-          <div class="sc-input-suffix">
-            <input type="number" id="efCashBack" placeholder="e.g. 5" min="0" max="100" step="0.1">
-            <span>%</span>
-          </div>
-        </div>
-        <div class="sc-field-group">
-          <label>Account Limit</label>
-          <select id="efAccountLimit">
-            <option value="">—</option>
-            <option value="Yes">Yes</option>
-            <option value="No">No</option>
-          </select>
-        </div>
-        <div class="sc-field-group">
-          <label>Card</label>
-          <select id="efCard">
-            <option value="">—</option>
-            <option value="Yes">Yes</option>
-            <option value="No">No</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="sc-section-label">Contact Details</div>
-      <div class="sc-form-grid">
-        <div class="sc-field-group sc-form-full">
-          <label>Contact Email</label>
-          <input type="email" id="efContact" placeholder="e.g. kerry@supplier.com">
-        </div>
-        <div class="sc-field-group sc-form-full">
-          <label>WhatsApp</label>
-          <input type="text" id="efWhatsApp" placeholder="e.g. +44 7700 900000">
-        </div>
-      </div>
-
-      <div class="sc-section-label">Notes</div>
-      <div class="sc-form-grid">
-        <div class="sc-field-group sc-form-full">
-          <label>Notes</label>
-          <textarea id="efNotes" placeholder="Any notes about this supplier…"></textarea>
-        </div>
+    <div class="overlay-toolbar">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="allCatSearch" placeholder="Search all catalog…" oninput="renderAllCatalog()">
       </div>
     </div>
-    <div class="sc-modal-foot">
-      <button class="sc-btn sc-btn-secondary sc-btn-sm" onclick="closeEditModal()">Cancel</button>
-      <button class="sc-btn sc-btn-primary sc-btn-sm" id="scEditSaveBtn" onclick="saveSupplierEdit()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Save Changes
-      </button>
+    <div class="overlay-body">
+      <table class="cat-table" id="allCatTable">
+        <thead><tr>
+          <th>Image</th><th>Product Name</th><th>EAN</th><th>Code</th>
+          <th>Supplier</th><th>Cost</th><th>Case</th><th>Category</th><th>Status</th>
+        </tr></thead>
+        <tbody id="allCatBody"></tbody>
+      </table>
     </div>
   </div>
 </div>
 
-<!-- Delete Confirm -->
-<div class="sc-confirm-overlay" id="scConfirmOverlay">
-  <div class="sc-confirm-box">
-    <div class="sc-confirm-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-    </div>
-    <div class="sc-confirm-title" id="scConfirmTitle">Delete?</div>
-    <div class="sc-confirm-desc" id="scConfirmDesc">This will permanently remove this product from the Catalog.</div>
-    <div class="sc-confirm-btns">
-      <button class="sc-btn sc-btn-secondary sc-btn-sm" onclick="closeConfirm()">Cancel</button>
-      <button class="sc-btn sc-btn-danger sc-btn-sm" id="scConfirmOk">Delete</button>
-    </div>
+<!-- Edit Supplier Drawer -->
+<div class="drawer-overlay" id="editDrawerOverlay" onclick="closeEditDrawer()"></div>
+<div class="edit-drawer" id="editDrawer">
+  <div class="edit-drawer-head">
+    <div class="edit-drawer-title" id="editDrawerTitle">Edit Supplier</div>
+    <button class="overlay-close" onclick="closeEditDrawer()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="edit-drawer-body" id="editDrawerBody"></div>
+  <div class="edit-drawer-foot">
+    <button class="nav-btn" onclick="closeEditDrawer()">Cancel</button>
+    <button class="nav-btn primary" id="editSaveBtn" onclick="saveSupplier()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Save
+    </button>
   </div>
 </div>
 
-<!-- Toasts -->
-<div class="sc-toasts" id="scToasts"></div>
-
-<!-- ROOT -->
-<div class="sc-root" id="scRoot">
-
-  <!-- LEFT: SUPPLIERS -->
-  <div class="sc-left" id="scLeft">
-    <div class="sc-left-inner">
-      <div class="sc-left-top">
-        <div class="sc-sup-filter" id="scSupFilter" onclick="toggleSupDropdown()">
-          <div class="sc-sup-filter-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          </div>
-          <div class="sc-sup-filter-text">
-            <div class="sc-sup-filter-label">Viewing supplier</div>
-            <div class="sc-sup-filter-value" id="scSupFilterVal">Select a supplier…</div>
-          </div>
-          <svg class="sc-sup-filter-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-        <div class="sc-sup-dropdown" id="scSupDropdown">
-          <div class="sc-sup-dropdown-search">
-            <input type="text" id="scSupDdSearch" placeholder="Search suppliers…" oninput="filterSupDropdown()" onclick="event.stopPropagation()">
-          </div>
-          <div class="sc-sup-dropdown-list" id="scSupDdList"></div>
-        </div>
-      </div>
-
-      <div class="sc-sup-card" id="scSupCard">
-        <div class="sc-left-empty" id="scLeftEmpty">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          <p>Select a supplier</p>
-          <span>Use the dropdown above</span>
-        </div>
-      </div>
-    </div>
+<!-- Add Catalog Drawer -->
+<div class="drawer-overlay" id="addCatOverlay" onclick="closeAddCatalog()"></div>
+<div class="edit-drawer" id="addCatDrawer" style="width:500px">
+  <div class="edit-drawer-head">
+    <div class="edit-drawer-title">Add Catalog Item</div>
+    <button class="overlay-close" onclick="closeAddCatalog()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
   </div>
+  <div class="edit-drawer-body" id="addCatBody"></div>
+  <div class="edit-drawer-foot">
+    <button class="nav-btn" onclick="closeAddCatalog()">Cancel</button>
+    <button class="nav-btn primary" id="addCatSaveBtn" onclick="saveCatalogItem()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Add Item
+    </button>
+  </div>
+</div>
 
-  <!-- DIVIDER -->
-  <div class="sc-divider"></div>
-
-  <!-- RIGHT: CATALOG -->
-  <div class="sc-right" id="scRight">
-
-    <div class="sc-right-top">
-      <div class="sc-right-title">
-        <div class="sc-right-title-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-        </div>
-        <div class="sc-right-title-text" id="scCatTitle">Catalog</div>
-      </div>
-      <div class="sc-right-title-count" id="scCatCount" style="display:none">0 products</div>
-      <button class="sc-allcat-btn" onclick="openAllCatalog()" title="Browse all products across all suppliers">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<div class="app">
+  <nav class="topnav">
+    <div class="tnav-title">Suppliers & Catalog</div>
+    <div class="tnav-sep"></div>
+    <div class="tnav-actions">
+      <button class="nav-btn" onclick="openAllCatalog()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
         All Catalog
       </button>
-      <button class="sc-refresh-btn" id="scRefreshBtn" onclick="handleRefresh()" title="Refresh data">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        Refresh
+      <button class="nav-btn primary" onclick="openAddSupplier()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Supplier
       </button>
     </div>
+  </nav>
 
-    <div class="sc-cat-toolbar">
-      <div class="sc-search-wrap">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" class="sc-search-input" id="scCatSearch" placeholder="Search EAN, product…" oninput="renderCatalog()">
+  <div class="body">
+    <!-- LEFT: Supplier list -->
+    <div class="left-panel">
+      <div class="sup-search-wrap">
+        <div class="sup-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="supSearch" placeholder="Search suppliers…" oninput="renderSupplierList()">
+        </div>
       </div>
-      
-      <div class="sc-cat-filter-wrap">
-        <select class="sc-cat-select" id="scCatCategoryFilter" onchange="renderCatalog()">
-          <option value="">All Categories</option>
-        </select>
-        <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      <div class="sup-list" id="supList">
+        <div style="display:flex;align-items:center;justify-content:center;padding:30px;gap:8px;color:var(--text4)">
+          <span class="spinner spin-sm"></span>
+          <span style="font-size:12px">Loading…</span>
+        </div>
       </div>
-      <button class="sc-select-toggle" id="scSelectToggle" onclick="toggleBulkSelect()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 11 12 14 22 4"/></svg>
-        Select
-      </button>
-    </div>
-    <div class="sc-bulk-bar" id="scBulkBar" style="display:none">
-      <span class="sc-bulk-bar-count" id="scBulkCount">0 selected</span>
-      <button class="sc-bulk-btn approve" onclick="bulkSetStatus('Approved')">✓ Approve</button>
-      <button class="sc-bulk-btn reject" onclick="bulkSetStatus('Rejected')">✗ Reject</button>
-      <button class="sc-bulk-btn del" onclick="bulkDeleteSelected()">🗑 Delete</button>
-      <button class="sc-bulk-btn cancel" onclick="toggleBulkSelect()">Cancel</button>
     </div>
 
-    <div class="sc-cat-content" id="scCatContent">
-      <div class="sc-state">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+    <!-- RIGHT: Main -->
+    <div class="main-panel" id="mainPanel">
+      <div class="no-supplier" id="noSupplier">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <p>Select a supplier</p>
-        <span>Catalog products will appear here</span>
+        <span>Choose a supplier from the left to view their catalog</span>
+      </div>
+
+      <!-- Supplier detail + catalog (hidden until supplier selected) -->
+      <div id="supplierView" style="display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
+        <div class="sup-detail">
+          <div class="sup-detail-hero">
+            <div class="sup-hero-top">
+              <div class="sup-hero-name" id="heroName">—</div>
+              <button class="sup-hero-edit-btn" onclick="openEditSupplier()" title="Edit supplier">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+            </div>
+            <div class="sup-hero-meta" id="heroMeta"></div>
+            <div class="sup-kpis" id="heroKpis"></div>
+          </div>
+          <div class="sup-stats-bar" id="heroStats"></div>
+        </div>
+
+        <!-- Catalog toolbar -->
+        <div class="cat-toolbar">
+          <div class="cat-tb-left">
+            <div class="search-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="catSearch" placeholder="Search catalog…" oninput="applyFilters()">
+            </div>
+            <div class="filter-pill" id="fStatusPill">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              <select id="fStatus" onchange="applyFilters();this.closest('.filter-pill').classList.toggle('active',!!this.value)">
+                <option value="">All Status</option>
+                <option value="Approved">Approved</option>
+                <option value="Pending">Pending</option>
+              </select>
+            </div>
+            <div class="filter-pill" id="fCatPill">
+              <select id="fCat" onchange="applyFilters();this.closest('.filter-pill').classList.toggle('active',!!this.value)">
+                <option value="">All Categories</option>
+              </select>
+            </div>
+          </div>
+          <div class="cat-tb-right">
+            <span class="cat-count" id="catCount"></span>
+            <button class="nav-btn primary" onclick="openAddCatalog()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Item
+            </button>
+          </div>
+        </div>
+
+        <div class="cat-wrap">
+          <table class="cat-table">
+            <thead><tr>
+              <th>Image</th>
+              <th>Product Name</th>
+              <th>EAN</th>
+              <th>Code</th>
+              <th>Cost</th>
+              <th>Case</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Agent</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="catBody"></tbody>
+          </table>
+        </div>
+        <div class="cat-pager" id="catPager" style="display:none">
+          <span class="pager-info" id="pagerInfo"></span>
+          <button class="pager-btn" id="btnPrev" onclick="prevPage()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Prev
+          </button>
+          <button class="pager-btn" id="btnNext" onclick="nextPage()">
+            Next
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
       </div>
     </div>
-
   </div>
 </div>
 
 <script>
 (function(){
 'use strict';
+const sb = window.sb;
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbyUakRDM0bBv2QzdA_WO-xzvmQ9B6kWu-wPc0yRuKE2dZjG8-UID3bI1ZEYaSoFMjhC0A/exec';
-  
 /* ── STATE ── */
-let allSuppliers  = [];
-let catalogData   = [];      // filtered view for current supplier
-let allCatalogData = [];     // all products, fetched once
-let catalogLoaded = false;   // flag so we only fetch once
-let currentSupId  = null;
-let dropdownOpen  = false;
-let editingSupId  = null;
-let _toastN = 0;
-let bulkSelectMode = false;
-let selectedIds    = new Set();
-let acBulkMode     = false;
-let acSelectedIds  = new Set();
+let suppliers = [], allCatalog = [], supCatalog = [], filteredCatalog = [];
+let currentSup = null, currentPage = 1;
+const PER_PAGE = 50;
+let sourcingStats = {}; // supplier_id -> { approved, purchased }
+let delConfirmId = null;
+let editMode = null; // 'supplier' | 'add-supplier'
 
-/* ── AGENT NAME (reads from shell sessionStorage) ── */
-function getAgentName() {
-  try {
-    const u = JSON.parse(sessionStorage.getItem('user') || '{}');
-    return (u.firstName || '').trim() || '';
-  } catch(e) { return ''; }
-}
-
-/* ── AVATAR PALETTE ── */
-const PALETTE = [
-  ['#dbeafe','#1d4ed8'],['#dcfce7','#166534'],['#fce7f3','#9d174d'],
-  ['#fef9c3','#854d0e'],['#ede9fe','#6d28d9'],['#ffedd5','#c2410c'],
-  ['#e0f2fe','#0369a1'],['#fdf4ff','#7e22ce'],['#f0fdf4','#15803d'],
-  ['#fff7ed','#9a3412'],
-];
-function palIdx(name){return (name||'?').split('').reduce((a,c)=>a+c.charCodeAt(0),0)%PALETTE.length}
-function avColors(name){return PALETTE[palIdx(name)]}
-function initials(name){
-  const p=(name||'?').trim().split(/\s+/);
-  return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():(name||'?').slice(0,2).toUpperCase();
-}
-
-
-
-async function updateAllCatStatus(id, status) {
-  const agent = status ? getAgentName() : '';
-  try {
-    await Promise.all([
-      api({action:'updateCatalogField', id, field:'Status', value:status}),
-      api({action:'updateCatalogField', id, field:'Agent', value:agent})
-    ]);
-    const row = allCatalogData.find(r => String(r['ID']||'') === id);
-    if(row){ row['Status']=status; row['Agent']=agent; }
-    const catRow = catalogData.find(r => String(r['ID']||'') === id);
-    if(catRow){ catRow['Status']=status; catRow['Agent']=agent; }
-    const sel = document.getElementById('ac_status_'+id);
-    if(sel) sel.className = 'sc-status-sel'+(status==='Approved'?' approved':status==='Rejected'?' rejected':'');
-    const agEl = document.getElementById('ac_agent_'+id);
-    if(agEl) agEl.textContent = agent||'—';
-    toast('Status updated','success');
-  } catch(e){ toast('Update failed','error'); }
-}
-
-function confirmDeleteAllCatProd(id, name){
-  document.getElementById('scConfirmTitle').textContent = 'Delete Product?';
-  document.getElementById('scConfirmDesc').textContent = `"${name}" will be permanently removed from the Catalog.`;
-  document.getElementById('scConfirmOk').onclick = () => doDeleteAllCatProd(id);
-  document.getElementById('scConfirmOverlay').classList.add('open');
-}
-async function doDeleteAllCatProd(id){
-  closeConfirm();
-  const tid = toast('Deleting…','loading',0);
-  try{
-    const r = await api({action:'deleteCatalog', id});
-    if(!r.success) throw new Error(r.message);
-    allCatalogData = allCatalogData.filter(x => String(x['ID']||'') !== id);
-    catalogData = catalogData.filter(x => String(x['ID']||'') !== id);
-    renderAllCatalog();
-    removeToast(tid);
-    toast('Product deleted','success');
-  }catch(e){ removeToast(tid); toast('Delete failed','error'); }
-}
-
-  
 /* ── PROGRESS BAR ── */
 let _pv=0,_pt=null;
-function pStart(){
-  const b=document.getElementById('scPbar');
-  clearInterval(_pt);_pv=.1;b.style.transform='scaleX(.1)';b.classList.add('active');
-  _pt=setInterval(()=>{_pv=Math.min(_pv+(1-_pv)*.07,.92);b.style.transform=`scaleX(${_pv})`;},250);
-}
-function pDone(){
-  clearInterval(_pt);
-  const b=document.getElementById('scPbar');
-  b.style.transform='scaleX(1)';
-  setTimeout(()=>{b.classList.remove('active');b.style.transform='scaleX(0)';},380);
-}
+function pStart(){const b=document.getElementById('pbar');clearInterval(_pt);_pv=0.1;b.style.transform='scaleX(0.1)';b.classList.add('active');_pt=setInterval(()=>{_pv=Math.min(_pv+(1-_pv)*0.07,0.92);b.style.transform=`scaleX(${_pv})`;},250);}
+function pDone(){clearInterval(_pt);const b=document.getElementById('pbar');b.style.transform='scaleX(1)';setTimeout(()=>{b.classList.remove('active');b.style.transform='scaleX(0)';},380);}
 
+/* ── HELPERS ── */
+function esc(s){return String(s!=null?s:'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function initials(name){return (name||'?').split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2);}
+function fmtCost(v){const n=parseFloat(v);return isNaN(n)?'—':'£'+n.toFixed(2);}
 
-
-/* ── SUPPLIER ACTION MENU ── */
-function toggleSupActionMenu(e){
-  e.stopPropagation();
-  const m=document.getElementById('scSupActionMenu');
-  const isOpen=m.classList.contains('open');
-  if(isOpen){m.classList.remove('open');return;}
-  const btn=e.currentTarget;
-  const r=btn.getBoundingClientRect();
-  m.style.top=(r.bottom+6)+'px';
-  m.style.right=(window.innerWidth-r.right)+'px';
-  m.classList.add('open');
-}
-function closeSupActionMenu(){
-  const m=document.getElementById('scSupActionMenu');
-  if(m)m.classList.remove('open');
-}
-
-/* ── ADD SUPPLIER ── */
-function openAddSupplierModal(){
-  editingSupId = null;
-  document.getElementById('scEditModalTitle').textContent = 'Add Supplier';
-  document.getElementById('efName').value='';
-  document.getElementById('efMOQ').value='';
-  document.getElementById('efCashBack').value='';
-  document.getElementById('efAccountLimit').value='';
-  document.getElementById('efCard').value='';
-  document.getElementById('efContact').value='';
-  document.getElementById('efWhatsApp').value='';
-  document.getElementById('efNotes').value='';
-  document.getElementById('scEditModal').classList.add('open');
-}
-
-/* ── DELETE SUPPLIER ── */
-function confirmDeleteSupplier(sid, name){
-  document.getElementById('scConfirmTitle').textContent = 'Delete Supplier?';
-  document.getElementById('scConfirmDesc').textContent = `Delete "${name}" and all their catalog products? This cannot be undone.`;
-  document.getElementById('scConfirmOk').onclick = () => doDeleteSupplier(sid);
-  document.getElementById('scConfirmOverlay').classList.add('open');
-}
-async function doDeleteSupplier(sid){
-  closeConfirm();
-  const tid = toast('Deleting supplier…','loading',0);
-  try{
-    const r = await api({action:'deleteSupplier', supplierId: sid});
-    if(!r.success) throw new Error(r.message||'Failed');
-    allSuppliers = allSuppliers.filter(x => x['Supplier ID'] !== sid);
-    if(currentSupId === sid){
-      currentSupId = null;
-      document.getElementById('scSupFilterVal').textContent = 'Select a supplier…';
-      document.getElementById('scCatTitle').textContent = 'Catalog';
-      document.getElementById('scSupCard').innerHTML = '<div class="sc-left-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><p>Select a supplier</p></div>';
-      document.getElementById('scCatContent').innerHTML = '<div class="sc-state"><p>Select a supplier</p></div>';
-      document.getElementById('scCatCount').style.display='none';
-    }
-    renderSupDropdown();
-    removeToast(tid);
-    toast('Supplier deleted','success');
-  }catch(e){
-    removeToast(tid);
-    toast('Delete failed: '+e.message,'error');
-  }
-}
-
-  
-/* ── TOAST ── */
-function toast(msg,type,dur){
-  const c=document.getElementById('scToasts');
-  const id='sct_'+(++_toastN);
-  const t=document.createElement('div');
-  t.className='sc-toast '+(type||'info');t.id=id;
-  const icons={
-    success:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-    error:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
-    loading:'<span class="sc-spin sc-spin-sm" style="flex-shrink:0"></span>',
-    info:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>',
-  };
-  t.innerHTML=(icons[type]||'')+`<span>${esc(msg)}</span>`;
-  c.appendChild(t);
-  const ms=dur===undefined?3000:dur;
-  if(ms>0)setTimeout(()=>t.remove(),ms);
-  return id;
-}
-function removeToast(id){const el=document.getElementById(id);if(el)el.remove();}
-
-/* ── API ── */
-async function api(body){
-  const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)});
-  return r.json();
-}
-
-/* ── FUZZY SUPPLIER MATCHING ── */
-function normaliseSupName(s) {
-  return (s||'')
-    .toLowerCase()
-    .replace(/\bltd\.?\b|\blimited\b|\bplc\.?\b|\binc\.?\b|\bco\.?\b|\bcorp\.?\b|\bgroup\b|\buk\b/g,' ')
-    .replace(/[^a-z0-9\s]/g,' ')
-    .replace(/\s+/g,' ')
-    .trim();
-}
-
-function supplierNamesMatch(supName, rowSupName) {
-  if (!supName || !rowSupName) return false;
-  const a = normaliseSupName(supName);
-  const b = normaliseSupName(rowSupName);
-  if (a === b) return true;
-
-  // Abbreviation checks only
-  const abbrA = supName.replace(/[^a-zA-Z\s]/g, '').trim().split(/\s+/).map(w => w[0]).join('').toLowerCase();
-  const abbrB = rowSupName.replace(/[^a-zA-Z\s]/g, '').trim().split(/\s+/).map(w => w[0]).join('').toLowerCase();
-  const rawA = supName.toLowerCase().replace(/[^a-z]/g, '');
-  const rawB = rowSupName.toLowerCase().replace(/[^a-z]/g, '');
-  if (abbrA.length >= 2 && abbrA === rawB) return true;
-  if (abbrB.length >= 2 && abbrB === rawA) return true;
-  if (abbrA.length >= 2 && abbrA === abbrB) return true;
-
-  return false;
-}
-
-/* ── LOAD SUPPLIERS ── */
-async function loadSuppliers(){
+/* ── INIT ── */
+async function init(){
   pStart();
   try{
-    const r=await api({action:'getSuppliers'});
-    if(!r.success) throw new Error(r.message||'Failed');
-    allSuppliers=r.suppliers||[];
-    renderSupDropdown();
-    if (!currentSupId && allSuppliers.length > 0) {
-      const preferred = allSuppliers.find(s =>
-        (s['Supplier Name'] || '').toLowerCase().includes('clear value trading')
-      ) || allSuppliers[0];
-      currentSupId = preferred['Supplier ID'];
-      document.getElementById('scSupFilterVal').textContent = preferred['Supplier Name'] || 'Unknown';
-      document.getElementById('scCatTitle').textContent = (preferred['Supplier Name'] || 'Supplier') + ' — Catalog';
-      renderSupplierCard(preferred);
-      loadCatalog(preferred);
-      renderSupDropdown();
-    }
-    else if (currentSupId) {
-  const s = allSuppliers.find(x => x['Supplier ID'] === currentSupId);
-  if (s) renderSupplierCard(s);
-    }
+    const [supRes, catRes, srcRes] = await Promise.all([
+      sb.from('suppliers').select('*').order('name'),
+      sb.from('catalog').select('*').order('product_name'),
+      sb.from('sourcing').select('supplier_name,approved,purchased')
+    ]);
+    if(supRes.error) throw supRes.error;
+    if(catRes.error) throw catRes.error;
+    suppliers = supRes.data || [];
+    allCatalog = catRes.data || [];
+    // Build sourcing stats per supplier name
+    const raw = srcRes.data || [];
+    const byName = {};
+    raw.forEach(r=>{
+      const n = (r.supplier_name||'').trim().toLowerCase();
+      if(!n) return;
+      if(!byName[n]) byName[n]={total:0,approved:0,purchased:0};
+      byName[n].total++;
+      if(r.approved) byName[n].approved++;
+      if(r.purchased) byName[n].purchased++;
+    });
+    sourcingStats = byName;
+    renderSupplierList();
   }catch(e){
-    toast('Failed to load suppliers','error');
-  }
-  pDone();
+    toast('Failed to load data: '+e.message,'error');
+  }finally{pDone();}
 }
 
-/* ── LOAD CATALOG ── */
-async function loadCatalog(supplier){
-  const cc = document.getElementById('scCatContent');
-  bulkSelectMode = false;
-  selectedIds.clear();
-  document.getElementById('scSelectToggle').classList.remove('active');
-  document.getElementById('scBulkBar').style.display = 'none';
-
-  if (!catalogLoaded) {
-    cc.innerHTML = `<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading catalog…</p></div>`;
-    try {
-      const r = await api({action: 'getCatalog'});
-      if (!r.success) throw new Error(r.message || 'Failed');
-      allCatalogData = r.rows || [];
-      catalogLoaded = true;
-    } catch(e) {
-      cc.innerHTML = `<div class="sc-state"><p>Failed to load catalog</p><span>${esc(e.message)}</span></div>`;
-      return;
-    }
-  }
-
-  catalogData = allCatalogData.filter(row =>
-    supplierNamesMatch(supplier['Supplier Name'], row['Supplier Name'] || row['Supplier'] || '')
-  );
-
-  populateCategoryFilter(catalogData);
-  renderCatalog();
-
-  const cnt = document.getElementById('scCatCount');
-  cnt.style.display = '';
-  cnt.textContent = catalogData.length + ' product' + (catalogData.length !== 1 ? 's' : '');
-
-  loadSourcingStats(supplier['Supplier Name'] || '');
-}
-
-/* ── SOURCING STATS ── */
-async function loadSourcingStats(supplierName) {
-  try {
-    const r = await api({action: 'getSourcingStats', supplierName});
-    const block = document.getElementById('scSummariesBlock');
-    if (!block) return;
-    const approved = (r && r.approved !== undefined) ? r.approved : '—';
-    const purchased = (r && r.purchased !== undefined) ? r.purchased : '—';
-    block.innerHTML = buildSummariesHtml(approved, purchased);
-  } catch(e) {
-    const block = document.getElementById('scSummariesBlock');
-    if (block) block.innerHTML = buildSummariesHtml('—', '—');
-  }
-}
-
-function buildSummariesHtml(approved, purchased) {
-  return `
-    <div class="sc-detail-head">Summaries</div>
-    <div class="sc-kpi-grid" style="margin-bottom:0">
-      <div class="sc-kpi">
-        <div class="sc-kpi-label">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          Approved
-        </div>
-        <div class="sc-kpi-val" style="color:#34d399">${esc(String(approved))}</div>
-      </div>
-      <div class="sc-kpi">
-        <div class="sc-kpi-label">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-          Purchased
-        </div>
-        <div class="sc-kpi-val" style="color:#60a5fa">${esc(String(purchased))}</div>
-      </div>
-    </div>`;
-}
-
-/* ── REFRESH ── */
-async function handleRefresh(){
-  const btn=document.getElementById('scRefreshBtn');
-  btn.classList.add('spinning');
-  const tid=toast('Refreshing…','loading',0);
-  try{
-    catalogLoaded = false; 
-    await loadSuppliers();
-    if(currentSupId){
-      const s=allSuppliers.find(x=>x['Supplier ID']===currentSupId);
-      if(s) await loadCatalog(s);
-    }
-    removeToast(tid);
-    toast('Refreshed','success');
-  }catch(e){
-    removeToast(tid);
-    toast('Refresh failed','error');
-  }
-  setTimeout(()=>btn.classList.remove('spinning'),700);
-}
-
-/* ── SUPPLIER DROPDOWN ── */
-function renderSupDropdown(filter){
-  const list=document.getElementById('scSupDdList');
-  const q=(filter||'').toLowerCase();
-  const visible=allSuppliers.filter(s=>(s['Supplier Name']||'').toLowerCase().includes(q));
-  if(!visible.length){
-    list.innerHTML='<div style="padding:16px;text-align:center;font-size:12px;color:rgba(255,255,255,.3)">No suppliers found</div>';
+/* ── SUPPLIER LIST ── */
+function renderSupplierList(){
+  const q=(document.getElementById('supSearch').value||'').toLowerCase().trim();
+  const list = document.getElementById('supList');
+  const filtered = suppliers.filter(s=>!q||(s.name||'').toLowerCase().includes(q));
+  if(!filtered.length){
+    list.innerHTML='<div style="padding:20px;text-align:center;font-size:12px;color:var(--text4)">No suppliers found</div>';
     return;
   }
-  list.innerHTML=visible.map(s=>{
-    const name=s['Supplier Name']||'?';
-    const sid=s['Supplier ID']||'';
-    const [bg,color]=avColors(name);
-    const active=sid===currentSupId;
-    return `<div class="sc-sup-opt${active?' active':''}" onclick="selectSupplier('${esc(sid)}')">
-      <div class="sc-sup-opt-av" style="background:${bg};color:${color}">${esc(initials(name))}</div>
-      <div class="sc-sup-opt-info">
-        <div class="sc-sup-opt-name">${esc(name)}</div>
-        <div class="sc-sup-opt-meta">${esc(sid)}</div>
-      </div>
-      ${active?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#8fa8ff;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>':''}
+  list.innerHTML = filtered.map(s=>{
+    const count = allCatalog.filter(c=>c.supplier_id===s.supplier_id).length;
+    const active = currentSup && currentSup.supplier_id === s.supplier_id;
+    return `<div class="sup-item${active?' active':''}" onclick="selectSupplier('${esc(s.supplier_id)}')">
+      <div class="sup-avatar">${esc(initials(s.name))}</div>
+      <div class="sup-item-name" title="${esc(s.name)}">${esc(s.name)}</div>
+      <div class="sup-item-count">${count}</div>
     </div>`;
   }).join('');
 }
 
-function toggleSupDropdown(){
-  dropdownOpen=!dropdownOpen;
-  const dd=document.getElementById('scSupDropdown');
-  const fl=document.getElementById('scSupFilter');
-  dd.classList.toggle('open',dropdownOpen);
-  fl.classList.toggle('open',dropdownOpen);
-  if(dropdownOpen){
-    document.getElementById('scSupDdSearch').value='';
-    renderSupDropdown();
-    setTimeout(()=>document.getElementById('scSupDdSearch').focus(),80);
-  }
-}
-function closeSupDropdown(){
-  if(!dropdownOpen)return;
-  dropdownOpen=false;
-  document.getElementById('scSupDropdown').classList.remove('open');
-  document.getElementById('scSupFilter').classList.remove('open');
-}
-function filterSupDropdown(){
-  renderSupDropdown(document.getElementById('scSupDdSearch').value);
+/* ── SELECT SUPPLIER ── */
+async function selectSupplier(id){
+  currentSup = suppliers.find(s=>s.supplier_id===id);
+  if(!currentSup) return;
+  currentPage = 1;
+  delConfirmId = null;
+  renderSupplierList();
+  renderSupplierDetail();
+  supCatalog = allCatalog.filter(c=>c.supplier_id===id);
+  applyFilters(true);
+  document.getElementById('noSupplier').style.display='none';
+  const sv = document.getElementById('supplierView');
+  sv.style.display='flex';
 }
 
-async function selectSupplier(sid){
-  closeSupDropdown();
-  if(sid===currentSupId)return;
-  currentSupId=sid;
-  const s=allSuppliers.find(x=>x['Supplier ID']===sid);
-  if(!s)return;
-  document.getElementById('scSupFilterVal').textContent=s['Supplier Name']||'Unknown';
-  document.getElementById('scCatTitle').textContent=(s['Supplier Name']||'Supplier')+' — Catalog';
-  renderSupplierCard(s);
-  loadCatalog(s);
-  renderSupDropdown();
+function renderSupplierDetail(){
+  if(!currentSup) return;
+  const s = currentSup;
+  const name = s.name||'—';
+  document.getElementById('heroName').textContent = name;
+
+  // Meta row
+  const metaItems = [];
+  if(s.email) metaItems.push(`<div class="sup-hero-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></div>`);
+  if(s.phone) metaItems.push(`<div class="sup-hero-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.77 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 17.92z"/></svg>${esc(s.phone)}</div>`);
+  if(s.website) metaItems.push(`<div class="sup-hero-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><a href="${esc(s.website)}" target="_blank">${esc(s.website)}</a></div>`);
+  document.getElementById('heroMeta').innerHTML = metaItems.join('') || '<div class="sup-hero-meta-item">No contact info</div>';
+
+  // KPIs
+  const kpis = [
+    {lbl:'MOQ', val: s.moq||'—'},
+    {lbl:'Cash Back', val: s.cash_back ? s.cash_back+'%' : '—'},
+    {lbl:'Account Limit', val: s.account_limit ? '£'+s.account_limit : '—'},
+    {lbl:'Payment', val: s.payment_terms||'—'},
+  ];
+  document.getElementById('heroKpis').innerHTML = kpis.map(k=>`
+    <div class="sup-kpi">
+      <div class="sup-kpi-lbl">${esc(k.lbl)}</div>
+      <div class="sup-kpi-val">${esc(String(k.val))}</div>
+    </div>`).join('');
+
+  // Stats from sourcing
+  const sname = (s.name||'').trim().toLowerCase();
+  const st = sourcingStats[sname] || {total:0,approved:0,purchased:0};
+  const catCount = allCatalog.filter(c=>c.supplier_id===s.supplier_id).length;
+  document.getElementById('heroStats').innerHTML = `
+    <div class="sup-stat"><div class="sup-stat-lbl">Catalog Items</div><div class="sup-stat-val">${catCount}</div></div>
+    <div class="sup-stat"><div class="sup-stat-lbl">Sourcing Opps</div><div class="sup-stat-val">${st.total}</div></div>
+    <div class="sup-stat"><div class="sup-stat-lbl">Approved</div><div class="sup-stat-val green">${st.approved}</div></div>
+    <div class="sup-stat"><div class="sup-stat-lbl">Purchased</div><div class="sup-stat-val amber">${st.purchased}</div></div>
+  `;
+
+  // Populate category filter
+  const cats = [...new Set(supCatalog.map(c=>c.category||'').filter(Boolean))].sort();
+  const catSel = document.getElementById('fCat');
+  const prev = catSel.value;
+  catSel.innerHTML = '<option value="">All Categories</option>' + cats.map(c=>`<option value="${esc(c)}"${c===prev?' selected':''}>${esc(c)}</option>`).join('');
 }
 
-/* ── RENDER SUPPLIER CARD ── */
-function renderSupplierCard(s){
-  const name=s['Supplier Name']||'Unknown';
-  const [bg,color]=avColors(name);
-  const notes=parseJ(s['Notes'],[]);
-  const el=document.getElementById('scSupCard');
-  el.innerHTML='';
-
-  // Hero
-  const hero=document.createElement('div');
-  hero.className='sc-sup-hero';
-  hero.innerHTML=`
-    <div class="sc-sup-av-lg" style="background:${bg};color:${color}">${esc(initials(name))}</div>
-    <div class="sc-sup-hero-info">
-      <div class="sc-sup-hero-name">${esc(name)}</div>
-      <div class="sc-sup-hero-id">${esc(s['Supplier ID']||'')}</div>
-    </div>
-        <div class="sc-sup-action-wrap">
-          <button class="sc-sup-action-btn" onclick="event.stopPropagation();window.toggleSupActionMenu(event)" title="Actions">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-          </button>
-        </div>
-      </div>`;
-  el.appendChild(hero);
-
-// Remove any existing menu first
-const existingMenu = document.getElementById('scSupActionMenu');
-if(existingMenu) existingMenu.remove();
-
-// Create menu and attach to body
-const menuEl = document.createElement('div');
-menuEl.className = 'sc-sup-action-menu';
-menuEl.id = 'scSupActionMenu';
-menuEl.innerHTML = `
-  <div class="sc-sup-action-item" onclick="closeSupActionMenu();openEditModal('${esc(s['Supplier ID']||'')}')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-    Edit
-  </div>
-  <div class="sc-sup-action-item danger" onclick="closeSupActionMenu();confirmDeleteSupplier('${esc(s['Supplier ID']||'')}','${esc(name)}')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-    Delete
-  </div>
-  <div class="sc-sup-action-item" onclick="closeSupActionMenu();openAddSupplierModal()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-    Add Supplier
-  </div>`;
-document.getElementById('scRoot').appendChild(menuEl);
-
-  // KPIs: MOQ (£), Cash Back (%), Account Limit, Card
-  const moqVal = s['MOQ'] ? '£' + parseFloat(String(s['MOQ']).replace(/[^0-9.]/g,'')).toLocaleString('en-GB') : '—';
-  const cashBackVal = s['Cash Back'] ? s['Cash Back'] + '%' : '—';
-  const kgrid=document.createElement('div');
-  kgrid.className='sc-kpi-grid';
-  kgrid.innerHTML=
-    kpi('MOQ', moqVal, '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>', isNaN(parseFloat(String(s['MOQ']).replace(/[^0-9.]/g,''))) ? '' : '')
-    +kpi('Cash Back', cashBackVal, '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>')
-    +kpiRaw('Account', accountLimitBadge(s['Account Limit']), '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>')
-    +kpiRaw('Card', cardBadge(s['Card']), '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>');
-  el.appendChild(kgrid);
-
-  // Details
-    const contact = s['Contact'] || '';
-    const contactHtml = contact
-    ? `<a href="https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(contact)}" target="_blank" rel="noopener">${esc(contact)}</a>`
-    : '—';
-
-  const det=document.createElement('div');
-  det.className='sc-detail-section';
-  det.innerHTML=`
-    <div class="sc-detail-head">Details</div>
-    ${detRowRaw('Contact', contactHtml, '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>')}
-    ${detRow('WhatsApp', s['WhatsApp']||'—', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>')}`;
-  el.appendChild(det);
-
-  // Summaries (replaces Activity)
-  const summ=document.createElement('div');
-  summ.className='sc-detail-section';
-  summ.id='scSummariesBlock';
-  summ.innerHTML=buildSummariesHtml('…', '…');
-  el.appendChild(summ);
-
-  // Notes
-  if(notes.length){
-    const ns=document.createElement('div');
-    ns.className='sc-notes-section';
-    ns.innerHTML=`
-      <div class="sc-detail-head">Notes (${notes.length})</div>
-      ${notes.slice().reverse().map(n=>`
-        <div class="sc-note-pill">
-          <div class="sc-note-pill-meta">
-            <div class="sc-note-av">${esc(initials(n.name||'?'))}</div>
-            <span class="sc-note-author">${esc(n.name||'')}</span>
-            <span class="sc-note-date">${esc(n.date||'')}</span>
-          </div>
-          <div class="sc-note-text">${esc(n.text||'')}</div>
-        </div>`).join('')}`;
-    el.appendChild(ns);
-  }
-}
-
-function kpi(label,val,icon,sizeClass){
-  return `<div class="sc-kpi">
-    <div class="sc-kpi-label">${icon}${esc(label)}</div>
-    <div class="sc-kpi-val${sizeClass?' '+sizeClass:''}">${esc(String(val))}</div>
-  </div>`;
-}
-function kpiRaw(label,valHtml,icon){
-  return `<div class="sc-kpi">
-    <div class="sc-kpi-label">${icon}${esc(label)}</div>
-    <div class="sc-kpi-val small">${valHtml}</div>
-  </div>`;
-}
-function detRow(label,val,icon){
-  return `<div class="sc-detail-row">
-    <span class="sc-detail-key">${icon}${esc(label)}</span>
-    <span class="sc-detail-val">${esc(String(val))}</span>
-  </div>`;
-}
-function detRowRaw(label,valHtml,icon){
-  return `<div class="sc-detail-row">
-    <span class="sc-detail-key">${icon}${esc(label)}</span>
-    <span class="sc-detail-val">${valHtml}</span>
-  </div>`;
-}
-function cardBadge(v){
-  if(!v||v==='—')return '<span style="color:rgba(255,255,255,.3);font-size:11px">—</span>';
-  const yes=v==='Yes';
-  return `<span class="sc-badge ${yes?'green':'red'}">${yes?'✓':'✗'} ${esc(v)}</span>`;
-}
-function accountLimitBadge(v){
-  if(!v||v==='—')return '<span style="color:rgba(255,255,255,.3);font-size:11px">—</span>';
-  const yes=v==='Yes';
-  return `<span class="sc-badge ${yes?'green':'red'}">${yes?'✓':'✗'} ${esc(v)}</span>`;
-}
-
-/* ── EDIT SUPPLIER MODAL ── */
-function openEditModal(sid){
-  const s=allSuppliers.find(x=>x['Supplier ID']===sid);
-  if(!s)return;
-  editingSupId=sid;
-  document.getElementById('scEditModalTitle').textContent='Edit — '+esc(s['Supplier Name']||'Supplier');
-  document.getElementById('efName').value=s['Supplier Name']||'';
-  document.getElementById('efMOQ').value=s['MOQ']?String(s['MOQ']).replace(/[^0-9.]/g,''):'';
-  document.getElementById('efCashBack').value=s['Cash Back']?String(s['Cash Back']).replace(/[^0-9.]/g,''):'';
-  document.getElementById('efAccountLimit').value=s['Account Limit']||'';
-  document.getElementById('efCard').value=s['Card']||'';
-  document.getElementById('efContact').value=s['Contact']||'';
-  document.getElementById('efWhatsApp').value=s['WhatsApp']||'';
-  document.getElementById('efNotes').value=s['Notes']||'';
-  document.getElementById('scEditModal').classList.add('open');
-}
-function closeEditModal(){
-  document.getElementById('scEditModal').classList.remove('open');
-  editingSupId=null;
-}
-
-async function saveSupplierEdit(){
-  const isNew = !editingSupId;
-  const name=document.getElementById('efName').value.trim();
-  if(!name){toast('Supplier name is required','error');return;}
-
-  const btn=document.getElementById('scEditSaveBtn');
-  btn.disabled=true;btn.textContent='Saving…';
-
-  const updates={
-    supplierId: editingSupId,
-    'Supplier Name': name,
-    'MOQ': document.getElementById('efMOQ').value.trim(),
-    'Cash Back': document.getElementById('efCashBack').value.trim(),
-    'Account Limit': document.getElementById('efAccountLimit').value,
-    'Card': document.getElementById('efCard').value,
-    'Contact': document.getElementById('efContact').value.trim(),
-    'WhatsApp': document.getElementById('efWhatsApp').value.trim(),
-    'Notes': document.getElementById('efNotes').value.trim(),
-  };
-
-  try{
-    const r=await api({action:'saveSupplier', ...updates});
-    if(!r.success && r.message) throw new Error(r.message);
-   if(isNew){
-  await loadSuppliers();
-  const s = allSuppliers.find(x => x['Supplier Name'] === name);
-  if(s){
-    currentSupId = s['Supplier ID'];
-    document.getElementById('scSupFilterVal').textContent = s['Supplier Name'] || 'Unknown';
-    document.getElementById('scCatTitle').textContent = (s['Supplier Name'] || 'Supplier') + ' — Catalog';
-    renderSupplierCard(s);
-    loadCatalog(s);
-    renderSupDropdown();
-  }
-} else {
-  const idx = allSuppliers.findIndex(x => x['Supplier ID'] === editingSupId);
-  if(idx >= 0) allSuppliers[idx] = {...allSuppliers[idx], ...updates};
-  const s = allSuppliers.find(x => x['Supplier ID'] === editingSupId);
-  if(s){
-    renderSupplierCard(s);
-    document.getElementById('scSupFilterVal').textContent = s['Supplier Name'] || 'Unknown';
-    document.getElementById('scCatTitle').textContent = (s['Supplier Name'] || 'Supplier') + ' — Catalog';
-    loadSourcingStats(s['Supplier Name'] || '');
-  }
-}
-    renderSupDropdown();
-    closeEditModal();
-    toast('Supplier updated','success');
-  }catch(e){
-    toast('Save failed: '+e.message,'error');
-  }
-
-  btn.disabled=false;
-  btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>Save Changes';
-}
-
-/* ── CATALOG ── */
-function populateCategoryFilter(rows){
-  const sel=document.getElementById('scCatCategoryFilter');
-  const prev=sel.value;
-  const cats=[...new Set(rows.map(r=>r['Category']||'').filter(Boolean))].sort();
-  sel.innerHTML='<option value="">All Categories</option>'+cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
-  if(prev)sel.value=prev;
-}
-
-function getFilteredCatalog(){
-  const q=(document.getElementById('scCatSearch').value||'').toLowerCase().trim();
-  const cat=document.getElementById('scCatCategoryFilter').value;
-  return catalogData.filter(r=>{
-    if(q){
-      const s=(String(r['EAN']||'')+' '+String(r['Product Name']||'')+' '+String(r['Code']||'')).toLowerCase();
-      if(!s.includes(q))return false;
-    }
-    if(cat&&(r['Category']||'')!==cat)return false;
+/* ── CATALOG FILTER & RENDER ── */
+function applyFilters(reset){
+  if(reset) currentPage=1;
+  const q=(document.getElementById('catSearch').value||'').toLowerCase().trim();
+  const fSt=document.getElementById('fStatus').value;
+  const fCat=document.getElementById('fCat').value;
+  filteredCatalog = supCatalog.filter(c=>{
+    if(q && !((c.product_name||'').toLowerCase().includes(q)||(c.ean||'').toLowerCase().includes(q)||(c.code||'').toLowerCase().includes(q))) return false;
+    if(fSt && (c.status||'')!==fSt) return false;
+    if(fCat && (c.category||'')!==fCat) return false;
     return true;
   });
+  renderCatalogTable();
 }
 
-function renderCatalog(){
-  const data=getFilteredCatalog();
-  const cc=document.getElementById('scCatContent');
-  if(!data.length){
-    cc.innerHTML=`<div class="sc-state"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg><p>No products found</p><span>Try adjusting your search or filters</span></div>`;
+function renderCatalogTable(){
+  const tbody = document.getElementById('catBody');
+  const total = filteredCatalog.length;
+  const pages = Math.ceil(total/PER_PAGE)||1;
+  if(currentPage>pages) currentPage=pages;
+  const start=(currentPage-1)*PER_PAGE;
+  const slice=filteredCatalog.slice(start,start+PER_PAGE);
+
+  document.getElementById('catCount').textContent = total ? `${total} item${total===1?'':'s'}` : '';
+
+  const pager=document.getElementById('catPager');
+  if(total>PER_PAGE){
+    pager.style.display='flex';
+    document.getElementById('pagerInfo').textContent=`Showing ${start+1}–${Math.min(start+PER_PAGE,total)} of ${total}`;
+    document.getElementById('btnPrev').disabled=currentPage===1;
+    document.getElementById('btnNext').disabled=currentPage>=pages;
+  }else{pager.style.display='none';}
+
+  if(!slice.length){
+    tbody.innerHTML=`<tr><td colspan="10"><div class="table-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><p>No items found</p><span>Try adjusting your search or filters</span></div></td></tr>`;
     return;
   }
-  renderTable(data,cc);
-}
 
-function renderTable(data,cc){
-  cc.innerHTML='';
-  const outer=document.createElement('div');
-  outer.className='sc-tbl-outer';
-    let html=`<table class="sc-cat-table">
-<thead><tr>
-  ${bulkSelectMode?`<th style="width:32px"><input type="checkbox" class="sc-row-cb" onchange="document.querySelectorAll('.sc-row-cb-item').forEach(c=>{c.checked=this.checked;if(c.checked)selectedIds.add(c.dataset.id);else selectedIds.delete(c.dataset.id)});updateBulkCount()"></th>`:''}
-  <th>EAN</th>
-  <th>Product Name</th>
-  <th>Code</th>
-  <th>Case</th>
-  <th>Category</th>
-  <th>Cost</th>
-  <th>Status</th>
-  <th>Agent</th>
-  <th></th>
-</tr></thead><tbody>`;
+  tbody.innerHTML = slice.map(c=>{
+    const statusCls = (c.status||'').toLowerCase()==='approved'?'approved':(c.status||'').toLowerCase()==='pending'?'pending':'other';
+    const imgHtml = c.product_image
+      ? `<img class="img-thumb" src="${esc(c.product_image)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+      + `<div class="img-placeholder" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`
+      : `<div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`;
 
-  data.forEach((r,i)=>{
-    const ean=r['EAN']||'';
-    const cost=r['Cost']||'';
-    const id=esc(String(r['ID']||''));
-    const status=r['Status']||'';
-    const agent=r['Agent']||'';
-    const statusCls=status==='Approved'?'approved':status==='Rejected'?'rejected':'';
-    html+=`<tr style="animation-delay:${Math.min(i,20)*0.02}s">
-      ${bulkSelectMode?`<td><input type="checkbox" class="sc-row-cb sc-row-cb-item" data-id="${id}" ${selectedIds.has(id)?'checked':''} onchange="if(this.checked)selectedIds.add('${id}');else selectedIds.delete('${id}');updateBulkCount()"></td>`:''}
-      <td><a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(ean||'—')}</a></td>
-      <td style="font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r['Product Name']||'')}">${esc(r['Product Name']||'—')}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${esc(r['Code']||'—')}</td>
-      <td>${esc(r['Case']||'—')}</td>
-      <td>${r['Category']?`<span class="sc-badge blue">${esc(r['Category'])}</span>`:'<span style="color:var(--text4);font-size:11px">—</span>'}</td>
-      <td><span class="cat-cost${!cost?' empty':''}">${cost?'£'+parseFloat(cost).toFixed(2):'—'}</span></td>
-      <td>
-        <select class="sc-status-sel ${statusCls}" id="status_${id}" onchange="updateCatalogStatus('${id}', this.value)" onclick="event.stopPropagation()">
-          <option value="" ${!status?'selected':''}>—</option>
-          <option value="Approved" ${status==='Approved'?'selected':''}>Approved</option>
-          <option value="Rejected" ${status==='Rejected'?'selected':''}>Rejected</option>
-        </select>
-      </td>
-      <td id="agent_${id}" style="font-size:11px;color:var(--text3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(agent||'—')}</td>
-      <td>
-        <button class="sc-del-btn" onclick="event.stopPropagation();confirmDeleteProd('${id}','${esc(r['Product Name']||'')}')" title="Delete product">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-        </button>
+    const isDelConf = delConfirmId === c.id;
+    return `<tr data-id="${esc(c.id)}">
+      <td>${imgHtml}</td>
+      <td class="td-name" title="${esc(c.product_name||'')}">${esc(c.product_name||'—')}</td>
+      <td class="td-ean">${esc(c.ean||'—')}</td>
+      <td class="td-code">${esc(c.code||'—')}</td>
+      <td class="td-cost">${fmtCost(c.cost)}</td>
+      <td class="td-case">${esc(String(c.case_size||'—'))}</td>
+      <td class="td-cat">${esc(c.category||'—')}</td>
+      <td><span class="status-pill ${statusCls}">${esc(c.status||'—')}</span></td>
+      <td class="agent-chip">${esc((c.agent||'—').split(' ')[0])}</td>
+      <td style="white-space:nowrap">
+        ${isDelConf
+          ? `<span style="font-size:11px;color:var(--red);font-weight:600;margin-right:4px">Delete?</span>
+             <button class="pager-btn" style="padding:3px 8px;font-size:11px;background:var(--red);color:#fff;border-color:var(--red)" onclick="confirmDelete('${esc(c.id)}')">Yes</button>
+             <button class="pager-btn" style="padding:3px 8px;font-size:11px;margin-left:3px" onclick="cancelDelete()">No</button>`
+          : `<button class="del-btn" onclick="startDelete('${esc(c.id)}')" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>`
+        }
       </td>
     </tr>`;
-  });
-  html+='</tbody></table>';
-  outer.innerHTML=html;
-  cc.appendChild(outer);
+  }).join('');
 }
 
-/* ── UPDATE CATALOG STATUS ── */
-async function updateCatalogStatus(id, status) {
-  const agent = status ? getAgentName() : '';
-  const sel = document.getElementById('status_' + id);
-  const agentEl = document.getElementById('agent_' + id);
+function nextPage(){currentPage++;renderCatalogTable();}
+function prevPage(){currentPage--;renderCatalogTable();}
 
-  try {
-    await Promise.all([
-      api({action: 'updateCatalogField', id, field: 'Status', value: status}),
-      api({action: 'updateCatalogField', id, field: 'Agent', value: agent})
-    ]);
-    // Update local data
-        const row = catalogData.find(r => String(r['ID'] || '') === id);
-    if (row) { row['Status'] = status; row['Agent'] = agent; }
-    const acRow = allCatalogData.find(r => String(r['ID'] || '') === id);
-    if (acRow) { acRow['Status'] = status; acRow['Agent'] = agent; }
-    // Update DOM
-    if (sel) sel.className = 'sc-status-sel' + (status === 'Approved' ? ' approved' : status === 'Rejected' ? ' rejected' : '');
-    if (agentEl) agentEl.textContent = agent || '—';
-    toast('Status updated', 'success');
-  } catch(e) {
-    toast('Update failed', 'error');
-  }
+/* ── DELETE CATALOG ── */
+function startDelete(id){delConfirmId=id;renderCatalogTable();}
+function cancelDelete(){delConfirmId=null;renderCatalogTable();}
+
+async function confirmDelete(id){
+  delConfirmId=null;
+  const {error}=await sb.from('catalog').delete().eq('id',id);
+  if(error){toast('Failed to delete: '+error.message,'error');return;}
+  allCatalog=allCatalog.filter(c=>c.id!==id);
+  supCatalog=supCatalog.filter(c=>c.id!==id);
+  applyFilters();
+  renderSupplierDetail();
+  renderSupplierList();
+  toast('Item deleted','success');
 }
 
-/* ── ALL CATALOG ── */
-async function openAllCatalog() {
-  document.getElementById('scAllCatOverlay').classList.add('open');
-  document.getElementById('scAllCatSearch').value = '';
-
-  if (catalogLoaded && allCatalogData.length) {
-    // Data already in memory — render instantly
-    const cnt = document.getElementById('scAllCatCount');
-    cnt.textContent = allCatalogData.length + ' product' + (allCatalogData.length !== 1 ? 's' : '');
-    cnt.style.display = '';
-    renderAllCatalog();
-    return;
-  }
-
-  // First time — fetch once
-  document.getElementById('scAllCatBody').innerHTML = '<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading all products…</p></div>';
-  document.getElementById('scAllCatCount').style.display = 'none';
-  try {
-    const r = await api({action: 'getCatalog'});
-    if (!r.success) throw new Error(r.message || 'Failed');
-    allCatalogData = r.rows || [];
-    catalogLoaded = true;
-    const cnt = document.getElementById('scAllCatCount');
-    cnt.textContent = allCatalogData.length + ' product' + (allCatalogData.length !== 1 ? 's' : '');
-    cnt.style.display = '';
-    renderAllCatalog();
-  } catch(e) {
-    document.getElementById('scAllCatBody').innerHTML = `<div class="sc-state"><p>Failed to load</p><span>${esc(e.message)}</span></div>`;
-  }
+/* ── EDIT SUPPLIER ── */
+function openEditSupplier(){
+  if(!currentSup) return;
+  editMode='supplier';
+  document.getElementById('editDrawerTitle').textContent='Edit Supplier';
+  buildSupplierForm(currentSup);
+  document.getElementById('editDrawerOverlay').classList.add('open');
+  document.getElementById('editDrawer').classList.add('open');
 }
 
-  
-function closeAllCatalog() {
-  document.getElementById('scAllCatOverlay').classList.remove('open');
-  if(acBulkMode){ acBulkMode=false; acSelectedIds.clear(); document.getElementById('scAcBulkBar').style.display='none'; }
+function openAddSupplier(){
+  editMode='add-supplier';
+  document.getElementById('editDrawerTitle').textContent='Add Supplier';
+  buildSupplierForm(null);
+  document.getElementById('editDrawerOverlay').classList.add('open');
+  document.getElementById('editDrawer').classList.add('open');
 }
 
-function renderAllCatalog() {
-  const q = (document.getElementById('scAllCatSearch').value || '').toLowerCase().trim();
-  let data = allCatalogData;
-
-  if (q) {
-    data = data.filter(r => {
-      const s = (String(r['EAN'] || '') + ' ' + String(r['Product Name'] || '')).toLowerCase();
-      return s.includes(q);
-    });
-  }
-
-  // Sort: by EAN ascending, then by cost ascending (cheapest first for same EAN)
-  data = [...data].sort((a, b) => {
-    const ea = String(a['EAN'] || ''), eb = String(b['EAN'] || '');
-    if (ea !== eb) return ea.localeCompare(eb);
-    return (parseFloat(a['Cost']) || 999999) - (parseFloat(b['Cost']) || 999999);
-  });
-
-  const cnt = document.getElementById('scAllCatCount');
-  cnt.textContent = data.length + ' product' + (data.length !== 1 ? 's' : '');
-  cnt.style.display = '';
-
-  const body = document.getElementById('scAllCatBody');
-  if (!data.length) {
-    body.innerHTML = '<div class="sc-state"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><p>No products found</p><span>Try a different search</span></div>';
-    return;
-  }
-
-let html = `<table class="sc-allcat-table">
-<thead><tr>
-  ${acBulkMode?`<th style="width:32px"><input type="checkbox" class="sc-row-cb" onchange="document.querySelectorAll('.sc-ac-cb-item').forEach(c=>{c.checked=this.checked;if(c.checked)acSelectedIds.add(c.dataset.id);else acSelectedIds.delete(c.dataset.id)});updateAcBulkCount()"></th>`:''}
-  <th>EAN</th><th>Product Name</th><th>Supplier</th><th>Code</th><th>Case</th><th>Category</th><th>Cost</th><th>Status</th><th>Agent</th><th></th>
-</tr></thead><tbody>`;
-
-  let prevEan = null;
-  data.forEach((r, i) => {
-    const ean = r['EAN'] || '';
-    const cost = r['Cost'] || '';
-    const status = r['Status'] || '';
-    const statusCls = status === 'Approved' ? 'approved' : status === 'Rejected' ? 'rejected' : '';
-    const isNewGroup = ean && ean !== prevEan;
-    prevEan = ean;
-
-    const rid = esc(String(r['ID']||''));
-    html += `<tr class="${isNewGroup && i > 0 ? 'sc-ean-group-row' : ''}" style="animation-delay:${Math.min(i,30)*0.015}s">
-      ${acBulkMode?`<td><input type="checkbox" class="sc-row-cb sc-ac-cb-item" data-id="${rid}" ${acSelectedIds.has(rid)?'checked':''} onchange="if(this.checked)acSelectedIds.add('${rid}');else acSelectedIds.delete('${rid}');updateAcBulkCount()"></td>`:''}
-      <td><a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener">${esc(ean || '—')}</a></td>
-      <td style="font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r['Product Name'] || '')}">${esc(r['Product Name'] || '—')}</td>
-      <td style="font-size:11.5px;color:var(--text3);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r['Supplier Name'] || r['Supplier'] || '—')}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${esc(r['Code'] || '—')}</td>
-      <td>${esc(r['Case'] || '—')}</td>
-      <td>${r['Category'] ? `<span class="sc-badge blue">${esc(r['Category'])}</span>` : '<span style="color:var(--text4);font-size:11px">—</span>'}</td>
-      <td><span class="cat-cost${!cost ? ' empty' : ''}">${cost ? '£' + parseFloat(cost).toFixed(2) : '—'}</span></td>
-      
-      <td>
-        <select class="sc-status-sel ${statusCls}" id="ac_status_${esc(String(r['ID']||''))}" onchange="updateAllCatStatus('${esc(String(r['ID']||''))}', this.value)" onclick="event.stopPropagation()">
-          <option value="" ${!status?'selected':''}>—</option>
-          <option value="Approved" ${status==='Approved'?'selected':''}>Approved</option>
-          <option value="Rejected" ${status==='Rejected'?'selected':''}>Rejected</option>
-        </select>
-      </td>
-      <td id="ac_agent_${esc(String(r['ID']||''))}" style="font-size:11px;color:var(--text3);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r['Agent']||'—')}</td>
-      <td>
-        <button class="sc-del-btn" onclick="confirmDeleteAllCatProd('${esc(String(r['ID']||''))}','${esc(r['Product Name']||'')}')" title="Delete product">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-        </button>
-      </td>
-    </tr>`;
-  });
-
-  html += '</tbody></table>';
-  body.innerHTML = html;
+function buildSupplierForm(s){
+  const body=document.getElementById('editDrawerBody');
+  const v=(f)=>s?esc(String(s[f]||'')):'';
+  body.innerHTML=`
+    <div class="form-section">
+      <div class="form-section-title">Basic Info</div>
+      <div class="form-group"><label>Supplier Name *</label><input type="text" id="ef_name" value="${v('name')}" placeholder="e.g. Wholesave Trading Supplies"></div>
+      <div class="form-grid2">
+        <div class="form-group"><label>Code</label><input type="text" id="ef_code" value="${v('code')}" placeholder="e.g. WST"></div>
+        <div class="form-group"><label>Account No.</label><input type="text" id="ef_account_no" value="${v('account_no')}" placeholder="e.g. 12345"></div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Contact</div>
+      <div class="form-group"><label>Email</label><input type="email" id="ef_email" value="${v('email')}" placeholder="contact@supplier.com"></div>
+      <div class="form-grid2">
+        <div class="form-group"><label>Phone</label><input type="text" id="ef_phone" value="${v('phone')}" placeholder="+44..."></div>
+        <div class="form-group"><label>WhatsApp</label><input type="text" id="ef_whatsapp" value="${v('whatsapp')}" placeholder="+44..."></div>
+      </div>
+      <div class="form-group"><label>Website</label><input type="text" id="ef_website" value="${v('website')}" placeholder="https://"></div>
+      <div class="form-group"><label>Contact Name</label><input type="text" id="ef_contact_name" value="${v('contact_name')}" placeholder="Account manager name"></div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Terms</div>
+      <div class="form-grid2">
+        <div class="form-group"><label>MOQ</label><input type="text" id="ef_moq" value="${v('moq')}" placeholder="e.g. £100"></div>
+        <div class="form-group"><label>Cash Back %</label><input type="number" id="ef_cash_back" value="${v('cash_back')}" placeholder="e.g. 2.5" step="0.1"></div>
+        <div class="form-group"><label>Account Limit (£)</label><input type="number" id="ef_account_limit" value="${v('account_limit')}" placeholder="e.g. 5000" step="1"></div>
+        <div class="form-group"><label>Payment Terms</label><input type="text" id="ef_payment_terms" value="${v('payment_terms')}" placeholder="e.g. 30 days, Card"></div>
+      </div>
+    </div>
+    <div class="form-section">
+      <div class="form-section-title">Notes</div>
+      <div class="form-group"><label>Notes</label><textarea id="ef_notes" placeholder="Any extra info…">${s?esc(s.notes||''):''}</textarea></div>
+    </div>`;
 }
 
-/* ── DELETE PRODUCT ── */
-function confirmDeleteProd(id,name){
-  document.getElementById('scConfirmTitle').textContent = 'Delete Product?';
-  document.getElementById('scConfirmDesc').textContent=`"${name}" will be permanently removed from the Catalog.`;
-  document.getElementById('scConfirmOk').onclick=()=>doDeleteProd(id);
-  document.getElementById('scConfirmOverlay').classList.add('open');
+function closeEditDrawer(){
+  document.getElementById('editDrawerOverlay').classList.remove('open');
+  document.getElementById('editDrawer').classList.remove('open');
+  editMode=null;
 }
 
-function closeConfirm() {
-  document.getElementById('scConfirmOverlay').classList.remove('open');
-  document.getElementById('scConfirmOk').onclick = null; 
-  document.getElementById('scConfirmTitle').textContent = 'Delete?';
-}
-  
-/* ── BULK SELECT (supplier catalog) ── */
-function toggleBulkSelect(){
-  bulkSelectMode=!bulkSelectMode; selectedIds.clear();
-  document.getElementById('scSelectToggle').classList.toggle('active',bulkSelectMode);
-  document.getElementById('scBulkBar').style.display=bulkSelectMode?'':'none';
-  renderCatalog();
-}
-function updateBulkCount(){ document.getElementById('scBulkCount').textContent=selectedIds.size+' selected'; }
-async function bulkSetStatus(status){
-  if(!selectedIds.size) return;
-  const agent=status?getAgentName():'';
-  const ids=[...selectedIds];
-  const tid=toast('Updating '+ids.length+' products…','loading',0);
-  await Promise.all(ids.flatMap(id=>[
-    api({action:'updateCatalogField',id,field:'Status',value:status}),
-    api({action:'updateCatalogField',id,field:'Agent',value:agent})
-  ]));
-  ids.forEach(id=>{
-    const r=catalogData.find(x=>String(x['ID']||'')===id);
-    if(r){r['Status']=status;r['Agent']=agent;}
-    const ar=allCatalogData.find(x=>String(x['ID']||'')===id);
-    if(ar){ar['Status']=status;ar['Agent']=agent;}
-  });
-  removeToast(tid); toast('Updated '+ids.length+' products','success');
-  selectedIds.clear(); renderCatalog(); updateBulkCount();
-}
-async function bulkDeleteSelected(){
-  if(!selectedIds.size) return;
-  const ids=[...selectedIds];
-  document.getElementById('scConfirmDesc').textContent=`Delete ${ids.length} selected products? This cannot be undone.`;
-  document.getElementById('scConfirmOk').onclick=async()=>{
-    closeConfirm();
-    const tid=toast('Deleting '+ids.length+' products…','loading',0);
-    await api({action:'bulkDeleteCatalog',ids});
-    catalogData=catalogData.filter(x=>!ids.includes(String(x['ID']||'')));
-    allCatalogData=allCatalogData.filter(x=>!ids.includes(String(x['ID']||'')));
-    selectedIds.clear(); removeToast(tid); toast('Deleted '+ids.length+' products','success');
-    renderCatalog(); updateBulkCount();
-    const cnt=document.getElementById('scCatCount');
-    cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
+async function saveSupplier(){
+  const nameEl=document.getElementById('ef_name');
+  const name=nameEl.value.trim();
+  if(!name){nameEl.focus();toast('Supplier name is required','error');return;}
+  const btn=document.getElementById('editSaveBtn');
+  btn.disabled=true;
+  const data={
+    name,
+    code: document.getElementById('ef_code').value.trim()||null,
+    account_no: document.getElementById('ef_account_no').value.trim()||null,
+    email: document.getElementById('ef_email').value.trim()||null,
+    phone: document.getElementById('ef_phone').value.trim()||null,
+    whatsapp: document.getElementById('ef_whatsapp').value.trim()||null,
+    website: document.getElementById('ef_website').value.trim()||null,
+    contact_name: document.getElementById('ef_contact_name').value.trim()||null,
+    moq: document.getElementById('ef_moq').value.trim()||null,
+    cash_back: parseFloat(document.getElementById('ef_cash_back').value)||null,
+    account_limit: parseFloat(document.getElementById('ef_account_limit').value)||null,
+    payment_terms: document.getElementById('ef_payment_terms').value.trim()||null,
+    notes: document.getElementById('ef_notes').value.trim()||null,
   };
-  document.getElementById('scConfirmOverlay').classList.add('open');
+  try{
+    if(editMode==='add-supplier'){
+      // Generate new supplier_id
+      const maxId=suppliers.reduce((mx,s)=>{const n=parseInt((s.supplier_id||'').replace('SUP-',''));return isNaN(n)?mx:Math.max(mx,n);},0);
+      data.supplier_id='SUP-'+String(maxId+1).padStart(4,'0');
+      const {data:newSup,error}=await sb.from('suppliers').insert(data).select().single();
+      if(error) throw error;
+      suppliers.push(newSup);
+      suppliers.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    }else{
+      const {error}=await sb.from('suppliers').update(data).eq('supplier_id',currentSup.supplier_id);
+      if(error) throw error;
+      Object.assign(currentSup,data);
+      const idx=suppliers.findIndex(s=>s.supplier_id===currentSup.supplier_id);
+      if(idx>-1) suppliers[idx]=currentSup;
+    }
+    closeEditDrawer();
+    renderSupplierList();
+    if(currentSup) renderSupplierDetail();
+    toast('Supplier saved','success');
+  }catch(e){
+    toast('Failed to save: '+e.message,'error');
+  }finally{btn.disabled=false;}
 }
 
-/* ── BULK SELECT (all catalog) ── */
-function toggleAcBulkSelect(){
-  acBulkMode=!acBulkMode; acSelectedIds.clear();
-  document.getElementById('scAcSelectToggle').classList.toggle('active',acBulkMode);
-  document.getElementById('scAcBulkBar').style.display=acBulkMode?'':'none';
+/* ── ADD CATALOG ITEM ── */
+function openAddCatalog(){
+  if(!currentSup){toast('Select a supplier first','error');return;}
+  document.getElementById('addCatBody').innerHTML=`
+    <div class="form-section">
+      <div class="form-section-title">Product Info</div>
+      <div class="form-group"><label>Product Name *</label><input type="text" id="ac_name" placeholder="e.g. Colgate Total 75ml"></div>
+      <div class="form-grid2">
+        <div class="form-group"><label>EAN</label><input type="text" id="ac_ean" placeholder="e.g. 5000347090967"></div>
+        <div class="form-group"><label>Code</label><input type="text" id="ac_code" placeholder="e.g. COL75T"></div>
+        <div class="form-group"><label>Cost (£)</label><input type="number" id="ac_cost" placeholder="0.00" step="0.01"></div>
+        <div class="form-group"><label>Case Size</label><input type="text" id="ac_case" placeholder="e.g. 24 or 500ml"></div>
+        <div class="form-group"><label>Barcode</label><input type="text" id="ac_barcode" placeholder="e.g. 05000347090968"></div>
+        <div class="form-group"><label>Category</label><input type="text" id="ac_category" placeholder="e.g. Oral Care"></div>
+        <div class="form-group"><label>Status</label>
+          <select id="ac_status">
+            <option value="Pending">Pending</option>
+            <option value="Approved" selected>Approved</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Agent</label><input type="text" id="ac_agent" value="System" placeholder="e.g. System"></div>
+      </div>
+      <div class="form-group"><label>Product Image URL</label><input type="text" id="ac_image" placeholder="https://…"></div>
+      <div class="form-group"><label>Email Subject</label><input type="text" id="ac_subject" placeholder="Optional email subject"></div>
+    </div>`;
+  document.getElementById('addCatOverlay').classList.add('open');
+  document.getElementById('addCatDrawer').classList.add('open');
+}
+
+function closeAddCatalog(){
+  document.getElementById('addCatOverlay').classList.remove('open');
+  document.getElementById('addCatDrawer').classList.remove('open');
+}
+
+async function saveCatalogItem(){
+  const nameEl=document.getElementById('ac_name');
+  const name=nameEl.value.trim();
+  if(!name){nameEl.focus();toast('Product name required','error');return;}
+  const btn=document.getElementById('addCatSaveBtn');
+  btn.disabled=true;
+  // Generate new catalog ID
+  const maxNum = allCatalog.reduce((mx,c)=>{
+    const n=parseInt((c.id||'').replace(/[^0-9]/g,''));
+    return isNaN(n)?mx:Math.max(mx,n);
+  },0);
+  const newId='CAT-'+String(maxNum+1).padStart(4,'0');
+  const today=new Date();
+  const dateStr=`${String(today.getDate()).padStart(2,'0')}/${String(today.getMonth()+1).padStart(2,'0')}/${today.getFullYear()}`;
+  const data={
+    id: newId,
+    product_name: name,
+    ean: document.getElementById('ac_ean').value.trim()||null,
+    code: document.getElementById('ac_code').value.trim()||null,
+    cost: parseFloat(document.getElementById('ac_cost').value)||null,
+    case_size: document.getElementById('ac_case').value.trim()||null,
+    barcode: document.getElementById('ac_barcode').value.trim()||null,
+    category: document.getElementById('ac_category').value.trim()||null,
+    status: document.getElementById('ac_status').value,
+    agent: document.getElementById('ac_agent').value.trim()||'System',
+    product_image: document.getElementById('ac_image').value.trim()||null,
+    email_subject: document.getElementById('ac_subject').value.trim()||null,
+    supplier_id: currentSup.supplier_id,
+    supplier_name: currentSup.name,
+    supplier_email: currentSup.email||null,
+    date: dateStr,
+  };
+  try{
+    const {data:newItem,error}=await sb.from('catalog').insert(data).select().single();
+    if(error) throw error;
+    allCatalog.push(newItem);
+    supCatalog.push(newItem);
+    applyFilters();
+    renderSupplierDetail();
+    renderSupplierList();
+    closeAddCatalog();
+    toast('Item added','success');
+  }catch(e){
+    toast('Failed to add: '+e.message,'error');
+  }finally{btn.disabled=false;}
+}
+
+/* ── ALL CATALOG OVERLAY ── */
+async function openAllCatalog(){
+  document.getElementById('allCatalogOverlay').classList.add('open');
   renderAllCatalog();
 }
-function updateAcBulkCount(){ document.getElementById('scAcBulkCount').textContent=acSelectedIds.size+' selected'; }
-async function acBulkSetStatus(status){
-  if(!acSelectedIds.size) return;
-  const agent=status?getAgentName():'';
-  const ids=[...acSelectedIds];
-  const tid=toast('Updating '+ids.length+' products…','loading',0);
-  await Promise.all(ids.flatMap(id=>[
-    api({action:'updateCatalogField',id,field:'Status',value:status}),
-    api({action:'updateCatalogField',id,field:'Agent',value:agent})
-  ]));
-  ids.forEach(id=>{
-    const r=allCatalogData.find(x=>String(x['ID']||'')===id);
-    if(r){r['Status']=status;r['Agent']=agent;}
-    const cr=catalogData.find(x=>String(x['ID']||'')===id);
-    if(cr){cr['Status']=status;cr['Agent']=agent;}
+
+function closeAllCatalog(){
+  document.getElementById('allCatalogOverlay').classList.remove('open');
+}
+
+function renderAllCatalog(){
+  const q=(document.getElementById('allCatSearch').value||'').toLowerCase().trim();
+  const filtered=allCatalog.filter(c=>{
+    if(!q) return true;
+    return (c.product_name||'').toLowerCase().includes(q)||(c.ean||'').toLowerCase().includes(q)||(c.supplier_name||'').toLowerCase().includes(q)||(c.code||'').toLowerCase().includes(q);
   });
-  removeToast(tid); toast('Updated '+ids.length+' products','success');
-  acSelectedIds.clear(); renderAllCatalog(); updateAcBulkCount();
-}
-async function acBulkDelete(){
-  if(!acSelectedIds.size) return;
-  const ids=[...acSelectedIds];
-  document.getElementById('scConfirmDesc').textContent=`Delete ${ids.length} selected products? This cannot be undone.`;
-  document.getElementById('scConfirmOk').onclick=async()=>{
-    closeConfirm();
-    const tid=toast('Deleting '+ids.length+' products…','loading',0);
-    await api({action:'bulkDeleteCatalog',ids});
-    allCatalogData=allCatalogData.filter(x=>!ids.includes(String(x['ID']||'')));
-    catalogData=catalogData.filter(x=>!ids.includes(String(x['ID']||'')));
-    acSelectedIds.clear(); removeToast(tid); toast('Deleted '+ids.length+' products','success');
-    renderAllCatalog(); updateAcBulkCount();
-  };
-  document.getElementById('scConfirmOverlay').classList.add('open');
-}
-  
-async function doDeleteProd(id){
-  closeConfirm();
-  const tid=toast('Deleting…','loading',0);
-  try{
-    const r=await api({action:'deleteCatalog',id});
-    if(!r.success)throw new Error(r.message);
-    catalogData=catalogData.filter(x=>String(x['ID']||'')!==id);
-    renderCatalog();
-    const cnt=document.getElementById('scCatCount');
-    cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
-    removeToast(tid);
-    toast('Product deleted','success');
-  }catch(e){removeToast(tid);toast('Delete failed','error');}
-}
-
-/* ── LIGHTBOX ── */
-function openLightbox(url){
-  document.getElementById('scLbImg').src=url;
-  document.getElementById('scLightbox').classList.add('open');
-}
-function closeLightbox(){
-  document.getElementById('scLightbox').classList.remove('open');
-  document.getElementById('scLbImg').src='';
-}
-
-/* ── HELPERS ── */
-function resolveImg(raw){
-  if(!raw)return'';
-  raw=String(raw).trim();
-  if(!raw||raw==='[object Object]')return'';
-  const m1=raw.match(/\/d\/([a-zA-Z0-9_-]{15,})/);
-  if(m1)return`https://drive.google.com/thumbnail?id=${m1[1]}&sz=w400`;
-  const m2=raw.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
-  if(m2)return`https://drive.google.com/thumbnail?id=${m2[1]}&sz=w400`;
-  if(/^[a-zA-Z0-9_-]{25,44}$/.test(raw))return`https://drive.google.com/thumbnail?id=${raw}&sz=w400`;
-  if(raw.startsWith('http'))return raw;
-  return'';
-}
-function fmtDateSh(v){
-  if(!v)return'';
-  const d=new Date(v);if(isNaN(d))return String(v);
-  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-}
-function parseJ(v,fb){try{return JSON.parse(v);}catch(e){return fb;}}
-function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-
-/* ── KEYBOARD ── */
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){
-    if(document.getElementById('scLightbox').classList.contains('open')){closeLightbox();return;}
-    if(document.getElementById('scAllCatOverlay').classList.contains('open')){closeAllCatalog();return;}
-    if(document.getElementById('scEditModal').classList.contains('open')){closeEditModal();return;}
-    if(document.getElementById('scConfirmOverlay').classList.contains('open')){closeConfirm();return;}
-    if(dropdownOpen){closeSupDropdown();return;}
+  document.getElementById('allCatCount').textContent=`${filtered.length} items`;
+  const tbody=document.getElementById('allCatBody');
+  if(!filtered.length){
+    tbody.innerHTML=`<tr><td colspan="9"><div class="table-empty"><p>No items found</p></div></td></tr>`;
+    return;
   }
-});
-document.addEventListener('click',e=>{
-  const wrap=document.getElementById('scSupActionMenu');
-  if(wrap&&wrap.classList.contains('open')&&!wrap.contains(e.target)&&!(e.target.closest&&e.target.closest('.sc-sup-action-btn')))closeSupActionMenu();
-  if(dropdownOpen&&!document.getElementById('scSupFilter').contains(e.target)&&!document.getElementById('scSupDropdown').contains(e.target))
-    closeSupDropdown();
-  if(document.getElementById('scEditModal').classList.contains('open')&&e.target===document.getElementById('scEditModal'))
-    closeEditModal();
-});
+  tbody.innerHTML=filtered.slice(0,500).map(c=>{
+    const statusCls=(c.status||'').toLowerCase()==='approved'?'approved':(c.status||'').toLowerCase()==='pending'?'pending':'other';
+    const imgHtml=c.product_image
+      ?`<img class="img-thumb" src="${esc(c.product_image)}" alt="" onerror="this.style.display='none'">`
+      :`<div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`;
+    return `<tr>
+      <td>${imgHtml}</td>
+      <td class="td-name" title="${esc(c.product_name||'')}">${esc(c.product_name||'—')}</td>
+      <td class="td-ean">${esc(c.ean||'—')}</td>
+      <td class="td-code">${esc(c.code||'—')}</td>
+      <td style="font-size:12px;color:var(--text3);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.supplier_name||'—')}</td>
+      <td class="td-cost">${fmtCost(c.cost)}</td>
+      <td class="td-case">${esc(String(c.case_size||'—'))}</td>
+      <td>${esc(c.category||'—')}</td>
+      <td><span class="status-pill ${statusCls}">${esc(c.status||'—')}</span></td>
+    </tr>`;
+  }).join('');
+  if(filtered.length>500){
+    tbody.innerHTML+=`<tr><td colspan="9" style="text-align:center;padding:12px;font-size:12px;color:var(--text4)">Showing first 500 of ${filtered.length} results. Narrow your search.</td></tr>`;
+  }
+}
 
-/* ── GLOBALS ── */
-window.toggleSupDropdown=toggleSupDropdown;
-window.filterSupDropdown=filterSupDropdown;
+/* ── TOAST ── */
+function toast(msg,type){
+  const c=document.getElementById('toasts');
+  const t=document.createElement('div');t.className='toast '+(type||'');
+  const icons={success:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',error:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',info:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'};
+  t.innerHTML=(icons[type]||'')+esc(msg);c.appendChild(t);
+  setTimeout(()=>{if(t.parentNode)t.remove();},3200);
+}
+
+/* ── EXPOSE ── */
 window.selectSupplier=selectSupplier;
-window.renderCatalog=renderCatalog;
-window.renderAllCatalog=renderAllCatalog;
+window.openEditSupplier=openEditSupplier;
+window.openAddSupplier=openAddSupplier;
+window.closeEditDrawer=closeEditDrawer;
+window.saveSupplier=saveSupplier;
+window.openAddCatalog=openAddCatalog;
+window.closeAddCatalog=closeAddCatalog;
+window.saveCatalogItem=saveCatalogItem;
 window.openAllCatalog=openAllCatalog;
 window.closeAllCatalog=closeAllCatalog;
-window.openLightbox=openLightbox;
-window.closeLightbox=closeLightbox;
-window.closeConfirm=closeConfirm;
-window.openEditModal=openEditModal;
-window.closeEditModal=closeEditModal;
-window.saveSupplierEdit=saveSupplierEdit;
-window.handleRefresh=handleRefresh;
-window.confirmDeleteProd=confirmDeleteProd;
-window.updateCatalogStatus=updateCatalogStatus;
-window.openAddSupplierModal=openAddSupplierModal;
-window.confirmDeleteSupplier=confirmDeleteSupplier;
-window.closeSupActionMenu=closeSupActionMenu;
-window.updateAllCatStatus=updateAllCatStatus;
-window.confirmDeleteAllCatProd=confirmDeleteAllCatProd;
-window.toggleBulkSelect=toggleBulkSelect;
-window.updateBulkCount=updateBulkCount;
-window.bulkSetStatus=bulkSetStatus;
-window.bulkDeleteSelected=bulkDeleteSelected;
-window.toggleAcBulkSelect=toggleAcBulkSelect;
-window.updateAcBulkCount=updateAcBulkCount;
-window.acBulkSetStatus=acBulkSetStatus;
-window.acBulkDelete=acBulkDelete;
-window.toggleSupActionMenu = toggleSupActionMenu;
-window.closeSupActionMenu = closeSupActionMenu;
-window.selectedIds = selectedIds;
-window.acSelectedIds = acSelectedIds;
-window.updateBulkCount = updateBulkCount;
-window.updateAcBulkCount = updateAcBulkCount;
+window.renderAllCatalog=renderAllCatalog;
+window.applyFilters=applyFilters;
+window.renderSupplierList=renderSupplierList;
+window.startDelete=startDelete;
+window.cancelDelete=cancelDelete;
+window.confirmDelete=confirmDelete;
+window.nextPage=nextPage;
+window.prevPage=prevPage;
 
-
-/* ── INIT ── */
-loadSuppliers();
-
+init();
 })();
 </script>
