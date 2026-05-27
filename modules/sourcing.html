@@ -416,12 +416,14 @@ col.col-agent     { width: 110px; }
 
   <div class="filter-bar">
     <div class="filter-pills" id="filterPills">
+      <select class="filter-select" id="fSupplier" onchange="applyFilters(true)"><option value="">Supplier: All</option></select>
+      <input type="date" class="filter-select" id="fDateFrom" onchange="applyFilters(true)" title="Date from" style="max-width:130px;">
+      <input type="date" class="filter-select" id="fDateTo" onchange="applyFilters(true)" title="Date to" style="max-width:130px;">
+      
       <select class="filter-select" id="fPurchased"    onchange="applyFilters(true)"><option value="">Purchased: All</option><option value="yes">Purchased: Yes</option><option value="no">Purchased: No</option></select>
       <select class="filter-select" id="fApproved"     onchange="applyFilters(true)"><option value="">Approved: All</option><option value="yes">Approved: Yes</option><option value="no">Approved: No</option><option value="rejected">Approved: Rejected</option></select>
       <select class="filter-select" id="fPacking"      onchange="applyFilters(true)"><option value="">Packing: All</option><option>Fast</option><option>Good</option><option>Medium</option><option>Large</option></select>
       <select class="filter-select" id="fSeasonality"  onchange="applyFilters(true)"><option value="">Seasonality: All</option><option>Yes</option><option>No</option></select>
-      <select class="filter-select" id="fCompetition"  onchange="applyFilters(true)"><option value="">Competition: All</option><option>Low</option><option>Medium</option><option>High</option></select>
-      <select class="filter-select" id="fSupplierStock" onchange="applyFilters(true)"><option value="">Stock: All</option><option>Low</option><option>Medium</option><option>High</option></select>
       <button class="filter-clear-btn" id="filterClearBtn" onclick="clearFilters()">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         Clear
@@ -570,6 +572,15 @@ async function fetchUsers() {
 async function fetchSuppliers() {
   const { data } = await sb.from('suppliers').select('name, code').order('name');
   suppliers = data || [];
+
+  const sel = document.getElementById('fSupplier');
+if (sel) {
+  suppliers.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.name; o.textContent = s.name;
+    sel.appendChild(o);
+  });
+}
 }
 
 /* ══ INIT ══ */
@@ -630,10 +641,12 @@ function applyFilters(resetPage) {
   const fApproved  = document.getElementById('fApproved').value;
   const fPacking   = document.getElementById('fPacking').value;
   const fSeason    = document.getElementById('fSeasonality').value;
-  const fComp      = document.getElementById('fCompetition').value;
-  const fStock     = document.getElementById('fSupplierStock').value;
+  const fSupplier = document.getElementById('fSupplier').value;
+  const fDateFrom = document.getElementById('fDateFrom').value;
+  const fDateTo   = document.getElementById('fDateTo').value;
 
-  filtered = allData.filter(p => {
+
+filtered = allData.filter(p => {
     if (q && !((p.product_name||'').toLowerCase().includes(q) || (p.supplier_name||'').toLowerCase().includes(q) || (p.agent||'').toLowerCase().includes(q))) return false;
     if (fPurchased === 'yes' && !p.purchased) return false;
     if (fPurchased === 'no'  && p.purchased) return false;
@@ -642,8 +655,9 @@ function applyFilters(resetPage) {
     if (fApproved  === 'rejected' && !isRejected(p)) return false;
     if (fPacking && p.packing !== fPacking) return false;
     if (fSeason  && p.seasonality !== fSeason) return false;
-    if (fComp    && p.competition !== fComp) return false;
-    if (fStock   && p.supplier_stock !== fStock) return false;
+    if (fSupplier && p.supplier_name !== fSupplier) return false;
+    if (fDateFrom && new Date(p.created_at) < new Date(fDateFrom)) return false;
+    if (fDateTo   && new Date(p.created_at) > new Date(fDateTo + 'T23:59:59')) return false;
     if (activeStatFilter === 'needApproval' && (p.approved || isRejected(p))) return false;
     if (activeStatFilter === 'toPurchase' && (!p.approved || isRejected(p) || p.purchased)) return false;
     if (activeStatFilter === 'rejected' && !isRejected(p)) return false;
@@ -651,22 +665,26 @@ function applyFilters(resetPage) {
   });
 
   // Keep most-recent-first order
-  filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-  const anyActive = fPurchased || fApproved || fPacking || fSeason || fComp || fStock;
+setChip('statTotal', `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>${filtered.length} Total</span>`);
+
+const anyActive = fPurchased || fApproved || fPacking || fSeason || fSupplier || fDateFrom || fDateTo;
   document.getElementById('filterDot').style.display = (anyActive || activeStatFilter) ? 'inline-block' : 'none';
   document.getElementById('filterClearBtn').classList.toggle('visible', !!(anyActive || activeStatFilter));
-  ['fPurchased','fApproved','fPacking','fSeasonality','fCompetition','fSupplierStock'].forEach(id => {
-    document.getElementById(id).classList.toggle('active', !!document.getElementById(id).value);
-  });
+['fPurchased','fApproved','fPacking','fSeasonality','fSupplier'].forEach(id => {
+  document.getElementById(id).classList.toggle('active', !!document.getElementById(id).value);
+});
   renderTable();
 }
 
 function clearFilters() {
-  ['fPurchased','fApproved','fPacking','fSeasonality','fCompetition','fSupplierStock'].forEach(id => {
-    document.getElementById(id).value = '';
-    document.getElementById(id).classList.remove('active');
+  ['fPurchased','fApproved','fPacking','fSeasonality','fSupplier'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; el.classList.remove('active'); }
   });
+  document.getElementById('fDateFrom').value = '';
+  document.getElementById('fDateTo').value = '';
   document.getElementById('filterDot').style.display = 'none';
   document.getElementById('filterClearBtn').classList.remove('visible');
   activeStatFilter = null;
