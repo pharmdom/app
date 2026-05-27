@@ -607,16 +607,14 @@ function fmtCost(v){const n=parseFloat(v);return isNaN(n)?null:n.toFixed(2);}
 async function init(){
   pStart();
   try{
-    const [{data:sups,error:sErr},{data:cats,error:cErr},{data:src,error:srcErr}]=await Promise.all([
-      sb.from('suppliers').select('*').order('name'),
-      sb.from('catalog').select('*').order('product_name').limit(50000),
-      sb.from('sourcing').select('supplier_name,approved,purchased')
-    ]);
-    if(sErr) throw sErr;
-    if(cErr) throw cErr;
-    allSuppliers = sups||[];
-    allCatalogData = cats||[];
-    catalogLoaded = true;
+const [{data:sups,error:sErr},{data:src,error:srcErr}]=await Promise.all([
+  sb.from('suppliers').select('*').order('name'),
+  sb.from('sourcing').select('supplier_name,approved,purchased')
+]);
+if(sErr)throw sErr;
+allSuppliers=sups||[];
+allCatalogData=[];
+catalogLoaded=false;
     // Build sourcing stats keyed by lowercase name
     _srcStats={};
     (src||[]).forEach(r=>{
@@ -690,14 +688,26 @@ async function selectSupplier(sid){
   document.getElementById('scSupFilterVal').textContent=s.name||'Unknown';
   document.getElementById('scCatTitle').textContent=(s.name||'Supplier')+' — Catalog';
   renderSupplierCard(s);
-  // Filter catalog from already-loaded data
-  catalogData=allCatalogData.filter(c=>c.supplier_id===sid);
+  renderSupDropdown();
+
+  // Show loading state
+  document.getElementById('scCatContent').innerHTML=`<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading catalog…</p></div>`;
+  document.getElementById('scCatCount').style.display='none';
+
+  const{data:cats,error:cErr}=await sb.from('catalog').select('*').eq('supplier_id',sid).order('product_name').limit(10000);
+  if(cErr){toast('Failed to load catalog: '+cErr.message,'error');return;}
+  catalogData=cats||[];
+
+  // Merge into allCatalogData (for All Catalog overlay)
+  const ids=new Set(catalogData.map(c=>c.id));
+  allCatalogData=allCatalogData.filter(c=>!ids.has(c.id));
+  allCatalogData.push(...catalogData);
+
   populateCategoryFilter(catalogData);
   renderCatalog();
   const cnt=document.getElementById('scCatCount');
   cnt.style.display='';
   cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
-  renderSupDropdown();
 }
 
 /* ── SUPPLIER CARD ── */
@@ -1113,9 +1123,13 @@ async function acBulkDelete(){
 }
 
 /* ── ALL CATALOG ── */
-function openAllCatalog(){
+async function openAllCatalog(){
   document.getElementById('scAllCatOverlay').classList.add('open');
   document.getElementById('scAllCatSearch').value='';
+  document.getElementById('scAllCatBody').innerHTML=`<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading all catalog…</p></div>`;
+  const{data:all,error}=await sb.from('catalog').select('*').order('product_name').limit(50000);
+  if(error){toast('Failed: '+error.message,'error');return;}
+  allCatalogData=all||[];
   renderAllCatalog();
 }
 function closeAllCatalog(){
@@ -1373,21 +1387,23 @@ async function handleRefresh(){
   btn.classList.add('spinning');
   const tid=toast('Refreshing…','loading',0);
   try{
-    const[{data:sups,error:sErr},{data:cats,error:cErr}]=await Promise.all([
+    const[{data:sups,error:sErr}]=await Promise.all([
       sb.from('suppliers').select('*').order('name'),
-      sb.from('catalog').select('*').order('product_name').limit(50000),
     ]);
-    if(sErr)throw sErr;if(cErr)throw cErr;
-    allSuppliers=sups||[];allCatalogData=cats||[];catalogLoaded=true;
+    if(sErr)throw sErr;
+    allSuppliers=sups||[];
     renderSupDropdown();
     if(currentSupId){
+      const{data:cats,error:cErr}=await sb.from('catalog').select('*').eq('supplier_id',currentSupId).order('product_name').limit(10000);
+      if(cErr)throw cErr;
+      catalogData=cats||[];
+      const ids=new Set(catalogData.map(c=>c.id));
+      allCatalogData=allCatalogData.filter(c=>!ids.has(c.id));
+      allCatalogData.push(...catalogData);
       const s=allSuppliers.find(x=>x.supplier_id===currentSupId);
-      if(s){
-        catalogData=allCatalogData.filter(c=>c.supplier_id===currentSupId);
-        renderSupplierCard(s);populateCategoryFilter(catalogData);renderCatalog();
-        const cnt=document.getElementById('scCatCount');
-        cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
-      }
+      if(s){renderSupplierCard(s);populateCategoryFilter(catalogData);renderCatalog();}
+      const cnt=document.getElementById('scCatCount');
+      cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
     }
     removeToast(tid);toast('Refreshed','success');
   }catch(e){removeToast(tid);toast('Refresh failed: '+e.message,'error');}
