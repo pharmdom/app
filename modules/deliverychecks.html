@@ -296,15 +296,62 @@ async function toggleField(opportunityId,field,newVal){
   if(!rec)return;
   const prev=rec[field];
   rec[field]=newVal;
-  renderView();updateCounts();
+
+  // Update just the clicked toggle in-place, no full re-render
+  const safeId=opportunityId.replace(/'/g,"\\'");
+  const allToggles=document.querySelectorAll(`[onclick*="toggleField('${safeId}','${field}'"]`);
+  allToggles.forEach(el=>{
+    el.className='yn '+(newVal?'yes':'no')+' saving';
+    el.setAttribute('onclick',`toggleField('${safeId}','${field}',${!newVal})`);
+    const icon=newVal
+      ?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+      :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    el.innerHTML=icon+(newVal?'Yes':'No');
+  });
+
+  // Update status dots for this row in-place
+  const imgDone=field==='images_shared'?newVal:!!rec.images_shared;
+  const skuDone=field==='sku_label_printed'?newVal:!!rec.sku_label_printed;
+  const row=allToggles[0]?.closest('tr');
+  if(row){
+    const dots=row.querySelectorAll('.dot');
+    if(dots[0])dots[0].className='dot'+(imgDone?' done':'');
+    if(dots[1])dots[1].className='dot'+(skuDone?' done':'');
+  }
+
+  updateCounts();
+
   const tid=toast('Saving…','info',0);
   const{error}=await sb.from('listing').update({[field]:newVal}).eq('opportunity_id',opportunityId);
   removeToast(tid);
+
   if(error){
-    rec[field]=prev;renderView();updateCounts();
+    // Revert on failure
+    rec[field]=prev;
+    allToggles.forEach(el=>{
+      el.className='yn '+(prev?'yes':'no');
+      el.setAttribute('onclick',`toggleField('${safeId}','${field}',${!prev})`);
+      const icon=prev
+        ?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+        :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+      el.innerHTML=icon+(prev?'Yes':'No');
+    });
+    updateCounts();
     toast('Failed to save','error');
   }else{
+    // Remove saving state
+    allToggles.forEach(el=>el.classList.remove('saving'));
     toast(newVal?'Marked Yes':'Marked No','success');
+
+    // If filter is 'pending' and row is now fully done, fade it out cleanly
+    if(activeFilter==='pending'&&imgDone&&skuDone&&row){
+      row.style.transition='opacity .3s ease';
+      row.style.opacity='0';
+      setTimeout(()=>{
+        allData=allData; // keep in memory for counts
+        renderView();
+      },320);
+    }
   }
 }
 
