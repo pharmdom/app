@@ -895,35 +895,36 @@ async function sendEmail(){
   // you need to create a Supabase Edge Function called "send-invoice-email".
   // For now we'll show a helpful message if no edge function is configured.
   try{
-    const{data,error}=await sb.functions.invoke('send-invoice-email',{
-      body:{
-        to,cc,subject,body,
-        pdfBase64,
-        pdfFilename:(inv.invoiceNumber||'invoice')+'.pdf',
-        invoiceData:{
-          invoiceNumber:inv.invoiceNumber,
-          date:formatDateForDisplay(inv.date),
-          clientName:inv.clientName,
-          clientAddress:inv.clientAddress,
-          orderNotes:inv.orderNotes,
-          lineItems:inv.lineItems,
-          subtotal:inv.subtotal,
-          totalVat:inv.totalVat,
-          grandTotal:inv.grandTotal
-        }
-      }
-    });
-    btn.disabled=false;
-    btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Invoice';
-    if(error){showToast('Failed to send: '+error.message,'error');return;}
-    closeEmailModal();
-    showToast('Invoice emailed successfully ✓','success');
-  }catch(e){
-    btn.disabled=false;
-    btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Invoice';
-    showToast('Email sending requires a Supabase Edge Function — see console','warn');
-    console.warn('To send emails, create a Supabase Edge Function called "send-invoice-email". Until then, the Apps Script emailInvoice action still works.');
-  }
+const API_URL = 'https://script.google.com/macros/s/AKfycbwkNSoXzt19aH4dig7U6KhI-gDylEH3A61Tyct1VNCT-TxGLrlqyN3BTCL9nNu1Ycq6/exec';
+
+try{
+  const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({
+    action:'emailInvoice',
+    to,cc,subject,body,
+    pdfBase64,
+    pdfFilename:(inv.invoiceNumber||'invoice')+'.pdf',
+    invoiceData:{
+      invoiceNumber:inv.invoiceNumber,
+      date:formatDateForDisplay(inv.date),
+      clientName:inv.clientName,
+      clientAddress:inv.clientAddress,
+      orderNotes:inv.orderNotes,
+      lineItems:inv.lineItems,
+      subtotal:inv.subtotal,
+      totalVat:inv.totalVat,
+      grandTotal:inv.grandTotal
+    }
+  })});
+  const result=await res.json();
+  btn.disabled=false;
+  btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Invoice';
+  if(result&&result.success){closeEmailModal();showToast('Invoice emailed successfully ✓','success');}
+  else{showToast('Failed to send: '+(result?.message||'unknown error'),'error');}
+}catch(e){
+  btn.disabled=false;
+  btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Invoice';
+  showToast('Failed to send email','error');
+}
 }
 
 /* ── CONFIRM ── */
