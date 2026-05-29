@@ -434,11 +434,10 @@ function toBool(v){ return v===true||v==='true'||String(v).toLowerCase()==='yes'
 /* ── LOAD USERS (for Person dropdown + PIN) ── */
 async function loadUsers(){
   try{
-    const{data}=await sb.from('users').select('first_name,last_name,password,status').eq('status','active');
+    const{data}=await sb.from('users').select('first_name,last_name,status').eq('status','active');
     _users=(data||[]).map(u=>({
-      name:((u.first_name||'')+(u.last_name?' '+u.last_name:'')).trim(),
-      password:u.password||''
-    })).filter(u=>u.name);
+  name:((u.first_name||'')+(u.last_name?' '+u.last_name:'')).trim()
+  })).filter(u=>u.name);
   }catch(e){ _users=[]; }
   // Populate person dropdown
   const sel=document.getElementById('fPerson');
@@ -746,10 +745,27 @@ function requestMetrics(){
 async function submitPin(){
   const entered=(document.getElementById('pinInput').value||'').trim();
   if(!entered){ document.getElementById('pinError').textContent='Please enter your password.'; return; }
-  const year=new Date().getFullYear();
-  // Check against all active users: password + year
-  const matched=_users.some(u=>u.password&&(u.password+year)===entered);
-  if(matched){
+
+  const btn=document.querySelector('.pin-btn');
+  btn.disabled=true; btn.textContent='Checking…';
+
+  // Get current logged-in user's email
+  const{data:{user}}=await sb.auth.getUser();
+  if(!user){
+    document.getElementById('pinError').textContent='No active session found.';
+    btn.disabled=false; btn.textContent='Unlock Metrics';
+    return;
+  }
+
+  // Try to verify password by signing in — if it works, re-sign in to restore session
+  const{error}=await sb.auth.signInWithPassword({
+    email: user.email,
+    password: entered
+  });
+
+  btn.disabled=false; btn.textContent='Unlock Metrics';
+
+  if(!error){
     sessionStorage.setItem(STORE_KEY,'1');
     document.getElementById('pinOverlay').classList.remove('visible');
     showMetrics();
