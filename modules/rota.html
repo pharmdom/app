@@ -667,8 +667,6 @@ body { overflow: hidden; }
 
 const CURRENT_USER = JSON.parse(sessionStorage.getItem('user') || '{}');
 const IS_ADMIN = ['admin','administrator'].includes((CURRENT_USER.role||'').toLowerCase());
-const API = 'https://script.google.com/macros/s/AKfycbzCkuKZM3fseUWhmx6fMF2kImY2f0owG35Q_ctttdwj7siAoT0-FYChbesTzf9RQ5rQ0w/exec';
-
 /* ══ DEPARTMENT CONFIG ══════════════════════════════════════════════════════ */
 const DEPT_KEY_MAP = {
   'warehouse':'warehouse','digital ops':'digitalops','digitalops':'digitalops',
@@ -754,25 +752,65 @@ const S = {
 // FIND and REPLACE the entire init() function:
 async function init() {
   try {
-    const res = await fetch(API, { method:'POST', body: JSON.stringify({action:'getData'}), headers:{'Content-Type':'text/plain'} });
-    if (!res.ok) throw new Error(res.status);
-    const d = await res.json();
-    S.employees   = (d.employees||[]).map(e=>({...e,id:String(e.id)}));
-    S.tasks       = (d.tasks||[]).map(t=>({...t,id:String(t.id)}));
-    S.schedule    = (d.schedule||[]).map(normalizeShift);
-    S.workingDays = d.workingDays||[1,2,3,4,5];
-    S.closedDays  = JSON.parse(localStorage.getItem('rota_closedDays')||'[]');
-    S.hiddenEmployees = JSON.parse(localStorage.getItem('rota_hiddenEmps')||'[]');
-    S.loaded = true;
-    S.view = 'week';                                    // ADD: default to week view
-    S.currentDate = snapToMonday(isoDate(new Date()));  // CHANGE: snap before storing
-    document.getElementById('viewSelect').value = 'week'; // ADD: sync the dropdown
+    // Load employees, tasks, and schedule in parallel
+    const [empRes, taskRes, schedRes] = await Promise.all([
+      sb.from('users')
+        .select('user_id, first_name, last_name, role, status, permissions')
+        .eq('status', 'Active')
+        .ilike('permissions', '%rota%'),
+      sb.from('rota_tasks').select('*').order('id'),
+      sb.from('rota_schedule').select('*')
+    ]);
+
+    if (empRes.error) throw empRes.error;
+    if (taskRes.error) throw taskRes.error;
+    if (schedRes.error) throw schedRes.error;
+
+    S.employees = (empRes.data || []).map((u, i) => {
+      const first = (u.first_name || '').trim();
+      const last  = (u.last_name  || '').trim();
+      return {
+        id:         String(u.user_id),
+        name:       (first + ' ' + last).trim(),
+        initials:   ((first[0] || '') + (last[0] || '')).toUpperCase(),
+        department: u.role || '',
+        avatar:     ['#6366f1','#ef4444','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6'][i % 8]
+      };
+    });
+
+    S.tasks = (taskRes.data || []).map(t => ({
+      id:         String(t.id),
+      name:       t.name || '',
+      color:      t.color || '#64748b',
+      lightColor: t.light_color || '#f1f5f9'
+    }));
+
+    S.schedule = (schedRes.data || []).map(r => normalizeShift({
+      id:         String(r.id),
+      employeeId: String(r.employee_id),
+      taskId:     String(r.task_id || ''),
+      date:       String(r.date),
+      start:      r.start_time,
+      end:        r.end_time,
+      notes:      r.notes || '',
+      type:       r.type || 'task'
+    }));
+
+    S.workingDays     = [1,2,3,4,5];
+    S.closedDays      = JSON.parse(localStorage.getItem('rota_closedDays') || '[]');
+    S.hiddenEmployees = JSON.parse(localStorage.getItem('rota_hiddenEmps') || '[]');
+    S.loaded          = true;
+    S.view            = 'week';
+    S.currentDate     = snapToMonday(isoDate(new Date()));
+    document.getElementById('viewSelect').value = 'week';
     renderAll();
   } catch(e) {
+    console.error('Rota init error:', e);
     document.getElementById('gridContent').innerHTML = '<p style="color:#dc2626;font-size:13px;padding:40px;text-align:center">Failed to load data. Please check your connection.</p>';
   }
 }
 
+  
 function normalizeShift(s) {
   return { ...s, id:String(s.id), employeeId:String(s.employeeId), taskId:String(s.taskId||''), date:String(s.date), start:normalizeTime(s.start), end:normalizeTime(s.end), type:s.type||'task' };
 }
@@ -1203,16 +1241,30 @@ async function saveShift(replaceConflicts){
   if(isEdit){const i=S.schedule.findIndex(s=>s.id===String(payload.id));if(i>-1)S.schedule[i]=normalizeShift(payload);}
   else{S.schedule.push(normalizeShift(payload));S.pending.add(payload.id);}
   closeShiftModal(); renderGrid(); if(S.drawerEmpId)renderDrawerBody(); setSaveState(true);
-  for(const rid of removedIds)fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'deleteShift',id:rid})}).catch(()=>{});
+// Delete any replaced conflicts from Supabase
+  for(const rid of removedIds){
+    sb.from('rota_schedule').delete().eq('id', rid).then(({error})=>{
+      if(error) console.error('Failed to delete replaced shift:', rid, error);
+    });
+  }
   try{
-    const res=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'saveShift',data:payload})});
-    if(!res.ok) throw new Error(res.status);
-    const result=await res.json().catch(()=>({}));
-    if(result.id&&result.id!==payload.id){const i=S.schedule.findIndex(s=>s.id===payload.id);if(i>-1)S.schedule[i].id=String(result.id);}
+    const sbPayload = {
+      id:          payload.id,
+      employee_id: payload.employeeId,
+      task_id:     payload.taskId || '',
+      date:        payload.date,
+      start_time:  payload.start,
+      end_time:    payload.end,
+      notes:       payload.notes || '',
+      type:        payload.type
+    };
+    const { error } = await sb.from('rota_schedule').upsert(sbPayload, { onConflict: 'id' });
+    if(error) throw error;
     S.pending.delete(payload.id); renderGrid(); if(S.drawerEmpId)renderDrawerBody();
     showToast(isEdit?'Shift updated ✓':(replaceConflicts?'Replaced & saved ✓':'Shift saved ✓'),'success');
   }catch(err){
-    S.schedule=prev;S.pending.delete(payload.id);renderGrid();if(S.drawerEmpId)renderDrawerBody();showToast('Failed to save — reverted','error');
+    S.schedule=prev; S.pending.delete(payload.id); renderGrid(); if(S.drawerEmpId)renderDrawerBody();
+    showToast('Failed to save — reverted','error');
   }finally{setSaveState(false);}
 }
 
@@ -1237,10 +1289,14 @@ async function deleteShift(id){
   if(!ok) return;
   const prev=[...S.schedule]; S.schedule=S.schedule.filter(s=>s.id!==String(id));
   renderGrid(); if(S.drawerEmpId)renderDrawerBody(); showToast('Deleting…','info');
-  try{
-    const res=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'deleteShift',id})});
-    if(!res.ok) throw new Error(res.status); showToast('Shift deleted','success');
-  }catch(err){S.schedule=prev;renderGrid();if(S.drawerEmpId)renderDrawerBody();showToast('Failed to delete — reverted','error');}
+try{
+    const { error } = await sb.from('rota_schedule').delete().eq('id', String(id));
+    if(error) throw error;
+    showToast('Shift deleted','success');
+  }catch(err){
+    S.schedule=prev; renderGrid(); if(S.drawerEmpId)renderDrawerBody();
+    showToast('Failed to delete — reverted','error');
+  }
 }
 
 document.getElementById('shiftModal').addEventListener('click',function(e){if(e.target===this)closeShiftModal();});
@@ -1572,10 +1628,18 @@ async function confirmCopy() {
   let saved=0, failed=0;
   await Promise.all(toAdd.map(async s=>{
     try{
-      const res=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'saveShift',data:s})});
-      if(!res.ok) throw new Error(res.status);
-      const result=await res.json().catch(()=>({}));
-      if(result.id&&result.id!==s.id){const i=S.schedule.findIndex(x=>x.id===s.id);if(i>-1)S.schedule[i].id=String(result.id);}
+const sbPayload = {
+        id:          s.id,
+        employee_id: s.employeeId,
+        task_id:     s.taskId || '',
+        date:        s.date,
+        start_time:  s.start,
+        end_time:    s.end,
+        notes:       s.notes || '',
+        type:        s.type
+      };
+      const { error } = await sb.from('rota_schedule').upsert(sbPayload, { onConflict: 'id' });
+      if(error) throw error;
       S.pending.delete(s.id); saved++;
     }catch{
       S.schedule=S.schedule.filter(x=>x.id!==s.id); S.pending.delete(s.id); failed++;
