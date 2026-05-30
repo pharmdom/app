@@ -1085,10 +1085,12 @@ function editCard(id, field, value, type, labelOverride) {
   const disp  = value === null || value === undefined ? '' : String(value).trim();
   let inp = '';
 
-  if (type === 'supplier') {
-    const opts = suppliers.map(s => `<option value="${escAttr(s.name)}" data-code="${escAttr(s.code||'')}"${s.name===disp?' selected':''}>${escHtml(s.name)}</option>`).join('');
-    inp = `<select class="edit-select" onchange="onDrawerSupplierChange('${escAttr(id)}',this)"><option value="">—</option>${opts}</select>`;
-  } else if (type === 'user') {
+if (type === 'supplier') {
+  const matched = suppliers.find(s => s.name === disp);
+  const fallback = (disp && !matched) ? `<option value="${escAttr(disp)}" selected>${escHtml(disp)}</option>` : '';
+  const opts = suppliers.map(s => `<option value="${escAttr(s.name)}" data-code="${escAttr(s.code||'')}"${s.name===disp?' selected':''}>${escHtml(s.name)}</option>`).join('');
+  inp = `<select class="edit-select" onchange="onDrawerSupplierChange('${escAttr(id)}',this)"><option value="">—</option>${fallback}${opts}</select>`;
+} else if (type === 'user') {
     const opts = users.map(u => `<option value="${escAttr(u.name)}"${u.name===disp?' selected':''}>${escHtml(u.name)}</option>`).join('');
     inp = `<select class="edit-select" onchange="saveField('${escAttr(id)}','${field}',this.value)"><option value="">—</option>${opts}</select>`;
   } else if (type.startsWith('select:')) {
