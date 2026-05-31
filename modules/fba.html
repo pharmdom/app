@@ -522,12 +522,34 @@ function getBucket(row) {
    Only NEW uploads go to Supabase Storage.
 ══════════════════════════════════════════════════ */
 async function uploadImageToSupabase(file) {
+  // If PDF, convert first page to PNG before uploading
+  if (file.type === 'application/pdf') {
+    file = await convertPdfToImage(file);
+  }
   const ext  = file.name.split('.').pop().toLowerCase();
   const path = Date.now() + '-' + Math.random().toString(36).slice(2,8) + '.' + ext;
   const { error } = await sb.storage.from(STORAGE_BUCKET).upload(path, file, { upsert: false, contentType: file.type });
   if (error) throw new Error(error.message);
   const { data: urlData } = sb.storage.from(STORAGE_BUCKET).getPublicUrl(path);
   return urlData.publicUrl;
+}
+
+async function convertPdfToImage(pdfFile) {
+  const pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.mjs');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.mjs';
+  const arrayBuffer = await pdfFile.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const page = await pdf.getPage(1);
+  const viewport = page.getViewport({ scale: 2 });
+  const canvas = document.createElement('canvas');
+  canvas.width  = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+  return new Promise(resolve => {
+    canvas.toBlob(blob => {
+      resolve(new File([blob], pdfFile.name.replace(/\.pdf$/i, '.png'), { type: 'image/png' }));
+    }, 'image/png');
+  });
 }
 
 /* Keep original name so all call sites work unchanged */
