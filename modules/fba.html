@@ -1,6 +1,7 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color: #0f172a; background: #f8fafc; line-height: 1.5; height: 100%; overflow: hidden; -webkit-font-smoothing: antialiased; }
+.content-wrap { overflow-x: hidden; }
 .page-wrapper { padding: 5px 10px 15px 10px; max-width: 100%; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 #workTableModalOverlay .modal { height: 75vh; max-height: 85vh; }
 .page-titl { font-size: 18px; font-weight: 700; color: #0f172a; letter-spacing: -0.3px; line-height: 1.2; }
@@ -43,6 +44,8 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .kanban-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; cursor: pointer; transition: box-shadow .12s, border-color .12s; animation: cardIn .18s ease both; user-select: none; }
 @keyframes cardIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 .kanban-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); border-color: #bfdbfe; }
+.kanban-card.card-updated { animation: cardFlash .6s ease; }
+@keyframes cardFlash { 0%{background:#fff7ed;border-color:#fdba74} 100%{background:#fff;border-color:#e2e8f0} }
 .kanban-card.card-deleting { animation: cardDelete .4s ease forwards; }
 @keyframes cardDelete { 0%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(.95)} 100%{opacity:0;transform:scale(.9);max-height:0;padding:0;margin:0;border:none} }
 .kc-label { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 2px; line-height: 1.3; }
@@ -62,7 +65,7 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 @keyframes spin { to { transform: rotate(360deg); } }
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 20px; color: #94a3b8; gap: 6px; text-align: center; }
 .empty-state p { font-size: 13px; font-weight: 600; color: #64748b; }
-.bool-toggle-group { display: flex; border-radius: 8px; overflow: hidden; border: 1.5px solid #e2e8f0; }
+.bool-toggle-group { display: flex; gap: 0; border-radius: 8px; overflow: hidden; border: 1.5px solid #e2e8f0; }
 .bool-toggle-btn { flex: 1; padding: 7px 12px; font-size: 12px; font-weight: 700; font-family: inherit; border: none; cursor: pointer; transition: all .15s; background: #fff; color: #94a3b8; text-align: center; }
 .bool-toggle-btn:not(:last-child) { border-right: 1.5px solid #e2e8f0; }
 .bool-toggle-btn:hover { background: #f8fafc; }
@@ -95,6 +98,7 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .drawer-tab svg { width: 13px; height: 13px; }
 .drawer-tab:hover { color: #334155; }
 .drawer-tab.active { color: #2563eb; border-bottom-color: #2563eb; background: #fafcff; }
+.drawer-tab.disabled { color: #cbd5e1; cursor: not-allowed; pointer-events: none; opacity: .5; }
 .drawer-body { flex: 1; overflow-y: auto; padding: 14px 20px; min-height: 0; }
 .drawer-body::-webkit-scrollbar { width: 4px; }
 .drawer-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
@@ -102,6 +106,7 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #94a3b8; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
 .section-label::after { content: ''; flex: 1; height: 1px; background: #f1f5f9; }
 .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lc-row { grid-column: 1 / -1; }
 .info-grid.full { grid-template-columns: 1fr; }
 .info-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 10px 13px; transition: border-color .15s; }
 .info-card:focus-within { border-color: #93c5fd; background: #fafcff; }
@@ -142,8 +147,9 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .form-group input:focus, .form-group textarea:focus { border-color: #2563eb; }
 .form-group textarea { resize: vertical; min-height: 60px; }
 .form-group.has-error input, .form-group.has-error textarea { border-color: #dc2626; background: #fef2f2; }
+.form-group.has-error .form-bool-toggle-group { border-color: #dc2626; }
 .form-group .field-error { font-size: 10px; color: #dc2626; font-weight: 600; margin-top: 2px; }
-.form-bool-toggle-group { display: flex; border-radius: 8px; overflow: hidden; border: 1.5px solid #e2e8f0; }
+.form-bool-toggle-group { display: flex; gap: 0; border-radius: 8px; overflow: hidden; border: 1.5px solid #e2e8f0; }
 .form-bool-toggle-group .bool-toggle-btn { flex: 1; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .data-table thead { position: sticky; top: 0; z-index: 2; }
@@ -153,6 +159,12 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .data-table tbody tr:hover td { background: #fafbff; }
 .modal-toolbar { padding: 12px 20px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0; }
 .modal-toolbar .search-wrap { max-width: 300px; }
+.aw-notice { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.aw-notice.found { background: #f0fdf4; border: 1.5px solid #bbf7d0; color: #15803d; }
+.aw-notice.not-found { background: #fef2f2; border: 1.5px solid #fecaca; color: #dc2626; }
+.aw-notice svg { width: 16px; height: 16px; flex-shrink: 0; }
+.form-group input.auto-filled { background: #f0fdf4; border-color: #86efac; color: #15803d; }
+.form-group textarea.auto-filled { background: #f0fdf4; border-color: #86efac; color: #15803d; }
 .lc-row { display: grid; grid-template-columns: 2fr 1fr auto; gap: 8px; align-items: start; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #fafbfc; margin-bottom: 6px; transition: border-color .15s; }
 .lc-row.found-row { border-color: #86efac; background: #f0fdf4; }
 .lc-row.notfound-row { border-color: #fca5a5; background: #fef2f2; }
@@ -160,7 +172,7 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .lc-row input { padding: 7px 10px; border: 1.5px solid #e2e8f0; border-radius: 7px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; transition: border-color .15s; width: 100%; }
 .lc-row input:focus { border-color: #2563eb; }
 .lc-row-status { font-size: 10px; font-weight: 700; margin-top: 3px; min-height: 14px; }
-.lc-remove-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1.5px solid #fecaca; border-radius: 7px; background: #fff; color: #dc2626; cursor: pointer; flex-shrink: 0; font-size: 16px; line-height: 1; transition: all .15s; align-self: flex-end; }
+.lc-remove-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1.5px solid #fecaca; border-radius: 7px; background: #fff; color: #dc2626; cursor: pointer; flex-shrink: 0; font-size: 16px; line-height: 1; transition: all .15s; align-self: flex-end; margin-bottom: 0; }
 .lc-remove-btn:hover { background: #fee2e2; }
 .lc-add-btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border: 1.5px dashed #94a3b8; border-radius: 9px; background: #fff; color: #64748b; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; transition: all .15s; }
 .lc-add-btn:hover { border-color: #2563eb; color: #2563eb; background: #eff6ff; }
@@ -174,22 +186,28 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .lightbox-close { position: absolute; top: 20px; right: 20px; width: 40px; height: 40px; background: rgba(255,255,255,.15); border: none; border-radius: 50%; color: #fff; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s; }
 .lightbox-close:hover { background: rgba(255,255,255,.25); }
 .file-upload-area { border: 2px dashed #e2e8f0; border-radius: 10px; padding: 16px; text-align: center; cursor: pointer; transition: all .15s; background: #fafbfc; }
-.file-upload-area:hover, .file-upload-area.dragging { border-color: #2563eb; background: #eff6ff; }
+.file-upload-area:hover { border-color: #2563eb; background: #eff6ff; }
+.file-upload-area.dragging { border-color: #2563eb; background: #eff6ff; }
 .file-upload-area input[type="file"] { display: none; }
 .file-upload-label { font-size: 12px; color: #64748b; font-weight: 500; cursor: pointer; }
 .file-upload-label strong { color: #2563eb; }
+.file-upload-preview { margin-top: 10px; }
 .file-thumb { position: relative; display: inline-block; margin: 4px; }
-.file-thumb img { width: 80px; height: 60px; object-fit: cover; border-radius: 6px; border: 1.5px solid #e2e8f0; }
+.file-thumb img { width: 80px; height: 60px; object-fit: cover; border-radius: 6px; border: 1.5px solid #e2e8f0; cursor: zoom-in; }
 .file-thumb-remove { position: absolute; top: -5px; right: -5px; width: 18px; height: 18px; background: #dc2626; border-radius: 50%; border: none; color: #fff; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
 .grouping-images-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .grouping-img-item { position: relative; border-radius: 8px; overflow: hidden; border: 1.5px solid #e2e8f0; }
 .grouping-img-item img { width: 80px; height: 60px; object-fit: cover; cursor: zoom-in; display: block; }
-.grouping-img-item a.download-link { position: absolute; bottom: 2px; right: 2px; background: rgba(0,0,0,.55); border-radius: 4px; padding: 2px 5px; font-size: 9px; color: #fff; text-decoration: none; }
+.grouping-img-item a.download-link { position: absolute; bottom: 2px; right: 2px; background: rgba(0,0,0,.55); border-radius: 4px; padding: 2px 5px; font-size: 9px; color: #fff; text-decoration: none; display: flex; align-items: center; gap: 2px; }
+.grouping-link-display { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 8px; font-size: 12px; }
+.grouping-link-display a { color: #2563eb; font-weight: 600; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.grouping-link-display a:hover { text-decoration: underline; }
+.grouping-link-display svg { flex-shrink: 0; width: 13px; height: 13px; color: #2563eb; }
 .date-input-styled { padding: 7px 10px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; transition: border-color .15s; width: 100%; }
 .date-input-styled:focus { border-color: #2563eb; }
 .upload-progress { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #eff6ff; border-radius: 8px; font-size: 12px; font-weight: 600; color: #1e40af; margin-top: 4px; }
 @media (max-width: 900px) { .kanban-wrapper { overflow-x: auto; overflow-y: hidden; } .kanban-column { min-width: 280px; flex-shrink: 0; } .drawer { width: 93vw; } }
-@media (max-width: 640px) { html, body { overflow: auto; height: auto; } .page-wrapper { height: auto; overflow: visible; padding: 8px; } .page-header { flex-direction: column; align-items: stretch; } .header-actions { width: 100%; justify-content: flex-end; } .search-wrap { max-width: 100%; min-width: 0; } .kanban-wrapper { overflow-x: auto; flex-direction: row; min-height: 0; height: 62vh; } .kanban-column { min-width: 240px; flex-shrink: 0; height: 100%; } .drawer { width: 100%; max-width: 100%; } .drawer-kpi-row { grid-template-columns: repeat(2,1fr); } .info-grid { grid-template-columns: 1fr !important; } .modal { width: 100vw; height: 92vh; border-radius: 12px 12px 0 0; margin-top: auto; } .modal-sm { height: auto; max-height: 94vh; } .form-row { grid-template-columns: 1fr; } .stat-chip span { display: none; } .stat-chip { padding: 5px 8px; } .modal-toolbar { flex-direction: column; align-items: stretch; } .lc-row { grid-template-columns: 1fr auto; grid-template-rows: auto auto; } }
+@media (max-width: 640px) { html, body { overflow: auto; height: auto; } .page-wrapper { height: auto; overflow: visible; padding: 8px; } .page-titl { font-size: 16px; } .page-header { flex-direction: column; align-items: stretch; } .header-left { flex-wrap: wrap; } .header-actions { width: 100%; justify-content: flex-end; } .search-wrap { max-width: 100%; min-width: 0; } .kanban-wrapper { overflow-x: auto; flex-direction: row; min-height: 0; height: 62vh; } .kanban-column { min-width: 240px; flex-shrink: 0; height: 100%; } .drawer { width: 100%; max-width: 100%; } .drawer-kpi-row { grid-template-columns: repeat(2,1fr); } .info-grid { grid-template-columns: 1fr !important; } .modal { width: 100vw; height: 92vh; border-radius: 12px 12px 0 0; margin-top: auto; } .modal-sm { height: auto; max-height: 94vh; } .form-row { grid-template-columns: 1fr; } .stat-chip span { display: none; } .stat-chip { padding: 5px 8px; } .modal-toolbar { flex-direction: column; align-items: stretch; } .modal-toolbar .search-wrap { max-width: 100%; } .header-actions { flex-wrap: wrap; } .lc-row { grid-template-columns: 1fr auto; grid-template-rows: auto auto; } .lc-row > div:first-child { grid-column: 1; } .lc-row > div:nth-child(2) { grid-column: 1; } .lc-row > button { grid-column: 2; grid-row: 1; } }
 </style>
 
 <div class="page-wrapper">
@@ -224,13 +242,16 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
     </div>
   </div>
   <div class="kanban-wrapper" id="kanbanWrapper">
-    <div class="loading-state" style="width:100%"><span class="spinner"></span><span style="font-size:13px;font-weight:600">Loading FBA records…</span></div>
+    <div class="loading-state" style="width:100%">
+      <span class="spinner"></span>
+      <span style="font-size:13px;font-weight:600">Loading FBA records…</span>
+    </div>
   </div>
 </div>
 
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
-  <button class="lightbox-close" onclick="event.stopPropagation();closeLightbox()">✕</button>
-  <img id="lightboxImg" src="" alt="">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightboxImg" src="" alt="Full image">
 </div>
 
 <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
@@ -243,7 +264,6 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 
 <div class="toast-container" id="toastContainer"></div>
 
-<!-- COMPLETED MODAL -->
 <div class="modal-overlay" id="completedModalOverlay" onclick="closeCompletedModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
@@ -254,7 +274,6 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
   </div>
 </div>
 
-<!-- PRODUCTS MODAL -->
 <div class="modal-overlay" id="productsModalOverlay">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
@@ -269,7 +288,6 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
   </div>
 </div>
 
-<!-- WORK TABLE MODAL -->
 <div class="modal-overlay" id="workTableModalOverlay">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
@@ -284,7 +302,6 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
   </div>
 </div>
 
-<!-- NEW PRODUCT MODAL -->
 <div class="modal-overlay" id="newModalOverlay" onclick="closeNewModal(event)">
   <div class="modal modal-sm" onclick="event.stopPropagation()">
     <div class="modal-header">
@@ -293,7 +310,7 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
     </div>
     <div class="new-form" id="newProductForm">
       <div class="form-row">
-        <div class="form-group" id="fg-nLabelCode"><label>Label Code <span style="color:#dc2626">*</span></label><input type="text" id="nLabelCode" placeholder="e.g. X002XXXXX"></div>
+        <div class="form-group" id="fg-nLabelCode"><label>Label Code <span style="color:#dc2626">*</span></label><input type="text" id="nLabelCode" placeholder="e.g. FBA-LC-001"></div>
         <div class="form-group" id="fg-nBrand"><label>Brand <span style="color:#dc2626">*</span></label><input type="text" id="nBrand" placeholder="Brand name"></div>
       </div>
       <div class="form-row">
@@ -303,29 +320,29 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
       <div class="form-group full" id="fg-nPrepInstructions"><label>Prep Instructions</label><textarea id="nPrepInstructions" placeholder="Enter prep instructions…"></textarea></div>
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;display:flex;align-items:center;gap:8px">Prep Options<span style="flex:1;height:1px;background:#f1f5f9"></span></div>
       <div class="form-row">
-        <div class="form-group" id="fg-nPolyBag"><label>Poly Bag</label><div class="form-bool-toggle-group"><button type="button" class="bool-toggle-btn" onclick="setFormBool('nPolyBag','Yes',this)">Yes</button><button type="button" class="bool-toggle-btn" onclick="setFormBool('nPolyBag','No',this)">No</button></div><input type="hidden" id="nPolyBag" value=""></div>
-        <div class="form-group" id="fg-nWarningLabel"><label>Warning Label</label><div class="form-bool-toggle-group"><button type="button" class="bool-toggle-btn" onclick="setFormBool('nWarningLabel','Yes',this)">Yes</button><button type="button" class="bool-toggle-btn" onclick="setFormBool('nWarningLabel','No',this)">No</button></div><input type="hidden" id="nWarningLabel" value=""></div>
+        <div class="form-group" id="fg-nPolyBag"><label>Poly Bag</label><div class="form-bool-toggle-group" data-field="nPolyBag"><button type="button" class="bool-toggle-btn" onclick="setFormBool('nPolyBag','Yes',this)">Yes</button><button type="button" class="bool-toggle-btn" onclick="setFormBool('nPolyBag','No',this)">No</button></div><input type="hidden" id="nPolyBag" value=""></div>
+        <div class="form-group" id="fg-nWarningLabel"><label>Warning Label</label><div class="form-bool-toggle-group" data-field="nWarningLabel"><button type="button" class="bool-toggle-btn" onclick="setFormBool('nWarningLabel','Yes',this)">Yes</button><button type="button" class="bool-toggle-btn" onclick="setFormBool('nWarningLabel','No',this)">No</button></div><input type="hidden" id="nWarningLabel" value=""></div>
       </div>
       <div class="form-row">
-        <div class="form-group" id="fg-nBarcode"><label>Barcode</label><div class="form-bool-toggle-group"><button type="button" class="bool-toggle-btn" onclick="setFormBool('nBarcode','Yes',this)">Yes</button><button type="button" class="bool-toggle-btn" onclick="setFormBool('nBarcode','No',this)">No</button></div><input type="hidden" id="nBarcode" value=""></div>
-        <div class="form-group" id="fg-nBox"><label>Box</label><div class="form-bool-toggle-group"><button type="button" class="bool-toggle-btn" onclick="setFormBool('nBox','Yes',this)">Yes</button><button type="button" class="bool-toggle-btn" onclick="setFormBool('nBox','No',this)">No</button></div><input type="hidden" id="nBox" value=""></div>
+        <div class="form-group" id="fg-nBarcode"><label>Barcode</label><div class="form-bool-toggle-group" data-field="nBarcode"><button type="button" class="bool-toggle-btn" onclick="setFormBool('nBarcode','Yes',this)">Yes</button><button type="button" class="bool-toggle-btn" onclick="setFormBool('nBarcode','No',this)">No</button></div><input type="hidden" id="nBarcode" value=""></div>
+        <div class="form-group" id="fg-nBox"><label>Box</label><div class="form-bool-toggle-group" data-field="nBox"><button type="button" class="bool-toggle-btn" onclick="setFormBool('nBox','Yes',this)">Yes</button><button type="button" class="bool-toggle-btn" onclick="setFormBool('nBox','No',this)">No</button></div><input type="hidden" id="nBox" value=""></div>
       </div>
       <div class="form-row">
-        <div class="form-group" id="fg-nBundle"><label>Bundle</label><div class="form-bool-toggle-group"><button type="button" class="bool-toggle-btn" onclick="setFormBool('nBundle','Yes',this)">Yes</button><button type="button" class="bool-toggle-btn" onclick="setFormBool('nBundle','No',this)">No</button></div><input type="hidden" id="nBundle" value=""></div>
-        <div class="form-group" id="fg-nDgLabel"><label>DG Label</label><div class="form-bool-toggle-group"><button type="button" class="bool-toggle-btn" onclick="setFormBool('nDgLabel','Yes',this)">Yes</button><button type="button" class="bool-toggle-btn" onclick="setFormBool('nDgLabel','No',this)">No</button></div><input type="hidden" id="nDgLabel" value=""></div>
+        <div class="form-group" id="fg-nBundle"><label>Bundle</label><div class="form-bool-toggle-group" data-field="nBundle"><button type="button" class="bool-toggle-btn" onclick="setFormBool('nBundle','Yes',this)">Yes</button><button type="button" class="bool-toggle-btn" onclick="setFormBool('nBundle','No',this)">No</button></div><input type="hidden" id="nBundle" value=""></div>
+        <div class="form-group" id="fg-nDgLabel"><label>DG Label</label><div class="form-bool-toggle-group" data-field="nDgLabel"><button type="button" class="bool-toggle-btn" onclick="setFormBool('nDgLabel','Yes',this)">Yes</button><button type="button" class="bool-toggle-btn" onclick="setFormBool('nDgLabel','No',this)">No</button></div><input type="hidden" id="nDgLabel" value=""></div>
       </div>
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;display:flex;align-items:center;gap:8px">Product Image<span style="flex:1;height:1px;background:#f1f5f9"></span></div>
       <div class="form-group full">
         <label>Upload Product Image</label>
         <div class="file-upload-area" id="nProductImgUploadArea" onclick="document.getElementById('nProductImgFile').click()">
           <input type="file" id="nProductImgFile" accept="image/*,application/pdf" onchange="previewProductImage(this)">
-          <div class="file-upload-label"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 6px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><strong>Click to upload</strong> or drag &amp; drop<br><span style="font-size:11px;color:#94a3b8">PNG, JPG, WEBP, PDF up to 10MB</span></div>
+          <div class="file-upload-label"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 6px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><strong>Click to upload</strong> or drag &amp; drop<br><span style="font-size:11px;color:#94a3b8">PNG, JPG, WEBP, PDF up to 5MB</span></div>
         </div>
         <div id="nProductImgPreview" style="display:none;text-align:center;margin-top:8px">
-          <img id="nProductImgPreviewImg" src="" alt="" style="max-width:100%;max-height:140px;border-radius:10px;border:1.5px solid #e2e8f0;object-fit:contain">
-          <div style="margin-top:6px"><button type="button" class="btn btn-secondary btn-sm" onclick="clearProductImage()">Remove</button></div>
+          <img id="nProductImgPreviewImg" src="" alt="Product preview" style="max-width:100%;max-height:140px;border-radius:10px;border:1.5px solid #e2e8f0;object-fit:contain">
+          <div style="margin-top:6px"><button type="button" class="btn btn-secondary btn-sm" onclick="clearProductImage()">Remove Image</button></div>
         </div>
-        <div id="nProductImgUploadProgress" style="display:none" class="upload-progress"><span class="spinner sm"></span> Uploading…</div>
+        <div id="nProductImgUploadProgress" style="display:none" class="upload-progress"><span class="spinner sm"></span> Uploading image…</div>
         <input type="hidden" id="nProductImageUrl" value="">
       </div>
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;display:flex;align-items:center;gap:8px">Barcode Image<span style="flex:1;height:1px;background:#f1f5f9"></span></div>
@@ -333,13 +350,13 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
         <label>Upload Barcode Image</label>
         <div class="file-upload-area" id="nBarcodeUploadArea" onclick="document.getElementById('nBarcodeFile').click()">
           <input type="file" id="nBarcodeFile" accept="image/*,application/pdf" onchange="previewBarcodeImage(this)">
-          <div class="file-upload-label"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 6px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><strong>Click to upload</strong> or drag &amp; drop<br><span style="font-size:11px;color:#94a3b8">PDF, PNG, JPG, WEBP up to 10MB</span></div>
+          <div class="file-upload-label"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 6px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><strong>Click to upload</strong> or drag &amp; drop<br><span style="font-size:11px;color:#94a3b8">PDF, PNG, JPG, WEBP up to 5MB</span></div>
         </div>
-        <div id="nBarcodePreview" style="display:none;text-align:center">
-          <img id="nBarcodePreviewImg" src="" alt="" style="max-width:100%;max-height:120px;border-radius:8px;border:1.5px solid #e2e8f0;object-fit:contain">
-          <div style="margin-top:6px"><button type="button" class="btn btn-secondary btn-sm" onclick="clearBarcodeImage()">Remove</button></div>
+        <div id="nBarcodePreview" class="file-upload-preview" style="display:none;text-align:center">
+          <img id="nBarcodePreviewImg" src="" alt="Barcode preview" style="max-width:100%;max-height:120px;border-radius:8px;border:1.5px solid #e2e8f0;object-fit:contain">
+          <div style="margin-top:6px"><button type="button" class="btn btn-secondary btn-sm" onclick="clearBarcodeImage()">Remove Image</button></div>
         </div>
-        <div id="nBarcodeUploadProgress" style="display:none" class="upload-progress"><span class="spinner sm"></span> Uploading…</div>
+        <div id="nBarcodeUploadProgress" style="display:none" class="upload-progress"><span class="spinner sm"></span> Uploading image…</div>
         <input type="hidden" id="nBarcodeImageUrl" value="">
       </div>
     </div>
@@ -350,7 +367,6 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
   </div>
 </div>
 
-<!-- ADD WORK MODAL -->
 <div class="modal-overlay" id="addWorkModalOverlay" onclick="closeAddWorkModal(event)">
   <div class="modal modal-sm" onclick="event.stopPropagation()">
     <div class="modal-header">
@@ -370,10 +386,10 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
         <label>Grouping Images</label>
         <div class="file-upload-area" id="awGroupingImgUploadArea" onclick="document.getElementById('awGroupingImgFile').click()">
           <input type="file" id="awGroupingImgFile" accept="image/*,application/pdf" multiple style="display:none" onchange="previewAwGroupingImages(this)">
-          <div class="file-upload-label"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 6px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><strong>Click to upload</strong> or drag &amp; drop<br><span style="font-size:11px;color:#94a3b8">Multiple files allowed</span></div>
+          <div class="file-upload-label"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 6px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><strong>Click to upload</strong> or drag &amp; drop<br><span style="font-size:11px;color:#94a3b8">PDF, PNG, JPG, WEBP — multiple allowed</span></div>
         </div>
-        <div id="awGroupingImgPreview" style="display:none;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
-        <div id="awGroupingImgProgress" style="display:none" class="upload-progress"><span class="spinner sm"></span> Uploading…</div>
+        <div id="awGroupingImgPreview" style="display:none;margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
+        <div id="awGroupingImgProgress" style="display:none" class="upload-progress"><span class="spinner sm"></span> Uploading images…</div>
       </div>
       <div id="awMatchedProducts"></div>
     </div>
@@ -388,91 +404,123 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 (function () {
 'use strict';
 
-/* ══════════════════════════════════════════════
-   CONFIG — uses window.sb injected by the shell
-   New images → Supabase Storage bucket: fba-images
-   Existing Drive thumbnail URLs kept as-is
-══════════════════════════════════════════════ */
-const sb = window.sb;
+/* ══════════════════════════════════════════════════
+   CONFIG — Supabase replaces Apps Script API
+   window.sb is the Supabase client injected by the shell
+   Images: existing Drive thumbnail URLs work as-is
+           new uploads go to Supabase Storage bucket 'fba-images'
+══════════════════════════════════════════════════ */
+const sb             = window.sb;
 const STORAGE_BUCKET = 'fba-images';
+
+/* ── Field map: Supabase snake_case → original display keys ── */
+/* All existing code uses 'Units Completed', 'Label Code' etc.  */
+/* We convert Supabase rows on the way IN so nothing else changes */
+const SB_TO_DISPLAY = {
+  'id':'ID','created_at':'Date Created','updated_at':'Last Updated',
+  'label_code':'Label Code','brand':'Brand','product_line':'Product Line',
+  'asin':'ASIN','prep_instructions':'Prep Instructions','bundle':'Bundle',
+  'dg_label':'DG Label','poly_bag':'Poly Bag','warning_label':'Warning Label',
+  'barcode':'Barcode','box':'Box','units_required':'Units Required',
+  'veeqo_adjusted':'Veeqo Stock Adjusted','units_completed':'Units Completed',
+  'ups_collected':'UPS Collected','barcode_image':'Barcode Image',
+  'grouping_link':'Grouping Link','grouping_image':'Grouping Image',
+  'collection_booked':'Collection Booked','product_image':'Product Image'
+};
+const DISPLAY_TO_SB = Object.fromEntries(Object.entries(SB_TO_DISPLAY).map(([k,v])=>[v,k]));
+
+function sbRowToDisplay(row) {
+  const out = {};
+  for (const [sbKey, val] of Object.entries(row)) {
+    const displayKey = SB_TO_DISPLAY[sbKey] || sbKey;
+    out[displayKey] = val ?? '';
+  }
+  return out;
+}
+
+function displayRowToSb(row) {
+  const out = {};
+  for (const [displayKey, val] of Object.entries(row)) {
+    const sbKey = DISPLAY_TO_SB[displayKey] || displayKey;
+    out[sbKey] = val;
+  }
+  return out;
+}
+
+/* ══════════════════════════════════════════════════
+   CONSTANTS — identical to original
+══════════════════════════════════════════════════ */
+const BOOL_FIELDS = new Set([
+  'Bundle', 'DG Label', 'Poly Bag', 'Warning Label', 'Barcode', 'Box',
+  'Veeqo Stock Adjusted', 'UPS Collected'
+]);
 
 const COLUMNS = [
   { key: 'warehouse',   title: 'Warehouse',   dotColor: '#d97706' },
   { key: 'digital_ops', title: 'Digital Ops', dotColor: '#2563eb' },
 ];
 
-/* ── STATE ── */
-let fbaData  = [];
-let workData = [];
-let filtered = [];
-let activeTab = 'info';
+/* ══════════════════════════════════════════════════
+   STATE — identical to original
+══════════════════════════════════════════════════ */
+let fbaData       = [];
+let warehouseData = [];
+let filtered      = [];
+let activeTab     = 'info';
 let deletePendingTimer = null;
-let drawerDirtyFields  = {};
-let drawerCurrentId    = null;
-let drawerSource       = null;   // 'fba' | 'work'
+let drawerDirtyFields = {};
+let drawerCurrentId   = null;
+let drawerSource      = null;
 let drawerOpenedFromKanban = false;
-let isSaving = false;
-let awLabelCodeRows    = [];
+let isSaving          = false;
+let awLabelCodeRows = [];
 let awRowDebounceTimers = {};
-let nBarcodeFile       = null;
-let nProductImgFile    = null;
+let nBarcodeFile = null;
+let nProductImgFile = null;
 let awGroupingImgFiles = [];
 
-/* ── ESCAPE HELPERS ── */
-function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function ea(s)  { return String(s??'').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-function fmtDate(v) {
-  if (!v) return '';
-  try { const d=new Date(v); if(isNaN(d)) return String(v); return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); } catch(e){ return String(v); }
+/* ══════════════════════════════════════════════════
+   HELPERS — identical to original
+══════════════════════════════════════════════════ */
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function ea(s)  { return String(s ?? '').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function fmtDate(val) {
+  if (!val) return '';
+  try { const d = new Date(val); if (isNaN(d)) return String(val); return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }); } catch(e) { return String(val); }
 }
-function toInputDate(v) {
-  if (!v) return '';
-  try { const d=new Date(v); if(isNaN(d)) return ''; return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); } catch(e){ return ''; }
+function toInputDate(val) {
+  if (!val) return '';
+  try { const d = new Date(val); if (isNaN(d)) return ''; const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,'0'); const day = String(d.getDate()).padStart(2,'0'); return y + '-' + m + '-' + day; } catch(e) { return ''; }
 }
 
-/* ── LIGHTBOX ── */
-function openLightbox(url) { document.getElementById('lightboxImg').src=url; document.getElementById('lightbox').classList.add('open'); }
-function closeLightbox()   { document.getElementById('lightbox').classList.remove('open'); document.getElementById('lightboxImg').src=''; }
+/* ══════════════════════════════════════════════════
+   LIGHTBOX — identical to original
+══════════════════════════════════════════════════ */
+function openLightbox(url) { const lb = document.getElementById('lightbox'); document.getElementById('lightboxImg').src = url; lb.classList.add('open'); }
+function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); document.getElementById('lightboxImg').src = ''; }
 window.openLightbox = openLightbox;
 window.closeLightbox = closeLightbox;
 
-/* ── BUCKET LOGIC ── */
+/* ══════════════════════════════════════════════════
+   BUCKET LOGIC — identical to original
+══════════════════════════════════════════════════ */
 function getBucket(row) {
-  const uc  = String(row.units_completed??'').trim();
-  const ups = String(row.ups_collected??'').trim().toLowerCase();
-  const hasUnits = uc && uc !== '0';
-  const hasUps   = ups && ups !== '' && ups !== '—' && ups !== 'no';
+  const unitsCompleted = String(row['Units Completed'] ?? '').trim();
+  const upsCollected   = String(row['UPS Collected'] ?? '').trim().toLowerCase();
+  const hasUnits = unitsCompleted && unitsCompleted !== '0';
+  const hasUps   = upsCollected && upsCollected !== '' && upsCollected !== '—' && upsCollected !== 'no';
   if (!hasUnits || !hasUps) return 'warehouse';
-  return String(row.veeqo_adjusted??'').trim().toLowerCase() === 'yes' ? 'completed' : 'digital_ops';
+  const veeqo = String(row['Veeqo Stock Adjusted'] ?? '').trim().toLowerCase();
+  if (veeqo !== 'yes') return 'digital_ops';
+  return 'completed';
 }
 
-/* ══════════════════════════════════════════════
-   LOAD DATA from Supabase
-══════════════════════════════════════════════ */
-async function loadData() {
-  try {
-    const [fbaRes, workRes] = await Promise.all([
-      sb.from('fba_products').select('*').order('created_at', { ascending: false }),
-      sb.from('fba_work').select('*').order('created_at', { ascending: false })
-    ]);
-    if (fbaRes.error)  throw new Error('fba_products: ' + fbaRes.error.message);
-    if (workRes.error) throw new Error('fba_work: '     + workRes.error.message);
-    fbaData  = fbaRes.data  || [];
-    workData = workRes.data || [];
-    applyFilters();
-    showToast('Loaded ' + fbaData.length + ' products, ' + workData.length + ' work items', 'success');
-  } catch(err) {
-    console.error(err);
-    document.getElementById('kanbanWrapper').innerHTML =
-      '<div class="loading-state" style="width:100%"><p style="color:#dc2626;font-weight:600;text-align:center;line-height:1.7">Failed to load data.<br><span style="font-size:12px;color:#94a3b8;font-weight:500">'+esc(err.message)+'</span></p></div>';
-    showToast('Failed to load data', 'error');
-  }
-}
-
-/* ══════════════════════════════════════════════
-   IMAGE UPLOAD → Supabase Storage (new uploads)
-   Existing Drive thumbnail URLs stored unchanged
-══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════
+   IMAGE UPLOAD — NEW: Supabase Storage
+   Existing Drive thumbnail URLs (drive.google.com/thumbnail?id=...)
+   are stored and displayed as-is — no migration needed.
+   Only NEW uploads go to Supabase Storage.
+══════════════════════════════════════════════════ */
 async function uploadImageToSupabase(file) {
   const ext  = file.name.split('.').pop().toLowerCase();
   const path = Date.now() + '-' + Math.random().toString(36).slice(2,8) + '.' + ext;
@@ -482,10 +530,44 @@ async function uploadImageToSupabase(file) {
   return urlData.publicUrl;
 }
 
-/* ── STATS ── */
+/* Keep original name so all call sites work unchanged */
+async function uploadFileToDrive(file) {
+  return uploadImageToSupabase(file);
+}
+
+/* ══════════════════════════════════════════════════
+   DATA — LOAD from Supabase (replaces callApi getFBA/getWarehouse)
+══════════════════════════════════════════════════ */
+async function loadData() {
+  try {
+    const [fbaRes, workRes] = await Promise.all([
+      sb.from('fba_products').select('*').order('created_at', { ascending: false }),
+      sb.from('fba_work').select('*').order('created_at', { ascending: false })
+    ]);
+    if (fbaRes.error)  throw new Error('fba_products: ' + fbaRes.error.message);
+    if (workRes.error) throw new Error('fba_work: '     + workRes.error.message);
+
+    /* Convert snake_case Supabase rows → original display-key format */
+    fbaData       = (fbaRes.data  || []).map(sbRowToDisplay);
+    warehouseData = (workRes.data || []).map(sbRowToDisplay);
+    warehouseData.sort((a, b) => new Date(b['Date Created'] || 0) - new Date(a['Date Created'] || 0));
+
+    applyFilters();
+    showToast('Loaded ' + fbaData.length + ' products, ' + warehouseData.length + ' work items', 'success');
+  } catch (err) {
+    console.error(err);
+    document.getElementById('kanbanWrapper').innerHTML =
+      '<div class="loading-state" style="width:100%"><p style="color:#dc2626;font-weight:600;text-align:center;line-height:1.7">Failed to load data.<br><span style="font-size:12px;color:#94a3b8;font-weight:500">' + esc(err.message) + '</span></p></div>';
+    showToast('Failed to load data', 'error');
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   STATS — identical to original
+══════════════════════════════════════════════════ */
 function updateStats() {
-  const total     = workData.length;
-  const completed = workData.filter(r => getBucket(r) === 'completed').length;
+  const total     = warehouseData.length;
+  const completed = warehouseData.filter(r => getBucket(r) === 'completed').length;
   setChip('statTotal',     total     + ' Total');
   setChip('statCompleted', completed + ' Completed');
 }
@@ -495,24 +577,28 @@ function setChip(id, text) {
   el.innerHTML = (svg ? svg.outerHTML : '') + '<span>' + text + '</span>';
 }
 
-/* ── FILTERS ── */
+/* ══════════════════════════════════════════════════
+   FILTERS + SEARCH — identical to original
+══════════════════════════════════════════════════ */
 function applyFilters() {
-  const q = (document.getElementById('searchInput').value||'').toLowerCase().trim();
-  filtered = workData.filter(row => {
+  const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+  filtered = warehouseData.filter(row => {
     if (!q) return true;
-    return String(row.label_code||'').toLowerCase().includes(q)
-        || String(row.brand||'').toLowerCase().includes(q)
-        || String(row.product_line||'').toLowerCase().includes(q)
-        || String(row.asin||'').toLowerCase().includes(q);
+    return (
+      String(row['Label Code']   || '').toLowerCase().includes(q) ||
+      String(row['Brand']        || '').toLowerCase().includes(q) ||
+      String(row['Product Line'] || '').toLowerCase().includes(q) ||
+      String(row['ASIN']         || '').toLowerCase().includes(q)
+    );
   });
-  filtered.sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
+  filtered.sort((a, b) => new Date(b['Date Created'] || 0) - new Date(a['Date Created'] || 0));
   updateStats();
   renderKanban();
 }
 
-/* ══════════════════════════════════════════════
-   KANBAN
-══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════
+   KANBAN RENDER — identical to original
+══════════════════════════════════════════════════ */
 function renderKanban() {
   const wrapper = document.getElementById('kanbanWrapper');
   const groups = { warehouse: [], digital_ops: [] };
@@ -522,7 +608,10 @@ function renderKanban() {
     const items = groups[col.key] || [];
     const colEl = document.createElement('div');
     colEl.className = 'kanban-column';
-    colEl.innerHTML = '<div class="kanban-col-header"><div class="kanban-col-title"><span class="col-dot" style="background:'+col.dotColor+'"></span>'+esc(col.title)+'</div><span class="kanban-col-count">'+items.length+'</span></div>';
+    const hdr = document.createElement('div');
+    hdr.className = 'kanban-col-header';
+    hdr.innerHTML = '<div class="kanban-col-title"><span class="col-dot" style="background:' + col.dotColor + '"></span>' + esc(col.title) + '</div><span class="kanban-col-count">' + items.length + '</span>';
+    colEl.appendChild(hdr);
     const body = document.createElement('div');
     body.className = 'kanban-col-body';
     if (!items.length) {
@@ -535,231 +624,216 @@ function renderKanban() {
   });
 }
 
+/* ══════════════════════════════════════════════════
+   CARD — identical to original
+══════════════════════════════════════════════════ */
 function buildCard(row) {
+  const id   = String(row['ID'] || '');
   const card = document.createElement('div');
-  card.className = 'kanban-card';
-  card.dataset.id = String(row.id||'');
-  card.innerHTML = cardHTML(row);
-  card.addEventListener('click', () => openDrawer(row.id, 'work'));
+  card.className  = 'kanban-card';
+  card.dataset.id = id;
+  card.innerHTML  = cardHTML(row);
+  card.addEventListener('click', () => openDrawer(id, 'warehouse'));
   return card;
 }
 
 function cardHTML(row) {
-  const rawPrep = row.prep_instructions || '';
+  const labelCode   = row['Label Code']   || '—';
+  const brand       = row['Brand']        || '';
+  const productLine = row['Product Line'] || '';
+  const asin        = row['ASIN']         || '';
+  const unitsReq    = row['Units Required'];
+  const prodImg     = row['Product Image'] || '';
+  const rawPrep = row['Prep Instructions'] || '';
   let batchItems = null;
   try { const p = JSON.parse(rawPrep); if (Array.isArray(p) && p.length > 1) batchItems = p; } catch(e) {}
 
   if (batchItems) {
-    const batchBrands = [...new Set(batchItems.map(b=>b.brand).filter(Boolean))].join(' / ');
-    const combinedLabel = batchItems.map(b=>b.labelCode).join(' + ');
-    const batchImages = batchItems.map(b=>b.productImage).filter(Boolean);
-    const chips = [['DG',batchItems[0].dgLabel],['Poly',batchItems[0].polyBag],['Warn',batchItems[0].warningLabel],['Barcode',batchItems[0].barcode],['Box',batchItems[0].box]]
-      .map(([l,v])=>{ const vl=String(v||'').toLowerCase(); return vl==='yes'?'<span class="chip yes">'+l+'</span>':vl==='no'?'<span class="chip no">'+l+'</span>':'<span class="chip unset">'+l+'</span>'; }).join('');
-    return '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">'
-      +'<div style="flex:1;min-width:0"><div style="display:inline-flex;align-items:center;padding:1px 7px;border-radius:100px;font-size:8px;font-weight:800;background:#dbeafe;color:#1d4ed8;margin-bottom:3px">GROUP · '+batchItems.length+' PRODUCTS</div>'
-      +'<div class="kc-label">'+esc(combinedLabel)+'</div>'+(batchBrands?'<div class="kc-brandline">'+esc(batchBrands)+'</div>':'')+'</div>'
-      +(batchImages.length?'<div style="display:flex;gap:3px;flex-shrink:0">'+batchImages.slice(0,3).map(img=>'<div style="width:36px;height:36px;border-radius:6px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9"><img src="'+ea(img)+'" style="width:100%;height:100%;object-fit:cover;display:block"></div>').join('')+(batchImages.length>3?'<div style="width:36px;height:36px;border-radius:6px;background:#f1f5f9;border:1.5px solid #e2e8f0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#64748b">+'+(batchImages.length-3)+'</div>':'')+'</div>':'')
-      +'</div><div class="kc-stats"><div class="kc-stat"><div class="kc-stat-label">Total Units</div><div class="kc-stat-val">'+esc(String(row.units_required||'—'))+'</div></div></div><div class="kc-chips">'+chips+'</div>';
+    const batchBrands = [...new Set(batchItems.map(b => b.brand).filter(Boolean))].join(' / ');
+    const combinedLabel = batchItems.map(b => b.labelCode).join(' + ');
+    const batchImages = batchItems.map(b => b.productImage).filter(Boolean);
+    const chipDefs = [['DG Label', batchItems[0].dgLabel],['Poly Bag', batchItems[0].polyBag],['Warn', batchItems[0].warningLabel],['Barcode', batchItems[0].barcode],['Box', batchItems[0].box]];
+    const chips = chipDefs.map(([lbl, val]) => { const v = String(val || '').toLowerCase(); if (v === 'yes') return '<span class="chip yes">' + lbl + '</span>'; if (v === 'no') return '<span class="chip no">' + lbl + '</span>'; return '<span class="chip unset">' + lbl + '</span>'; }).join('');
+    return '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px"><div style="flex:1;min-width:0"><div style="display:inline-flex;align-items:center;padding:1px 7px;border-radius:100px;font-size:8px;font-weight:800;background:#dbeafe;color:#1d4ed8;margin-bottom:3px;letter-spacing:.3px">GROUP · ' + batchItems.length + ' PRODUCTS</div><div class="kc-label">' + esc(combinedLabel) + '</div>' + (batchBrands ? '<div class="kc-brandline">' + esc(batchBrands) + '</div>' : '') + '</div>' + (batchImages.length ? '<div style="display:flex;gap:3px;flex-shrink:0">' + batchImages.slice(0, 3).map(img => '<div style="width:36px;height:36px;border-radius:6px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9;flex-shrink:0"><img src="' + ea(img) + '" style="width:100%;height:100%;object-fit:cover;display:block"></div>').join('') + (batchImages.length > 3 ? '<div style="width:36px;height:36px;border-radius:6px;background:#f1f5f9;border:1.5px solid #e2e8f0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#64748b;flex-shrink:0">+' + (batchImages.length - 3) + '</div>' : '') + '</div>' : '') + '</div><div class="kc-stats"><div class="kc-stat"><div class="kc-stat-label">Total Units</div><div class="kc-stat-val">' + esc(String(unitsReq || '—')) + '</div></div></div><div class="kc-chips">' + chips + '</div>';
   }
 
-  const chips = [{k:'dg_label',l:'DG'},{k:'poly_bag',l:'Poly'},{k:'warning_label',l:'Warn'},{k:'barcode',l:'Barcode'},{k:'box',l:'Box'}]
-    .map(c=>{ const v=String(row[c.k]||'').trim().toLowerCase(); return v==='yes'?'<span class="chip yes">'+c.l+'</span>':v==='no'?'<span class="chip no">'+c.l+'</span>':'<span class="chip unset">'+c.l+'</span>'; }).join('');
-  return '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">'
-    +'<div style="flex:1;min-width:0"><div class="kc-label">'+esc(row.label_code||'—')+'</div>'+(row.brand?'<div class="kc-brandline">'+esc(row.brand)+'</div>':'')+(row.asin?'<div class="kc-asin">'+esc(row.asin)+'</div>':'')+'</div>'
-    +(row.product_image?'<div style="flex-shrink:0;width:44px;height:44px;border-radius:7px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9"><img src="'+ea(row.product_image)+'" style="width:100%;height:100%;object-fit:cover;display:block"></div>':'')
-    +'</div><div class="kc-stats"><div class="kc-stat"><div class="kc-stat-label">Units Req.</div><div class="kc-stat-val">'+esc(String(row.units_required||'—'))+'</div></div></div><div class="kc-chips">'+chips+'</div>';
+  const chipDefs = [{ key:'DG Label', label:'DG' },{ key:'Poly Bag', label:'Poly' },{ key:'Warning Label', label:'Warn' },{ key:'Barcode', label:'Barcode' },{ key:'Box', label:'Box' }];
+  const chips = chipDefs.map(c => { const v = String(row[c.key] || '').trim().toLowerCase(); if (v === 'yes') return '<span class="chip yes">' + c.label + '</span>'; if (v === 'no') return '<span class="chip no">' + c.label + '</span>'; return '<span class="chip unset">' + c.label + '</span>'; }).join('');
+  return '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px"><div style="flex:1;min-width:0"><div class="kc-label">' + esc(labelCode) + '</div>' + (brand ? '<div class="kc-brandline">' + esc(brand) + '</div>' : '') + (asin ? '<div class="kc-asin">' + esc(asin) + '</div>' : '') + '</div>' + (prodImg ? '<div style="flex-shrink:0;width:44px;height:44px;border-radius:7px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9"><img src="' + ea(prodImg) + '" style="width:100%;height:100%;object-fit:cover;display:block"></div>' : '') + '</div><div class="kc-stats"><div class="kc-stat"><div class="kc-stat-label">Units Req.</div><div class="kc-stat-val">' + esc(String(unitsReq || '—')) + '</div></div></div><div class="kc-chips">' + chips + '</div>';
 }
 
-/* ══════════════════════════════════════════════
-   DRAWER
-══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════
+   DRAWER OPEN/CLOSE — identical to original
+══════════════════════════════════════════════════ */
 function openDrawer(id, source) {
-  source = source || 'work';
-  const ds = source === 'fba' ? fbaData : workData;
-  const row = ds.find(r => String(r.id) === String(id));
+  source = source || 'warehouse';
+  const dataSource = source === 'fba' ? fbaData : warehouseData;
+  const row = dataSource.find(r => String(r['ID']) === String(id));
   if (!row) return;
   drawerDirtyFields = {};
   drawerCurrentId = id;
   drawerSource = source;
-  drawerOpenedFromKanban = (source === 'work' && !document.getElementById('workTableModalOverlay').classList.contains('visible'));
+  drawerOpenedFromKanban = (source === 'warehouse' && !document.getElementById('workTableModalOverlay').classList.contains('visible'));
   isSaving = false;
-  if (source === 'work') {
-    activeTab = getBucket(row) === 'warehouse' ? 'warehouse' : 'info';
+  const drawer = document.getElementById('detailDrawer');
+  drawer.dataset.currentId = id;
+  if (source === 'warehouse') {
+    const bucket = getBucket(row);
+    activeTab = bucket === 'warehouse' ? 'warehouse' : 'info';
   } else {
     activeTab = 'info';
   }
   renderDrawer(row);
-  document.getElementById('detailDrawer').classList.add('open');
+  drawer.classList.add('open');
   document.getElementById('drawerOverlay').classList.add('visible');
 }
 
 function closeDrawer() {
-  if (Object.keys(drawerDirtyFields).length > 0 && !confirm('You have unsaved changes. Close without saving?')) return;
+  if (Object.keys(drawerDirtyFields).length > 0) {
+    if (!confirm('You have unsaved changes. Close without saving?')) return;
+  }
   document.getElementById('detailDrawer').classList.remove('open');
   document.getElementById('drawerOverlay').classList.remove('visible');
-  drawerDirtyFields = {}; drawerCurrentId = null; drawerSource = null;
+  drawerDirtyFields = {};
+  drawerCurrentId = null;
+  drawerSource = null;
   applyFilters();
 }
 
+/* ══════════════════════════════════════════════════
+   DRAWER RENDER — identical to original
+══════════════════════════════════════════════════ */
 function renderDrawer(row) {
-  const id      = String(row.id||'');
-  const source  = drawerSource || 'work';
-  const bucket  = source === 'work' ? getBucket(row) : 'fba';
-  const readonly = drawerOpenedFromKanban && bucket === 'warehouse';
-  const isDigital = source === 'work' && bucket === 'digital_ops';
+  const id     = String(row['ID'] || '');
+  const source = drawerSource || 'warehouse';
+  const bucket = source === 'warehouse' ? getBucket(row) : 'fba';
+  const isWarehouseBucket  = (source === 'warehouse' && bucket === 'warehouse');
+  const infoAndPrepReadonly = drawerOpenedFromKanban && bucket === 'warehouse';
+  const isDigitalOpsBucket = (source === 'warehouse' && bucket === 'digital_ops');
 
-  const badgeMap = {
+  const badgeHTML = {
     digital_ops: '<span class="drawer-bucket-badge dbb-digital">Digital Ops</span>',
     warehouse:   '<span class="drawer-bucket-badge dbb-warehouse">Warehouse</span>',
     completed:   '<span class="drawer-bucket-badge dbb-completed">Completed</span>',
     fba:         '<span class="drawer-bucket-badge" style="background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:#818cf8">FBA Product</span>',
-  };
+  }[bucket] || '';
 
-  const rawPrep = row.prep_instructions || '';
-  let isBatch = false;
-  try { const ph = JSON.parse(rawPrep); isBatch = Array.isArray(ph) && ph.length > 1; } catch(e) {}
+  const productLine = row['Product Line'] || '';
+  const brand       = row['Brand'] || '';
+  const labelCode   = row['Label Code'] || '';
+  const rawPrepHero = row['Prep Instructions'] || '';
+  let isBatchHero = false;
+  try { const ph = JSON.parse(rawPrepHero); isBatchHero = Array.isArray(ph) && ph.length > 1; } catch(e) {}
+  const subtitle    = isBatchHero ? '' : [brand, labelCode].filter(Boolean).join(' — ');
+  const unitsReq    = row['Units Required']  || '—';
+  const unitsDone   = row['Units Completed'] || '—';
+  const upsCol      = row['UPS Collected']   || '—';
 
   document.getElementById('drawerHeader').innerHTML =
-    '<div class="drawer-hero">'
-    +'<button class="drawer-hero-close" onclick="closeDrawer()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
-    +(badgeMap[bucket]||'')
-    +(!isBatch && row.product_line ? '<div class="drawer-product-line">'+esc(row.product_line)+'</div>' : '')
-    +(isBatch ? '<div class="drawer-product-line" style="font-size:12px;color:rgba(255,255,255,.6)">Batch — '+(()=>{ try{return JSON.parse(rawPrep).length;}catch(e){return '?';} })()+' products</div>' : '')
-    +'<div class="drawer-title"></div>'
-    +(!isBatch ? '<div class="drawer-subtitle">'+esc([row.brand,row.label_code].filter(Boolean).join(' — '))+'</div>' : '')
-    +'<div class="drawer-kpi-row">'
-      +kpiBox('Units Required',  esc(String(row.units_required??'—')))
-      +kpiBox('Units Completed', esc(String(row.units_completed??'—')))
-      +kpiBox('UPS Collected',   esc(String(row.ups_collected??'—')))
-    +'</div></div>';
+    '<div class="drawer-hero"><button class="drawer-hero-close" onclick="closeDrawer()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
+    + badgeHTML
+    + (!isBatchHero && productLine ? '<div class="drawer-product-line">' + esc(productLine) + '</div>' : '')
+    + (isBatchHero ? '<div class="drawer-product-line" style="font-size:12px;color:rgba(255,255,255,.6)">Batch — ' + (() => { try { return JSON.parse(rawPrepHero).length; } catch(e){ return '?'; } })() + ' products</div>' : '')
+    + '<div class="drawer-title"></div>'
+    + (subtitle ? '<div class="drawer-subtitle">' + esc(subtitle) + '</div>' : '')
+    + '<div class="drawer-kpi-row">' + kpiBox('Units Required', esc(String(unitsReq))) + kpiBox('Units Completed', esc(String(unitsDone))) + kpiBox('UPS Collected', esc(String(upsCol))) + '</div></div>';
 
-  let tabs = dTab('info',svgGrid(),'Product Info')+dTab('prep',svgPackage(),'Prep');
-  if (source === 'fba' || !isDigital) tabs += dTab('warehouse',svgWarehouse(),'Warehouse');
-  document.getElementById('drawerTabs').innerHTML = tabs;
+  let tabsHTML = '';
+  if (source === 'fba') {
+    tabsHTML = dTab('info',svgGrid(),'Product Info') + dTab('prep',svgPackage(),'Prep') + dTab('warehouse',svgWarehouse(),'Warehouse');
+  } else if (isWarehouseBucket) {
+    tabsHTML = dTab('info',svgGrid(),'Product Info') + dTab('prep',svgPackage(),'Prep') + dTab('warehouse',svgWarehouse(),'Warehouse');
+  } else if (isDigitalOpsBucket) {
+    tabsHTML = dTab('info',svgGrid(),'Product Info') + dTab('prep',svgPackage(),'Prep');
+  } else {
+    tabsHTML = dTab('info',svgGrid(),'Product Info') + dTab('prep',svgPackage(),'Prep') + dTab('warehouse',svgWarehouse(),'Warehouse');
+  }
+  document.getElementById('drawerTabs').innerHTML = tabsHTML;
 
   let body = '';
 
   if (activeTab === 'info') {
-    let batchItems = null;
-    try { const p = JSON.parse(rawPrep); if (Array.isArray(p) && p.length > 1) batchItems = p; } catch(e) {}
-
+    const prodImg = row['Product Image'] || '';
+    const rawPrep0 = row['Prep Instructions'] || '';
+    let batchItems0 = null;
+    try { const p0 = JSON.parse(rawPrep0); if (Array.isArray(p0) && p0.length > 1) batchItems0 = p0; } catch(e) {}
     body += sec('Product Info');
-
-    if (row.product_image && !batchItems) {
-      body += '<div style="margin-bottom:12px;display:flex;align-items:flex-start;gap:12px">'
-        +'<div style="flex-shrink:0;border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#f8fafc"><img src="'+ea(row.product_image)+'" style="width:90px;height:72px;object-fit:cover;display:block;cursor:zoom-in" onclick="openLightbox(\''+ea(row.product_image)+'\')"></div>'
-        +'<div style="flex:1;min-width:0"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:4px">Product Image</div>'
-        +'<div style="display:flex;gap:6px;flex-wrap:wrap"><a href="'+ea(row.product_image)+'" target="_blank" class="btn btn-secondary btn-sm">Open full size</a>'
-        +(!readonly ? '<button class="btn btn-secondary btn-sm" onclick="openProductImageUpload(\''+ea(id)+'\')">Replace</button>' : '')+'</div></div></div>';
-    } else if (!readonly && !batchItems) {
-      body += '<div style="margin-bottom:12px"><button class="btn btn-secondary btn-sm" onclick="openProductImageUpload(\''+ea(id)+'\')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Upload product image</button></div>';
+    if (prodImg && !batchItems0) {
+      body += '<div style="margin-bottom:12px;display:flex;align-items:flex-start;gap:12px"><div style="flex-shrink:0;border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#f8fafc"><img src="' + ea(prodImg) + '" alt="Product" style="width:90px;height:72px;object-fit:cover;display:block;cursor:zoom-in" onclick="openLightbox(\'' + ea(prodImg) + '\')"></div><div style="flex:1;min-width:0"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:4px">Product Image</div><div style="display:flex;gap:6px;flex-wrap:wrap"><a href="' + ea(prodImg) + '" target="_blank" class="btn btn-secondary btn-sm">Open full size</a>' + (!infoAndPrepReadonly ? '<button class="btn btn-secondary btn-sm" onclick="openProductImageUpload(\'' + ea(id) + '\')">Replace</button>' : '') + '</div></div></div>';
+    } else if (!infoAndPrepReadonly && !batchItems0) {
+      body += '<div style="margin-bottom:12px"><button class="btn btn-secondary btn-sm" onclick="openProductImageUpload(\'' + ea(id) + '\')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Upload product image</button></div>';
     }
-    body += '<input type="file" id="dProdImg_'+ea(id)+'" accept="image/*,application/pdf" style="display:none" onchange="handleDrawerProductImageUpload(this,\''+ea(id)+'\')">';
+    body += '<input type="file" id="drawerProductImgFile_' + ea(id) + '" accept="image/*,application/pdf" style="display:none" onchange="handleDrawerProductImageUpload(this,\'' + ea(id) + '\')">';
+    body += '<div class="info-grid full">'
+      + (() => {
+          const rawPrep = row['Prep Instructions'] || '';
+          let batchItems = null;
+          try { const p = JSON.parse(rawPrep); if (Array.isArray(p) && p.length > 1) batchItems = p; } catch(e) {}
+          if (!batchItems) return eCard(id, 'Label Code', row['Label Code'] || '', 'text', infoAndPrepReadonly);
+          return '<div style="grid-column:1/-1"><div style="margin-top:8px">'
+            + batchItems.map((b, bi) =>
+              '<div style="border:1.5px solid #e2e8f0;border-radius:9px;padding:10px 12px;margin-bottom:6px;background:#fafbfc"><div style="display:flex;align-items:flex-start;gap:10px">'
+              + (b.productImage ? '<div style="flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9"><img src="' + ea(b.productImage) + '" alt="' + esc(b.labelCode) + '" onclick="openLightbox(\'' + ea(b.productImage) + '\')" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in"></div>' : '')
+              + '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#2563eb;color:#fff;border-radius:50%;font-size:9px;font-weight:800;flex-shrink:0">' + (bi+1) + '</span><span style="font-size:12px;font-weight:800;color:#1d4ed8">' + esc(b.labelCode) + '</span>' + (b.brand ? '<span style="font-size:11px;color:#64748b">· ' + esc(b.brand) + '</span>' : '') + '<span style="margin-left:auto;font-size:11px;font-weight:700;color:#0f172a">× ' + esc(String(b.units||0)) + ' units</span></div>'
+              + (b.productLine ? '<div style="font-size:11px;font-weight:600;color:#334155;margin-bottom:2px">' + esc(b.productLine) + '</div>' : '')
+              + (b.asin ? '<div style="font-size:10px;color:#94a3b8;font-family:monospace;margin-bottom:4px">' + esc(b.asin) + '</div>' : '')
+              + '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:2px">' + [['Poly Bag',b.polyBag],['Bundle',b.bundle],['Barcode',b.barcode],['Box',b.box],['DG Label',b.dgLabel],['Warning',b.warningLabel]].map(([lbl,val]) => { const v = String(val||'').toLowerCase(); if (v==='yes') return '<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#dcfce7;color:#15803d">' + lbl + '</span>'; if (v==='no') return '<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#f1f5f9;color:#94a3b8">' + lbl + '</span>'; return '<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#fef3c7;color:#92400e">' + lbl + '</span>'; }).join('') + '</div>'
+              + (b.prepInstructions ? '<div style="font-size:11px;color:#64748b;line-height:1.5;margin-top:2px">' + esc(b.prepInstructions) + '</div>' : '')
+              + '</div></div>'
+              + (b.barcodeImage ? '<div style="margin-top:8px"><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#94a3b8;margin-bottom:3px">Barcode</div><img src="' + ea(b.barcodeImage) + '" alt="Barcode" onclick="openLightbox(\'' + ea(b.barcodeImage) + '\')" style="max-height:60px;max-width:100%;object-fit:contain;border-radius:6px;border:1.5px solid #e2e8f0;cursor:zoom-in;display:block"></div>' : '')
+              + '</div>'
+            ).join('') + '</div></div>';
+        })()
+      + (!(() => { try { const p=JSON.parse(row['Prep Instructions']||''); return Array.isArray(p)&&p.length>1; } catch(e){return false;} })() ? eCard(id, 'Brand', row['Brand'] || '', 'text', infoAndPrepReadonly) : '')
+      + (!(() => { try { const p=JSON.parse(row['Prep Instructions']||''); return Array.isArray(p)&&p.length>1; } catch(e){return false;} })() ? eCard(id, 'Product Line', row['Product Line'] || '', 'text', infoAndPrepReadonly) : '')
+      + (!(() => { try { const p=JSON.parse(row['Prep Instructions']||''); return Array.isArray(p)&&p.length>1; } catch(e){return false;} })() ? eCard(id, 'Amazon / ASIN', row['ASIN'] || '', 'text', infoAndPrepReadonly) : '')
+      + '</div></div>'
+      + sec('Quantities') + '<div class="info-grid">'
+      + eCard(id, 'Units Required', row['Units Required'] || '', 'number', infoAndPrepReadonly)
+      + bCard(id, 'Veeqo Stock Adjusted', row['Veeqo Stock Adjusted'], infoAndPrepReadonly)
+      + '</div>';
 
-    body += '<div class="info-grid full">';
-    if (batchItems) {
-      body += '<div style="grid-column:1/-1"><div style="margin-top:8px">'
-        +batchItems.map((b,bi)=>
-          '<div style="border:1.5px solid #e2e8f0;border-radius:9px;padding:10px 12px;margin-bottom:6px;background:#fafbfc">'
-          +'<div style="display:flex;align-items:flex-start;gap:10px">'
-          +(b.productImage?'<div style="flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9"><img src="'+ea(b.productImage)+'" onclick="openLightbox(\''+ea(b.productImage)+'\')" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in"></div>':'')
-          +'<div style="flex:1;min-width:0">'
-            +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
-              +'<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#2563eb;color:#fff;border-radius:50%;font-size:9px;font-weight:800;flex-shrink:0">'+(bi+1)+'</span>'
-              +'<span style="font-size:12px;font-weight:800;color:#1d4ed8">'+esc(b.labelCode)+'</span>'
-              +(b.brand?'<span style="font-size:11px;color:#64748b">· '+esc(b.brand)+'</span>':'')
-              +'<span style="margin-left:auto;font-size:11px;font-weight:700;color:#0f172a">× '+esc(String(b.units||0))+' units</span>'
-            +'</div>'
-            +(b.productLine?'<div style="font-size:11px;font-weight:600;color:#334155;margin-bottom:2px">'+esc(b.productLine)+'</div>':'')
-            +(b.asin?'<div style="font-size:10px;color:#94a3b8;font-family:monospace;margin-bottom:4px">'+esc(b.asin)+'</div>':'')
-            +'<div style="display:flex;flex-wrap:wrap;gap:3px">'
-            +[['Poly Bag',b.polyBag],['Bundle',b.bundle],['Barcode',b.barcode],['Box',b.box],['DG',b.dgLabel],['Warning',b.warningLabel]].map(([l,v])=>{
-                const vl=String(v||'').toLowerCase();
-                return vl==='yes'?'<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#dcfce7;color:#15803d">'+l+'</span>'
-                     :vl==='no'?'<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#f1f5f9;color:#94a3b8">'+l+'</span>'
-                     :'<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#fef3c7;color:#92400e">'+l+'</span>';
-              }).join('')
-            +'</div>'
-            +(b.prepInstructions?'<div style="font-size:11px;color:#64748b;line-height:1.5;margin-top:4px">'+esc(b.prepInstructions)+'</div>':'')
-          +'</div></div>'
-          +(b.barcodeImage?'<div style="margin-top:8px"><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#94a3b8;margin-bottom:3px">Barcode</div><img src="'+ea(b.barcodeImage)+'" onclick="openLightbox(\''+ea(b.barcodeImage)+'\')" style="max-height:60px;max-width:100%;object-fit:contain;border-radius:6px;border:1.5px solid #e2e8f0;cursor:zoom-in;display:block"></div>':'')
-          +'</div>'
-        ).join('')
-        +'</div></div>';
-    } else {
-      body += eCard(id,'label_code',row.label_code||'','text',readonly)
-             +eCard(id,'brand',row.brand||'','text',readonly)
-             +eCard(id,'product_line',row.product_line||'','text',readonly)
-             +eCard(id,'asin',row.asin||'','text',readonly);
-    }
-    body += '</div></div>';
-
-    body += sec('Quantities')+'<div class="info-grid">'
-      +eCard(id,'units_required',row.units_required||'','number',readonly)
-      +bCard(id,'veeqo_adjusted',row.veeqo_adjusted,readonly)
-      +'</div>';
-
-    if (!batchItems) {
-      const bi = row.barcode_image || '';
-      body += sec('Barcode Image')+'<div class="drawer-section">';
-      if (bi) {
-        body += '<div class="barcode-img-wrap" style="max-width:280px"><img src="'+ea(bi)+'" onclick="openLightbox(\''+ea(bi)+'\')" title="Click to view full size"></div>'
-          +'<div style="margin-top:8px;display:flex;gap:8px;align-items:center">'
-          +'<a href="'+ea(bi)+'" target="_blank" download class="btn btn-secondary btn-sm">Download</a>'
-          +(!readonly ? '<button class="btn btn-secondary btn-sm" onclick="openBarcodeImageUpload(\''+ea(id)+'\')">Replace</button>' : '')+'</div>';
-      } else if (!readonly) {
-        body += '<div class="barcode-img-wrap barcode-img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>No barcode image</span></div>'
-          +'<div style="margin-top:8px"><button class="btn btn-secondary btn-sm" onclick="openBarcodeImageUpload(\''+ea(id)+'\')">Upload barcode image</button></div>';
+    if (!(() => { try { const p=JSON.parse(row['Prep Instructions']||''); return Array.isArray(p)&&p.length>1; } catch(e){return false;} })()) {
+      const barcodeImgUrl = row['Barcode Image'] || '';
+      body += sec('Barcode Image') + '<div class="drawer-section">';
+      if (barcodeImgUrl) {
+        body += '<div class="barcode-img-wrap" style="max-width:280px"><img src="' + ea(barcodeImgUrl) + '" alt="Barcode" onclick="openLightbox(\'' + ea(barcodeImgUrl) + '\')" title="Click to view full size"></div>'
+          + '<div style="margin-top:8px;display:flex;gap:8px;align-items:center"><a href="' + ea(barcodeImgUrl) + '" download target="_blank" class="btn btn-secondary btn-sm" onclick="downloadFile(\'' + ea(barcodeImgUrl) + '\',event)">Download</a>'
+          + (infoAndPrepReadonly ? '' : '<button class="btn btn-secondary btn-sm" onclick="openBarcodeImageUpload(\'' + ea(id) + '\')">Replace image</button>') + '</div>';
+      } else if (!infoAndPrepReadonly) {
+        body += '<div class="barcode-img-wrap barcode-img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>No barcode image</span></div><div style="margin-top:8px"><button class="btn btn-secondary btn-sm" onclick="openBarcodeImageUpload(\'' + ea(id) + '\')">Upload barcode image</button></div>';
       } else {
         body += '<div class="barcode-img-wrap barcode-img-placeholder"><span style="font-size:12px;color:#94a3b8">No barcode image</span></div>';
       }
-      body += '<input type="file" id="dBarcodeImg_'+ea(id)+'" accept="image/*,application/pdf" style="display:none" onchange="handleDrawerBarcodeUpload(this,\''+ea(id)+'\')">';
+      body += '<input type="file" id="drawerBarcodeFile" accept="image/*" style="display:none" onchange="handleDrawerBarcodeUpload(this,\'' + ea(id) + '\')">';
       body += '</div>';
     }
 
-    if (source !== 'fba') {
-      if (!readonly) {
-        body += sec('Grouping & Collection')+'<div class="drawer-section">'
-          +'<div class="info-grid" style="margin-bottom:10px">'
-          +eCard(id,'grouping_link',row.grouping_link||'','url',false)
-          +dateCard(id,'collection_booked',row.collection_booked||'')
-          +'</div><div style="margin-bottom:6px"><div class="info-card"><label>Grouping Images</label>'
-          +renderGroupingImages(row.grouping_image||'',id,false)
-          +'</div></div></div>';
-      } else {
-        const gl=row.grouping_link||'', cb=row.collection_booked||'', gi=row.grouping_image||'';
-        body += sec('Grouping & Collection')+'<div class="drawer-section">';
-        if (gl||cb||gi) {
-          if (gl) body += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;font-size:12px;margin-bottom:8px"><a href="'+ea(gl)+'" target="_blank" rel="noopener" style="color:#2563eb;font-weight:600;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+esc(gl)+'</a></div>';
-          if (cb) body += '<div style="font-size:11px;color:#64748b;margin-bottom:8px"><strong>Collection Booked:</strong> '+esc(fmtDate(cb))+'</div>';
-          if (gi) body += renderGroupingImages(gi,id,true);
-        } else {
-          body += '<div style="color:#94a3b8;font-size:12px">No grouping or collection data</div>';
-        }
-        body += '</div>';
-      }
+    if (!infoAndPrepReadonly && source !== 'fba') {
+      body += sec('Grouping & Collection') + '<div class="drawer-section"><div class="info-grid" style="margin-bottom:10px">' + eCard(id, 'Grouping Link', row['Grouping Link'] || '', 'url', false) + dateCard(id, 'Collection Booked', row['Collection Booked'] || '') + '</div><div style="margin-bottom:6px"><div class="info-card"><label>Grouping Images</label>' + renderGroupingImages(row['Grouping Image'] || '', id) + '</div></div></div>';
+    } else if (source !== 'fba') {
+      const gl = row['Grouping Link'] || '', cb = row['Collection Booked'] || '', gi = row['Grouping Image'] || '';
+      body += sec('Grouping & Collection') + '<div class="drawer-section">';
+      if (gl || cb || gi) {
+        if (gl) body += '<div class="grouping-link-display" style="margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><a href__="' + ea(gl) + '" target="_blank" rel="noopener">' + esc(gl) + '</a></div>';
+        if (cb) body += '<div style="font-size:11px;color:#64748b;margin-bottom:8px"><strong>Collection Booked:</strong> ' + esc(fmtDate(cb)) + '</div>';
+        if (gi) body += renderGroupingImages(gi, id, true);
+      } else { body += '<div style="color:#94a3b8;font-size:12px">No grouping or collection data</div>'; }
+      body += '</div>';
     }
   }
 
   if (activeTab === 'prep') {
-    body += sec('Instructions')+'<div class="info-grid full">'
-      +taCard(id,'prep_instructions',row.prep_instructions||'',readonly)
-      +'</div></div>'
-      +sec('Packaging')+'<div class="info-grid">'
-      +bCard(id,'bundle',row.bundle,readonly)
-      +bCard(id,'dg_label',row.dg_label,readonly)
-      +bCard(id,'poly_bag',row.poly_bag,readonly)
-      +bCard(id,'warning_label',row.warning_label,readonly)
-      +bCard(id,'barcode',row.barcode,readonly)
-      +bCard(id,'box',row.box,readonly)
-      +'</div></div>';
+    body += sec('Instructions') + '<div class="info-grid full">' + taCard(id, 'Prep Instructions', row['Prep Instructions'] || '', infoAndPrepReadonly) + '</div></div>'
+      + sec('Packaging') + '<div class="info-grid">'
+      + bCard(id, 'Bundle', row['Bundle'], infoAndPrepReadonly) + bCard(id, 'DG Label', row['DG Label'], infoAndPrepReadonly)
+      + bCard(id, 'Poly Bag', row['Poly Bag'], infoAndPrepReadonly) + bCard(id, 'Warning Label', row['Warning Label'], infoAndPrepReadonly)
+      + bCard(id, 'Barcode', row['Barcode'], infoAndPrepReadonly) + bCard(id, 'Box', row['Box'], infoAndPrepReadonly)
+      + '</div></div>';
   }
 
   if (activeTab === 'warehouse') {
-    body += sec('Completion')+'<div class="info-grid">'
-      +bCard(id,'ups_collected',row.ups_collected)
-      +eCard(id,'units_completed',row.units_completed||'','number')
-      +'</div></div>';
+    body += sec('Completion') + '<div class="info-grid">' + bCard(id, 'UPS Collected', row['UPS Collected']) + eCard(id, 'Units Completed', row['Units Completed'] || '', 'number') + '</div></div>';
   }
 
   document.getElementById('drawerBody').innerHTML = body;
@@ -767,366 +841,324 @@ function renderDrawer(row) {
   const hasDirty = Object.keys(drawerDirtyFields).length > 0;
   const delFn = source === 'fba' ? 'deleteFBAProduct' : 'deleteRecord';
   document.getElementById('drawerFooter').innerHTML =
-    '<button id="deleteBtn" class="btn btn-danger" onclick="'+delFn+'(\''+ea(id)+'\')">'
-    +svgTrash()+'Delete</button>'
-    +'<button id="saveBtn" class="btn-save"'+(hasDirty?'':' disabled')+' onclick="saveAllChanges()">'
-    +svgCheck()+(hasDirty?'Save Changes':'All Saved')+'</button>';
+    '<button id="deleteBtn" class="btn btn-danger" onclick="' + delFn + '(\'' + ea(id) + '\')">' + svgTrash() + 'Delete</button>'
+    + '<button id="saveBtn" class="btn-save"' + (hasDirty ? '' : ' disabled') + ' onclick="saveAllChanges()">' + svgCheck() + (hasDirty ? 'Save Changes' : 'All Saved') + '</button>';
 }
 
-/* ── Grouping images ── */
-function renderGroupingImages(val, id, readonly) {
-  const urls = parseGroupingImages(val);
+/* ── Grouping Images — identical to original ── */
+function renderGroupingImages(giVal, id, readonly) {
+  const urls = parseGroupingImages(giVal);
   let html = '';
   if (urls.length) {
     html += '<div class="grouping-images-grid">';
-    urls.forEach((url,i) => {
-      html += '<div class="grouping-img-item"><img src="'+ea(url)+'" alt="" onclick="openLightbox(\''+ea(url)+'\')">'
-        +'<a class="download-link" href="'+ea(url)+'" download target="_blank">↓</a></div>';
-    });
+    urls.forEach((url, i) => { html += '<div class="grouping-img-item"><img src="' + ea(url) + '" alt="Grouping image ' + (i+1) + '" onclick="openLightbox(\'' + ea(url) + '\')"><a class="download-link" href="' + ea(url) + '" download target="_blank">↓</a></div>'; });
     html += '</div>';
   }
   if (!readonly) {
-    html += '<div style="margin-top:8px">'
-      +'<label class="file-upload-area" style="display:block;cursor:pointer" onclick="document.getElementById(\'dGroupImg_'+ea(id)+'\').click()">'
-      +'<span style="font-size:11px;color:#64748b"><strong style="color:#2563eb">Upload images</strong> (multiple allowed)</span></label>'
-      +'<input type="file" id="dGroupImg_'+ea(id)+'" accept="image/*,application/pdf" multiple style="display:none" onchange="handleGroupingImagesUpload(this,\''+ea(id)+'\')">'
-      +'<div id="groupProgress_'+ea(id)+'" style="display:none" class="upload-progress"><span class="spinner sm"></span> Uploading…</div></div>';
+    html += '<div style="margin-top:8px"><label class="file-upload-area" style="display:block;cursor:pointer" onclick="document.getElementById(\'drawerGroupingFile_' + ea(id) + '\').click()"><span style="font-size:11px;color:#64748b"><strong style="color:#2563eb">Upload images</strong> (multiple allowed)</span></label>'
+      + '<input type="file" id="drawerGroupingFile_' + ea(id) + '" accept="image/*,application/pdf" multiple style="display:none" onchange="handleGroupingImagesUpload(this,\'' + ea(id) + '\')">'
+      + '<div id="groupingUploadProgress_' + ea(id) + '" style="display:none" class="upload-progress"><span class="spinner sm"></span> Uploading…</div></div>';
   }
   return html;
 }
 function parseGroupingImages(val) {
   if (!val) return [];
-  try { const p = JSON.parse(val); if (Array.isArray(p)) return p.filter(Boolean); } catch(e) {}
-  return val.split(',').map(s=>s.trim()).filter(Boolean);
+  try { const parsed = JSON.parse(val); if (Array.isArray(parsed)) return parsed.filter(Boolean); } catch(e) {}
+  return val.split(',').map(s => s.trim()).filter(Boolean);
 }
 function serializeGroupingImages(arr) { return JSON.stringify(arr); }
 
-/* ── Drawer image uploads ── */
-function openBarcodeImageUpload(id)  { const el=document.getElementById('dBarcodeImg_'+id);  if(el) el.click(); }
-function openProductImageUpload(id)  { const el=document.getElementById('dProdImg_'+id);     if(el) el.click(); }
+/* ── Drawer image uploads — same logic, uploadFileToDrive now goes to Supabase ── */
+function openBarcodeImageUpload(id) { const el = document.getElementById('drawerBarcodeFile'); if (el) el.click(); }
 
 async function handleDrawerBarcodeUpload(inputEl, id) {
   const file = inputEl.files[0]; if (!file) return;
-  showToast('Uploading barcode image…','info');
+  showToast('Uploading barcode image…', 'info');
   try {
-    const url = await uploadImageToSupabase(file);
-    markDirty('barcode_image', url);
-    const ds = drawerSource==='fba' ? fbaData : workData;
-    const idx = ds.findIndex(r => String(r.id)===String(drawerCurrentId));
-    if (idx > -1) ds[idx].barcode_image = url;
+    const url = await uploadFileToDrive(file);
+    markDirty('Barcode Image', url);
+    const ds = drawerSource === 'fba' ? fbaData : warehouseData;
+    const idx = ds.findIndex(r => String(r['ID']) === String(drawerCurrentId));
+    if (idx > -1) ds[idx]['Barcode Image'] = url;
     renderDrawer(ds[idx]);
     await saveAllChanges();
-    showToast('Barcode image uploaded','success');
-  } catch(e) { showToast('Upload failed: '+e.message,'error'); }
+    showToast('Barcode image uploaded', 'success');
+  } catch(e) { showToast('Upload failed: ' + e.message, 'error'); }
 }
+
+function openProductImageUpload(id) { const el = document.getElementById('drawerProductImgFile_' + id); if (el) el.click(); }
 
 async function handleDrawerProductImageUpload(inputEl, id) {
   const file = inputEl.files[0]; if (!file) return;
-  showToast('Uploading product image…','info');
+  showToast('Uploading product image…', 'info');
   try {
-    const url = await uploadImageToSupabase(file);
-    markDirty('product_image', url);
-    const ds = drawerSource==='fba' ? fbaData : workData;
-    const idx = ds.findIndex(r => String(r.id)===String(drawerCurrentId));
-    if (idx > -1) ds[idx].product_image = url;
+    const url = await uploadFileToDrive(file);
+    markDirty('Product Image', url);
+    const ds = drawerSource === 'fba' ? fbaData : warehouseData;
+    const idx = ds.findIndex(r => String(r['ID']) === String(drawerCurrentId));
+    if (idx > -1) ds[idx]['Product Image'] = url;
     renderDrawer(ds[idx]);
     await saveAllChanges();
-    showToast('Product image uploaded','success');
-  } catch(e) { showToast('Upload failed: '+e.message,'error'); }
+    showToast('Product image uploaded', 'success');
+  } catch(e) { showToast('Upload failed: ' + e.message, 'error'); }
 }
 
 async function handleGroupingImagesUpload(inputEl, id) {
   const files = Array.from(inputEl.files); if (!files.length) return;
-  const prog = document.getElementById('groupProgress_'+id);
-  if (prog) prog.style.display = 'flex';
-  showToast('Uploading '+files.length+' image(s)…','info');
+  const progressEl = document.getElementById('groupingUploadProgress_' + id);
+  if (progressEl) progressEl.style.display = 'flex';
+  showToast('Uploading ' + files.length + ' image(s)…', 'info');
   try {
-    const ds = drawerSource==='fba' ? fbaData : workData;
-    const idx = ds.findIndex(r => String(r.id)===String(drawerCurrentId));
-    const existing = parseGroupingImages(idx > -1 ? (ds[idx].grouping_image||'') : '');
-    const newUrls = await Promise.all(files.map(f => uploadImageToSupabase(f)));
-    const serialized = serializeGroupingImages([...existing, ...newUrls]);
-    markDirty('grouping_image', serialized);
-    if (idx > -1) ds[idx].grouping_image = serialized;
+    const ds = drawerSource === 'fba' ? fbaData : warehouseData;
+    const idx = ds.findIndex(r => String(r['ID']) === String(drawerCurrentId));
+    const existing = parseGroupingImages(idx > -1 ? (ds[idx]['Grouping Image'] || '') : '');
+    const newUrls = await Promise.all(files.map(f => uploadFileToDrive(f)));
+    const all = [...existing, ...newUrls];
+    const serialized = serializeGroupingImages(all);
+    markDirty('Grouping Image', serialized);
+    if (idx > -1) ds[idx]['Grouping Image'] = serialized;
     renderDrawer(ds[idx]);
+    showToast('Images uploaded', 'success');
     await saveAllChanges();
-    showToast('Images uploaded','success');
-  } catch(e) { showToast('Upload failed: '+e.message,'error'); }
-  finally { if (prog) prog.style.display = 'none'; }
+  } catch(e) { showToast('Upload failed: ' + e.message, 'error'); }
+  finally { if (progressEl) progressEl.style.display = 'none'; }
 }
 
-/* ── Drawer card helpers ── */
-function kpiBox(label,val) { return '<div class="drawer-kpi"><div class="drawer-kpi-label">'+label+'</div><div class="drawer-kpi-val">'+val+'</div></div>'; }
-function dTab(t,icon,label) { return '<button class="drawer-tab'+(activeTab===t?' active':'')+'" onclick="switchTab(\''+t+'\')">'+icon+label+'</button>'; }
+/* ── Drawer card helpers — identical to original ── */
+function kpiBox(label, val) { return '<div class="drawer-kpi"><div class="drawer-kpi-label">' + label + '</div><div class="drawer-kpi-val">' + val + '</div></div>'; }
+function dTab(t, icon, label, disabled) { return '<button class="drawer-tab' + (activeTab === t ? ' active' : '') + (disabled ? ' disabled' : '') + '" onclick="switchTab(\'' + t + '\')">' + icon + label + '</button>'; }
 function switchTab(t) {
   activeTab = t;
-  const ds = drawerSource==='fba' ? fbaData : workData;
-  const row = ds.find(r => String(r.id)===String(drawerCurrentId));
+  const ds = drawerSource === 'fba' ? fbaData : warehouseData;
+  const row = ds.find(r => String(r['ID']) === String(drawerCurrentId));
   if (row) renderDrawer(row);
 }
-function sec(label) { return '<div class="drawer-section"><div class="section-label">'+esc(label)+'</div>'; }
-function fieldLabel(f) { return f.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
-
-function eCard(id, field, value, type, readonly) {
-  const dv = drawerDirtyFields.hasOwnProperty(field) ? drawerDirtyFields[field] : value;
-  const ro = readonly ? ' readonly style="background:#f8fafc;pointer-events:none;color:#475569"' : '';
-  const oi = ' oninput="markDirty(\''+ea(field)+'\',this.value)"';
+function sec(label) { return '<div class="drawer-section"><div class="section-label">' + esc(label) + '</div>'; }
+function eCard(id, label, value, type, readonly) {
+  const displayVal = drawerDirtyFields.hasOwnProperty(label) ? drawerDirtyFields[label] : value;
   let inp;
-  if (type === 'number') {
-    const n = parseFloat(dv);
-    inp = '<input type="number" class="edit-input" value="'+(isNaN(n)?'':n)+'" step="1" min="0"'+ro+oi+'>';
-  } else if (type === 'url') {
-    inp = '<input type="url" class="edit-input" value="'+ea(String(dv))+'" placeholder="https://…"'+ro+oi+'>';
-  } else {
-    inp = '<input type="text" class="edit-input" value="'+ea(String(dv??''))+'"'+ro+oi+'>';
-  }
-  return '<div class="info-card'+(readonly?' readonly':'')+'"><label>'+esc(fieldLabel(field))+'</label>'+inp+'</div>';
+  if (type === 'number') { const n = parseFloat(displayVal); inp = '<input type="number" class="edit-input" value="' + (isNaN(n) ? '' : n) + '" step="1" min="0"' + (readonly ? ' readonly style="background:#f8fafc;pointer-events:none;color:#475569"' : '') + ' oninput="markDirty(\'' + ea(label) + '\',this.value)">'; }
+  else if (type === 'url') { inp = '<input type="url" class="edit-input" value="' + ea(String(displayVal)) + '" placeholder="https://…"' + (readonly ? ' readonly style="background:#f8fafc;pointer-events:none;color:#475569"' : '') + ' oninput="markDirty(\'' + ea(label) + '\',this.value)">'; }
+  else { inp = '<input type="text" class="edit-input" value="' + ea(String(displayVal)) + '"' + (readonly ? ' readonly style="background:#f8fafc;pointer-events:none;color:#475569"' : '') + ' oninput="markDirty(\'' + ea(label) + '\',this.value)">'; }
+  return '<div class="info-card' + (readonly ? ' readonly' : '') + '"><label>' + esc(label) + '</label>' + inp + '</div>';
 }
-function dateCard(id, field, value) {
-  const dv = drawerDirtyFields.hasOwnProperty(field) ? drawerDirtyFields[field] : value;
-  const dVal = toInputDate(dv);
-  return '<div class="info-card"><label>'+esc(fieldLabel(field))+'</label>'
-    +'<input type="date" class="edit-input date-input-styled" value="'+ea(dVal)+'" oninput="markDirty(\''+ea(field)+'\',this.value)">'
-    +(dv && !dVal ? '<div style="font-size:11px;color:#64748b;margin-top:3px">'+esc(String(dv))+'</div>' : '')
-    +'</div>';
+function dateCard(id, label, value) {
+  const displayVal = drawerDirtyFields.hasOwnProperty(label) ? drawerDirtyFields[label] : value;
+  const dateVal = toInputDate(displayVal);
+  return '<div class="info-card"><label>' + esc(label) + '</label><input type="date" class="edit-input date-input-styled" value="' + ea(dateVal) + '" oninput="markDirty(\'' + ea(label) + '\',this.value)">' + (displayVal && !dateVal ? '<div style="font-size:11px;color:#64748b;margin-top:3px">' + esc(String(displayVal)) + '</div>' : '') + '</div>';
 }
-function taCard(id, field, value, readonly) {
-  const dv = drawerDirtyFields.hasOwnProperty(field) ? drawerDirtyFields[field] : value;
-  const ro = readonly ? ' readonly style="background:#f8fafc;pointer-events:none;color:#475569"' : '';
-  return '<div class="info-card'+(readonly?' readonly':'')+'"><label>'+esc(fieldLabel(field))+'</label>'
-    +'<textarea class="edit-textarea"'+ro+' oninput="markDirty(\''+ea(field)+'\',this.value)">'+esc(dv)+'</textarea></div>';
+function taCard(id, label, value, readonly) {
+  const displayVal = drawerDirtyFields.hasOwnProperty(label) ? drawerDirtyFields[label] : value;
+  return '<div class="info-card' + (readonly ? ' readonly' : '') + '"><label>' + esc(label) + '</label><textarea class="edit-textarea"' + (readonly ? ' readonly style="background:#f8fafc;pointer-events:none;color:#475569"' : '') + ' oninput="markDirty(\'' + ea(label) + '\',this.value)">' + esc(displayVal) + '</textarea></div>';
 }
-function bCard(id, field, value, readonly) {
-  const v = String(drawerDirtyFields.hasOwnProperty(field) ? drawerDirtyFields[field] : (value??'')).trim();
+function bCard(id, label, value, readonly) {
+  const v   = drawerDirtyFields.hasOwnProperty(label) ? drawerDirtyFields[label] : String(value ?? '').trim();
   const low = v.toLowerCase();
   if (readonly) {
-    return '<div class="info-card readonly"><label>'+esc(fieldLabel(field))+'</label>'
-      +'<div class="bool-toggle-group" style="opacity:.6;pointer-events:none">'
-      +'<button type="button" class="bool-toggle-btn'+(low==='yes'?' active-yes':'')+'">Yes</button>'
-      +'<button type="button" class="bool-toggle-btn'+(low==='no'?' active-no':'')+'">No</button>'
-      +'<button type="button" class="bool-toggle-btn'+(low!=='yes'&&low!=='no'?' active-unset':'')+'">—</button>'
-      +'</div></div>';
+    return '<div class="info-card readonly"><label>' + esc(label) + '</label><div class="bool-toggle-group" style="opacity:.6;pointer-events:none"><button type="button" class="bool-toggle-btn' + (low === 'yes' ? ' active-yes' : '') + '">Yes</button><button type="button" class="bool-toggle-btn' + (low === 'no' ? ' active-no' : '') + '">No</button><button type="button" class="bool-toggle-btn' + (low !== 'yes' && low !== 'no' ? ' active-unset' : '') + '">—</button></div></div>';
   }
-  return '<div class="info-card"><label>'+esc(fieldLabel(field))+'</label>'
-    +'<div class="bool-toggle-group">'
-    +'<button type="button" class="bool-toggle-btn'+(low==='yes'?' active-yes':'')+'" onclick="markBool(\''+ea(field)+'\',\'Yes\',this)">Yes</button>'
-    +'<button type="button" class="bool-toggle-btn'+(low==='no'?' active-no':'')+'" onclick="markBool(\''+ea(field)+'\',\'No\',this)">No</button>'
-    +'<button type="button" class="bool-toggle-btn'+(low!=='yes'&&low!=='no'?' active-unset':'')+'" onclick="markBool(\''+ea(field)+'\',\'\',this)">—</button>'
-    +'</div></div>';
+  return '<div class="info-card"><label>' + esc(label) + '</label><div class="bool-toggle-group"><button type="button" class="bool-toggle-btn' + (low === 'yes' ? ' active-yes' : '') + '" onclick="markBool(\'' + ea(label) + '\',\'Yes\',this)">Yes</button><button type="button" class="bool-toggle-btn' + (low === 'no' ? ' active-no' : '') + '" onclick="markBool(\'' + ea(label) + '\',\'No\',this)">No</button><button type="button" class="bool-toggle-btn' + (low !== 'yes' && low !== 'no' ? ' active-unset' : '') + '" onclick="markBool(\'' + ea(label) + '\',\'\',this)">—</button></div></div>';
 }
-
 function markDirty(field, value) { drawerDirtyFields[field] = value; updateSaveButton(); }
 function markBool(field, value, btnEl) {
   drawerDirtyFields[field] = value;
   const group = btnEl.parentElement;
   group.querySelectorAll('.bool-toggle-btn').forEach(b => { b.className = 'bool-toggle-btn'; });
   const low = value.toLowerCase();
-  if (low==='yes') btnEl.classList.add('active-yes');
-  else if (low==='no') btnEl.classList.add('active-no');
+  if (low === 'yes') btnEl.classList.add('active-yes');
+  else if (low === 'no') btnEl.classList.add('active-no');
   else btnEl.classList.add('active-unset');
   updateSaveButton();
 }
 function updateSaveButton() {
   const btn = document.getElementById('saveBtn'); if (!btn) return;
   const hasDirty = Object.keys(drawerDirtyFields).length > 0;
-  btn.disabled = !hasDirty;
-  btn.classList.remove('saved');
-  btn.innerHTML = svgCheck()+(hasDirty?'Save Changes':'All Saved');
+  btn.disabled = !hasDirty; btn.classList.remove('saved');
+  btn.innerHTML = svgCheck() + (hasDirty ? 'Save Changes' : 'All Saved');
 }
 
-/* ══════════════════════════════════════════════
-   SAVE → Supabase update
-══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════
+   SAVE — replaces callApi saveFBA/saveWarehouse
+══════════════════════════════════════════════════ */
 async function saveAllChanges() {
   if (isSaving || !drawerCurrentId) return;
   const dirtyKeys = Object.keys(drawerDirtyFields);
-  if (!dirtyKeys.length) return;
+  if (dirtyKeys.length === 0) return;
   isSaving = true;
 
-  const table = drawerSource==='fba' ? 'fba_products' : 'fba_work';
-  const ds    = drawerSource==='fba' ? fbaData : workData;
-  const idx   = ds.findIndex(r => String(r.id)===String(drawerCurrentId));
+  const dataSource = drawerSource === 'fba' ? fbaData : warehouseData;
+  const table      = drawerSource === 'fba' ? 'fba_products' : 'fba_work';
+  const idx = dataSource.findIndex(r => String(r['ID']) === String(drawerCurrentId));
   if (idx < 0) { isSaving = false; return; }
 
-  dirtyKeys.forEach(f => { ds[idx][f] = drawerDirtyFields[f]; });
-  ds[idx].updated_at = new Date().toISOString();
+  dirtyKeys.forEach(field => { dataSource[idx][field] = drawerDirtyFields[field]; });
   drawerDirtyFields = {};
   updateStats();
   applyFilters();
 
   const btn = document.getElementById('saveBtn');
-  if (btn) { btn.disabled=true; btn.innerHTML=svgCheck()+'All Saved'; btn.classList.add('saved'); setTimeout(()=>btn.classList.remove('saved'),1500); }
+  if (btn) { btn.disabled = true; btn.innerHTML = svgCheck() + 'All Saved'; btn.classList.add('saved'); setTimeout(() => btn.classList.remove('saved'), 1500); }
 
-  const row = ds[idx];
+  const row = dataSource[idx];
   if (row && document.getElementById('detailDrawer').classList.contains('open')) renderDrawer(row);
 
-  const { id, created_at, ...updatePayload } = row;
-  const { error } = await sb.from(table).update({ ...updatePayload, updated_at: new Date().toISOString() }).eq('id', id);
+  /* Convert display-key row → Supabase snake_case, then update */
+  const sbRow = displayRowToSb(row);
+  const { id, created_at, ...updatePayload } = sbRow;
+  updatePayload.updated_at = new Date().toISOString();
+
+  const { error } = await sb.from(table).update(updatePayload).eq('id', id);
   isSaving = false;
-  if (error) showToast('Sync error: '+error.message,'error');
+  if (error) showToast('Sync error: ' + error.message, 'error');
 }
 
-/* ══════════════════════════════════════════════
-   DELETE
-══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════
+   DELETE — replaces callApi deleteWarehouse/deleteFBA
+══════════════════════════════════════════════════ */
 async function deleteRecord(id) {
   const btn = document.getElementById('deleteBtn'); if (!btn) return;
   if (!btn.classList.contains('confirming')) {
-    btn.classList.add('confirming'); btn.innerHTML = svgWarning()+'Confirm?';
-    deletePendingTimer = setTimeout(()=>{ btn.classList.remove('confirming'); btn.innerHTML=svgTrash()+'Delete'; }, 3000);
+    btn.classList.add('confirming'); btn.innerHTML = svgWarning() + 'Confirm?';
+    deletePendingTimer = setTimeout(() => { btn.classList.remove('confirming'); btn.innerHTML = svgTrash() + 'Delete'; }, 3000);
     return;
   }
   clearTimeout(deletePendingTimer);
-  btn.classList.remove('confirming'); btn.classList.add('deleting'); btn.innerHTML='<span class="spinner sm"></span>Deleting…';
-  const card = document.querySelector('.kanban-card[data-id="'+id+'"]');
+  btn.classList.remove('confirming'); btn.classList.add('deleting'); btn.innerHTML = '<span class="spinner sm"></span>Deleting…';
+  const card = document.querySelector('.kanban-card[data-id="' + id + '"]');
   if (card) card.classList.add('card-deleting');
   const { error } = await sb.from('fba_work').delete().eq('id', id);
   if (!error) {
-    workData = workData.filter(r => String(r.id)!==String(id));
-    setTimeout(()=>{
-      drawerDirtyFields={}; drawerCurrentId=null; drawerSource=null;
-      document.getElementById('detailDrawer').classList.remove('open');
-      document.getElementById('drawerOverlay').classList.remove('visible');
-      applyFilters(); showToast('Record deleted','success');
-    }, 420);
+    const idx = warehouseData.findIndex(r => String(r['ID']) === String(id));
+    if (idx > -1) warehouseData.splice(idx, 1);
+    setTimeout(() => { drawerDirtyFields = {}; drawerCurrentId = null; drawerSource = null; document.getElementById('detailDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('visible'); applyFilters(); showToast('Record deleted', 'success'); }, 420);
   } else {
     if (card) card.classList.remove('card-deleting');
-    btn.classList.remove('deleting'); btn.innerHTML=svgTrash()+'Delete';
-    showToast('Error: '+error.message,'error');
+    btn.classList.remove('deleting'); btn.innerHTML = svgTrash() + 'Delete';
+    showToast('Error deleting record: ' + error.message, 'error');
   }
 }
 
 async function deleteFBAProduct(id) {
   const btn = document.getElementById('deleteBtn'); if (!btn) return;
   if (!btn.classList.contains('confirming')) {
-    btn.classList.add('confirming'); btn.innerHTML = svgWarning()+'Confirm?';
-    deletePendingTimer = setTimeout(()=>{ btn.classList.remove('confirming'); btn.innerHTML=svgTrash()+'Delete'; }, 3000);
+    btn.classList.add('confirming'); btn.innerHTML = svgWarning() + 'Confirm?';
+    deletePendingTimer = setTimeout(() => { btn.classList.remove('confirming'); btn.innerHTML = svgTrash() + 'Delete'; }, 3000);
     return;
   }
   clearTimeout(deletePendingTimer);
-  btn.classList.remove('confirming'); btn.classList.add('deleting'); btn.innerHTML='<span class="spinner sm"></span>Deleting…';
+  btn.classList.remove('confirming'); btn.classList.add('deleting'); btn.innerHTML = '<span class="spinner sm"></span>Deleting…';
   const { error } = await sb.from('fba_products').delete().eq('id', id);
   if (!error) {
-    fbaData = fbaData.filter(r => String(r.id)!==String(id));
-    setTimeout(()=>{
-      drawerDirtyFields={}; drawerCurrentId=null; drawerSource=null;
-      document.getElementById('detailDrawer').classList.remove('open');
-      document.getElementById('drawerOverlay').classList.remove('visible');
-      renderProductsTable(); showToast('Product deleted','success');
-    }, 420);
+    const idx = fbaData.findIndex(r => String(r['ID']) === String(id));
+    if (idx > -1) fbaData.splice(idx, 1);
+    setTimeout(() => { drawerDirtyFields = {}; drawerCurrentId = null; drawerSource = null; document.getElementById('detailDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('visible'); renderProductsTable(); showToast('Product deleted', 'success'); }, 420);
   } else {
-    btn.classList.remove('deleting'); btn.innerHTML=svgTrash()+'Delete';
-    showToast('Error: '+error.message,'error');
+    btn.classList.remove('deleting'); btn.innerHTML = svgTrash() + 'Delete';
+    showToast('Error deleting product: ' + error.message, 'error');
   }
 }
 
-/* ══════════════════════════════════════════════
-   WORK TABLE MODAL
-══════════════════════════════════════════════ */
-function openWorkTableModal() { document.getElementById('workTableSearchInput').value=''; renderWorkTable(); document.getElementById('workTableModalOverlay').classList.add('visible'); }
-function closeWorkTableModal(e) { if(e) return; document.getElementById('workTableModalOverlay').classList.remove('visible'); }
-
+/* ══════════════════════════════════════════════════
+   WORK TABLE MODAL — identical to original
+══════════════════════════════════════════════════ */
+function openWorkTableModal() { document.getElementById('workTableSearchInput').value = ''; renderWorkTable(); document.getElementById('workTableModalOverlay').classList.add('visible'); }
+function closeWorkTableModal(e) { if (e) return; document.getElementById('workTableModalOverlay').classList.remove('visible'); }
 function renderWorkTable() {
-  const q = (document.getElementById('workTableSearchInput').value||'').toLowerCase().trim();
-  const data = workData.filter(row => !q || [row.label_code,row.brand,row.product_line,row.asin].some(v=>String(v||'').toLowerCase().includes(q)))
-    .sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
-
+  const q = (document.getElementById('workTableSearchInput').value || '').toLowerCase().trim();
+  const data = warehouseData.filter(row => { if (!q) return true; return String(row['Label Code']||'').toLowerCase().includes(q)||String(row['Brand']||'').toLowerCase().includes(q)||String(row['Product Line']||'').toLowerCase().includes(q)||String(row['ASIN']||'').toLowerCase().includes(q); });
+  data.sort((a, b) => new Date(b['Date Created']) - new Date(a['Date Created']));
   document.getElementById('workTableModalCount').textContent = data.length;
-  const cols = [['label_code','Label Code'],['brand','Brand'],['product_line','Product Line'],['units_required','Units Req.'],['units_completed','Units Done'],['ups_collected','UPS Collected']];
-  let html = '<table class="data-table"><thead><tr><th>Image</th>'+cols.map(([,l])=>'<th>'+l+'</th>').join('')+'<th>Status</th></tr></thead><tbody>';
-
-  if (!data.length) { html += '<tr><td colspan="'+(cols.length+2)+'" style="text-align:center;padding:32px;color:#94a3b8;font-weight:600">No work items found</td></tr>'; }
-  else data.forEach(row => {
-    const rid = ea(String(row.id||''));
-    const bucket = getBucket(row);
-    const bLabel = {warehouse:'Warehouse',digital_ops:'Digital Ops',completed:'Completed'}[bucket]||bucket;
-    const bColor = {warehouse:'#d97706',digital_ops:'#2563eb',completed:'#15803d'}[bucket]||'#64748b';
-    const bBg    = {warehouse:'#fef3c7',digital_ops:'#dbeafe',completed:'#dcfce7'}[bucket]||'#f1f5f9';
-    const isBatch = (()=>{ try{ const p=JSON.parse(row.prep_instructions||''); return Array.isArray(p)&&p.length>1; }catch(e){return false;} })();
-    const bItems  = (()=>{ try{ const p=JSON.parse(row.prep_instructions||''); return Array.isArray(p)?p:[]; }catch(e){return[];} })();
-
-    let imgCell = '';
-    if (isBatch) {
-      const imgs = bItems.map(b=>b.productImage).filter(Boolean);
-      imgCell = imgs.length
-        ? '<div style="display:flex;gap:2px">'+imgs.slice(0,2).map(i=>'<img src="'+ea(i)+'" style="width:28px;height:28px;object-fit:cover;border-radius:4px;border:1px solid #e2e8f0">').join('')+(imgs.length>2?'<div style="width:28px;height:28px;background:#f1f5f9;border-radius:4px;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#64748b">+'+(imgs.length-2)+'</div>':'')+'</div>'
-        : '<div style="width:40px;height:32px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
-    } else {
-      imgCell = row.product_image
-        ? '<img src="'+ea(row.product_image)+'" style="width:40px;height:32px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;display:block">'
-        : '<div style="width:40px;height:32px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
-    }
-
-    html += '<tr onclick="openDrawer(\''+rid+'\',\'work\')"><td style="width:48px">'+imgCell+'</td>'
-      +cols.map(([c])=>{
-        if (isBatch) {
-          if (c==='label_code') return '<td><div style="display:flex;gap:3px;flex-wrap:wrap">'+bItems.map(b=>'<span style="padding:1px 6px;border-radius:100px;font-size:10px;font-weight:700;background:#dbeafe;color:#1d4ed8;white-space:nowrap">'+esc(b.labelCode)+'</span>').join('')+'</div></td>';
-          if (c==='brand') return '<td>'+esc([...new Set(bItems.map(b=>b.brand).filter(Boolean))].join(', ')||'—')+'</td>';
-          if (c==='product_line') return '<td><span title="'+ea([...new Set(bItems.map(b=>b.productLine).filter(Boolean))].join(', '))+'" style="display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">'+esc([...new Set(bItems.map(b=>b.productLine).filter(Boolean))].join(', ')||'—')+'</span></td>';
-        }
-        if (c==='product_line') return '<td><span title="'+ea(String(row[c]??'—'))+'" style="display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">'+esc(String(row[c]??'—'))+'</span></td>';
-        return '<td>'+esc(String(row[c]??'—'))+'</td>';
-      }).join('')
-      +'<td><span style="padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;background:'+bBg+';color:'+bColor+'">'+bLabel+'</span></td></tr>';
-  });
-
+  const cols = ['Label Code', 'Brand', 'Product Line', 'Units Required', 'Units Completed', 'UPS Collected'];
+  let html = '<table class="data-table"><thead><tr><th>Image</th>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '<th>Status</th></tr></thead><tbody>';
+  if (!data.length) { html += '<tr><td colspan="' + (cols.length + 1) + '" style="text-align:center;padding:32px;color:#94a3b8;font-weight:600">No work items found</td></tr>'; }
+  else {
+    data.forEach(row => {
+      const rid = ea(String(row['ID'] || ''));
+      const bucket = getBucket(row);
+      const bucketLabel = { warehouse: 'Warehouse', digital_ops: 'Digital Ops', completed: 'Completed' }[bucket] || bucket;
+      const bucketColor = { warehouse: '#d97706', digital_ops: '#2563eb', completed: '#15803d' }[bucket] || '#64748b';
+      const bucketBg    = { warehouse: '#fef3c7', digital_ops: '#dbeafe', completed: '#dcfce7' }[bucket] || '#f1f5f9';
+      const wImgUrl = row['Product Image'] || '';
+      const isBatch = (() => { try { const p = JSON.parse(row['Prep Instructions']||''); return Array.isArray(p) && p.length > 1; } catch(e){ return false; } })();
+      const batchItems = (() => { try { const p = JSON.parse(row['Prep Instructions']||''); return Array.isArray(p) ? p : []; } catch(e){ return []; } })();
+      let imgCell = '';
+      if (isBatch) {
+        const batchImgs = batchItems.map(b => b.productImage).filter(Boolean);
+        if (batchImgs.length) { imgCell = '<div style="display:flex;gap:2px;align-items:center">' + batchImgs.slice(0,2).map(img => '<img src="' + ea(img) + '" style="width:28px;height:28px;object-fit:cover;border-radius:4px;border:1px solid #e2e8f0;display:block">').join('') + (batchImgs.length > 2 ? '<div style="width:28px;height:28px;background:#f1f5f9;border-radius:4px;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#64748b">+' + (batchImgs.length-2) + '</div>' : '') + '</div>'; }
+        else { imgCell = '<div style="width:40px;height:32px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>'; }
+      } else {
+        imgCell = wImgUrl ? '<img src="' + ea(wImgUrl) + '" style="width:40px;height:32px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;display:block">' : '<div style="width:40px;height:32px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
+      }
+      html += '<tr onclick="openDrawer(\'' + rid + '\',\'warehouse\')" style="' + (isBatch ? 'border-bottom:none' : '') + '"><td style="width:48px">' + imgCell + '</td>'
+        + cols.map(c => {
+            if (isBatch) {
+              if (c === 'Label Code') return '<td><div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">' + batchItems.map(b => '<span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:100px;font-size:10px;font-weight:700;background:#dbeafe;color:#1d4ed8;white-space:nowrap">' + esc(b.labelCode) + '</span>').join('') + '</div></td>';
+              if (c === 'Brand') { const brands = [...new Set(batchItems.map(b => b.brand).filter(Boolean))].join(', '); return '<td><span title="' + ea(brands) + '" style="display:inline-block;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">' + esc(brands || '—') + '</span></td>'; }
+              if (c === 'Product Line') { const pl = [...new Set(batchItems.map(b => b.productLine).filter(Boolean))].join(', '); return '<td><span title="' + ea(pl) + '" style="display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">' + esc(pl || '—') + '</span></td>'; }
+            }
+            if (c === 'Product Line') { const pl = String(row[c] ?? '—'); return '<td><span title="' + ea(pl) + '" style="display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">' + esc(pl) + '</span></td>'; }
+            return '<td>' + esc(String(row[c] ?? '—')) + '</td>';
+          }).join('')
+        + '<td><span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;background:' + bucketBg + ';color:' + bucketColor + '">' + bucketLabel + '</span></td></tr>';
+    });
+  }
   html += '</tbody></table>';
   document.getElementById('workTableModalBody').innerHTML = html;
 }
 
-/* ══════════════════════════════════════════════
-   PRODUCTS TABLE MODAL
-══════════════════════════════════════════════ */
-function openProductsModal() { document.getElementById('productsSearchInput').value=''; renderProductsTable(); document.getElementById('productsModalOverlay').classList.add('visible'); }
-function closeProductsModal(e) { if(e) return; document.getElementById('productsModalOverlay').classList.remove('visible'); }
-
+/* ══════════════════════════════════════════════════
+   PRODUCTS TABLE MODAL — identical to original
+══════════════════════════════════════════════════ */
+function openProductsModal() { document.getElementById('productsSearchInput').value = ''; renderProductsTable(); document.getElementById('productsModalOverlay').classList.add('visible'); }
+function closeProductsModal(e) { if (e) return; document.getElementById('productsModalOverlay').classList.remove('visible'); }
 function renderProductsTable() {
-  const q = (document.getElementById('productsSearchInput').value||'').toLowerCase().trim();
-  const data = fbaData.filter(row => !q || [row.label_code,row.brand,row.product_line,row.asin].some(v=>String(v||'').toLowerCase().includes(q)))
-    .sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
-
+  const q = (document.getElementById('productsSearchInput').value || '').toLowerCase().trim();
+  const data = fbaData.filter(row => { if (!q) return true; return String(row['Label Code']||'').toLowerCase().includes(q)||String(row['Brand']||'').toLowerCase().includes(q)||String(row['Product Line']||'').toLowerCase().includes(q)||String(row['ASIN']||'').toLowerCase().includes(q); });
+  data.sort((a, b) => new Date(b['Date Created']) - new Date(a['Date Created']));
   document.getElementById('productsModalCount').textContent = data.length;
-  const cols = [['label_code','Label Code'],['brand','Brand'],['product_line','Product Line'],['asin','ASIN'],['prep_instructions','Prep Instructions']];
-  let html = '<table class="data-table"><thead><tr><th>Image</th>'+cols.map(([,l])=>'<th>'+l+'</th>').join('')+'</tr></thead><tbody>';
-  if (!data.length) { html += '<tr><td colspan="'+(cols.length+1)+'" style="text-align:center;padding:32px;color:#94a3b8;font-weight:600">No products found</td></tr>'; }
-  else data.forEach(row => {
-    const rid = ea(String(row.id||''));
-    const imgUrl = row.product_image || '';
-    html += '<tr onclick="openDrawer(\''+rid+'\',\'fba\')">'
-      +'<td style="width:48px">'+(imgUrl?'<img src="'+ea(imgUrl)+'" style="width:40px;height:32px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;display:block">':'<div style="width:40px;height:32px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>')+'</td>'
-      +cols.map(([c])=>{ let v=String(row[c]??'—'); if(c==='prep_instructions'&&v.length>50) v=v.slice(0,50)+'…'; return '<td>'+esc(v)+'</td>'; }).join('')
-      +'</tr>';
-  });
+  const cols = ['Label Code', 'Brand', 'Product Line', 'ASIN', 'Prep Instructions'];
+  let html = '<table class="data-table"><thead><tr><th>Image</th>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>';
+  if (!data.length) { html += '<tr><td colspan="' + cols.length + '" style="text-align:center;padding:32px;color:#94a3b8;font-weight:600">No products found</td></tr>'; }
+  else {
+    data.forEach(row => {
+      const rid = ea(String(row['ID'] || ''));
+      const imgUrl = row['Product Image'] || '';
+      html += '<tr onclick="openDrawerFromProductsTable(\'' + rid + '\')">'
+        + '<td style="width:48px">' + (imgUrl ? '<img src="' + ea(imgUrl) + '" style="width:40px;height:32px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;display:block">' : '<div style="width:40px;height:32px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>') + '</td>'
+        + cols.map(c => { let val = String(row[c] ?? '—'); if (c === 'Prep Instructions' && val.length > 50) val = val.substring(0, 50) + '…'; return '<td>' + esc(val) + '</td>'; }).join('')
+        + '</tr>';
+    });
+  }
   html += '</tbody></table>';
   document.getElementById('productsModalBody').innerHTML = html;
 }
+function openDrawerFromProductsTable(id) { openDrawer(id, 'fba'); }
 
-/* ══════════════════════════════════════════════
-   NEW PRODUCT FORM
-══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════
+   NEW PRODUCT FORM — identical to original except
+   createRecord() calls sb.from().insert() instead of callApi
+══════════════════════════════════════════════════ */
 function openNewProductForm() {
-  ['nLabelCode','nBrand','nProductLine','nAsin'].forEach(id=>{document.getElementById(id).value='';});
+  ['nLabelCode','nBrand','nProductLine','nAsin'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('nPrepInstructions').value = '';
-  ['nPolyBag','nWarningLabel','nBarcode','nBox','nBundle','nDgLabel'].forEach(id=>{document.getElementById(id).value='';});
-  document.querySelectorAll('#newProductForm .form-bool-toggle-group .bool-toggle-btn').forEach(b=>{b.className='bool-toggle-btn';});
-  document.querySelectorAll('#newProductForm .form-group').forEach(g=>g.classList.remove('has-error'));
-  document.querySelectorAll('#newProductForm .field-error').forEach(e=>e.remove());
+  ['nPolyBag','nWarningLabel','nBarcode','nBox','nBundle','nDgLabel'].forEach(id => { document.getElementById(id).value = ''; });
+  document.querySelectorAll('#newProductForm .form-bool-toggle-group .bool-toggle-btn').forEach(b => { b.className = 'bool-toggle-btn'; });
+  document.querySelectorAll('#newProductForm .form-group').forEach(g => g.classList.remove('has-error'));
+  document.querySelectorAll('#newProductForm .field-error').forEach(e => e.remove());
   clearBarcodeImage(); clearProductImage();
   document.getElementById('newModalOverlay').classList.add('visible');
-  setTimeout(()=>document.getElementById('nLabelCode').focus(), 80);
+  setTimeout(() => document.getElementById('nLabelCode').focus(), 80);
 }
-function closeNewModal(e) { if(e && e.target!==document.getElementById('newModalOverlay')) return; document.getElementById('newModalOverlay').classList.remove('visible'); }
-
+function closeNewModal(e) { if (e && e.target !== document.getElementById('newModalOverlay')) return; document.getElementById('newModalOverlay').classList.remove('visible'); }
 function setFormBool(fieldId, value, btnEl) {
   document.getElementById(fieldId).value = value;
   const group = btnEl.parentElement;
-  group.querySelectorAll('.bool-toggle-btn').forEach(b=>b.className='bool-toggle-btn');
-  if (value==='Yes') btnEl.classList.add('active-yes');
-  else if (value==='No') btnEl.classList.add('active-no');
-  const fg = document.getElementById('fg-'+fieldId);
-  if (fg) { fg.classList.remove('has-error'); const err=fg.querySelector('.field-error'); if(err) err.remove(); }
+  group.querySelectorAll('.bool-toggle-btn').forEach(b => b.className = 'bool-toggle-btn');
+  if (value === 'Yes') btnEl.classList.add('active-yes');
+  else if (value === 'No') btnEl.classList.add('active-no');
+  const fg = document.getElementById('fg-' + fieldId);
+  if (fg) { fg.classList.remove('has-error'); const err = fg.querySelector('.field-error'); if (err) err.remove(); }
 }
-
 function previewBarcodeImage(inputEl) {
   const file = inputEl.files[0]; if (!file) return;
   nBarcodeFile = file;
@@ -1134,370 +1166,260 @@ function previewBarcodeImage(inputEl) {
   document.getElementById('nBarcodePreview').style.display = 'block';
   if (file.type === 'application/pdf') {
     document.getElementById('nBarcodePreviewImg').style.display = 'none';
-    const ex = document.getElementById('nBarcodePdfBadge');
-    if (!ex) document.getElementById('nBarcodePreview').insertAdjacentHTML('afterbegin','<div id="nBarcodePdfBadge" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;font-size:12px;font-weight:600;color:#1e40af;margin-bottom:8px">📄 '+esc(file.name)+'</div>');
+    const existing = document.getElementById('nBarcodePdfBadge');
+    if (!existing) document.getElementById('nBarcodePreview').insertAdjacentHTML('afterbegin', '<div id="nBarcodePdfBadge" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;font-size:12px;font-weight:600;color:#1e40af;margin-bottom:8px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' + esc(file.name) + '</div>');
     return;
   }
-  const ex = document.getElementById('nBarcodePdfBadge'); if(ex) ex.remove();
-  const img = document.getElementById('nBarcodePreviewImg'); img.style.display='block';
-  const reader = new FileReader();
-  reader.onload = e => { img.src = e.target.result; };
-  reader.readAsDataURL(file);
+  const existing = document.getElementById('nBarcodePdfBadge'); if (existing) existing.remove();
+  const img = document.getElementById('nBarcodePreviewImg'); img.style.display = 'block';
+  const reader = new FileReader(); reader.onload = function(e) { img.src = e.target.result; }; reader.readAsDataURL(file);
 }
 function clearBarcodeImage() {
-  nBarcodeFile = null;
-  document.getElementById('nBarcodeFile').value = '';
-  document.getElementById('nBarcodeImageUrl').value = '';
-  document.getElementById('nBarcodeUploadArea').style.display = 'block';
-  document.getElementById('nBarcodePreview').style.display = 'none';
-  document.getElementById('nBarcodePreviewImg').src = '';
-  document.getElementById('nBarcodePreviewImg').style.display = 'block';
-  const b=document.getElementById('nBarcodePdfBadge'); if(b) b.remove();
+  nBarcodeFile = null; document.getElementById('nBarcodeFile').value = ''; document.getElementById('nBarcodeImageUrl').value = '';
+  document.getElementById('nBarcodeUploadArea').style.display = 'block'; document.getElementById('nBarcodePreview').style.display = 'none';
+  document.getElementById('nBarcodePreviewImg').src = ''; document.getElementById('nBarcodePreviewImg').style.display = 'block';
+  const badge = document.getElementById('nBarcodePdfBadge'); if (badge) badge.remove();
 }
 function previewProductImage(inputEl) {
   const file = inputEl.files[0]; if (!file) return;
   nProductImgFile = file;
   if (file.type === 'application/pdf') {
-    document.getElementById('nProductImgUploadArea').style.display = 'none';
-    document.getElementById('nProductImgPreview').style.display = 'block';
-    document.getElementById('nProductImgPreviewImg').style.display = 'none';
-    const ex = document.getElementById('nProdImgPdfBadge');
-    if (!ex) document.getElementById('nProductImgPreview').insertAdjacentHTML('afterbegin','<div id="nProdImgPdfBadge" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;font-size:12px;font-weight:600;color:#1e40af;margin-bottom:8px">📄 '+esc(file.name)+'</div>');
+    document.getElementById('nProductImgUploadArea').style.display = 'none'; document.getElementById('nProductImgPreview').style.display = 'block'; document.getElementById('nProductImgPreviewImg').style.display = 'none';
+    document.getElementById('nProductImgPreview').insertAdjacentHTML('afterbegin', '<div id="nProductImgPdfBadge" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;font-size:12px;font-weight:600;color:#1e40af;margin-bottom:8px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' + esc(file.name) + '</div>');
     return;
   }
-  const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('nProductImgUploadArea').style.display = 'none';
-    document.getElementById('nProductImgPreview').style.display = 'block';
-    const img = document.getElementById('nProductImgPreviewImg'); img.style.display='block'; img.src=e.target.result;
-  };
-  reader.readAsDataURL(file);
+  const reader = new FileReader(); reader.onload = function(e) { document.getElementById('nProductImgUploadArea').style.display = 'none'; document.getElementById('nProductImgPreview').style.display = 'block'; const img = document.getElementById('nProductImgPreviewImg'); img.style.display = 'block'; img.src = e.target.result; }; reader.readAsDataURL(file);
 }
 function clearProductImage() {
-  nProductImgFile = null;
-  document.getElementById('nProductImgFile').value = '';
-  document.getElementById('nProductImageUrl').value = '';
-  document.getElementById('nProductImgUploadArea').style.display = 'block';
-  document.getElementById('nProductImgPreview').style.display = 'none';
-  document.getElementById('nProductImgPreviewImg').src = '';
-  document.getElementById('nProductImgPreviewImg').style.display = 'block';
-  const b=document.getElementById('nProdImgPdfBadge'); if(b) b.remove();
+  nProductImgFile = null; document.getElementById('nProductImgFile').value = ''; document.getElementById('nProductImageUrl').value = '';
+  document.getElementById('nProductImgUploadArea').style.display = 'block'; document.getElementById('nProductImgPreview').style.display = 'none'; document.getElementById('nProductImgPreviewImg').src = '';
+  const badge = document.getElementById('nProductImgPdfBadge'); if (badge) badge.remove(); document.getElementById('nProductImgPreviewImg').style.display = 'block';
 }
 
 async function createRecord() {
-  const required = [
-    {id:'nLabelCode',fg:'fg-nLabelCode',label:'Label Code'},
-    {id:'nBrand',fg:'fg-nBrand',label:'Brand'},
-    {id:'nProductLine',fg:'fg-nProductLine',label:'Product Line'},
-    {id:'nAsin',fg:'fg-nAsin',label:'ASIN'},
-  ];
+  const required = [{ id:'nLabelCode',fg:'fg-nLabelCode',label:'Label Code' },{ id:'nBrand',fg:'fg-nBrand',label:'Brand' },{ id:'nProductLine',fg:'fg-nProductLine',label:'Product Line' },{ id:'nAsin',fg:'fg-nAsin',label:'ASIN' }];
   let hasError = false;
-  document.querySelectorAll('#newProductForm .form-group').forEach(g=>g.classList.remove('has-error'));
-  document.querySelectorAll('#newProductForm .field-error').forEach(e=>e.remove());
-  required.forEach(f=>{
-    if (!document.getElementById(f.id).value.trim()) {
-      hasError = true;
-      const fg = document.getElementById(f.fg);
-      if (fg) { fg.classList.add('has-error'); const s=document.createElement('span'); s.className='field-error'; s.textContent=f.label+' is required'; fg.appendChild(s); }
-    }
-  });
-  if (hasError) { showToast('Please fill in all required fields','error'); return; }
+  document.querySelectorAll('#newProductForm .form-group').forEach(g => g.classList.remove('has-error'));
+  document.querySelectorAll('#newProductForm .field-error').forEach(e => e.remove());
+  required.forEach(f => { if (!document.getElementById(f.id).value.trim()) { hasError = true; const fg = document.getElementById(f.fg); if (fg) { fg.classList.add('has-error'); const s = document.createElement('span'); s.className = 'field-error'; s.textContent = f.label + ' is required'; fg.appendChild(s); } } });
+  if (hasError) { showToast('Please fill in all required fields', 'error'); return; }
 
   const submitBtn = document.getElementById('newSubmitBtn');
-  submitBtn.disabled=true; submitBtn.innerHTML='<span class="spinner sm"></span> Creating…';
+  submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner sm"></span> Creating…';
 
   let productImageUrl = '';
   if (nProductImgFile) {
-    document.getElementById('nProductImgUploadProgress').style.display = 'flex';
-    showToast('Uploading product image…','info');
-    try { productImageUrl = await uploadImageToSupabase(nProductImgFile); }
-    catch(e) { showToast('Product image upload failed: '+e.message,'error'); document.getElementById('nProductImgUploadProgress').style.display='none'; submitBtn.disabled=false; submitBtn.textContent='Create Product'; return; }
+    document.getElementById('nProductImgUploadProgress').style.display = 'flex'; showToast('Uploading product image…', 'info');
+    try { productImageUrl = await uploadFileToDrive(nProductImgFile); }
+    catch(e) { showToast('Product image upload failed: ' + e.message, 'error'); document.getElementById('nProductImgUploadProgress').style.display = 'none'; submitBtn.disabled = false; submitBtn.textContent = 'Create Product'; return; }
     document.getElementById('nProductImgUploadProgress').style.display = 'none';
   }
-
   let barcodeImageUrl = '';
   if (nBarcodeFile) {
-    document.getElementById('nBarcodeUploadProgress').style.display = 'flex';
-    showToast('Uploading barcode image…','info');
-    try { barcodeImageUrl = await uploadImageToSupabase(nBarcodeFile); }
-    catch(e) { showToast('Barcode upload failed: '+e.message,'error'); document.getElementById('nBarcodeUploadProgress').style.display='none'; submitBtn.disabled=false; submitBtn.textContent='Create Product'; return; }
+    document.getElementById('nBarcodeUploadProgress').style.display = 'flex'; showToast('Uploading barcode image…', 'info');
+    try { barcodeImageUrl = await uploadFileToDrive(nBarcodeFile); }
+    catch(e) { showToast('Image upload failed: ' + e.message, 'error'); document.getElementById('nBarcodeUploadProgress').style.display = 'none'; submitBtn.disabled = false; submitBtn.textContent = 'Create Product'; return; }
     document.getElementById('nBarcodeUploadProgress').style.display = 'none';
   }
 
-  // Generate FBA ID from current max
-  const maxNum = fbaData.reduce((max,r)=>{ const n=parseInt(String(r.id||'').replace('FBA-',''))||0; return n>max?n:max; }, 0);
-  const newId = 'FBA-' + String(maxNum + 1).padStart(4,'0');
+  /* Generate next FBA ID from current in-memory max */
+  const maxNum = fbaData.reduce((max, r) => { const n = parseInt(String(r['ID']||'').replace('FBA-','')) || 0; return n > max ? n : max; }, 0);
+  const newId = 'FBA-' + String(maxNum + 1).padStart(4, '0');
   const now = new Date().toISOString();
 
-  const newRow = {
-    id: newId, created_at: now, updated_at: now,
-    label_code:        document.getElementById('nLabelCode').value.trim(),
-    brand:             document.getElementById('nBrand').value.trim(),
-    product_line:      document.getElementById('nProductLine').value.trim(),
-    asin:              document.getElementById('nAsin').value.trim(),
-    prep_instructions: document.getElementById('nPrepInstructions').value.trim(),
-    bundle:            document.getElementById('nBundle').value.trim(),
-    dg_label:          document.getElementById('nDgLabel').value.trim(),
-    poly_bag:          document.getElementById('nPolyBag').value.trim(),
-    warning_label:     document.getElementById('nWarningLabel').value.trim(),
-    barcode:           document.getElementById('nBarcode').value.trim(),
-    box:               document.getElementById('nBox').value.trim(),
-    barcode_image:     barcodeImageUrl,
-    product_image:     productImageUrl,
-    grouping_link:'', grouping_image:'', collection_booked:'',
-    units_required:0, veeqo_adjusted:'', units_completed:0, ups_collected:''
+  const newDisplayRow = {
+    'ID': newId, 'Date Created': now, 'Last Updated': now,
+    'Label Code': document.getElementById('nLabelCode').value.trim(),
+    'Brand': document.getElementById('nBrand').value.trim(),
+    'Product Line': document.getElementById('nProductLine').value.trim(),
+    'ASIN': document.getElementById('nAsin').value.trim(),
+    'Prep Instructions': document.getElementById('nPrepInstructions').value.trim(),
+    'Bundle': document.getElementById('nBundle').value.trim(),
+    'DG Label': document.getElementById('nDgLabel').value.trim(),
+    'Poly Bag': document.getElementById('nPolyBag').value.trim(),
+    'Warning Label': document.getElementById('nWarningLabel').value.trim(),
+    'Barcode': document.getElementById('nBarcode').value.trim(),
+    'Box': document.getElementById('nBox').value.trim(),
+    'Barcode Image': barcodeImageUrl, 'Product Image': productImageUrl,
+    'Grouping Link': '', 'Grouping Image': '', 'Collection Booked': '',
+    'Units Required': 0, 'Veeqo Stock Adjusted': '', 'Units Completed': 0, 'UPS Collected': ''
   };
 
-  fbaData.unshift(newRow);
-  closeNewModal();
-  renderProductsTable();
-  showToast('Product created','success');
-  submitBtn.disabled=false; submitBtn.textContent='Create Product';
+  fbaData.unshift(newDisplayRow);
+  closeNewModal(); renderProductsTable(); showToast('Product created', 'success');
+  submitBtn.disabled = false; submitBtn.textContent = 'Create Product';
 
-  const { data: inserted, error } = await sb.from('fba_products').insert(newRow).select().single();
-  if (error) {
-    fbaData = fbaData.filter(r=>r.id!==newId);
-    renderProductsTable();
-    showToast('Error saving product: '+error.message,'error');
-  } else if (inserted) {
-    const idx = fbaData.findIndex(r=>r.id===newId);
-    if (idx>-1) fbaData[idx] = inserted;
-    renderProductsTable();
-  }
+  const sbInsert = displayRowToSb(newDisplayRow);
+  const { data: inserted, error } = await sb.from('fba_products').insert(sbInsert).select().single();
+  if (error) { fbaData = fbaData.filter(r => r['ID'] !== newId); renderProductsTable(); showToast('Error saving product: ' + error.message, 'error'); }
+  else if (inserted) { const idx = fbaData.findIndex(r => r['ID'] === newId); if (idx > -1) fbaData[idx] = sbRowToDisplay(inserted); renderProductsTable(); }
 }
 
-/* ══════════════════════════════════════════════
-   ADD WORK MODAL
-══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════
+   ADD WORK MODAL — identical to original except
+   submitAddWork() calls sb.from().insert() instead of callApi
+══════════════════════════════════════════════════ */
+function previewAwGroupingImages(inputEl) {
+  const newFiles = Array.from(inputEl.files); if (!newFiles.length) return;
+  awGroupingImgFiles = awGroupingImgFiles.concat(newFiles);
+  renderAwGroupingImgPreview(); inputEl.value = '';
+}
+function renderAwGroupingImgPreview() {
+  const container = document.getElementById('awGroupingImgPreview'); if (!container) return;
+  if (!awGroupingImgFiles.length) { container.style.display = 'none'; container.innerHTML = ''; return; }
+  container.style.display = 'flex';
+  container.innerHTML = awGroupingImgFiles.map((f, i) => '<div class="file-thumb" style="position:relative"><img src="' + URL.createObjectURL(f) + '" alt="' + ea(f.name) + '" title="' + ea(f.name) + '" style="width:72px;height:54px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0"><button type="button" class="file-thumb-remove" onclick="removeAwGroupingImg(' + i + ')" title="Remove">✕</button></div>').join('');
+}
+function removeAwGroupingImg(idx) { awGroupingImgFiles.splice(idx, 1); renderAwGroupingImgPreview(); }
+window.removeAwGroupingImg = removeAwGroupingImg;
+window.previewAwGroupingImages = previewAwGroupingImages;
+
 function openAddWorkModal() {
-  awLabelCodeRows=[]; awRowDebounceTimers={};
-  document.getElementById('awLabelCodeRows').innerHTML='';
-  document.getElementById('awMatchedProducts').innerHTML='';
-  document.getElementById('awGroupingLink').value='';
-  document.getElementById('awCollectionBooked').value='';
-  awGroupingImgFiles=[];
-  const prev=document.getElementById('awGroupingImgPreview'); if(prev){prev.style.display='none';prev.innerHTML='';}
-  const pf=document.getElementById('awGroupingImgFile'); if(pf) pf.value='';
+  awLabelCodeRows = []; awRowDebounceTimers = {};
+  document.getElementById('awLabelCodeRows').innerHTML = ''; document.getElementById('awMatchedProducts').innerHTML = '';
   document.getElementById('addWorkModalOverlay').classList.add('visible');
+  document.getElementById('awGroupingLink').value = ''; document.getElementById('awCollectionBooked').value = '';
+  awGroupingImgFiles = [];
+  const prev = document.getElementById('awGroupingImgPreview'); if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
+  const prevFile = document.getElementById('awGroupingImgFile'); if (prevFile) prevFile.value = '';
   addLabelCodeRow();
-  setTimeout(()=>{ const f=document.querySelector('.lc-row input[data-field="code"]'); if(f) f.focus(); },100);
+  setTimeout(() => { const first = document.querySelector('.lc-row input[data-field="code"]'); if (first) first.focus(); }, 100);
 }
-function closeAddWorkModal(e) {
-  if(e && e.target!==document.getElementById('addWorkModalOverlay')) return;
-  document.getElementById('addWorkModalOverlay').classList.remove('visible');
-  awLabelCodeRows=[];
-}
+function closeAddWorkModal(e) { if (e && e.target !== document.getElementById('addWorkModalOverlay')) return; document.getElementById('addWorkModalOverlay').classList.remove('visible'); awLabelCodeRows = []; }
+
 function addLabelCodeRow() {
-  const rowId='lcrow_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
-  awLabelCodeRows.push({rowId,code:'',units:'',match:null});
-  renderLabelCodeRows();
+  const rowId = 'lcrow_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+  awLabelCodeRows.push({ rowId, code: '', units: '', match: null }); renderLabelCodeRows();
 }
 function removeLabelCodeRow(rowId) {
-  awLabelCodeRows=awLabelCodeRows.filter(r=>r.rowId!==rowId);
-  if (!awLabelCodeRows.length) addLabelCodeRow(); else renderLabelCodeRows();
+  awLabelCodeRows = awLabelCodeRows.filter(r => r.rowId !== rowId);
+  if (awLabelCodeRows.length === 0) addLabelCodeRow(); else renderLabelCodeRows();
   renderMatchedProducts();
 }
 function renderLabelCodeRows() {
-  document.getElementById('awLabelCodeRows').innerHTML = awLabelCodeRows.map(row=>{
-    const found=row.match!==null, notFound=row.code&&row.match===null;
-    return '<div class="lc-row'+(found?' found-row':notFound?' notfound-row':'')+'" id="'+row.rowId+'">'
-      +'<div><div class="lc-row-label">Label Code</div>'
-        +'<input type="text" data-field="code" data-rowid="'+row.rowId+'" value="'+ea(row.code)+'" placeholder="e.g. X002XXXXX" oninput="onLcRowInput(this,\''+row.rowId+'\',\'code\')">'
-        +'<div class="lc-row-status" style="color:'+(found?'#15803d':notFound?'#dc2626':'#94a3b8')+'">'
-          +(found?'✓ '+esc(row.match.product_line||row.match.brand||row.code):(notFound?'✗ Not found in FBA products':''))
-        +'</div></div>'
-      +'<div><div class="lc-row-label">Units Required</div>'
-        +'<input type="number" data-field="units" data-rowid="'+row.rowId+'" value="'+ea(row.units)+'" placeholder="0" min="1" step="1" oninput="onLcRowInput(this,\''+row.rowId+'\',\'units\')">'
-      +'</div>'
-      +(awLabelCodeRows.length>1?'<button class="lc-remove-btn" onclick="removeLabelCodeRow(\''+row.rowId+'\')" title="Remove">✕</button>':'<div style="width:28px"></div>')
-      +'</div>';
+  const container = document.getElementById('awLabelCodeRows');
+  container.innerHTML = awLabelCodeRows.map((row, i) => {
+    const found = row.match !== null, notFound = row.code && row.match === null;
+    let rowClass = 'lc-row'; if (found) rowClass += ' found-row'; else if (notFound) rowClass += ' notfound-row';
+    return '<div class="' + rowClass + '" id="' + row.rowId + '"><div><div class="lc-row-label">Label Code</div><input type="text" data-field="code" data-rowid="' + row.rowId + '" value="' + ea(row.code) + '" placeholder="e.g. FBA-LC-001" oninput="onLcRowInput(this,\'' + row.rowId + '\',\'code\')"><div class="lc-row-status" style="color:' + (found ? '#15803d' : (notFound ? '#dc2626' : '#94a3b8')) + '">' + (found ? '✓ ' + esc(row.match['Product Line'] || row.match['Brand'] || row.code) : (notFound ? '✗ Not found in FBA' : '')) + '</div></div><div><div class="lc-row-label">Units Required</div><input type="number" data-field="units" data-rowid="' + row.rowId + '" value="' + ea(row.units) + '" placeholder="0" min="1" step="1" oninput="onLcRowInput(this,\'' + row.rowId + '\',\'units\')"></div>' + (awLabelCodeRows.length > 1 ? '<button class="lc-remove-btn" onclick="removeLabelCodeRow(\'' + row.rowId + '\')" title="Remove">✕</button>' : '<div style="width:28px"></div>') + '</div>';
   }).join('');
 }
 function onLcRowInput(el, rowId, field) {
-  const idx=awLabelCodeRows.findIndex(r=>r.rowId===rowId); if(idx<0) return;
-  awLabelCodeRows[idx][field]=el.value.trim();
-  if(field==='code'){ clearTimeout(awRowDebounceTimers[rowId]); awRowDebounceTimers[rowId]=setTimeout(()=>lookupLabelCode(rowId),300); }
+  const idx = awLabelCodeRows.findIndex(r => r.rowId === rowId); if (idx < 0) return;
+  awLabelCodeRows[idx][field] = el.value.trim();
+  if (field === 'code') { clearTimeout(awRowDebounceTimers[rowId]); awRowDebounceTimers[rowId] = setTimeout(() => lookupLabelCode(rowId), 300); }
 }
 function lookupLabelCode(rowId) {
-  const idx=awLabelCodeRows.findIndex(r=>r.rowId===rowId); if(idx<0) return;
-  const code=awLabelCodeRows[idx].code;
-  awLabelCodeRows[idx].match = code ? (fbaData.find(r=>String(r.label_code||'').trim().toLowerCase()===code.toLowerCase())||null) : null;
+  const idx = awLabelCodeRows.findIndex(r => r.rowId === rowId); if (idx < 0) return;
+  const code = awLabelCodeRows[idx].code;
+  if (!code) { awLabelCodeRows[idx].match = null; }
+  else { const match = fbaData.find(r => String(r['Label Code'] || '').trim().toLowerCase() === code.toLowerCase()); awLabelCodeRows[idx].match = match || null; }
   renderLabelCodeRows(); renderMatchedProducts();
 }
 function renderMatchedProducts() {
-  const container=document.getElementById('awMatchedProducts');
-  const found=awLabelCodeRows.filter(r=>r.match);
-  if (!found.length){ container.innerHTML=''; return; }
-  container.innerHTML='<div style="margin-top:8px">'+found.map((row,ri)=>{
-    const m=row.match;
-    return '<div style="border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:10px">'
-      +'<div style="background:#0f172a;padding:10px 14px;display:flex;align-items:center;gap:8px">'
-        +'<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:#2563eb;color:#fff;border-radius:50%;font-size:10px;font-weight:800;flex-shrink:0">'+(ri+1)+'</span>'
-        +(m.product_image?'<div style="flex-shrink:0;width:40px;height:40px;border-radius:6px;overflow:hidden;border:1.5px solid rgba(255,255,255,.15);background:#1e293b"><img src="'+ea(m.product_image)+'" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in" onclick="openLightbox(\''+ea(m.product_image)+'\')"></div>':'')
-        +'<div><div style="font-size:12px;font-weight:700;color:#fff">'+esc(row.code)+'</div><div style="font-size:11px;color:rgba(255,255,255,.5)">'+esc([m.brand,m.product_line].filter(Boolean).join(' · '))+'</div></div>'
-      +'</div>'
-      +'<div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:6px">'
-        +[['ASIN',m.asin],['Bundle',m.bundle],['Poly Bag',m.poly_bag],['Warning Label',m.warning_label],['Barcode',m.barcode],['Box',m.box]].map(([l,v])=>
-          '<div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">'+l+'</div><div style="font-size:12px;color:#0f172a">'+esc(v||'—')+'</div></div>').join('')
-      +'</div>'
-      +(m.prep_instructions?'<div style="padding:0 14px 10px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:4px">Prep Instructions</div><div style="font-size:12px;color:#334155;line-height:1.5">'+esc(m.prep_instructions)+'</div></div>':'')
-      +(m.barcode_image?'<div style="padding:0 14px 12px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:6px">Barcode Image</div><div style="display:flex;align-items:center;gap:10px"><img src="'+ea(m.barcode_image)+'" style="max-height:80px;max-width:180px;object-fit:contain;border:1.5px solid #e2e8f0;border-radius:8px;cursor:zoom-in" onclick="openLightbox(\''+ea(m.barcode_image)+'\')" ><a href="'+ea(m.barcode_image)+'" target="_blank" class="btn btn-secondary btn-sm">View full</a></div></div>':'')
-      +'</div>';
-  }).join('')+'</div>';
+  const container = document.getElementById('awMatchedProducts');
+  const found = awLabelCodeRows.filter(r => r.match);
+  if (!found.length) { container.innerHTML = ''; return; }
+  let html = '<div style="margin-top:8px">';
+  found.forEach((row, ri) => {
+    const m = row.match;
+    const productImg = m['Product Image'] || '', barcodeImg = m['Barcode Image'] || '';
+    html += '<div style="border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:10px"><div style="background:#0f172a;padding:10px 14px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:#2563eb;color:#fff;border-radius:50%;font-size:10px;font-weight:800;flex-shrink:0">' + (ri + 1) + '</span>'
+      + (productImg ? '<div style="flex-shrink:0;width:40px;height:40px;border-radius:6px;overflow:hidden;border:1.5px solid rgba(255,255,255,.15);background:#1e293b;margin-right:4px"><img src="' + ea(productImg) + '" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in" onclick="openLightbox(\'' + ea(productImg) + '\')"></div>' : '')
+      + '<div><div style="font-size:12px;font-weight:700;color:#fff">' + esc(row.code) + '</div><div style="font-size:11px;color:rgba(255,255,255,.5)">' + esc([m['Brand'], m['Product Line']].filter(Boolean).join(' · ')) + '</div></div></div>'
+      + '<div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:6px"><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">ASIN</div><div style="font-size:12px;color:#0f172a;font-family:monospace">' + esc(m['ASIN'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Bundle</div><div style="font-size:12px;color:#0f172a">' + esc(m['Bundle'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Poly Bag</div><div style="font-size:12px;color:#0f172a">' + esc(m['Poly Bag'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Warning Label</div><div style="font-size:12px;color:#0f172a">' + esc(m['Warning Label'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Barcode</div><div style="font-size:12px;color:#0f172a">' + esc(m['Barcode'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Box</div><div style="font-size:12px;color:#0f172a">' + esc(m['Box'] || '—') + '</div></div></div>';
+    if (m['Prep Instructions']) html += '<div style="padding:0 14px 10px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:4px">Prep Instructions</div><div style="font-size:12px;color:#334155;line-height:1.5">' + esc(m['Prep Instructions']) + '</div></div>';
+    if (barcodeImg) html += '<div style="padding:0 14px 12px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:6px">Barcode Image</div><div style="display:flex;align-items:center;gap:10px"><img src="' + ea(barcodeImg) + '" alt="Barcode" style="max-height:80px;max-width:180px;object-fit:contain;border:1.5px solid #e2e8f0;border-radius:8px;cursor:zoom-in" onclick="openLightbox(\'' + ea(barcodeImg) + '\')"><a href="' + ea(barcodeImg) + '" target="_blank" class="btn btn-secondary btn-sm">View full</a></div></div>';
+    html += '</div>';
+  });
+  html += '</div>'; container.innerHTML = html;
 }
-
-function previewAwGroupingImages(inputEl) {
-  const files=Array.from(inputEl.files); if(!files.length) return;
-  awGroupingImgFiles=awGroupingImgFiles.concat(files);
-  renderAwGroupingImgPreview();
-  inputEl.value='';
-}
-function renderAwGroupingImgPreview() {
-  const container=document.getElementById('awGroupingImgPreview'); if(!container) return;
-  if (!awGroupingImgFiles.length){ container.style.display='none'; container.innerHTML=''; return; }
-  container.style.display='flex';
-  container.innerHTML=awGroupingImgFiles.map((f,i)=>
-    '<div class="file-thumb"><img src="'+URL.createObjectURL(f)+'" alt="'+ea(f.name)+'" title="'+ea(f.name)+'" style="width:72px;height:54px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0"><button type="button" class="file-thumb-remove" onclick="removeAwGroupingImg('+i+')">✕</button></div>'
-  ).join('');
-}
-function removeAwGroupingImg(idx) { awGroupingImgFiles.splice(idx,1); renderAwGroupingImgPreview(); }
 
 async function submitAddWork() {
-  const validRows = awLabelCodeRows.filter((r,i) => (i===0 ? r.match : r.code) && r.units && Number(r.units)>0);
-  const errorRows = awLabelCodeRows.filter((r,i) => !((i===0 ? r.match : r.code) && r.units && Number(r.units)>0));
-  if (!validRows.length){ showToast('Add at least one valid label code with units','error'); return; }
-  if (errorRows.length && !confirm(errorRows.length+' row(s) are incomplete and will be skipped. Continue with '+validRows.length+' valid row(s)?')) return;
+  const validRows = awLabelCodeRows.filter((r, i) => { if (i === 0) return r.match && r.units && Number(r.units) > 0; return r.code && r.units && Number(r.units) > 0; });
+  const errorRows = awLabelCodeRows.filter((r, i) => { if (i === 0) return !r.match || !r.units || Number(r.units) <= 0; return !r.code || !r.units || Number(r.units) <= 0; });
+  if (!validRows.length) { showToast('Add at least one valid label code with units', 'error'); return; }
+  if (errorRows.length) { const ok = window.confirm(errorRows.length + ' row(s) are incomplete and will be skipped. Continue with ' + validRows.length + ' valid row(s)?'); if (!ok) return; }
 
-  const btn=document.getElementById('addWorkSubmitBtn');
-  btn.disabled=true; btn.innerHTML='<span class="spinner sm"></span>Adding…';
+  const btn = document.getElementById('addWorkSubmitBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span>Adding…';
 
-  let groupingImageValue = '';
+  let uploadedGroupingImageValue = '';
   if (awGroupingImgFiles.length) {
-    const prog=document.getElementById('awGroupingImgProgress'); if(prog) prog.style.display='flex';
-    showToast('Uploading '+awGroupingImgFiles.length+' image(s)…','info');
-    try {
-      const urls = await Promise.all(awGroupingImgFiles.map(f=>uploadImageToSupabase(f)));
-      groupingImageValue = serializeGroupingImages(urls);
-    } catch(e) {
-      showToast('Image upload failed: '+e.message,'error');
-      btn.disabled=false; btn.innerHTML='Add Work';
-      if(document.getElementById('awGroupingImgProgress')) document.getElementById('awGroupingImgProgress').style.display='none';
-      return;
-    }
-    if(document.getElementById('awGroupingImgProgress')) document.getElementById('awGroupingImgProgress').style.display='none';
+    const progressEl = document.getElementById('awGroupingImgProgress');
+    if (progressEl) progressEl.style.display = 'flex';
+    showToast('Uploading ' + awGroupingImgFiles.length + ' grouping image(s)…', 'info');
+    try { const uploadedUrls = await Promise.all(awGroupingImgFiles.map(f => uploadFileToDrive(f))); uploadedGroupingImageValue = serializeGroupingImages(uploadedUrls); }
+    catch(e) { showToast('Image upload failed: ' + e.message, 'error'); btn.disabled = false; btn.innerHTML = 'Add Work'; if (document.getElementById('awGroupingImgProgress')) document.getElementById('awGroupingImgProgress').style.display = 'none'; return; }
+    if (document.getElementById('awGroupingImgProgress')) document.getElementById('awGroupingImgProgress').style.display = 'none';
   }
 
-  const sharedLink = document.getElementById('awGroupingLink').value.trim();
-  const sharedCB   = document.getElementById('awCollectionBooked').value.trim();
+  const sharedGroupingLink     = document.getElementById('awGroupingLink').value.trim();
+  const sharedCollectionBooked = document.getElementById('awCollectionBooked').value.trim();
 
-  // Generate WH ID from current max
-  const maxWH = workData.reduce((max,r)=>{ const n=parseInt(String(r.id||'').replace('WH-',''))||0; return n>max?n:max; }, 0);
+  /* Generate next WH ID from in-memory max */
+  const maxWH = warehouseData.reduce((max, r) => { const n = parseInt(String(r['ID']||'').replace('WH-','')) || 0; return n > max ? n : max; }, 0);
+  const now = new Date().toISOString();
+
+  const buildDisplayRow = (id, labelCode, brand, productLine, asin, prepInstructions, bundle, dgLabel, polyBag, warningLabel, barcode, box, barcodeImage, productImage, groupingLink, groupingImage, collectionBooked, unitsRequired) => ({
+    'ID': id, 'Date Created': now, 'Last Updated': now,
+    'Label Code': labelCode, 'Brand': brand, 'Product Line': productLine, 'ASIN': asin,
+    'Prep Instructions': prepInstructions, 'Bundle': bundle, 'DG Label': dgLabel,
+    'Poly Bag': polyBag, 'Warning Label': warningLabel, 'Barcode': barcode, 'Box': box,
+    'Barcode Image': barcodeImage, 'Product Image': productImage,
+    'Grouping Link': groupingLink, 'Grouping Image': groupingImage, 'Collection Booked': collectionBooked,
+    'Units Required': unitsRequired, 'Veeqo Stock Adjusted': '', 'Units Completed': 0, 'UPS Collected': ''
+  });
 
   if (validRows.length === 1) {
-    const r=validRows[0], m=r.match||{};
-    const newId = 'WH-' + String(maxWH + 1).padStart(4,'0');
-    const now = new Date().toISOString();
-    const newRow = {
-      id: newId, created_at: now, updated_at: now,
-      label_code: r.code, brand: m.brand||'', product_line: m.product_line||'',
-      asin: m.asin||'', prep_instructions: m.prep_instructions||'',
-      bundle: m.bundle||'', dg_label: m.dg_label||'', poly_bag: m.poly_bag||'',
-      warning_label: m.warning_label||'', barcode: m.barcode||'', box: m.box||'',
-      barcode_image: m.barcode_image||'', product_image: m.product_image||'',
-      grouping_link: sharedLink||m.grouping_link||'',
-      grouping_image: groupingImageValue||m.grouping_image||'',
-      collection_booked: sharedCB||m.collection_booked||'',
-      units_required: Number(r.units)||0, veeqo_adjusted:'', units_completed:0, ups_collected:''
-    };
-    workData.unshift(newRow);
-    closeAddWorkModal(); applyFilters();
-    showToast('1 work item added','success');
-    btn.disabled=false; btn.innerHTML='Add Work';
-    const { data: inserted, error } = await sb.from('fba_work').insert(newRow).select().single();
-    if (error) { workData=workData.filter(r=>r.id!==newId); showToast('Error: '+error.message,'error'); }
-    else if (inserted) { const idx=workData.findIndex(r=>r.id===newId); if(idx>-1) workData[idx]=inserted; }
+    const r = validRows[0], m = r.match || {};
+    const newId = 'WH-' + String(maxWH + 1).padStart(4, '0');
+    const newDisplayRow = buildDisplayRow(newId, r.code, m['Brand']||'', m['Product Line']||'', m['ASIN']||'', m['Prep Instructions']||'', m['Bundle']||'', m['DG Label']||'', m['Poly Bag']||'', m['Warning Label']||'', m['Barcode']||'', m['Box']||'', m['Barcode Image']||'', m['Product Image']||'', sharedGroupingLink||m['Grouping Link']||'', uploadedGroupingImageValue||m['Grouping Image']||'', sharedCollectionBooked||m['Collection Booked']||'', Number(r.units)||0);
+    warehouseData.unshift(newDisplayRow); closeAddWorkModal(); applyFilters();
+    showToast('1 work item added', 'success'); btn.disabled = false; btn.innerHTML = 'Add Work';
+    const { data: inserted, error } = await sb.from('fba_work').insert(displayRowToSb(newDisplayRow)).select().single();
+    if (error) { warehouseData = warehouseData.filter(r => r['ID'] !== newId); showToast('Error adding work: ' + error.message, 'error'); }
+    else if (inserted) { const idx = warehouseData.findIndex(r => r['ID'] === newId); if (idx > -1) warehouseData[idx] = sbRowToDisplay(inserted); }
     applyFilters();
   } else {
-    const first=validRows[0].match||{};
-    const totalUnits = validRows.reduce((s,r)=>s+(Number(r.units)||0),0);
-    const combinedLabel = validRows.map(r=>r.code+' ('+r.units+')').join(' + ');
-    const batchItems = validRows.map(r=>({
-      labelCode:r.code, units:Number(r.units)||0,
-      brand:(r.match||{}).brand||'', productLine:(r.match||{}).product_line||'',
-      asin:(r.match||{}).asin||'', bundle:(r.match||{}).bundle||'',
-      dgLabel:(r.match||{}).dg_label||'', polyBag:(r.match||{}).poly_bag||'',
-      warningLabel:(r.match||{}).warning_label||'', barcode:(r.match||{}).barcode||'',
-      box:(r.match||{}).box||'', barcodeImage:(r.match||{}).barcode_image||'',
-      productImage:(r.match||{}).product_image||'', prepInstructions:(r.match||{}).prep_instructions||''
-    }));
-    const newId = 'WH-' + String(maxWH + 1).padStart(4,'0');
-    const now = new Date().toISOString();
-    const newRow = {
-      id: newId, created_at: now, updated_at: now,
-      label_code: combinedLabel, brand: first.brand||'',
-      product_line: validRows.map(r=>(r.match||{}).product_line||r.code).join(' / '),
-      asin: first.asin||'', prep_instructions: JSON.stringify(batchItems),
-      bundle: first.bundle||'', dg_label: first.dg_label||'',
-      poly_bag: first.poly_bag||'', warning_label: first.warning_label||'',
-      barcode: first.barcode||'', box: first.box||'',
-      barcode_image: first.barcode_image||'', product_image: first.product_image||'',
-      grouping_link: sharedLink||first.grouping_link||'',
-      grouping_image: groupingImageValue||first.grouping_image||'',
-      collection_booked: sharedCB||first.collection_booked||'',
-      units_required: totalUnits, veeqo_adjusted:'', units_completed:0, ups_collected:''
-    };
-    workData.unshift(newRow);
-    closeAddWorkModal(); applyFilters();
-    showToast('Batch of '+validRows.length+' label codes added as 1 work item','success');
-    btn.disabled=false; btn.innerHTML='Add Work';
-    const { data: inserted, error } = await sb.from('fba_work').insert(newRow).select().single();
-    if (error) { workData=workData.filter(r=>r.id!==newId); showToast('Error: '+error.message,'error'); }
-    else if (inserted) { const idx=workData.findIndex(r=>r.id===newId); if(idx>-1) workData[idx]=inserted; }
+    const first = validRows[0].match || {};
+    const labelCodes = validRows.map(r => r.code), unitsList = validRows.map(r => Number(r.units)||0);
+    const totalUnits = unitsList.reduce((a,b) => a+b, 0);
+    const combinedLabel = labelCodes.map((c, i) => c + ' (' + unitsList[i] + ')').join(' + ');
+    const batchItems = validRows.map((r, i) => {
+      const m = r.match || {};
+      return { labelCode:r.code, units:Number(r.units)||0, brand:m['Brand']||'', productLine:m['Product Line']||'', asin:m['ASIN']||'', bundle:m['Bundle']||'', dgLabel:m['DG Label']||'', polyBag:m['Poly Bag']||'', warningLabel:m['Warning Label']||'', barcode:m['Barcode']||'', box:m['Box']||'', barcodeImage:m['Barcode Image']||'', productImage:m['Product Image']||'', prepInstructions:m['Prep Instructions']||'' };
+    });
+    const newId = 'WH-' + String(maxWH + 1).padStart(4, '0');
+    const newDisplayRow = buildDisplayRow(newId, combinedLabel, first['Brand']||'', validRows.map(r=>(r.match||{})['Product Line']||r.code).join(' / '), first['ASIN']||'', JSON.stringify(batchItems), first['Bundle']||'', first['DG Label']||'', first['Poly Bag']||'', first['Warning Label']||'', first['Barcode']||'', first['Box']||'', first['Barcode Image']||'', first['Product Image']||'', sharedGroupingLink||first['Grouping Link']||'', uploadedGroupingImageValue||first['Grouping Image']||'', sharedCollectionBooked||first['Collection Booked']||'', totalUnits);
+    warehouseData.unshift(newDisplayRow); closeAddWorkModal(); applyFilters();
+    showToast('Batch of ' + validRows.length + ' label codes added as 1 work item', 'success'); btn.disabled = false; btn.innerHTML = 'Add Work';
+    const { data: inserted, error } = await sb.from('fba_work').insert(displayRowToSb(newDisplayRow)).select().single();
+    if (error) { warehouseData = warehouseData.filter(r => r['ID'] !== newId); showToast('Error creating batch work item: ' + error.message, 'error'); }
+    else if (inserted) { const idx = warehouseData.findIndex(r => r['ID'] === newId); if (idx > -1) warehouseData[idx] = sbRowToDisplay(inserted); }
     applyFilters();
   }
 }
 
-/* ══════════════════════════════════════════════
-   COMPLETED MODAL
-══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════
+   COMPLETED MODAL — identical to original
+══════════════════════════════════════════════════ */
 function showCompletedModal() {
-  const completed = workData.filter(r=>getBucket(r)==='completed');
+  const completed = warehouseData.filter(r => getBucket(r) === 'completed');
   document.getElementById('completedModalCount').textContent = completed.length;
-  const cols=[['label_code','Label Code'],['brand','Brand'],['product_line','Product Line'],['asin','ASIN'],['units_required','Units Req.']];
-  let html='<table class="data-table"><thead><tr>'+cols.map(([,l])=>'<th>'+l+'</th>').join('')+'</tr></thead><tbody>';
-  if (!completed.length) { html+='<tr><td colspan="'+cols.length+'" style="text-align:center;padding:32px;color:#94a3b8;font-weight:600">No completed records yet</td></tr>'; }
-  else completed.forEach(row=>{
-    const rid=ea(String(row.id||''));
-    html+='<tr onclick="closeCompletedModal();openDrawer(\''+rid+'\',\'work\')">'+cols.map(([c])=>'<td>'+esc(String(row[c]??'—'))+'</td>').join('')+'</tr>';
-  });
-  html+='</tbody></table>';
-  document.getElementById('completedModalBody').innerHTML=html;
+  const cols = ['Label Code', 'Brand', 'Product Line', 'ASIN', 'Units Required'];
+  let html = '<table class="data-table"><thead><tr>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>';
+  if (!completed.length) { html += '<tr><td colspan="' + cols.length + '" style="text-align:center;padding:32px;color:#94a3b8;font-weight:600">No completed records yet</td></tr>'; }
+  else { completed.forEach(row => { const rid = ea(String(row['ID'] || '')); html += '<tr onclick="closeCompletedModal(); openDrawer(\'' + rid + '\',\'warehouse\')">' + cols.map(c => '<td>' + esc(String(row[c] ?? '—')) + '</td>').join('') + '</tr>'; }); }
+  html += '</tbody></table>';
+  document.getElementById('completedModalBody').innerHTML = html;
   document.getElementById('completedModalOverlay').classList.add('visible');
 }
-function closeCompletedModal(e) {
-  if(e && e.target!==document.getElementById('completedModalOverlay')) return;
-  document.getElementById('completedModalOverlay').classList.remove('visible');
-}
+function closeCompletedModal(e) { if (e && e.target !== document.getElementById('completedModalOverlay')) return; document.getElementById('completedModalOverlay').classList.remove('visible'); }
 
-/* ══════════════════════════════════════════════
-   TOAST
-══════════════════════════════════════════════ */
-function showToast(msg, type) {
-  const c=document.getElementById('toastContainer');
-  if (type==='success'||type==='error') c.querySelectorAll('.toast.info').forEach(t=>t.remove());
-  const t=document.createElement('div');
-  t.className='toast '+(type||'');
-  const icons={
-    success:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-    error:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
-    info:'<span class="spinner sm"></span>'
-  };
-  t.innerHTML=(icons[type]||'')+esc(msg);
-  c.appendChild(t);
-  setTimeout(()=>t.remove(), type==='info'?10000:2800);
-}
-
-/* ── SVG ICONS ── */
+/* ══════════════════════════════════════════════════
+   SVG ICONS — identical to original
+══════════════════════════════════════════════════ */
 function svgGrid()      { return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>'; }
 function svgPackage()   { return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>'; }
 function svgWarehouse() { return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'; }
@@ -1505,43 +1427,115 @@ function svgTrash()     { return '<svg width="13" height="13" viewBox="0 0 24 24
 function svgCheck()     { return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'; }
 function svgWarning()   { return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'; }
 
-/* ── DRAG & DROP ── */
-(function(){
-  const ALLOWED=['image/png','image/jpeg','image/webp','application/pdf'];
-  function setup(areaId, fileInputId, previewFn) {
-    const area=document.getElementById(areaId); if(!area) return;
-    area.addEventListener('dragover',e=>{ e.preventDefault(); area.classList.add('dragging'); });
-    area.addEventListener('dragleave',e=>{ if(!area.contains(e.relatedTarget)) area.classList.remove('dragging'); });
-    area.addEventListener('drop',e=>{
+/* ══════════════════════════════════════════════════
+   TOAST — identical to original
+══════════════════════════════════════════════════ */
+function showToast(msg, type) {
+  const c = document.getElementById('toastContainer');
+  if (type === 'success' || type === 'error') c.querySelectorAll('.toast.info').forEach(t => t.remove());
+  const t = document.createElement('div'); t.className = 'toast ' + (type || '');
+  const icons = { success: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>', error: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>', info: '<span class="spinner sm"></span>' };
+  t.innerHTML = (icons[type] || '') + esc(msg);
+  c.appendChild(t); setTimeout(() => t.remove(), type === 'info' ? 10000 : 2800);
+}
+
+/* ══════════════════════════════════════════════════
+   DOWNLOAD FILE — identical to original
+══════════════════════════════════════════════════ */
+async function downloadFile(url, e) {
+  e.preventDefault();
+  try {
+    const res = await fetch(url); const blob = await res.blob();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    const ext = url.split('.').pop().split('?')[0] || 'file'; a.download = 'barcode.' + ext;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  } catch(err) { window.open(url, '_blank'); }
+}
+window.downloadFile = downloadFile;
+
+/* ══════════════════════════════════════════════════
+   TOGGLE HELPERS — identical to original
+══════════════════════════════════════════════════ */
+function toggleBatchRow(id) {
+  const row = document.getElementById(id + '_row'), lbl = document.getElementById(id + '_lbl'); if (!row) return;
+  const isHidden = row.style.display === 'none'; row.style.display = isHidden ? 'table-row' : 'none';
+  if (lbl) lbl.innerHTML = isHidden ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>' + (row.querySelectorAll('[style*="min-width"]').length) + ' products — collapse' : '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>' + (row.querySelectorAll('[style*="min-width"]').length) + ' products — expand to see details';
+}
+window.toggleBatchRow = toggleBatchRow;
+
+function toggleDrawerBatch(id) {
+  const panel = document.getElementById(id), ico = document.getElementById(id + '_ico'), lbl = document.getElementById(id + '_btn_lbl'); if (!panel) return;
+  const isHidden = panel.style.display === 'none' || panel.style.display === ''; panel.style.display = isHidden ? 'block' : 'none';
+  if (ico) ico.setAttribute('points', isHidden ? '18 15 12 9 6 15' : '6 9 12 15 18 9');
+  if (lbl) lbl.textContent = isHidden ? 'Hide product details' : 'Show all product details';
+}
+window.toggleDrawerBatch = toggleDrawerBatch;
+
+/* ══════════════════════════════════════════════════
+   DRAG & DROP — identical to original
+══════════════════════════════════════════════════ */
+(function() {
+  const ALLOWED = ['image/png','image/jpeg','image/webp','application/pdf'];
+  function setupDragDrop(areaId, fileInputId, previewFn) {
+    const area = document.getElementById(areaId); if (!area) return;
+    area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragging'); });
+    area.addEventListener('dragleave', e => { if (!area.contains(e.relatedTarget)) area.classList.remove('dragging'); });
+    area.addEventListener('drop', e => {
       e.preventDefault(); area.classList.remove('dragging');
-      const file=e.dataTransfer.files[0]; if(!file) return;
-      if(!ALLOWED.includes(file.type)){ alert('Unsupported file type. Please use PNG, JPG, WEBP, or PDF.'); return; }
-      try{ const dt=new DataTransfer(); dt.items.add(file); document.getElementById(fileInputId).files=dt.files; }catch(e){}
-      previewFn({files:[file]});
+      const file = e.dataTransfer.files[0]; if (!file) return;
+      if (!ALLOWED.includes(file.type)) { alert('Unsupported file type. Please use PNG, JPG, WEBP, or PDF.'); return; }
+      try { const dt = new DataTransfer(); dt.items.add(file); document.getElementById(fileInputId).files = dt.files; } catch(e) {}
+      previewFn({ files: [file] });
     });
   }
-  setup('nProductImgUploadArea','nProductImgFile',previewProductImage);
-  setup('nBarcodeUploadArea','nBarcodeFile',previewBarcodeImage);
+  setupDragDrop('nProductImgUploadArea', 'nProductImgFile', previewProductImage);
+  setupDragDrop('nBarcodeUploadArea',    'nBarcodeFile',    previewBarcodeImage);
 })();
 
-/* ── GLOBAL EXPOSURES ── */
-window.closeDrawer=closeDrawer; window.switchTab=switchTab; window.markDirty=markDirty; window.markBool=markBool;
-window.saveAllChanges=saveAllChanges; window.deleteRecord=deleteRecord; window.deleteFBAProduct=deleteFBAProduct;
-window.openDrawer=openDrawer; window.openWorkTableModal=openWorkTableModal; window.closeWorkTableModal=closeWorkTableModal;
-window.renderWorkTable=renderWorkTable; window.openProductsModal=openProductsModal; window.closeProductsModal=closeProductsModal;
-window.renderProductsTable=renderProductsTable; window.openNewProductForm=openNewProductForm; window.closeNewModal=closeNewModal;
-window.createRecord=createRecord; window.setFormBool=setFormBool; window.openAddWorkModal=openAddWorkModal;
-window.closeAddWorkModal=closeAddWorkModal; window.submitAddWork=submitAddWork; window.showCompletedModal=showCompletedModal;
-window.closeCompletedModal=closeCompletedModal; window.applyFilters=applyFilters;
-window.addLabelCodeRow=addLabelCodeRow; window.removeLabelCodeRow=removeLabelCodeRow; window.onLcRowInput=onLcRowInput;
-window.previewBarcodeImage=previewBarcodeImage; window.clearBarcodeImage=clearBarcodeImage;
-window.previewProductImage=previewProductImage; window.clearProductImage=clearProductImage;
-window.openBarcodeImageUpload=openBarcodeImageUpload; window.openProductImageUpload=openProductImageUpload;
-window.handleDrawerBarcodeUpload=handleDrawerBarcodeUpload; window.handleDrawerProductImageUpload=handleDrawerProductImageUpload;
-window.handleGroupingImagesUpload=handleGroupingImagesUpload;
-window.previewAwGroupingImages=previewAwGroupingImages; window.removeAwGroupingImg=removeAwGroupingImg;
+/* ══════════════════════════════════════════════════
+   GLOBAL EXPOSURE — identical to original
+══════════════════════════════════════════════════ */
+window.previewProductImage             = previewProductImage;
+window.clearProductImage               = clearProductImage;
+window.openProductImageUpload          = openProductImageUpload;
+window.handleDrawerProductImageUpload  = handleDrawerProductImageUpload;
+window.closeDrawer                     = closeDrawer;
+window.switchTab                       = switchTab;
+window.markDirty                       = markDirty;
+window.markBool                        = markBool;
+window.saveAllChanges                  = saveAllChanges;
+window.deleteRecord                    = deleteRecord;
+window.deleteFBAProduct                = deleteFBAProduct;
+window.openWorkTableModal              = openWorkTableModal;
+window.closeWorkTableModal             = closeWorkTableModal;
+window.renderWorkTable                 = renderWorkTable;
+window.openProductsModal               = openProductsModal;
+window.closeProductsModal              = closeProductsModal;
+window.openNewProductForm              = openNewProductForm;
+window.closeNewModal                   = closeNewModal;
+window.createRecord                    = createRecord;
+window.setFormBool                     = setFormBool;
+window.openAddWorkModal                = openAddWorkModal;
+window.closeAddWorkModal               = closeAddWorkModal;
+window.submitAddWork                   = submitAddWork;
+window.showCompletedModal              = showCompletedModal;
+window.closeCompletedModal             = closeCompletedModal;
+window.applyFilters                    = applyFilters;
+window.openDrawer                      = openDrawer;
+window.openDrawerFromProductsTable     = openDrawerFromProductsTable;
+window.renderProductsTable             = renderProductsTable;
+window.addLabelCodeRow                 = addLabelCodeRow;
+window.removeLabelCodeRow              = removeLabelCodeRow;
+window.onLcRowInput                    = onLcRowInput;
+window.previewBarcodeImage             = previewBarcodeImage;
+window.clearBarcodeImage               = clearBarcodeImage;
+window.openBarcodeImageUpload          = openBarcodeImageUpload;
+window.handleDrawerBarcodeUpload       = handleDrawerBarcodeUpload;
+window.handleGroupingImagesUpload      = handleGroupingImagesUpload;
 
-/* ── INIT ── */
+/* ══════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════ */
 loadData();
 
 })();
