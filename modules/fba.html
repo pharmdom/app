@@ -1042,6 +1042,22 @@ async function saveAllChanges() {
   if (error) showToast('Sync error: ' + error.message, 'error');
 }
 
+
+function extractStoragePaths(row) {
+  const supabaseBase = 'https://mbmgcqknbajwndiveewf.supabase.co/storage/v1/object/public/fba-images/';
+  const urls = [];
+  const fields = ['Product Image', 'Barcode Image'];
+  fields.forEach(f => { const v = row[f]; if (v && v.includes('supabase.co')) urls.push(v); });
+  const gi = row['Grouping Image'] || '';
+  if (gi) { try { const arr = JSON.parse(gi); arr.forEach(u => { if (u && u.includes('supabase.co')) urls.push(u); }); } catch(e) {} }
+  return urls.map(u => u.replace(supabaseBase, '')).filter(Boolean);
+}
+
+async function deleteStorageFiles(paths) {
+  if (!paths.length) return;
+  await sb.storage.from(STORAGE_BUCKET).remove(paths);
+}
+  
 /* ══════════════════════════════════════════════════
    DELETE — replaces callApi deleteWarehouse/deleteFBA
 ══════════════════════════════════════════════════ */
@@ -1056,8 +1072,11 @@ async function deleteRecord(id) {
   btn.classList.remove('confirming'); btn.classList.add('deleting'); btn.innerHTML = '<span class="spinner sm"></span>Deleting…';
   const card = document.querySelector('.kanban-card[data-id="' + id + '"]');
   if (card) card.classList.add('card-deleting');
+  const rowToDelete = warehouseData.find(r => String(r['ID']) === String(id));
+  const storagePaths = rowToDelete ? extractStoragePaths(rowToDelete) : [];
   const { error } = await sb.from('fba_work').delete().eq('id', id);
   if (!error) {
+    await deleteStorageFiles(storagePaths);
     const idx = warehouseData.findIndex(r => String(r['ID']) === String(id));
     if (idx > -1) warehouseData.splice(idx, 1);
     setTimeout(() => { drawerDirtyFields = {}; drawerCurrentId = null; drawerSource = null; document.getElementById('detailDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('visible'); applyFilters(); showToast('Record deleted', 'success'); }, 420);
@@ -1077,8 +1096,11 @@ async function deleteFBAProduct(id) {
   }
   clearTimeout(deletePendingTimer);
   btn.classList.remove('confirming'); btn.classList.add('deleting'); btn.innerHTML = '<span class="spinner sm"></span>Deleting…';
+  const rowToDelete = fbaData.find(r => String(r['ID']) === String(id));
+  const storagePaths = rowToDelete ? extractStoragePaths(rowToDelete) : [];
   const { error } = await sb.from('fba_products').delete().eq('id', id);
   if (!error) {
+    await deleteStorageFiles(storagePaths);
     const idx = fbaData.findIndex(r => String(r['ID']) === String(id));
     if (idx > -1) fbaData.splice(idx, 1);
     setTimeout(() => { drawerDirtyFields = {}; drawerCurrentId = null; drawerSource = null; document.getElementById('detailDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('visible'); renderProductsTable(); showToast('Product deleted', 'success'); }, 420);
