@@ -1096,18 +1096,14 @@ function showSupTransition(msg,cb){
 
 /* ── DELETE ── */
 function confirmDeleteOffer(id){
-  openConfirm('Delete Offer?','This offer will be permanently removed.',async()=>{
-    closeConfirm();
-    const tid=toast('Deleting…','loading',0);
-    try{
-      const{error}=await sb.from('offers').delete().eq('id',id);
-      if(error)throw error;
-      offersData=offersData.filter(r=>String(r.id)!==String(id));
-      populateFilters();renderView();updateChips();
-      removeToast(tid);toast('Offer deleted','success');
-      advanceAfterAction(id);
-    }catch(e){removeToast(tid);toast('Delete failed: '+e.message,'error');}
-  },'Delete');
+  const tid=toast('Deleting…','loading',0);
+  sb.from('offers').delete().eq('id',id).then(({error})=>{
+    if(error){removeToast(tid);toast('Delete failed: '+error.message,'error');return;}
+    offersData=offersData.filter(r=>String(r.id)!==String(id));
+    populateFilters();renderView();updateChips();
+    removeToast(tid);toast('Offer deleted','success');
+    advanceAfterAction(id);
+  });
 }
 
 /* ── REJECT ── */
