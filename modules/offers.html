@@ -898,7 +898,23 @@ function renderCards(data,area){
     html+=`<div class="c-body"><div class="c-name">${esc(pname)}</div>`;
     if(sup)html+=`<div class="c-sup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>${esc(sup)}</div>`;
     if(ean)html+=`<div class="c-ean">${eanLink(ean)}</div>`;
-    html+=`<div class="c-foot"><span class="c-cost${cf==='—'?' no-price':''}" style="cursor:pointer" onclick="openDrawer('${esc(String(r.id))}')">${esc(cf)}</span><span class="c-date">${esc(fmtDateSh(r.date))}</span></div></div>`;
+    const catalogPrice=_catalogMap[String(ean).trim()];
+    let catBadgeHtml='';
+    if(catalogPrice!=null&&ean){
+      const offerVal=parseFloat(r.cost_of_unit);const catVal=parseFloat(catalogPrice);
+      let indicator='',indColor='#64748b';
+      if(!isNaN(offerVal)&&!isNaN(catVal)){
+        if(offerVal<catVal){indicator=`▼${((catVal-offerVal)/catVal*100).toFixed(0)}%`;indColor='#15803d';}
+        else if(offerVal>catVal){indicator=`▲${((offerVal-catVal)/catVal*100).toFixed(0)}%`;indColor='#b91c1c';}
+        else{indicator='=';}
+      }
+      catBadgeHtml=`<div style="display:flex;align-items:center;gap:4px;margin-top:6px;padding:3px 7px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:10px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.2" style="width:9px;height:9px;flex-shrink:0"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-10 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+        <span style="color:#15803d;font-weight:700">${esc(fmtCost(catalogPrice))}</span>
+        ${indicator?`<span style="color:${indColor};font-weight:800;font-size:9px">${indicator}</span>`:''}
+      </div>`;
+    }
+    html+=`<div class="c-foot"><span class="c-cost${cf==='—'?' no-price':''}" style="cursor:pointer" onclick="openDrawer('${esc(String(r.id))}')">${esc(cf)}</span><span class="c-date">${esc(fmtDateSh(r.date))}</span></div>${catBadgeHtml}</div>`;
     card.innerHTML=html;
     grid.appendChild(card);
   });
@@ -922,7 +938,19 @@ function renderTable(data,area){
     tbl+=`<td>${eanLink(ean)}</td>`;
     tbl+=`<td style="font-weight:600">${esc(pname)}</td>`;
     tbl+=`<td><span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:${colour.fg}"><span style="width:6px;height:6px;border-radius:50%;background:${colour.bar};flex-shrink:0;display:inline-block"></span>${esc(sup)}</span></td>`;
-    tbl+=`<td><span class="tbl-price">${esc(cf)}</span></td>`;
+    const catP=_catalogMap[String(ean).trim()];
+    let catCell='';
+    if(catP!=null&&ean){
+      const ov=parseFloat(r.cost_of_unit),cv=parseFloat(catP);
+      let ind='',indColor='#64748b';
+      if(!isNaN(ov)&&!isNaN(cv)){
+        if(ov<cv){ind=`▼${((cv-ov)/cv*100).toFixed(0)}%`;indColor='#15803d';}
+        else if(ov>cv){ind=`▲${((ov-cv)/cv*100).toFixed(0)}%`;indColor='#b91c1c';}
+        else{ind='=';}
+      }
+      catCell=`<span style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:11px;color:#15803d;background:#f0fdf4;border:1px solid #86efac;padding:2px 7px;border-radius:20px;font-weight:700">${esc(fmtCost(catP))} <span style="color:${indColor};font-size:10px">${ind}</span></span>`;
+    }
+    tbl+=`<td><span class="tbl-price">${esc(cf)}</span>${catCell}</td>`;
     tbl+=`<td style="color:var(--text4);font-size:12px">${esc(fmtDateSh(r.date))}</td>`;
     tbl+='</tr>';
   });
