@@ -79,7 +79,7 @@ body{overflow:hidden}
 .kanban-outer{flex:1;overflow:hidden;min-height:0;padding:14px 18px;display:flex;flex-direction:column;}
 .kanban-wrap{flex:1;display:flex;gap:14px;overflow-x:auto;overflow-y:hidden;min-height:0;padding-bottom:6px;align-items:stretch;}
 .kanban-wrap::-webkit-scrollbar{height:5px}
-.k-col{flex:0 0 268px;min-width:268px;display:flex;flex-direction:column;background:var(--surface);border-radius:var(--r-lg);overflow:hidden;height:calc(100vh - 120px);max-height:calc(100vh - 120px);box-shadow:var(--sh-sm);border:1px solid var(--border);transition:box-shadow .2s,border-color .2s;}
+.k-col{flex:0 0 283px;min-width:283px;display:flex;flex-direction:column;background:var(--surface);border-radius:var(--r-lg);overflow:hidden;height:calc(100vh - 120px);max-height:calc(100vh - 120px);box-shadow:var(--sh-sm);border:1px solid var(--border);transition:box-shadow .2s,border-color .2s;}
 .k-col:hover{box-shadow:var(--sh);border-color:var(--accent-bd);}
 .k-col-hdr{padding:11px 14px 10px;flex-shrink:0;border-bottom:1px solid var(--border2);background:var(--surface);}
 .k-hdr-row{display:flex;align-items:center;gap:9px}
@@ -274,12 +274,44 @@ body{overflow:hidden}
 
 @media(max-width:768px){
   .tnav-chips{display:none}
-  .k-col{flex:0 0 240px;min-width:240px}
+  .k-col{flex:0 0 255px;min-width:255px}
   .card-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
   .drawer{width:100%;max-width:100%}
   .drw-kpis{grid-template-columns:repeat(2,1fr)}
   .det-grid{grid-template-columns:1fr}
 }
+
+
+
+.k-card-actions{display:flex;gap:4px;opacity:0;transition:opacity .15s;flex-shrink:0;}
+.k-card:hover .k-card-actions{opacity:1}
+.k-act-btn{width:24px;height:24px;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;}
+.k-act-btn svg{width:11px;height:11px;pointer-events:none}
+.k-act-approve{background:#dcfce7;color:#15803d;}
+.k-act-approve:hover{background:#15803d;color:#fff}
+.k-act-reject{background:#fef3c7;color:#92400e;}
+.k-act-reject:hover{background:#d97706;color:#fff}
+.k-act-delete{background:#fee2e2;color:#b91c1c;}
+.k-act-delete:hover{background:#b91c1c;color:#fff}
+.k-card-cost{cursor:pointer;}
+
+
+.k-card-select{position:absolute;top:8px;left:8px;width:16px;height:16px;border-radius:4px;border:1.5px solid var(--border);background:rgba(255,255,255,.9);cursor:pointer;opacity:0;transition:opacity .15s;z-index:3;accent-color:var(--accent);}
+.k-card:hover .k-card-select,.k-card-select:checked{opacity:1}
+.k-card{position:relative;}
+.bulk-bar{display:none;align-items:center;gap:10px;padding:8px 18px;background:var(--navy2);color:#fff;font-size:12.5px;font-weight:600;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;}
+.bulk-bar.active{display:flex}
+.bulk-bar-count{flex:1}
+.bulk-bar-btn{display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:var(--r-sm);border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s;}
+.bulk-bar-btn:hover{background:rgba(255,255,255,.18)}
+.bulk-bar-btn.approve{border-color:#4ade80;color:#4ade80}
+.bulk-bar-btn.approve:hover{background:rgba(74,222,128,.15)}
+.bulk-bar-btn.reject{border-color:#fcd34d;color:#fcd34d}
+.bulk-bar-btn.reject:hover{background:rgba(252,211,77,.12)}
+.bulk-bar-btn.del{border-color:#fca5a5;color:#fca5a5}
+.bulk-bar-btn.del:hover{background:rgba(252,165,165,.12)}
+.bulk-bar-btn svg{width:12px;height:12px}
+  
 </style>
 
 <div class="pbar" id="pbar"></div>
@@ -349,6 +381,25 @@ body{overflow:hidden}
   <div class="drawer-body" id="drawerBody"></div>
   <div class="drawer-foot" id="drawerFoot"></div>
 </div>
+
+
+
+<div class="bulk-bar" id="bulkBar">
+  <span class="bulk-bar-count" id="bulkCount">0 selected</span>
+  <button class="bulk-bar-btn approve" onclick="bulkApprove()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Approve
+  </button>
+  <button class="bulk-bar-btn reject" onclick="bulkReject()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>Reject
+  </button>
+  <button class="bulk-bar-btn del" onclick="bulkDelete()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete
+  </button>
+  <button class="bulk-bar-btn" onclick="clearBulkSelection()" style="margin-left:auto">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Clear
+  </button>
+</div>
+
 
 <div class="offers-app" id="offersApp">
   <nav class="topnav">
@@ -429,6 +480,7 @@ let _navIndex    = 0;
 let _navSupplier = '';
 let _navAllGroups= [];
 let _mergeSelected = [];
+let _catalogMap = {}; // ean -> price
 
 /* ── SUPABASE ── */
 const SB_URL = 'https://mbmgcqknbajwndiveewf.supabase.co';
@@ -533,6 +585,84 @@ function toast(msg,type,dur){
 }
 function removeToast(id){document.getElementById(id)?.remove();}
 
+let _bulkSelected = new Set();
+
+function updateBulkBar(){
+  const bar=document.getElementById('bulkBar');
+  const count=_bulkSelected.size;
+  bar.classList.toggle('active',count>0);
+  document.getElementById('bulkCount').textContent=count+' selected';
+}
+function clearBulkSelection(){
+  _bulkSelected.clear();
+  document.querySelectorAll('.k-card-select').forEach(cb=>cb.checked=false);
+  updateBulkBar();
+}
+async function bulkApprove(){
+  const ids=[..._bulkSelected];
+  if(!ids.length)return;
+  const tid=toast('Approving '+ids.length+'…','loading',0);
+  let done=0;
+  for(const id of ids){
+    try{
+      const offer=offersData.find(r=>String(r.id)===String(id));
+      if(!offer)continue;
+      const{count}=await sb.from('sourcing').select('*',{count:'exact',head:true});
+      const oppId='SRC-'+String((count||0)+1).padStart(6,'0');
+      const now=new Date().toISOString();
+      await sb.from('sourcing').insert({opportunity_id:oppId,agent:_agentName,created_at:now,last_updated:now,supplier_name:offer.supplier_name||'',code:offer.code||offer.ean||'',product_name:offer.product_name||'',cost_of_unit:offer.cost_of_unit||null,unit_quantity:offer.unit_quantity||offer.case_qty||null,purchased:false,approved:false,source:'Offer'});
+      await sb.from('offers').delete().eq('id',id);
+      offersData=offersData.filter(r=>String(r.id)!==String(id));
+      done++;
+    }catch(e){}
+  }
+  _bulkSelected.clear();
+  populateFilters();renderView();updateChips();updateBulkBar();
+  removeToast(tid);toast(done+' offers approved','success');
+}
+async function bulkDelete(){
+  const ids=[..._bulkSelected];
+  if(!ids.length)return;
+  openConfirm('Delete '+ids.length+' Offers?','These offers will be permanently removed.',async()=>{
+    closeConfirm();
+    const tid=toast('Deleting…','loading',0);
+    for(const id of ids){
+      try{
+        await sb.from('offers').delete().eq('id',id);
+        offersData=offersData.filter(r=>String(r.id)!==String(id));
+      }catch(e){}
+    }
+    _bulkSelected.clear();
+    populateFilters();renderView();updateChips();updateBulkBar();
+    removeToast(tid);toast(ids.length+' offers deleted','success');
+  },'Delete All');
+}
+function bulkReject(){
+  const ids=[..._bulkSelected];
+  if(!ids.length)return;
+  _rejectId='__bulk__';
+  _bulkRejectIds=ids;
+  const ta=document.getElementById('rejectReason');
+  ta.value='';ta.style.borderColor='';
+  document.getElementById('rejectOverlay').classList.add('open');
+  setTimeout(()=>ta.focus(),150);
+}
+let _bulkRejectIds=[];
+
+
+
+async function loadCatalogPrices(){
+  try{
+    const{data}=await sb.from('catalog').select('ean,price').not('ean','is',null).not('price','is',null);
+    _catalogMap={};
+    (data||[]).forEach(r=>{
+      const k=String(r.ean||'').trim();
+      if(k)_catalogMap[k]=r.price;
+    });
+  }catch(e){ console.warn('Could not load catalog prices',e); }
+}
+  
+  
 /* ── LOAD OFFERS ── */
 async function loadOffers(forceRefresh){
   pStart();
@@ -543,6 +673,7 @@ async function loadOffers(forceRefresh){
     const{data,error}=await sb.from('offers').select('*').order('date',{ascending:false});
     if(error)throw error;
     offersData=data||[];
+    await loadCatalogPrices();
     populateFilters();
     renderView();
     updateChips();
@@ -662,31 +793,92 @@ function renderKanban(data,area){
   });
   outer.appendChild(wrap);area.appendChild(outer);
 }
+
+
 function buildKanbanCard(r,colour,supplierGroup,groupItems){
   const card=document.createElement('div');card.className='k-card';
   const approval=(r.approval||'').toLowerCase();
-const barColor = approval==='approved' ? '#22c55e'
-  : approval==='rejected' ? '#ef4444'
-  : '#e2e8f5';
-card.style.borderLeftColor=barColor;
+  const barColor=approval==='approved'?'#22c55e':approval==='rejected'?'#ef4444':'#e2e8f5';
+  card.style.borderLeftColor=barColor;
   const img=resolveImg(r.product_image||'');
   const ean=r.ean||'';
   const cost=r.cost_of_unit;
   const date=fmtDateSh(r.date);
   const pname=r.product_name||'—';
+  const rid=String(r.id);
   let html='';
   if(img){html+=`<div class="k-card-img-wrap"><img src="${esc(img)}" alt="" loading="lazy" onerror="this.closest('.k-card-img-wrap').style.display='none'"><button class="k-zoom-btn" onclick="event.stopPropagation();openLightbox('${esc(img)}')" title="View image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button></div>`;}
   html+=`<div class="k-card-name" title="${esc(pname)}">${esc(pname)}</div>`;
   if(ean){html+=`<div class="k-card-ean"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;flex-shrink:0"><rect x="2" y="4" width="3" height="15"/><rect x="7" y="4" width="2" height="15"/><rect x="11" y="4" width="4" height="15"/><rect x="17" y="4" width="2" height="15"/></svg>${eanLink(ean)}</div>`;}
   const cf=fmtCost(cost);
-  html+=`<div class="k-card-foot"><span class="k-card-cost${cf==='—'?' no-price':''}">${esc(cf)}</span><span class="k-card-date">${esc(date)}</span></div>`;
+  const catalogPrice=_catalogMap[String(ean).trim()];
+  let catalogHtml='';
+  if(catalogPrice!=null&&ean){
+    const offerVal=parseFloat(cost);
+    const catVal=parseFloat(catalogPrice);
+    let indicator='';
+    if(!isNaN(offerVal)&&!isNaN(catVal)){
+      if(offerVal<catVal){indicator=`<span style="color:#15803d;font-size:9px;font-weight:800;display:inline-flex;align-items:center;gap:1px">▼${((catVal-offerVal)/catVal*100).toFixed(0)}%</span>`;}
+      else if(offerVal>catVal){indicator=`<span style="color:#b91c1c;font-size:9px;font-weight:800;display:inline-flex;align-items:center;gap:1px">▲${((offerVal-catVal)/catVal*100).toFixed(0)}%</span>`;}
+      else{indicator=`<span style="color:#64748b;font-size:9px;font-weight:700">=</span>`;}
+    }
+    catalogHtml=`<div style="display:flex;align-items:center;gap:4px;margin-top:3px;padding:3px 6px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:10px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.2" style="width:9px;height:9px;flex-shrink:0"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-10 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
+      <span style="color:#15803d;font-weight:700">${esc(fmtCost(catalogPrice))}</span>
+      ${indicator}
+    </div>`;
+  }
+  html+=`<div class="k-card-foot">
+    <span class="k-card-cost${cf==='—'?' no-price':''}" data-id="${esc(rid)}" onclick="event.stopPropagation();_openCardDrawer('${esc(rid)}','${esc(supplierGroup)}')">${esc(cf)}</span>
+    <div style="display:flex;align-items:center;gap:5px">
+      <span class="k-card-date">${esc(date)}</span>
+      <div class="k-card-actions">
+        <button class="k-act-btn k-act-approve" onclick="event.stopPropagation();doApproveOfferCard('${esc(rid)}')" title="Approve">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+        <button class="k-act-btn k-act-reject" onclick="event.stopPropagation();openRejectModal('${esc(rid)}')" title="Reject">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        </button>
+        <button class="k-act-btn k-act-delete" onclick="event.stopPropagation();confirmDeleteOffer('${esc(rid)}')" title="Delete">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>`;
+  if(catalogHtml)html+=catalogHtml;
   card.innerHTML=html;
-  card.addEventListener('click',()=>{
-    document.querySelectorAll('.k-card').forEach(c=>c.classList.remove('active'));
-    card.classList.add('active');
-    openDrawerWithContext(r.id,supplierGroup,groupItems);
+
+  const cb=document.createElement('input');
+  cb.type='checkbox';cb.className='k-card-select';
+  cb.checked=_bulkSelected.has(rid);
+  cb.addEventListener('change',e=>{
+    e.stopPropagation();
+    if(cb.checked)_bulkSelected.add(rid);else _bulkSelected.delete(rid);
+    updateBulkBar();
   });
+  card.appendChild(cb);
+  // card itself no longer opens drawer — only the price pill does
   return card;
+}
+
+
+  function _openCardDrawer(id,supplierGroup){
+  const allRaw=[];
+  offersData.forEach(r=>{const s=r.supplier_name||'';if(s&&allRaw.indexOf(s)<0)allRaw.push(s);});
+  const supMap=buildSupplierMap(allRaw);
+  const groupItems=offersData.filter(r=>{
+    const canonical=supMap[r.supplier_name||'']||(r.supplier_name||'Unknown');
+    return canonical===supplierGroup&&(r.approval||'').toLowerCase()!=='rejected';
+  });
+  document.querySelectorAll('.k-card').forEach(c=>c.classList.remove('active'));
+  const card=document.querySelector(`.k-card-cost[data-id="${id}"]`);
+  if(card)card.closest('.k-card').classList.add('active');
+  openDrawerWithContext(id,supplierGroup,groupItems);
+}
+
+async function doApproveOfferCard(id){
+  const fakeBtn=document.createElement('button');
+  await doApproveOffer(id,fakeBtn);
 }
 
 /* ── CARDS ── */
@@ -810,6 +1002,26 @@ function renderDrawer(row){
       ${kpi('Date',fmtDateSh(row.date)||'—')}
       ${kpi('Case',String(row.case_qty||row.unit_quantity||'—'))}
     </div>
+    ${(()=>{
+      const ean=String(row.ean||'').trim();
+      const catPrice=_catalogMap[ean];
+      if(!ean||catPrice==null)return'';
+      const offerVal=parseFloat(row.cost_of_unit);
+      const catVal=parseFloat(catPrice);
+      let arrow='',arrowColor='rgba(255,255,255,.7)',pct='',bg='rgba(255,255,255,.07)',bd='rgba(255,255,255,.12)';
+      if(!isNaN(offerVal)&&!isNaN(catVal)){
+        if(offerVal<catVal){arrow='▼';arrowColor='#4ade80';pct=((catVal-offerVal)/catVal*100).toFixed(1)+'% below catalog';bg='rgba(74,222,128,.12)';bd='rgba(74,222,128,.25)';}
+        else if(offerVal>catVal){arrow='▲';arrowColor='#f87171';pct=((offerVal-catVal)/catVal*100).toFixed(1)+'% above catalog';bg='rgba(248,113,113,.12)';bd='rgba(248,113,113,.25)';}
+        else{arrow='=';arrowColor='rgba(255,255,255,.55)';pct='matches catalog';}
+      }
+      return`<div style="margin-top:8px;padding:8px 10px;background:${bg};border:1px solid ${bd};border-radius:9px;display:flex;align-items:center;gap:8px;position:relative;z-index:1">
+        <span style="font-size:18px;font-weight:900;color:${arrowColor};line-height:1">${arrow}</span>
+        <div>
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.38)">Catalog Price</div>
+          <div style="font-size:13px;font-weight:800;color:#fff">${esc(fmtCost(catPrice))} <span style="font-size:10px;font-weight:500;color:${arrowColor}">${esc(pct)}</span></div>
+        </div>
+      </div>`;
+    })()}
   </div>`;
 
   let body='<div>';
@@ -909,11 +1121,29 @@ function openRejectModal(id){
   setTimeout(()=>ta.focus(),150);
 }
 function closeRejectModal(){document.getElementById('rejectOverlay').classList.remove('open');_rejectId=null;}
+
+  
 async function doRejectOffer(){
   const reason=(document.getElementById('rejectReason').value||'').trim();
   if(!reason){document.getElementById('rejectReason').style.borderColor='var(--red)';return;}
+  const isBulk=_rejectId==='__bulk__';
+  const ids=isBulk?_bulkRejectIds:[_rejectId];
   const id=_rejectId;
   closeRejectModal();
+  if(isBulk){
+    const tid=toast('Rejecting '+ids.length+'…','loading',0);
+    for(const bid of ids){
+      try{
+        await sb.from('offers').update({approval:'Rejected',note:reason,agent:_agentName}).eq('id',bid);
+        const rec=offersData.find(r=>String(r.id)===String(bid));
+        if(rec){rec.approval='Rejected';rec.note=reason;rec.agent=_agentName;}
+      }catch(e){}
+    }
+    _bulkSelected.clear();_bulkRejectIds=[];
+    populateFilters();renderView();updateChips();updateBulkBar();
+    removeToast(tid);toast(ids.length+' offers rejected','info');
+    return;
+  }
   const tid=toast('Rejecting…','loading',0);
   try{
     const{error}=await sb.from('offers').update({
@@ -1119,6 +1349,7 @@ document.addEventListener('keydown',e=>{
 });
 
 /* ── GLOBALS ── */
+window.bulkApprove=bulkApprove;window.bulkDelete=bulkDelete;window.bulkReject=bulkReject;window.clearBulkSelection=clearBulkSelection;
 window.setView=setView;window.renderView=renderView;
 window.openDrawer=openDrawer;window.closeDrawer=closeDrawer;window.navDrawer=navDrawer;
 window.openLightbox=openLightbox;window.closeLightbox=closeLightbox;
