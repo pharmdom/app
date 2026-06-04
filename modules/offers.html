@@ -870,33 +870,27 @@ if(ean){html+=`<div style="display:flex;align-items:center;justify-content:space
 }
 
 async function doApproveOfferCard(id, btn){
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner spin-sm" style="border-color:rgba(0,0,0,.2);border-top-color:#15803d"></span>';}
-  const tid=toast('Approving…','loading',0);
+  const offer=offersData.find(r=>String(r.id)===String(id));
+  if(!offer)return;
+  // Update UI immediately
+  advanceAfterAction(id);
+  offersData=offersData.filter(r=>String(r.id)!==String(id));
+  _bulkSelected.delete(id);
+  populateFilters();renderView();updateChips();updateBulkBar();
+  toast('Approving…','info',1800);
+  // DB in background
   try{
-    const offer=offersData.find(r=>String(r.id)===String(id));
-    if(!offer)throw new Error('Offer not found');
-    const{count}=await sb.from('sourcing').select('*',{count:'exact',head:true});
-    const oppId='SRC-'+String((count||0)+1).padStart(6,'0');
+    const{data:maxRow}=await sb.from('sourcing').select('opportunity_id').order('opportunity_id',{ascending:false}).limit(1).single();
+    let nextNum=1;
+    if(maxRow?.opportunity_id){const m=maxRow.opportunity_id.match(/\d+/);if(m)nextNum=parseInt(m[0])+1;}
+    const oppId='SRC-'+String(nextNum).padStart(6,'0');
     const now=new Date().toISOString();
-    const{error:sErr}=await sb.from('sourcing').insert({
-      opportunity_id:oppId,agent:_agentName,created_at:now,last_updated:now,
-      supplier_name:offer.supplier_name||'',code:offer.code||offer.ean||'',
-      product_name:offer.product_name||'',cost_of_unit:offer.cost_of_unit||null,
-      unit_quantity:offer.unit_quantity||offer.case_qty||null,
-      purchased:false,approved:false,source:'Offer',
-    });
-    if(sErr)throw sErr;
-    const{error:dErr}=await sb.from('offers').delete().eq('id',id);
-    if(dErr)throw dErr;
-    offersData=offersData.filter(r=>String(r.id)!==String(id));
-    _bulkSelected.delete(id);
-    populateFilters();renderView();updateChips();updateBulkBar();
-    removeToast(tid);toast('Approved — '+oppId,'success');
-  }catch(e){
-    removeToast(tid);toast('Failed to approve: '+e.message,'error');
-    if(btn){btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';}
-  }
+    await sb.from('sourcing').insert({opportunity_id:oppId,agent:_agentName,created_at:now,last_updated:now,supplier_name:offer.supplier_name||'',code:offer.code||offer.ean||'',product_name:offer.product_name||'',cost_of_unit:offer.cost_of_unit||null,unit_quantity:offer.unit_quantity||offer.case_qty||null,purchased:false,approved:false,source:'Offer'});
+    await sb.from('offers').delete().eq('id',id);
+    toast('Approved — '+oppId,'success');
+  }catch(e){toast('Sync error (approve): '+e.message,'error');}
 }
+  
 
 /* ── CARDS ── */
 function renderCards(data,area){
@@ -1106,25 +1100,11 @@ function df(lbl,val){return`<div class="det-field"><label>${esc(lbl)}</label><di
 
 /* ── ADVANCE AFTER ACTION ── */
 function advanceAfterAction(removedId){
-  _navItems=_navItems.filter(r=>String(r.id)!==String(removedId));
-  if(_navItems.length===0){
-    const grpIdx=_navAllGroups.indexOf(_navSupplier);
-    let nextGrp=null;
-    for(let i=grpIdx+1;i<_navAllGroups.length;i++){
-      const gItems=getFilteredGroupItems(_navAllGroups[i]);
-      if(gItems.length){nextGrp=_navAllGroups[i];break;}
-    }
-    if(nextGrp){
-      showSupTransition('Moving to '+nextGrp+'…',()=>{
-        const gItems=getFilteredGroupItems(nextGrp);
-        openDrawerWithContext(String(gItems[0].id),nextGrp,gItems);
-      });
-    }else{closeDrawer();toast('All offers reviewed!','success');}
-    return;
+  if(document.getElementById('detailDrawer').classList.contains('open')){
+    closeDrawer();
   }
-  if(_navIndex>=_navItems.length)_navIndex=_navItems.length-1;
-  renderDrawer(_navItems[_navIndex]);
 }
+  
 function getFilteredGroupItems(supplierKey){
   const allRaw=[];
   offersData.forEach(r=>{const s=r.supplier_name||'';if(s&&allRaw.indexOf(s)<0)allRaw.push(s);});
@@ -1142,13 +1122,13 @@ function showSupTransition(msg,cb){
 
 /* ── DELETE ── */
 function confirmDeleteOffer(id){
-  const tid=toast('Deleting…','loading',0);
+  advanceAfterAction(id);
+  offersData=offersData.filter(r=>String(r.id)!==String(id));
+  _bulkSelected.delete(id);
+  populateFilters();renderView();updateChips();updateBulkBar();
+  toast('Offer deleted','success');
   sb.from('offers').delete().eq('id',id).then(({error})=>{
-    if(error){removeToast(tid);toast('Delete failed: '+error.message,'error');return;}
-    offersData=offersData.filter(r=>String(r.id)!==String(id));
-    populateFilters();renderView();updateChips();
-    removeToast(tid);toast('Offer deleted','success');
-    advanceAfterAction(id);
+    if(error)toast('Sync error (delete): '+error.message,'error');
   });
 }
 
@@ -1184,68 +1164,34 @@ async function doRejectOffer(){
     removeToast(tid);toast(ids.length+' offers rejected','info');
     return;
   }
-  const tid=toast('Rejecting…','loading',0);
-  try{
-    const{error}=await sb.from('offers').update({
-      approval:'Rejected',
-      note:reason,
-      agent:_agentName
-    }).eq('id',id);
-    if(error)throw error;
-    const rec=offersData.find(r=>String(r.id)===String(id));
-    if(rec){rec.approval='Rejected';rec.note=reason;rec.agent=_agentName;}
-    populateFilters();renderView();updateChips();
-    removeToast(tid);toast('Offer rejected','info');
-    advanceAfterAction(id);
-  }catch(e){removeToast(tid);toast('Failed to reject: '+e.message,'error');}
+const rec=offersData.find(r=>String(r.id)===String(id));
+  if(rec){rec.approval='Rejected';rec.note=reason;rec.agent=_agentName;}
+  advanceAfterAction(id);
+  populateFilters();renderView();updateChips();
+  toast('Offer rejected','info');
+  sb.from('offers').update({approval:'Rejected',note:reason,agent:_agentName}).eq('id',id).then(({error})=>{
+    if(error)toast('Sync error (reject): '+error.message,'error');
+  });
 }
 
 /* ── APPROVE ── */
 async function doApproveOffer(id,btn){
-  btn.classList.add('btn-approve-loading');
-  btn.innerHTML='<span class="spinner spin-sm" style="border-color:rgba(255,255,255,.4);border-top-color:#fff"></span>Approving…';
-  btn.onclick=null;
-  const tid=toast('Approving…','loading',0);
+  const offer=offersData.find(r=>String(r.id)===String(id));
+  if(!offer)return;
+  advanceAfterAction(id);
+  offersData=offersData.filter(r=>String(r.id)!==String(id));
+  populateFilters();renderView();updateChips();
+  toast('Approving…','info',1800);
   try{
-    const offer=offersData.find(r=>String(r.id)===String(id));
-    if(!offer)throw new Error('Offer not found');
-
-    // Generate opportunity ID
-    const{count}=await sb.from('sourcing').select('*',{count:'exact',head:true});
-    const oppId='SRC-'+String((count||0)+1).padStart(6,'0');
+    const{data:maxRow}=await sb.from('sourcing').select('opportunity_id').order('opportunity_id',{ascending:false}).limit(1).single();
+    let nextNum=1;
+    if(maxRow?.opportunity_id){const m=maxRow.opportunity_id.match(/\d+/);if(m)nextNum=parseInt(m[0])+1;}
+    const oppId='SRC-'+String(nextNum).padStart(6,'0');
     const now=new Date().toISOString();
-
-    // Insert into sourcing
-    const{error:sErr}=await sb.from('sourcing').insert({
-      opportunity_id: oppId,
-      agent: _agentName,
-      created_at: now,
-      last_updated: now,
-      supplier_name: offer.supplier_name||'',
-      code: offer.code||offer.ean||'',
-      product_name: offer.product_name||'',
-      cost_of_unit: offer.cost_of_unit||null,
-      unit_quantity: offer.unit_quantity||offer.case_qty||null,
-      purchased: false,
-      approved: false,
-      source: 'Offer',
-    });
-    if(sErr)throw sErr;
-
-    // Delete from offers
-    const{error:dErr}=await sb.from('offers').delete().eq('id',id);
-    if(dErr)throw dErr;
-
-    offersData=offersData.filter(r=>String(r.id)!==String(id));
-    populateFilters();renderView();updateChips();
-    removeToast(tid);toast('Approved — '+oppId,'success');
-    advanceAfterAction(id);
-  }catch(e){
-    removeToast(tid);toast('Failed to approve: '+e.message,'error');
-    // Restore button
-    const row=offersData.find(r=>String(r.id)===String(id));
-    if(row)renderDrawer(row);
-  }
+    await sb.from('sourcing').insert({opportunity_id:oppId,agent:_agentName,created_at:now,last_updated:now,supplier_name:offer.supplier_name||'',code:offer.code||offer.ean||'',product_name:offer.product_name||'',cost_of_unit:offer.cost_of_unit||null,unit_quantity:offer.unit_quantity||offer.case_qty||null,purchased:false,approved:false,source:'Offer'});
+    await sb.from('offers').delete().eq('id',id);
+    toast('Approved — '+oppId,'success');
+  }catch(e){toast('Sync error (approve): '+e.message,'error');}
 }
 
 /* ── MERGE ── */
