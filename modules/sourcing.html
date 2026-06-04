@@ -1549,6 +1549,36 @@ function showToast(msg, type, duration) {
 }
 function removeToast(id) { document.getElementById(id)?.remove(); }
 
+window.openSourcingModalFromOffer = function(offer){
+  openAddModal();
+  // prefill after form is built
+  const set = (id,val) => { const el=document.getElementById(id); if(el&&val!=null) el.value=val; };
+  set('f_productName', offer.product_name||'');
+  set('f_costOfUnit',  offer.cost_of_unit ? parseFloat(offer.cost_of_unit).toFixed(2) : '');
+  set('f_code',        offer.ean||'');
+  const supEl=document.getElementById('f_supplierName');
+  if(supEl&&offer.supplier_name){
+    if(!Array.from(supEl.options).find(o=>o.value===offer.supplier_name)){
+      const o=document.createElement('option');o.value=offer.supplier_name;o.textContent=offer.supplier_name;supEl.appendChild(o);
+    }
+    supEl.value=offer.supplier_name;
+  }
+  const agentEl=document.getElementById('f_agent');
+  if(agentEl&&window._offersAgentName){
+    const opt=Array.from(agentEl.options).find(o=>o.value===window._offersAgentName);
+    if(opt)agentEl.value=window._offersAgentName;
+  }
+  applyYNColors();
+  // after save, delete the offer
+  const origSave=window.saveProduct;
+  document.getElementById('saveBtn').onclick=async function(){
+    await origSave();
+    if(window.completeOfferApproval)await window.completeOfferApproval();
+    document.getElementById('saveBtn').onclick=origSave;
+  };
+};
+
+    
 /* ══ EXPOSE GLOBALS ══ */
 window.openDrawer = openDrawer; window.closeDrawer = closeDrawer;
 window.switchTab = switchTab; window.openAddModal = openAddModal;
