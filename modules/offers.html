@@ -311,6 +311,12 @@ body{overflow:hidden}
 .bulk-bar-btn.del{border-color:#fca5a5;color:#fca5a5}
 .bulk-bar-btn.del:hover{background:rgba(252,165,165,.12)}
 .bulk-bar-btn svg{width:12px;height:12px}
+
+
+.src-group{display:flex;flex-direction:column;gap:4px;}
+.src-lbl{font-size:10.5px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;}
+.src-inp{padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:var(--font);color:#0f172a;background:#fff;outline:none;transition:border-color .15s;width:100%;}
+.src-inp:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.08);}
   
 </style>
 
@@ -455,6 +461,40 @@ body{overflow:hidden}
   <div class="offers-content" id="offersContentArea">
     <div class="state-wrap"><span class="spinner spin-md"></span><p>Loading offers…</p></div>
   </div>
+
+  <!-- Sourcing Add Modal -->
+<div class="confirm-overlay" id="sourcingModal" style="z-index:2000;backdrop-filter:blur(4px);">
+  <div style="background:#fff;border-radius:18px;width:660px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.22);">
+    <div style="padding:15px 22px 13px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;border-radius:18px 18px 0 0;background:linear-gradient(to right,#fafbff,#fff);flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:34px;height:34px;border-radius:9px;background:#eff6ff;display:flex;align-items:center;justify-content:center;color:#2563eb;flex-shrink:0;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#0f172a">Add to Sourcing</div>
+          <div style="font-size:11.5px;color:#94a3b8;margin-top:1px">Complete the details before saving</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="font-size:12px;font-weight:600;color:#2563eb;background:#eff6ff;padding:4px 11px;border-radius:100px;display:flex;align-items:center;gap:5px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span id="srcTimerText">00:00</span>
+        </div>
+        <button onclick="closeSourcingModal()" style="width:30px;height:30px;border:none;border-radius:7px;background:#f1f5f9;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px 22px;" id="srcFormBody"></div>
+    <div style="padding:12px 22px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:8px;background:#fafafa;border-radius:0 0 18px 18px;flex-shrink:0;">
+      <button class="btn btn-secondary btn-sm" onclick="closeSourcingModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="srcSaveBtn" onclick="saveSourcingFromOffer()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Save to Sourcing
+      </button>
+    </div>
+  </div>
+</div>
 </div>
 
 <script>
@@ -874,11 +914,7 @@ async function doApproveOfferCard(id, btn){
   const offer=offersData.find(r=>String(r.id)===String(id));
   if(!offer)return;
   _pendingApprovalOffer=offer;
-  if(window.openSourcingModalFromOffer){
-    window.openSourcingModalFromOffer(offer);
-  }else{
-    toast('Sourcing form not available','error');
-  }
+  openSourcingModal(offer);
 }
   
 
@@ -1169,12 +1205,8 @@ async function doApproveOffer(id,btn){
   const offer=offersData.find(r=>String(r.id)===String(id));
   if(!offer)return;
   _pendingApprovalOffer=offer;
-  if(window.openSourcingModalFromOffer){
-    closeDrawer();
-    window.openSourcingModalFromOffer(offer);
-  }else{
-    toast('Sourcing form not available','error');
-  }
+  closeDrawer();
+  openSourcingModal(offer);
 }
 
 
@@ -1335,7 +1367,159 @@ document.addEventListener('keydown',e=>{
   }
 });
 
+
+/* ── SOURCING MODAL ── */
+let _srcStartTime = null;
+let _srcTimerInterval = null;
+let _srcOffer = null;
+let _srcSuppliers = [];
+
+async function loadSrcSuppliers(){
+  if(_srcSuppliers.length) return;
+  const{data}=await sb.from('suppliers').select('name').order('name');
+  _srcSuppliers=(data||[]).map(s=>s.name);
+}
+
+async function loadSrcUsers(){
+  const{data}=await sb.from('users').select('first_name,last_name').eq('status','Active').in('user_id',['USR-0008','USR-0009','USR-0010']);
+  return (data||[]).map(u=>((u.first_name||'')+' '+(u.last_name||'')).trim());
+}
+
+async function openSourcingModal(offer){
+  _srcOffer=offer;
+  await loadSrcSuppliers();
+  const users=await loadSrcUsers();
+
+  const supOpts=_srcSuppliers.map(n=>`<option value="${esc(n)}"${n===offer.supplier_name?' selected':''}>${esc(n)}</option>`).join('');
+  const usrOpts=users.map(u=>`<option value="${esc(u)}"${u===_agentName?' selected':''}>${esc(u)}</option>`).join('');
+
+  document.getElementById('srcFormBody').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+      <div style="grid-column:1/-1;" class="src-group"><label class="src-lbl">Product Name *</label><input class="src-inp" id="src_productName" value="${esc(offer.product_name||'')}"></div>
+      <div class="src-group"><label class="src-lbl">Agent *</label><select class="src-inp" id="src_agent"><option value="">Select…</option>${usrOpts}</select></div>
+      <div class="src-group"><label class="src-lbl">Fulfillment *</label><select class="src-inp" id="src_fulfillment"><option value="">Select…</option><option>FBM</option><option>FBA</option></select></div>
+      <div class="src-group"><label class="src-lbl">SAS Combined Sales *</label><input class="src-inp" id="src_keepa" placeholder="e.g. 120"></div>
+      <div class="src-group"><label class="src-lbl">ASIN(s)</label><input class="src-inp" id="src_asins" placeholder="e.g. B08XYZ123"></div>
+      <div class="src-group"><label class="src-lbl">Supplier *</label><select class="src-inp" id="src_supplier"><option value="">Select…</option>${supOpts}</select></div>
+      <div class="src-group"><label class="src-lbl">EAN</label><input class="src-inp" id="src_ean" value="${esc(offer.ean||'')}"></div>
+      <div class="src-group"><label class="src-lbl">Supplier Stock *</label><select class="src-inp" id="src_supplierStock"><option value="">Select…</option><option>Low</option><option>Medium</option><option>High</option></select></div>
+      <div class="src-group"><label class="src-lbl">Supplier Cheapest? *</label><select class="src-inp" id="src_supplierCheapest"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
+      <div class="src-group"><label class="src-lbl">Cost of Unit (£) *</label><input class="src-inp" type="number" step="0.01" id="src_costOfUnit" value="${esc(String(offer.cost_of_unit||''))}"></div>
+      <div class="src-group"><label class="src-lbl">Cost of Sale (£) *</label><input class="src-inp" type="number" step="0.01" id="src_costOfSale"></div>
+      <div class="src-group"><label class="src-lbl">Net Profit (£) *</label><input class="src-inp" type="number" step="0.01" id="src_netProfit"></div>
+      <div class="src-group"><label class="src-lbl">Sale Quantity *</label><input class="src-inp" type="number" id="src_unitQuantity"></div>
+      <div class="src-group"><label class="src-lbl">Packing *</label><select class="src-inp" id="src_packing"><option value="">Select…</option><option>Fast</option><option>Good</option><option>Medium</option><option>Large</option></select></div>
+      <div class="src-group"><label class="src-lbl">Seasonality *</label><select class="src-inp" id="src_seasonality"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
+      <div class="src-group"><label class="src-lbl">Competition *</label><select class="src-inp" id="src_competition"><option value="">Select…</option><option>Low</option><option>Medium</option><option>High</option></select></div>
+      <div style="grid-column:1/-1;" class="src-group"><label class="src-lbl">Initial Note</label><textarea class="src-inp" id="src_notes" rows="2" style="resize:none"></textarea></div>
+    </div>`;
+
+  document.getElementById('sourcingModal').classList.add('open');
+  _srcStartTime=Date.now();
+  clearInterval(_srcTimerInterval);
+  _srcTimerInterval=setInterval(()=>{
+    const s=Math.floor((Date.now()-_srcStartTime)/1000);
+    const el=document.getElementById('srcTimerText');
+    if(el)el.textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+  },1000);
+}
+
+function closeSourcingModal(){
+  document.getElementById('sourcingModal').classList.remove('open');
+  clearInterval(_srcTimerInterval);
+  _srcOffer=null;
+}
+
+async function saveSourcingFromOffer(){
+  const required=['src_productName','src_agent','src_fulfillment','src_keepa','src_supplier','src_ean','src_supplierStock','src_supplierCheapest','src_costOfUnit','src_costOfSale','src_netProfit','src_unitQuantity','src_packing','src_seasonality','src_competition'];
+  let firstErr=null;
+  required.forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el||!el.value.trim()){
+      el.style.borderColor='#ef4444';el.style.background='#fff1f2';
+      if(!firstErr)firstErr=el;
+      el.addEventListener('input',()=>{el.style.borderColor='';el.style.background='';},{once:true});
+    }
+  });
+  if(firstErr){firstErr.scrollIntoView({behavior:'smooth',block:'center'});firstErr.focus();toast('Please complete all required fields','error');return;}
+
+  const btn=document.getElementById('srcSaveBtn');
+  btn.disabled=true;btn.innerHTML='<span class="spinner spin-sm" style="border-color:rgba(255,255,255,.3);border-top-color:#fff"></span> Saving…';
+
+  const seconds=Math.floor((Date.now()-_srcStartTime)/1000);
+  const agentName=document.getElementById('src_agent').value.trim();
+  const supplierCheapestRaw=document.getElementById('src_supplierCheapest').value;
+  const notesTxt=document.getElementById('src_notes').value.trim();
+
+  const{data:maxRow}=await sb.from('sourcing').select('opportunity_id').order('opportunity_id',{ascending:false}).limit(1).single();
+  const lastNum=maxRow?parseInt(maxRow.opportunity_id.replace('SRC-',''))||0:0;
+  const opportunityId='SRC-'+String(lastNum+1).padStart(6,'0');
+
+  const insertData={
+    opportunity_id:opportunityId,
+    agent:agentName,
+    supplier_name:document.getElementById('src_supplier').value,
+    code:document.getElementById('src_ean').value,
+    product_name:document.getElementById('src_productName').value.trim(),
+    asins:document.getElementById('src_asins').value.trim(),
+    cost_of_unit:parseFloat(document.getElementById('src_costOfUnit').value)||0,
+    cost_of_sale:parseFloat(document.getElementById('src_costOfSale').value)||0,
+    net_profit:parseFloat(document.getElementById('src_netProfit').value)||0,
+    unit_quantity:parseInt(document.getElementById('src_unitQuantity').value)||0,
+    keepa:document.getElementById('src_keepa').value,
+    primary_fulfillment:document.getElementById('src_fulfillment').value,
+    supplier_cheapest:supplierCheapestRaw==='Yes'?true:supplierCheapestRaw==='No'?false:null,
+    packing:document.getElementById('src_packing').value,
+    seasonality:document.getElementById('src_seasonality').value,
+    competition:document.getElementById('src_competition').value,
+    supplier_stock:document.getElementById('src_supplierStock').value,
+    purchased:false,approved:false,source:'Offer',
+  };
+
+  const{error}=await sb.from('sourcing').insert(insertData);
+  if(error){
+    toast('Failed to save: '+error.message,'error');
+    btn.disabled=false;btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Save to Sourcing';
+    return;
+  }
+
+  if(notesTxt) await sb.from('sourcing_notes').insert({opportunity_id:opportunityId,author_name:agentName||'Unknown',text:notesTxt});
+
+  await sb.from('sourcing_hours').insert({
+    opportunity_id:opportunityId,agent:agentName,
+    supplier_name:insertData.supplier_name,product_name:insertData.product_name,
+    seconds,formatted:String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0'),
+    code:insertData.code,asins:insertData.asins,
+    cost_of_unit:insertData.cost_of_unit,cost_of_sale:insertData.cost_of_sale,
+    net_profit:insertData.net_profit,keepa:insertData.keepa,
+    primary_fulfillment:insertData.primary_fulfillment,supplier_cheapest:insertData.supplier_cheapest,
+    unit_quantity:insertData.unit_quantity,packing:insertData.packing,
+    seasonality:insertData.seasonality,competition:insertData.competition,
+    supplier_stock:insertData.supplier_stock,
+  });
+
+  closeSourcingModal();
+  // Remove offer from board
+  const offer=_srcOffer||_pendingApprovalOffer;
+  if(offer){
+    const offerId=String(offer.id);
+    offersData=offersData.filter(r=>String(r.id)!==offerId);
+    _bulkSelected.delete(offerId);
+    populateFilters();renderView();updateChips();updateBulkBar();
+    sb.from('offers').delete().eq('id',offerId).then(({error})=>{
+      if(error)toast('Sync error (offer delete): '+error.message,'error');
+    });
+  }
+  _pendingApprovalOffer=null;
+  toast('Approved — '+opportunityId,'success');
+
+  btn.disabled=false;btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Save to Sourcing';
+}
+
 /* ── GLOBALS ── */
+window.openSourcingModal=openSourcingModal;
+window.closeSourcingModal=closeSourcingModal;
+window.saveSourcingFromOffer=saveSourcingFromOffer;
 Object.defineProperty(window,'_offersAgentName',{get:()=>_agentName});
 window.completeOfferApproval=completeOfferApproval;
 window.bulkApprove=bulkApprove;window.bulkDelete=bulkDelete;window.bulkReject=bulkReject;window.clearBulkSelection=clearBulkSelection;
