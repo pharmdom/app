@@ -386,12 +386,6 @@ body{overflow:hidden}
 
 <div class="bulk-bar" id="bulkBar">
   <span class="bulk-bar-count" id="bulkCount">0 selected</span>
-  <button class="bulk-bar-btn approve" onclick="bulkApprove()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Approve
-  </button>
-  <button class="bulk-bar-btn reject" onclick="bulkReject()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>Reject
-  </button>
   <button class="bulk-bar-btn del" onclick="bulkDelete()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete
   </button>
@@ -876,8 +870,33 @@ if(ean){html+=`<div style="display:flex;align-items:center;justify-content:space
 }
 
 async function doApproveOfferCard(id){
-  const fakeBtn=document.createElement('button');
-  await doApproveOffer(id,fakeBtn);
+  const btn=document.querySelector(`.k-act-btn.k-act-approve[onclick*="${id}"]`);
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner spin-sm" style="border-color:rgba(0,0,0,.2);border-top-color:#15803d"></span>';}
+  const tid=toast('Approving…','loading',0);
+  try{
+    const offer=offersData.find(r=>String(r.id)===String(id));
+    if(!offer)throw new Error('Offer not found');
+    const{count}=await sb.from('sourcing').select('*',{count:'exact',head:true});
+    const oppId='SRC-'+String((count||0)+1).padStart(6,'0');
+    const now=new Date().toISOString();
+    const{error:sErr}=await sb.from('sourcing').insert({
+      opportunity_id:oppId,agent:_agentName,created_at:now,last_updated:now,
+      supplier_name:offer.supplier_name||'',code:offer.code||offer.ean||'',
+      product_name:offer.product_name||'',cost_of_unit:offer.cost_of_unit||null,
+      unit_quantity:offer.unit_quantity||offer.case_qty||null,
+      purchased:false,approved:false,source:'Offer',
+    });
+    if(sErr)throw sErr;
+    const{error:dErr}=await sb.from('offers').delete().eq('id',id);
+    if(dErr)throw dErr;
+    offersData=offersData.filter(r=>String(r.id)!==String(id));
+    _bulkSelected.delete(id);
+    populateFilters();renderView();updateChips();updateBulkBar();
+    removeToast(tid);toast('Approved — '+oppId,'success');
+  }catch(e){
+    removeToast(tid);toast('Failed to approve: '+e.message,'error');
+    if(btn){btn.disabled=false;btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';}
+  }
 }
 
 /* ── CARDS ── */
