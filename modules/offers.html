@@ -474,7 +474,8 @@ let _navIndex    = 0;
 let _navSupplier = '';
 let _navAllGroups= [];
 let _mergeSelected = [];
-let _catalogMap = {}; // ean -> price
+let _catalogMap = {}; 
+let _pendingApprovalOffer = null;  // ean -> price
 
 /* ── SUPABASE ── */
 const SB_URL = 'https://mbmgcqknbajwndiveewf.supabase.co';
@@ -872,23 +873,12 @@ if(ean){html+=`<div style="display:flex;align-items:center;justify-content:space
 async function doApproveOfferCard(id, btn){
   const offer=offersData.find(r=>String(r.id)===String(id));
   if(!offer)return;
-  // Update UI immediately
-  advanceAfterAction(id);
-  offersData=offersData.filter(r=>String(r.id)!==String(id));
-  _bulkSelected.delete(id);
-  populateFilters();renderView();updateChips();updateBulkBar();
-  toast('Approving…','info',1800);
-  // DB in background
-  try{
-    const{data:maxRow}=await sb.from('sourcing').select('opportunity_id').order('opportunity_id',{ascending:false}).limit(1).single();
-    let nextNum=1;
-    if(maxRow?.opportunity_id){const m=maxRow.opportunity_id.match(/\d+/);if(m)nextNum=parseInt(m[0])+1;}
-    const oppId='SRC-'+String(nextNum).padStart(6,'0');
-    const now=new Date().toISOString();
-    await sb.from('sourcing').insert({opportunity_id:oppId,agent:_agentName,created_at:now,last_updated:now,supplier_name:offer.supplier_name||'',code:offer.code||offer.ean||'',product_name:offer.product_name||'',cost_of_unit:offer.cost_of_unit||null,unit_quantity:offer.unit_quantity||offer.case_qty||null,purchased:false,approved:false,source:'Offer'});
-    await sb.from('offers').delete().eq('id',id);
-    toast('Approved — '+oppId,'success');
-  }catch(e){toast('Sync error (approve): '+e.message,'error');}
+  _pendingApprovalOffer=offer;
+  if(window.openSourcingModalFromOffer){
+    window.openSourcingModalFromOffer(offer);
+  }else{
+    toast('Sourcing form not available','error');
+  }
 }
   
 
@@ -1178,21 +1168,32 @@ const rec=offersData.find(r=>String(r.id)===String(id));
 async function doApproveOffer(id,btn){
   const offer=offersData.find(r=>String(r.id)===String(id));
   if(!offer)return;
-  advanceAfterAction(id);
-  offersData=offersData.filter(r=>String(r.id)!==String(id));
-  populateFilters();renderView();updateChips();
-  toast('Approving…','info',1800);
-  try{
-    const{data:maxRow}=await sb.from('sourcing').select('opportunity_id').order('opportunity_id',{ascending:false}).limit(1).single();
-    let nextNum=1;
-    if(maxRow?.opportunity_id){const m=maxRow.opportunity_id.match(/\d+/);if(m)nextNum=parseInt(m[0])+1;}
-    const oppId='SRC-'+String(nextNum).padStart(6,'0');
-    const now=new Date().toISOString();
-    await sb.from('sourcing').insert({opportunity_id:oppId,agent:_agentName,created_at:now,last_updated:now,supplier_name:offer.supplier_name||'',code:offer.code||offer.ean||'',product_name:offer.product_name||'',cost_of_unit:offer.cost_of_unit||null,unit_quantity:offer.unit_quantity||offer.case_qty||null,purchased:false,approved:false,source:'Offer'});
-    await sb.from('offers').delete().eq('id',id);
-    toast('Approved — '+oppId,'success');
-  }catch(e){toast('Sync error (approve): '+e.message,'error');}
+  _pendingApprovalOffer=offer;
+  if(window.openSourcingModalFromOffer){
+    closeDrawer();
+    window.openSourcingModalFromOffer(offer);
+  }else{
+    toast('Sourcing form not available','error');
+  }
 }
+
+
+
+
+async function completeOfferApproval(){
+  const offer=_pendingApprovalOffer;
+  if(!offer)return;
+  _pendingApprovalOffer=null;
+  advanceAfterAction(String(offer.id));
+  offersData=offersData.filter(r=>String(r.id)!==String(offer.id));
+  _bulkSelected.delete(String(offer.id));
+  populateFilters();renderView();updateChips();updateBulkBar();
+  toast('Offer approved and added to sourcing','success');
+  sb.from('offers').delete().eq('id',offer.id).then(({error})=>{
+    if(error)toast('Sync error (offer delete): '+error.message,'error');
+  });
+}
+  
 
 /* ── MERGE ── */
 function openMergeModal(){
@@ -1335,6 +1336,8 @@ document.addEventListener('keydown',e=>{
 });
 
 /* ── GLOBALS ── */
+Object.defineProperty(window,'_offersAgentName',{get:()=>_agentName});
+window.completeOfferApproval=completeOfferApproval;
 window.bulkApprove=bulkApprove;window.bulkDelete=bulkDelete;window.bulkReject=bulkReject;window.clearBulkSelection=clearBulkSelection;
 window.doApproveOfferCard=doApproveOfferCard;
 window._openCardDrawer=_openCardDrawer;
