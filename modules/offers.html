@@ -490,7 +490,7 @@ body{overflow:hidden}
       <button class="btn btn-secondary btn-sm" onclick="closeSourcingModal()">Cancel</button>
       <button class="btn btn-primary btn-sm" id="srcSaveBtn" onclick="saveSourcingFromOffer()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-        Save to Sourcing
+        Approve
       </button>
     </div>
   </div>
@@ -1389,29 +1389,45 @@ async function openSourcingModal(offer){
   _srcOffer=offer;
   await loadSrcSuppliers();
   const users=await loadSrcUsers();
-
-  const supOpts=_srcSuppliers.map(n=>`<option value="${esc(n)}"${n===offer.supplier_name?' selected':''}>${esc(n)}</option>`).join('');
   const usrOpts=users.map(u=>`<option value="${esc(u)}"${u===_agentName?' selected':''}>${esc(u)}</option>`).join('');
 
   document.getElementById('srcFormBody').innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
-      <div style="grid-column:1/-1;" class="src-group"><label class="src-lbl">Product Name *</label><input class="src-inp" id="src_productName" value="${esc(offer.product_name||'')}"></div>
-      <div class="src-group"><label class="src-lbl">Agent *</label><select class="src-inp" id="src_agent"><option value="">Select…</option>${usrOpts}</select></div>
-      <div class="src-group"><label class="src-lbl">Fulfillment *</label><select class="src-inp" id="src_fulfillment"><option value="">Select…</option><option>FBM</option><option>FBA</option></select></div>
-      <div class="src-group"><label class="src-lbl">SAS Combined Sales *</label><input class="src-inp" id="src_keepa" placeholder="e.g. 120"></div>
-      <div class="src-group"><label class="src-lbl">ASIN(s)</label><input class="src-inp" id="src_asins" placeholder="e.g. B08XYZ123"></div>
-      <div class="src-group"><label class="src-lbl">Supplier *</label><select class="src-inp" id="src_supplier"><option value="">Select…</option>${supOpts}</select></div>
-      <div class="src-group"><label class="src-lbl">EAN</label><input class="src-inp" id="src_ean" value="${esc(offer.ean||'')}"></div>
-      <div class="src-group"><label class="src-lbl">Supplier Stock *</label><select class="src-inp" id="src_supplierStock"><option value="">Select…</option><option>Low</option><option>Medium</option><option>High</option></select></div>
-      <div class="src-group"><label class="src-lbl">Supplier Cheapest? *</label><select class="src-inp" id="src_supplierCheapest"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
-      <div class="src-group"><label class="src-lbl">Cost of Unit (£) *</label><input class="src-inp" type="number" step="0.01" id="src_costOfUnit" value="${esc(String(offer.cost_of_unit||''))}"></div>
-      <div class="src-group"><label class="src-lbl">Cost of Sale (£) *</label><input class="src-inp" type="number" step="0.01" id="src_costOfSale"></div>
-      <div class="src-group"><label class="src-lbl">Net Profit (£) *</label><input class="src-inp" type="number" step="0.01" id="src_netProfit"></div>
-      <div class="src-group"><label class="src-lbl">Sale Quantity *</label><input class="src-inp" type="number" id="src_unitQuantity"></div>
-      <div class="src-group"><label class="src-lbl">Packing *</label><select class="src-inp" id="src_packing"><option value="">Select…</option><option>Fast</option><option>Good</option><option>Medium</option><option>Large</option></select></div>
-      <div class="src-group"><label class="src-lbl">Seasonality *</label><select class="src-inp" id="src_seasonality"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
-      <div class="src-group"><label class="src-lbl">Competition *</label><select class="src-inp" id="src_competition"><option value="">Select…</option><option>Low</option><option>Medium</option><option>High</option></select></div>
-      <div style="grid-column:1/-1;" class="src-group"><label class="src-lbl">Initial Note</label><textarea class="src-inp" id="src_notes" rows="2" style="resize:none"></textarea></div>
+    <div class="src-form-section">
+      <div class="src-section-title">Identification</div>
+      <div class="src-grid2">
+        <div class="src-group src-full"><label class="src-lbl">Product Name *</label><input class="src-inp" id="src_productName" value="${esc(offer.product_name||'')}"></div>
+        <div class="src-group"><label class="src-lbl">Agent</label><div class="src-prefill">${esc(_agentName||'—')}</div><input type="hidden" id="src_agent" value="${esc(_agentName||'')}"></div>
+        <div class="src-group"><label class="src-lbl">Fulfillment *</label><select class="src-inp" id="src_fulfillment"><option value="">Select…</option><option>FBM</option><option>FBA</option></select></div>
+        <div class="src-group"><label class="src-lbl">SAS Combined Sales *</label><input class="src-inp" id="src_keepa" placeholder="e.g. 120"></div>
+        <div class="src-group"><label class="src-lbl">ASIN(s)</label><input class="src-inp" id="src_asins" placeholder="e.g. B08XYZ123"></div>
+      </div>
+    </div>
+    <div class="src-form-section">
+      <div class="src-section-title">Supplier</div>
+      <div class="src-grid2">
+        <div class="src-group"><label class="src-lbl">Supplier</label><div class="src-prefill">${esc(offer.supplier_name||'—')}</div><input type="hidden" id="src_supplier" value="${esc(offer.supplier_name||'')}"></div>
+        <div class="src-group"><label class="src-lbl">EAN</label><input class="src-inp" id="src_ean" value="${esc(offer.ean||'')}"></div>
+        <div class="src-group"><label class="src-lbl">Supplier Stock *</label><select class="src-inp" id="src_supplierStock"><option value="">Select…</option><option>Low</option><option>Medium</option><option>High</option></select></div>
+        <div class="src-group"><label class="src-lbl">Supplier Cheapest? *</label><select class="src-inp" id="src_supplierCheapest"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
+      </div>
+    </div>
+    <div class="src-form-section">
+      <div class="src-section-title">Financials</div>
+      <div class="src-grid2">
+        <div class="src-group"><label class="src-lbl">Cost of Unit (£) *</label><input class="src-inp" type="number" step="0.01" id="src_costOfUnit" value="${esc(String(offer.cost_of_unit||''))}"></div>
+        <div class="src-group"><label class="src-lbl">Cost of Sale (£) *</label><input class="src-inp" type="number" step="0.01" id="src_costOfSale"></div>
+        <div class="src-group"><label class="src-lbl">Net Profit (£) *</label><input class="src-inp" type="number" step="0.01" id="src_netProfit"></div>
+        <div class="src-group"><label class="src-lbl">Sale Quantity *</label><input class="src-inp" type="number" id="src_unitQuantity"></div>
+      </div>
+    </div>
+    <div class="src-form-section">
+      <div class="src-section-title">Attributes</div>
+      <div class="src-grid2">
+        <div class="src-group"><label class="src-lbl">Packing *</label><select class="src-inp" id="src_packing"><option value="">Select…</option><option>Fast</option><option>Good</option><option>Medium</option><option>Large</option></select></div>
+        <div class="src-group"><label class="src-lbl">Seasonality *</label><select class="src-inp" id="src_seasonality"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
+        <div class="src-group"><label class="src-lbl">Competition *</label><select class="src-inp" id="src_competition"><option value="">Select…</option><option>Low</option><option>Medium</option><option>High</option></select></div>
+        <div class="src-group src-full"><label class="src-lbl">Initial Note</label><textarea class="src-inp" id="src_notes" rows="2" style="resize:none;"></textarea></div>
+      </div>
     </div>`;
 
   document.getElementById('sourcingModal').classList.add('open');
@@ -1479,7 +1495,7 @@ async function saveSourcingFromOffer(){
   const{error}=await sb.from('sourcing').insert(insertData);
   if(error){
     toast('Failed to save: '+error.message,'error');
-    btn.disabled=false;btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Save to Sourcing';
+    btn.disabled=false;btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Approve';
     return;
   }
 
@@ -1513,7 +1529,7 @@ async function saveSourcingFromOffer(){
   _pendingApprovalOffer=null;
   toast('Approved — '+opportunityId,'success');
 
-  btn.disabled=false;btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Save to Sourcing';
+  btn.disabled=false;btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Approve';
 }
 
 /* ── GLOBALS ── */
