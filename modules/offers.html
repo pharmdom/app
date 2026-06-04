@@ -692,11 +692,14 @@ let _bulkRejectIds=[];
 
 async function loadCatalogPrices(){
   try{
-    const{data}=await sb.from('catalog').select('ean,cost').not('ean','is',null).not('cost','is',null);
+const{data}=await sb.from('catalog').select('ean,cost,supplier_name').not('ean','is',null).not('cost','is',null);
     _catalogMap={};
     (data||[]).forEach(r=>{
       const k=String(r.ean||'').trim();
-      if(k)_catalogMap[k]=r.cost;
+      if(!k)return;
+      if(!_catalogMap[k])_catalogMap[k]={cost:r.cost,suppliers:[]};
+      if(r.supplier_name&&!_catalogMap[k].suppliers.includes(r.supplier_name))
+        _catalogMap[k].suppliers.push(r.supplier_name);
     });
   }catch(e){ console.warn('Could not load catalog prices',e); }
 }
@@ -851,7 +854,9 @@ function buildKanbanCard(r,colour,supplierGroup,groupItems){
   if(img){html+=`<div class="k-card-img-wrap"><img src="${esc(img)}" alt="" loading="lazy" onerror="this.closest('.k-card-img-wrap').style.display='none'"><button class="k-zoom-btn" onclick="event.stopPropagation();openLightbox('${esc(img)}')" title="View image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button></div>`;}
   html+=`<div class="k-card-name" title="${esc(pname)}">${esc(pname)}</div>`;
   const cf=fmtCost(cost);
-  const catalogPrice=_catalogMap[String(ean).trim()];
+  const _catEntry=_catalogMap[String(ean).trim()];
+  const catalogPrice=_catEntry?.cost??null;
+  const _catSuppliers=_catEntry?.suppliers||[];
   let catalogHtml='';
   if(catalogPrice!=null&&ean){
     const offerVal=parseFloat(cost);
@@ -862,10 +867,11 @@ function buildKanbanCard(r,colour,supplierGroup,groupItems){
       else if(offerVal>catVal){indicator=`<span style="color:#b91c1c;font-size:9px;font-weight:800;display:inline-flex;align-items:center;gap:1px">▲${((offerVal-catVal)/catVal*100).toFixed(0)}%</span>`;}
       else{indicator=`<span style="color:#64748b;font-size:9px;font-weight:700">=</span>`;}
     }
-    catalogHtml=`<div style="display:flex;align-items:center;gap:4px;margin-top:3px;padding:3px 6px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:10px;">
+      catalogHtml=`<div style="display:flex;align-items:center;gap:4px;margin-top:3px;padding:3px 6px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:10px;">
       <svg viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.2" style="width:9px;height:9px;flex-shrink:0"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-10 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
       <span style="color:#15803d;font-weight:700">${esc(fmtCost(catalogPrice))}</span>
       ${indicator}
+      ${_catSuppliers.length?`<span style="color:#64748b;font-size:9px;margin-left:2px">${_catSuppliers.map(s=>esc(s)).join(', ')}</span>`:''}
     </div>`;
   }
 if(ean){html+=`<div style="display:flex;align-items:center;justify-content:space-between"><div class="k-card-ean"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;flex-shrink:0"><rect x="2" y="4" width="3" height="15"/><rect x="7" y="4" width="2" height="15"/><rect x="11" y="4" width="4" height="15"/><rect x="17" y="4" width="2" height="15"/></svg>${eanLink(ean)}</div><span class="k-card-date">${esc(date)}</span></div>`;}
@@ -942,7 +948,9 @@ function renderCards(data,area){
     html+=`<div class="c-body"><div class="c-name">${esc(pname)}</div>`;
     if(sup)html+=`<div class="c-sup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>${esc(sup)}</div>`;
     if(ean)html+=`<div class="c-ean">${eanLink(ean)}</div>`;
-    const catalogPrice=_catalogMap[String(ean).trim()];
+    const _catEntry=_catalogMap[String(ean).trim()];
+    const catalogPrice=_catEntry?.cost??null;
+    const _catSuppliers=_catEntry?.suppliers||[];
     let catBadgeHtml='';
     if(catalogPrice!=null&&ean){
       const offerVal=parseFloat(r.cost_of_unit);const catVal=parseFloat(catalogPrice);
@@ -956,6 +964,7 @@ function renderCards(data,area){
         <svg viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.2" style="width:9px;height:9px;flex-shrink:0"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-10 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>
         <span style="color:#15803d;font-weight:700">${esc(fmtCost(catalogPrice))}</span>
         ${indicator?`<span style="color:${indColor};font-weight:800;font-size:9px">${indicator}</span>`:''}
+        ${_catSuppliers.length?`<span style="color:#64748b;font-size:9px;margin-left:2px">${_catSuppliers.map(s=>esc(s)).join(', ')}</span>`:''}
       </div>`;
     }
     html+=`<div class="c-foot"><span class="c-cost${cf==='—'?' no-price':''}" style="cursor:pointer" onclick="openDrawer('${esc(String(r.id))}')">${esc(cf)}</span><span class="c-date">${esc(fmtDateSh(r.date))}</span></div>${catBadgeHtml}</div>`;
@@ -982,7 +991,7 @@ function renderTable(data,area){
     tbl+=`<td>${eanLink(ean)}</td>`;
     tbl+=`<td style="font-weight:600">${esc(pname)}</td>`;
     tbl+=`<td><span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:${colour.fg}"><span style="width:6px;height:6px;border-radius:50%;background:${colour.bar};flex-shrink:0;display:inline-block"></span>${esc(sup)}</span></td>`;
-    const catP=_catalogMap[String(ean).trim()];
+    const _catEntry=_catalogMap[String(ean).trim()];const catP=_catEntry?.cost??null;const _catSuppliers=_catEntry?.suppliers||[];
     let catCell='';
     if(catP!=null&&ean){
       const ov=parseFloat(r.cost_of_unit),cv=parseFloat(catP);
@@ -992,7 +1001,7 @@ function renderTable(data,area){
         else if(ov>cv){ind=`▲${((ov-cv)/cv*100).toFixed(0)}%`;indColor='#b91c1c';}
         else{ind='=';}
       }
-      catCell=`<span style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:11px;color:#15803d;background:#f0fdf4;border:1px solid #86efac;padding:2px 7px;border-radius:20px;font-weight:700">${esc(fmtCost(catP))} <span style="color:${indColor};font-size:10px">${ind}</span></span>`;
+        catCell=`<span style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:11px;color:#15803d;background:#f0fdf4;border:1px solid #86efac;padding:2px 7px;border-radius:20px;font-weight:700">${esc(fmtCost(catP))} <span style="color:${indColor};font-size:10px">${ind}</span>${_catSuppliers.length?`<span style="color:#64748b;font-size:10px;font-weight:500">${_catSuppliers.map(s=>esc(s)).join(', ')}</span>`:''}</span>`;
     }
     tbl+=`<td><span class="tbl-price">${esc(cf)}</span>${catCell}</td>`;
     tbl+=`<td style="color:var(--text4);font-size:12px">${esc(fmtDateSh(r.date))}</td>`;
@@ -1074,7 +1083,7 @@ function renderDrawer(row){
     </div>
     ${(()=>{
       const ean=String(row.ean||'').trim();
-      const catPrice=_catalogMap[ean];
+      const _catEntry=_catalogMap[ean];const catPrice=_catEntry?.cost??null;const _catSuppliers=_catEntry?.suppliers||[];
       if(!ean||catPrice==null)return'';
       const offerVal=parseFloat(row.cost_of_unit);
       const catVal=parseFloat(catPrice);
@@ -1089,7 +1098,8 @@ function renderDrawer(row){
         <div>
           <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.38)">Catalog Price</div>
           <div style="font-size:13px;font-weight:800;color:#fff">${esc(fmtCost(catPrice))} <span style="font-size:10px;font-weight:500;color:${arrowColor}">${esc(pct)}</span></div>
-        </div>
+          ${_catSuppliers.length?`<div style="font-size:9px;color:rgba(255,255,255,.35);margin-top:2px">${_catSuppliers.map(s=>esc(s)).join(', ')}</div>`:''}
+          </div>
       </div>`;
     })()}
   </div>`;
