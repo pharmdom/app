@@ -1618,8 +1618,11 @@ const tid=toast('Analysing '+importRows.length+' rows…','loading',0);
     // Build and filter valid rows first, THEN assign IDs
     const mapping=window.currentMapping;
     const getVal=(row,col)=>mapping[col]?(row[mapping[col]]||'').trim():'';
-    const{data:maxRow}=await sb.from('catalog').select('id').order('id',{ascending:false}).limit(1);
-    const maxNum=maxRow&&maxRow[0]?parseInt((maxRow[0].id||'').replace(/[^0-9]/g,''))||0:0;
+    const{data:allIds}=await sb.from('catalog').select('id');
+    const maxNum=(allIds||[]).reduce((mx,r)=>{
+      const n=parseInt((r.id||'').replace(/[^0-9]/g,''));
+      return isNaN(n)?mx:Math.max(mx,n);
+    },0);
 
     const validRows=[];
     let skippedIncomplete=0;
