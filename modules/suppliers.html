@@ -751,7 +751,7 @@ function renderSupplierCard(s){
     <div class="sc-sup-av-lg" style="background:${bg};color:${color}">${esc(initials(name))}</div>
     <div class="sc-sup-hero-info">
       <div class="sc-sup-hero-name">${esc(name)}</div>
-      <div class="sc-sup-hero-id">${esc(s.supplier_id||'')}</div>
+      <div class="sc-sup-hero-id">${getSupLastUpdated(s.supplier_id)}</div>
     </div>
     <div class="sc-sup-action-wrap">
       <button class="sc-sup-action-btn" id="scSupActionBtn" onclick="toggleSupActionMenu(event)" title="Actions">
@@ -870,6 +870,21 @@ function yesNoBadge(v){
   return`<span class="sc-badge ${yes?'green':'red'}">${yes?'✓ Yes':'✗ No'}</span>`;
 }
 
+
+function getSupLastUpdated(sid){
+  const rows=allCatalogData.filter(c=>c.supplier_id===sid&&c.date);
+  if(!rows.length)return'No imports yet';
+  // dates stored as DD/MM/YYYY — parse to compare
+  const latest=rows.reduce((best,r)=>{
+    const[d,m,y]=(r.date||'').split('/');
+    const t=new Date(+y,+m-1,+d).getTime();
+    return t>best.t?{t,date:r.date}:best;
+  },{t:0,date:''});
+  if(!latest.date)return'No imports yet';
+  const[d,m,y]=latest.date.split('/');
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return`Last updated — ${+d} ${months[+m-1]}, ${y}`;
+}
 
 function toggleSupLogin(triggerEl){
   const row=triggerEl.closest('.sc-detail-row');
