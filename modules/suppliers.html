@@ -1585,7 +1585,6 @@ const tid=toast('Analysing '+importRows.length+' rows…','loading',0);
     importRows.forEach(row=>{
       const ean=getVal(row,'ean')||null;
       const product_name=getVal(row,'product_name')||null;
-      const costRaw=getVal(row,'cost').replace(/[£$,]/g,'').trim();
       const costRaw=getVal(row,'cost').replace(/[£$,\s]/g,'').trim();
       const cost=costRaw!==''?parseFloat(costRaw):null;
       if(!ean||!product_name||cost===null||isNaN(cost)){skippedIncomplete++;return;}
@@ -1624,18 +1623,6 @@ const tid=toast('Analysing '+importRows.length+' rows…','loading',0);
     });
 
     const validInsert=toInsertNew; // already filtered above
-  validInsert.forEach(row=>{
-      const eanKey=String(row.ean||'').trim();
-      if(!eanKey){toInsertNew.push(row);return;}
-      const match=existingMap[eanKey];
-      if(!match){toInsertNew.push(row);return;}
-      // EAN + supplier match — check cost
-      const oldCost=parseFloat(match.cost)||0;
-      const newCost=parseFloat(row.cost)||0;
-      if(oldCost===newCost){skipped++;return;} // exact same — skip
-      // Cost changed — queue for update
-      toUpdate.push({id:match.id,oldCost,newCost,row});
-    });
 
     removeToast(tid);
 
