@@ -1566,30 +1566,7 @@ async function doImport(){
   btn.disabled=true;
   const today=new Date();
   const dateStr=`${String(today.getDate()).padStart(2,'0')}/${String(today.getMonth()+1).padStart(2,'0')}/${today.getFullYear()}`;
-  const maxNum=allCatalogData.reduce((mx,c)=>{const n=parseInt((c.id||'').replace(/[^0-9]/g,''));return isNaN(n)?mx:Math.max(mx,n);},0);
-  const get=col=>currentMapping[col]?importRows[0][currentMapping[col]]!==undefined:false;
-  const toInsert=importRows.map((row,i)=>{
-    const getVal=col=>currentMapping[col]?(row[currentMapping[col]]||'').trim():'';
-    const costRaw=getVal('cost').replace(/[£$,]/g,'').trim();
-    return{
-      id:'CAT-'+String(maxNum+i+1).padStart(4,'0'),
-      ean:getVal('ean')||null,
-      product_name:getVal('product_name')||row[Object.keys(row)[0]]||'Unknown',
-      code:getVal('code')||null,
-      cost:costRaw?parseFloat(costRaw)||null:null,
-      case_size:getVal('case_size')||null,
-      category:getVal('category')||row['__detectedCategory']||null,
-      status:getVal('status')||null,
-      agent:getVal('agent')||null,
-      barcode:getVal('barcode')||null,
-      product_image:getVal('product_image')||null,
-      supplier_id:importSupId,
-      supplier_name:sup.name,
-      supplier_email:sup.contact||null,
-      date:dateStr,
-    };
-  });
-const tid=toast('Analysing '+toInsert.length+' rows…','loading',0);
+const tid=toast('Analysing '+importRows.length+' rows…','loading',0);
   try{
     // Fetch existing rows for this supplier to check duplicates
     const{data:existing}=await sb.from('catalog').select('id,ean,cost,supplier_id').eq('supplier_id',importSupId);
@@ -1599,13 +1576,54 @@ const tid=toast('Analysing '+toInsert.length+' rows…','loading',0);
       if(k)existingMap[k]=r;
     });
 
+    // Build and filter valid rows first, THEN assign IDs
+    const getVal=(row,col)=>currentMapping[col]?(row[currentMapping[col]]||'').trim():'';
+    const maxNum=allCatalogData.reduce((mx,c)=>{const n=parseInt((c.id||'').replace(/[^0-9]/g,''));return isNaN(n)?mx:Math.max(mx,n);},0);
+
+    const validRows=[];
+    let skippedIncomplete=0;
+    importRows.forEach(row=>{
+      const ean=getVal(row,'ean')||null;
+      const product_name=getVal(row,'product_name')||null;
+      const costRaw=getVal(row,'cost').replace(/[£$,]/g,'').trim();
+      const cost=costRaw?parseFloat(costRaw)||null:null;
+      if(!ean||!product_name||cost==null){skippedIncomplete++;return;}
+      validRows.push({
+        ean,product_name,cost,
+        code:getVal(row,'code')||null,
+        case_size:getVal(row,'case_size')||null,
+        category:getVal(row,'category')||row['__detectedCategory']||null,
+        status:getVal(row,'status')||null,
+        agent:getVal(row,'agent')||null,
+        barcode:getVal(row,'barcode')||null,
+        product_image:getVal(row,'product_image')||null,
+        supplier_id:importSupId,
+        supplier_name:sup.name,
+        supplier_email:sup.contact||null,
+        date:dateStr,
+      });
+    });
+
     const toInsertNew=[];
     const toUpdate=[];
     let skipped=0;
-    const validInsert=toInsert.filter(r=>r.ean&&r.product_name&&r.product_name!=='Unknown'&&r.cost!=null);
-    const skippedIncomplete=toInsert.length-validInsert.length;
+    let idCounter=maxNum;
 
-    validInsert.forEach(row=>{
+    validRows.forEach(row=>{
+      const eanKey=String(row.ean||'').trim();
+      const match=existingMap[eanKey];
+      if(!match){
+        row.id='CAT-'+String(++idCounter).padStart(4,'0');
+        toInsertNew.push(row);return;
+      }
+      const oldCost=parseFloat(match.cost)||0;
+      const newCost=parseFloat(row.cost)||0;
+      if(oldCost===newCost){skipped++;return;}
+      toUpdate.push({id:match.id,oldCost,newCost,row});
+    });
+
+    const validInsert=toInsertNew; // already filtered above
+  validInsert.forEach(row=>{
       const eanKey=String(row.ean||'').trim();
       if(!eanKey){toInsertNew.push(row);return;}
       const match=existingMap[eanKey];
