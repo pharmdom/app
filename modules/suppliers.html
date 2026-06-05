@@ -1357,12 +1357,24 @@ function parseCSV(text){
   const lines=text.split(/\r?\n/).filter(l=>l.trim());
   if(lines.length<2){showImportError('File is empty or has no data rows.');return;}
   const headers=splitCSVLine(lines[0]).map(h=>h.trim().replace(/^"|"$/g,''));
-  const rows=lines.slice(1).map(line=>{
+let currentCategory='';
+  const rows=[];
+  lines.slice(1).forEach(line=>{
     const vals=splitCSVLine(line);
+    const nonEmpty=vals.map(v=>v.trim().replace(/^"|"$/g,'')).filter(Boolean);
+    // Category row: exactly one non-empty value, no barcode-like content
+    if(nonEmpty.length===1&&nonEmpty[0].length>1&&!/^\d{8,14}$/.test(nonEmpty[0])&&!nonEmpty[0].startsWith('£')){
+      currentCategory=nonEmpty[0];
+      return;
+    }
     const obj={};
     headers.forEach((h,i)=>obj[h]=(vals[i]||'').trim().replace(/^"|"$/g,''));
-    return obj;
-  }).filter(r=>Object.values(r).some(v=>v));
+    // Inject detected category if no category column mapped
+    if(currentCategory&&!obj['category']&&!obj['Category']&&!obj['CATEGORY']){
+      obj['__detectedCategory']=currentCategory;
+    }
+    if(Object.values(obj).some(v=>v))rows.push(obj);
+  });
   if(!rows.length){showImportError('No data rows found.');return;}
   importRows=rows;
   showImportPreview(headers,rows);
@@ -1373,7 +1385,7 @@ function splitCSVLine(line){
   for(let i=0;i<line.length;i++){
     const c=line[i];
     if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
-    else if(c===','&&!inQ){result.push(cur);cur='';}
+    else if((c===','||c==='	')&&!inQ){result.push(cur);cur='';}
     else cur+=c;
   }
   result.push(cur);return result;
@@ -1456,7 +1468,7 @@ async function doImport(){
       code:getVal('code')||null,
       cost:costRaw?parseFloat(costRaw)||null:null,
       case_size:getVal('case_size')||null,
-      category:getVal('category')||null,
+      category:getVal('category')||row['__detectedCategory']||null,
       status:getVal('status')||null,
       agent:getVal('agent')||null,
       barcode:getVal('barcode')||null,
@@ -1480,8 +1492,10 @@ const tid=toast('Analysing '+toInsert.length+' rows…','loading',0);
     const toInsertNew=[];
     const toUpdate=[];
     let skipped=0;
+    const validInsert=toInsert.filter(r=>r.ean&&r.product_name&&r.product_name!=='Unknown'&&r.cost!=null);
+    const skippedIncomplete=toInsert.length-validInsert.length;
 
-    toInsert.forEach(row=>{
+    validInsert.forEach(row=>{
       const eanKey=String(row.ean||'').trim();
       if(!eanKey){toInsertNew.push(row);return;}
       const match=existingMap[eanKey];
@@ -1540,7 +1554,7 @@ const tid=toast('Analysing '+toInsert.length+' rows…','loading',0);
         closeImportDrawer();
 
         // Post-import summary modal
-        showImportSummary(insertedCount,updatedCount,skipped,toUpdate);
+        showImportSummary(insertedCount,updatedCount,skipped,toUpdate,skippedIncomplete);
       }catch(e){
         removeToast(tid2);toast('Import failed: '+e.message,'error');
         btn.disabled=false;
@@ -1549,7 +1563,7 @@ const tid=toast('Analysing '+toInsert.length+' rows…','loading',0);
 
     // If there are price updates, show preview first
     if(toUpdate.length>0||skipped>0){
-      showImportConfirm(toInsertNew.length,toUpdate,skipped,doThImport,()=>{btn.disabled=false;});
+      showImportConfirm(toInsertNew.length,toUpdate,skipped,skippedIncomplete,doThImport,()=>{btn.disabled=false;});
     }else{
       await doThImport();
     }
@@ -1561,7 +1575,7 @@ const tid=toast('Analysing '+toInsert.length+' rows…','loading',0);
 }
 
 
-function showImportConfirm(newCount,updates,skipped,onConfirm,onCancel){
+function showImportConfirm(newCount,updates,skipped,incomplete,onConfirm,onCancel){
   const body=document.getElementById('scImportDrawerBody');
   const foot=document.getElementById('scImportDrawerFoot');
 
@@ -1583,7 +1597,7 @@ function showImportConfirm(newCount,updates,skipped,onConfirm,onCancel){
   body.innerHTML=`
     <div style="margin-bottom:16px">
       <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px">Import Summary</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:8px;margin-bottom:16px">
         <div style="background:var(--green-bg);border:1px solid var(--green-bd);border-radius:var(--r);padding:10px 12px;text-align:center">
           <div style="font-size:20px;font-weight:800;color:var(--green)">${newCount}</div>
           <div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">New</div>
@@ -1596,6 +1610,10 @@ function showImportConfirm(newCount,updates,skipped,onConfirm,onCancel){
           <div style="font-size:20px;font-weight:800;color:var(--text3)">${skipped}</div>
           <div style="font-size:10px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Unchanged</div>
         </div>
+        ${incomplete?`<div style="background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r);padding:10px 12px;text-align:center">
+          <div style="font-size:20px;font-weight:800;color:var(--red)">${incomplete}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Incomplete</div>
+        </div>`:''}
       </div>
       ${updates.length?`
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:8px">Price Changes</div>
@@ -1620,12 +1638,13 @@ function showImportConfirm(newCount,updates,skipped,onConfirm,onCancel){
     </button>`;
 }
 
-function showImportSummary(inserted,updated,skipped,updates){
+function showImportSummary(inserted,updated,skipped,updates,incomplete){
   const increases=updates.filter(u=>u.newCost>u.oldCost).length;
   const decreases=updates.filter(u=>u.newCost<u.oldCost).length;
   let msg=`${inserted} added`;
   if(updated)msg+=`, ${updated} price${updated!==1?'s':''} updated (${increases} ▲ ${decreases} ▼)`;
-  if(skipped)msg+=`, ${skipped} unchanged skipped`;
+  if(skipped)msg+=`, ${skipped} unchanged`;
+  if(incomplete)msg+=`, ${incomplete} skipped (missing EAN/name/cost)`;
   toast(msg,'success',6000);
 }
 
