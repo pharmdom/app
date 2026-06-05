@@ -1683,20 +1683,24 @@ const tid=toast('Analysing '+importRows.length+' rows…','loading',0);
         insertedCount=toInsertNew.length;
 
         // Updates
-        for(const u of toUpdate){
-          await sb.from('catalog').update({
-            cost:u.newCost,
-            date:dateStr,
-            status:'New price',
-            agent:null,
-          }).eq('id',u.id);
-          // Update local data
-          [catalogData,allCatalogData].forEach(arr=>{
-            const r=arr.find(x=>x.id===u.id);
-            if(r){r.cost=u.newCost;r.date=dateStr;r.status='New price';r.agent=null;}
-          });
-          updatedCount++;
-        }
+if(toUpdate.length){
+  const updatePayload=toUpdate.map(u=>({
+    id:u.id,
+    cost:u.newCost,
+    date:dateStr,
+    status:'New price',
+    agent:null,
+  }));
+  const{error}=await sb.from('catalog').upsert(updatePayload);
+  if(error)throw error;
+  toUpdate.forEach(u=>{
+    [catalogData,allCatalogData].forEach(arr=>{
+      const r=arr.find(x=>x.id===u.id);
+      if(r){r.cost=u.newCost;r.date=dateStr;r.status='New price';r.agent=null;}
+    });
+    updatedCount++;
+  });
+}
 
         allCatalogData.push(...toInsertNew);
         catalogData=allCatalogData.filter(c=>c.supplier_id===importSupId);
