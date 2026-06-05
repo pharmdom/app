@@ -1417,35 +1417,101 @@ let currentMapping={};
 
 function showImportPreview(headers,rows){
   currentMapping=detectMapping(headers);
-  const preview=rows.slice(0,5);
+  const preview=rows.slice(0,15);
   document.getElementById('scImportZone').style.display='none';
 document.getElementById('scImportZoneDesc').style.display='none';
   const rb=document.getElementById('scReuploadBtn');
 if(rb)rb.style.display='';
-  document.getElementById('scImportResult').innerHTML=`
+document.getElementById('scImportResult').innerHTML=`
+    <div class="sc-import-mapping" style="margin-top:0;margin-bottom:16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);margin-bottom:4px">Map Columns to Fields</div>
+      <div style="font-size:11.5px;color:var(--text4);margin-bottom:12px">Match each field to a column from your file. Auto-detected where possible — adjust as needed.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        ${Object.entries(COL_MAP).map(([col])=>{
+          const isRequired=col==='ean'||col==='product_name'||col==='cost';
+          const opts=['<option value="">— ignore —</option>',...headers.map(h=>`<option value="${esc(h)}" ${currentMapping[col]===h?'selected':''}>${esc(h)}</option>`)].join('');
+          return`<div style="display:flex;flex-direction:column;gap:3px">
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:${isRequired?'var(--accent)':'var(--text3)'}">
+              ${col.replace(/_/g,' ')}${isRequired?' *':''}
+            </label>
+            <select data-col="${col}" onchange="currentMapping['${col}']=this.value" style="color:var(--text);background:var(--surface);border:1.5px solid ${isRequired&&!currentMapping[col]?'var(--red-bd)':'var(--border)'};border-radius:6px;padding:5px 8px;font-size:12px;font-family:var(--font);outline:none">${opts}</select>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    <div style="margin-bottom:16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);margin-bottom:4px">File Columns</div>
+      <div style="font-size:11.5px;color:var(--text4);margin-bottom:10px">Remove columns you don't need. This only affects the preview and import — your original file is unchanged.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${headers.map(h=>`
+          <div id="colchip_${esc(h.replace(/[^a-zA-Z0-9]/g,'_'))}" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px 4px 12px;background:var(--surface);border:1.5px solid var(--border);border-radius:100px;font-size:11.5px;font-weight:600;color:var(--text2)">
+            ${esc(h)}
+            <span onclick="removeImportColumn('${esc(h)}')" style="cursor:pointer;width:14px;height:14px;border-radius:50%;background:var(--border);display:inline-flex;align-items:center;justify-content:center;color:var(--text4);font-size:9px;font-weight:800;line-height:1;flex-shrink:0" onmouseenter="this.style.background='var(--red-bd)';this.style.color='var(--red)'" onmouseleave="this.style.background='var(--border)';this.style.color='var(--text4)'">✕</span>
+          </div>`).join('')}
+      </div>
+    </div>
     <div class="sc-import-preview">
       <div class="sc-import-preview-head">
-        <div class="sc-import-preview-title">Preview</div>
-        <div class="sc-import-preview-count">${rows.length} rows</div>
+        <div class="sc-import-preview-title">File Preview</div>
+        <div class="sc-import-preview-count" id="scImportRowCount">${rows.length} rows detected</div>
       </div>
       <table class="sc-import-preview-table">
-        <thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
-        <tbody>${preview.map(r=>`<tr>${headers.map(h=>`<td>${esc(r[h]||'')}</td>`).join('')}</tr>`).join('')}</tbody>
+        <thead><tr><th style="width:24px"></th>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
+        <tbody id="scImportPreviewTbody">${preview.map((r,i)=>`<tr id="previewrow_${i}"><td style="width:24px;padding:4px 6px"><span onclick="removeImportRow(${i})" style="cursor:pointer;width:16px;height:16px;border-radius:4px;background:var(--border);display:inline-flex;align-items:center;justify-content:center;color:var(--text4);font-size:9px;font-weight:800;flex-shrink:0" onmouseenter="this.style.background='var(--red-bd)';this.style.color='var(--red)'" onmouseleave="this.style.background='var(--border)';this.style.color='var(--text4)'">✕</span></td>${headers.map(h=>`<td>${esc(r[h]||'')}</td>`).join('')}</tr>`).join('')}</tbody>
       </table>
-    </div>
-    <div class="sc-import-mapping">
-      <div class="sc-import-mapping-title">Column Mapping</div>
-      ${Object.entries(COL_MAP).map(([col])=>{
-        const opts=['<option value="">— ignore —</option>',...headers.map(h=>`<option value="${esc(h)}" ${currentMapping[col]===h?'selected':''}>${esc(h)}</option>`)].join('');
-        return`<div class="sc-mapping-row"><label>${col.replace(/_/g,' ')}</label><select data-col="${col}" onchange="currentMapping['${col}']=this.value" style="color:var(--text);background:var(--surface);border-color:var(--border)">${opts}</select></div>`;
-      }).join('')}
     </div>`;
   document.getElementById('scImportBtn').disabled=false;
 }
 
+
+  function removeImportColumn(header){
+  // Remove from importRows
+  importRows.forEach(r=>delete r[header]);
+  // Clear mapping if this column was mapped
+  Object.keys(currentMapping).forEach(col=>{
+    if(currentMapping[col]===header)currentMapping[col]='';
+  });
+  // Remove chip visually
+  const safe=header.replace(/[^a-zA-Z0-9]/g,'_');
+  const chip=document.getElementById('colchip_'+safe);
+  if(chip)chip.remove();
+  // Update the mapping selects — remove this option from all of them
+  document.querySelectorAll('.sc-import-mapping select,[data-col]').forEach(sel=>{
+    [...sel.options].forEach(opt=>{if(opt.value===header)opt.remove();});
+    // If the currently selected value was this column, reset to ignore
+    if(sel.value===header)sel.value='';
+  });
+  // Rebuild preview table rows
+  const tbody=document.querySelector('.sc-import-preview-table tbody');
+  const thead=document.querySelector('.sc-import-preview-table thead tr');
+  if(!tbody||!thead)return;
+  // Remove header th
+  [...thead.querySelectorAll('th')].forEach(th=>{if(th.textContent===header)th.remove();});
+  // Remove corresponding td from each row by index — rebuild from importRows
+  const currentHeaders=[...thead.querySelectorAll('th')].map(th=>th.textContent);
+  tbody.innerHTML=importRows.slice(0,15).map((r,i)=>`<tr id="previewrow_${i}"><td style="width:24px;padding:4px 6px"><span onclick="removeImportRow(${i})" style="cursor:pointer;width:16px;height:16px;border-radius:4px;background:var(--border);display:inline-flex;align-items:center;justify-content:center;color:var(--text4);font-size:9px;font-weight:800;flex-shrink:0" onmouseenter="this.style.background='var(--red-bd)';this.style.color='var(--red)'" onmouseleave="this.style.background='var(--border)';this.style.color='var(--text4)'">✕</span></td>${currentHeaders.map(h=>`<td>${esc(r[h]||'')}</td>`).join('')}</tr>`).join('');
+}
+  
 function showImportError(msg){
   document.getElementById('scImportResult').innerHTML=`<div class="sc-import-error">${esc(msg)}</div>`;
   document.getElementById('scImportBtn').disabled=true;
+}
+
+function removeImportRow(previewIdx){
+  // previewIdx is the index within the first 5 rows shown
+  // We need to find and remove the actual row from importRows
+  // The preview shows importRows[0..4], so previewIdx maps directly
+  if(previewIdx>=importRows.length)return;
+  importRows.splice(previewIdx,1);
+  // Rebuild preview tbody with updated indices
+  const currentHeaders=[...document.querySelectorAll('.sc-import-preview-table thead th')].map(th=>th.textContent).filter(t=>t.trim());
+  const tbody=document.getElementById('scImportPreviewTbody');
+  if(!tbody)return;
+  const preview=importRows.slice(0,15);
+  tbody.innerHTML=preview.map((r,i)=>`<tr id="previewrow_${i}"><td style="width:24px;padding:4px 6px"><span onclick="removeImportRow(${i})" style="cursor:pointer;width:16px;height:16px;border-radius:4px;background:var(--border);display:inline-flex;align-items:center;justify-content:center;color:var(--text4);font-size:9px;font-weight:800;flex-shrink:0" onmouseenter="this.style.background='var(--red-bd)';this.style.color='var(--red)'" onmouseleave="this.style.background='var(--border)';this.style.color='var(--text4)'">✕</span></td>${currentHeaders.map(h=>`<td>${esc(r[h]||'')}</td>`).join('')}</tr>`).join('');
+  // Update row count badge
+  const cnt=document.getElementById('scImportRowCount');
+  if(cnt)cnt.textContent=importRows.length+' rows detected';
 }
 
 async function doImport(){
@@ -1717,6 +1783,8 @@ document.addEventListener('click',e=>{
 });
 
 /* ── EXPOSE GLOBALS ── */
+window.removeImportRow=removeImportRow;
+window.removeImportColumn=removeImportColumn;
 window.toggleSupLogin=toggleSupLogin;
 window.togglePwVisibility=togglePwVisibility;
 window._acAllData=_acAllData;
