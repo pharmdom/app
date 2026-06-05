@@ -1478,7 +1478,7 @@ document.getElementById('scImportResult').innerHTML=`
             <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:${isRequired?'var(--accent)':'var(--text3)'}">
               ${col.replace(/_/g,' ')}${isRequired?' *':''}
             </label>
-            <select data-col="${col}" onchange="currentMapping['${col}']=this.value" style="color:var(--text);background:var(--surface);border:1.5px solid ${isRequired&&!currentMapping[col]?'var(--red-bd)':'var(--border)'};border-radius:6px;padding:5px 8px;font-size:12px;font-family:var(--font);outline:none">${opts}</select>
+            <select data-col="${col}" onchange="currentMapping['${col}']=this.value;window.currentMapping=currentMapping;this.style.borderColor=this.value?'var(--border)':'var(--red-bd)'" style="color:var(--text);background:var(--surface);border:1.5px solid ${isRequired&&!currentMapping[col]?'var(--red-bd)':'var(--border)'};border-radius:6px;padding:5px 8px;font-size:12px;font-family:var(--font);outline:none">${opts}</select>
           </div>`;
         }).join('')}
       </div>
@@ -1577,7 +1577,8 @@ const tid=toast('Analysing '+importRows.length+' rows…','loading',0);
     });
 
     // Build and filter valid rows first, THEN assign IDs
-    const getVal=(row,col)=>currentMapping[col]?(row[currentMapping[col]]||'').trim():'';
+    const mapping=window.currentMapping;
+    const getVal=(row,col)=>mapping[col]?(row[mapping[col]]||'').trim():'';
     const maxNum=allCatalogData.reduce((mx,c)=>{const n=parseInt((c.id||'').replace(/[^0-9]/g,''));return isNaN(n)?mx:Math.max(mx,n);},0);
 
     const validRows=[];
