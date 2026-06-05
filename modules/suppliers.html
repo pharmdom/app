@@ -573,7 +573,16 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(function(){
+  const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onerror=()=>console.warn('XLSX CDN failed to load');
+  document.head.appendChild(s);
+})();
+</script>
+
+
 <script>
 (function(){
 'use strict';
@@ -1450,29 +1459,169 @@ async function doImport(){
       date:dateStr,
     };
   });
-  const tid=toast('Importing '+toInsert.length+' items…','loading',0);
+const tid=toast('Analysing '+toInsert.length+' rows…','loading',0);
   try{
-    const BATCH=500;
-    for(let i=0;i<toInsert.length;i+=BATCH){
-      const{error}=await sb.from('catalog').insert(toInsert.slice(i,i+BATCH));
-      if(error)throw error;
+    // Fetch existing rows for this supplier to check duplicates
+    const{data:existing}=await sb.from('catalog').select('id,ean,cost,supplier_id').eq('supplier_id',importSupId);
+    const existingMap={};
+    (existing||[]).forEach(r=>{
+      const k=String(r.ean||'').trim();
+      if(k)existingMap[k]=r;
+    });
+
+    const toInsertNew=[];
+    const toUpdate=[];
+    let skipped=0;
+
+    toInsert.forEach(row=>{
+      const eanKey=String(row.ean||'').trim();
+      if(!eanKey){toInsertNew.push(row);return;}
+      const match=existingMap[eanKey];
+      if(!match){toInsertNew.push(row);return;}
+      // EAN + supplier match — check cost
+      const oldCost=parseFloat(match.cost)||0;
+      const newCost=parseFloat(row.cost)||0;
+      if(oldCost===newCost){skipped++;return;} // exact same — skip
+      // Cost changed — queue for update
+      toUpdate.push({id:match.id,oldCost,newCost,row});
+    });
+
+    removeToast(tid);
+
+    // Show summary before proceeding
+    const today=new Date();
+    const dateStr=`${String(today.getDate()).padStart(2,'0')}/${String(today.getMonth()+1).padStart(2,'0')}/${today.getFullYear()}`;
+
+    const doThImport=async()=>{
+      const tid2=toast('Importing…','loading',0);
+      let insertedCount=0,updatedCount=0;
+      try{
+        // Inserts
+        const BATCH=500;
+        for(let i=0;i<toInsertNew.length;i+=BATCH){
+          const{error}=await sb.from('catalog').insert(toInsertNew.slice(i,i+BATCH));
+          if(error)throw error;
+        }
+        insertedCount=toInsertNew.length;
+
+        // Updates
+        for(const u of toUpdate){
+          await sb.from('catalog').update({
+            cost:u.newCost,
+            date:dateStr,
+            status:'New price',
+            agent:null,
+          }).eq('id',u.id);
+          // Update local data
+          [catalogData,allCatalogData].forEach(arr=>{
+            const r=arr.find(x=>x.id===u.id);
+            if(r){r.cost=u.newCost;r.date=dateStr;r.status='New price';r.agent=null;}
+          });
+          updatedCount++;
+        }
+
+        allCatalogData.push(...toInsertNew);
+        catalogData=allCatalogData.filter(c=>c.supplier_id===importSupId);
+        populateCategoryFilter(catalogData);
+        renderCatalog();
+        const cnt=document.getElementById('scCatCount');
+        cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
+        const s=allSuppliers.find(x=>x.supplier_id===importSupId);
+        if(s)renderSupplierCard(s);
+        removeToast(tid2);
+        closeImportDrawer();
+
+        // Post-import summary modal
+        showImportSummary(insertedCount,updatedCount,skipped,toUpdate);
+      }catch(e){
+        removeToast(tid2);toast('Import failed: '+e.message,'error');
+        btn.disabled=false;
+      }
+    };
+
+    // If there are price updates, show preview first
+    if(toUpdate.length>0||skipped>0){
+      showImportConfirm(toInsertNew.length,toUpdate,skipped,doThImport,()=>{btn.disabled=false;});
+    }else{
+      await doThImport();
     }
-    allCatalogData.push(...toInsert);
-    catalogData=allCatalogData.filter(c=>c.supplier_id===importSupId);
-    populateCategoryFilter(catalogData);
-    renderCatalog();
-    const cnt=document.getElementById('scCatCount');
-    cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
-    const s=allSuppliers.find(x=>x.supplier_id===importSupId);
-    if(s)renderSupplierCard(s);
-    removeToast(tid);toast('Imported '+toInsert.length+' items','success');
-    closeImportDrawer();
+
   }catch(e){
-    removeToast(tid);toast('Import failed: '+e.message,'error');
+    toast('Import failed: '+e.message,'error');
     btn.disabled=false;
   }
 }
 
+
+function showImportConfirm(newCount,updates,skipped,onConfirm,onCancel){
+  const body=document.getElementById('scImportDrawerBody');
+  const foot=document.getElementById('scImportDrawerFoot');
+
+  let updateRows='';
+  updates.forEach(u=>{
+    const diff=u.newCost-u.oldCost;
+    const pct=u.oldCost?Math.abs(diff/u.oldCost*100).toFixed(1):null;
+    const dir=diff>0?'▲':'▼';
+    const col=diff>0?'#b91c1c':'#0b7a42';
+    const pctStr=pct?` (${dir}${pct}%)`:'';
+    updateRows+=`<tr>
+      <td style="font-size:11.5px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.row.product_name||u.row.ean||'—')}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${esc(String(u.row.ean||''))}</td>
+      <td style="font-size:11.5px;color:var(--text3)">£${u.oldCost.toFixed(2)}</td>
+      <td style="font-size:11.5px;font-weight:700;color:${col}">£${u.newCost.toFixed(2)}<span style="font-size:10px;font-weight:600">${pctStr}</span></td>
+    </tr>`;
+  });
+
+  body.innerHTML=`
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px">Import Summary</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+        <div style="background:var(--green-bg);border:1px solid var(--green-bd);border-radius:var(--r);padding:10px 12px;text-align:center">
+          <div style="font-size:20px;font-weight:800;color:var(--green)">${newCount}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">New</div>
+        </div>
+        <div style="background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:var(--r);padding:10px 12px;text-align:center">
+          <div style="font-size:20px;font-weight:800;color:var(--amber)">${updates.length}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Price Changes</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;text-align:center">
+          <div style="font-size:20px;font-weight:800;color:var(--text3)">${skipped}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Unchanged</div>
+        </div>
+      </div>
+      ${updates.length?`
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:8px">Price Changes</div>
+      <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;max-height:280px;overflow-y:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="background:var(--surface2)">
+            <th style="padding:7px 10px;text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);border-bottom:1px solid var(--border)">Product</th>
+            <th style="padding:7px 10px;text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);border-bottom:1px solid var(--border)">EAN</th>
+            <th style="padding:7px 10px;text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);border-bottom:1px solid var(--border)">Old Cost</th>
+            <th style="padding:7px 10px;text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);border-bottom:1px solid var(--border)">New Cost</th>
+          </tr></thead>
+          <tbody>${updateRows}</tbody>
+        </table>
+      </div>`:''}
+    </div>`;
+
+  foot.innerHTML=`
+    <button class="sc-btn sc-btn-secondary sc-btn-sm" onclick="(${onCancel.toString()})()">Cancel</button>
+    <button class="sc-btn sc-btn-primary sc-btn-sm" onclick="(${onConfirm.toString()})()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Confirm Import
+    </button>`;
+}
+
+function showImportSummary(inserted,updated,skipped,updates){
+  const increases=updates.filter(u=>u.newCost>u.oldCost).length;
+  const decreases=updates.filter(u=>u.newCost<u.oldCost).length;
+  let msg=`${inserted} added`;
+  if(updated)msg+=`, ${updated} price${updated!==1?'s':''} updated (${increases} ▲ ${decreases} ▼)`;
+  if(skipped)msg+=`, ${skipped} unchanged skipped`;
+  toast(msg,'success',6000);
+}
+
+  
 /* ── REFRESH ── */
 async function handleRefresh(){
   const btn=document.getElementById('scRefreshBtn');
