@@ -1655,12 +1655,18 @@ const tid=toast('Analysing '+importRows.length+' rows…','loading',0);
       });
     });
 
-    const toInsertNew=[];
-    const toUpdate=[];
-    let skipped=0;
-    let idCounter=maxNum;
+// Deduplicate validRows by EAN — last row wins
+const deduped=[];
+const seenEans=new Map();
+validRows.forEach((row,i)=>seenEans.set(String(row.ean||'').trim(),i));
+validRows.forEach((row,i)=>{if(seenEans.get(String(row.ean||'').trim())===i)deduped.push(row);});
 
-    validRows.forEach(row=>{
+const toInsertNew=[];
+const toUpdate=[];
+let skipped=0;
+let idCounter=maxNum;
+
+deduped.forEach(row=>{
       const eanKey=String(row.ean||'').trim().replace(/\.0+$/,'');
       const match=existingMap[eanKey];
       if(!match){
