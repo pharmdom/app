@@ -627,6 +627,15 @@ function pStart(){const b=document.getElementById('scPbar');clearInterval(_pt);_
 function pDone(){clearInterval(_pt);const b=document.getElementById('scPbar');b.style.transform='scaleX(1)';setTimeout(()=>{b.classList.remove('active');b.style.transform='scaleX(0)';},380);}
 
 /* ── HELPERS ── */
+function getCatalogEffectiveCost(r){
+  const name=String(r.supplier_name||'').toLowerCase();
+  const isWTS=name.includes('wts')||name.includes('wholesale trading supplies');
+  if(!isWTS)return r.cost;
+  const cas=parseFloat(r.case_size||0);
+  const cost=parseFloat(r.cost||0);
+  if(!cas||isNaN(cas)||isNaN(cost))return r.cost;
+  return cost/cas;
+}
 function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function fmtCost(v){const n=parseFloat(v);return isNaN(n)?null:n.toFixed(2);}
 
@@ -1078,7 +1087,7 @@ function renderCatalog(){
   const display=data.slice(0,500);
   display.forEach((r,i)=>{
     const ean=r.ean||'';
-    const cost=fmtCost(r.cost);
+    const cost=fmtCost(getCatalogEffectiveCost(r));
     const id=esc(String(r.id||''));
     const status=r.status||'';
     const statusCls=status==='Approved'?'approved':status==='Rejected'?'rejected':'';
@@ -1288,7 +1297,7 @@ function renderAllCatalog(){
 
   display.forEach((r,i)=>{
     const ean=r.ean||'';
-    const cost=fmtCost(r.cost);
+    const cost=fmtCost(getCatalogEffectiveCost(r));
     const status=r.status||'';
     const statusCls=status==='Approved'?'approved':status==='Rejected'?'rejected':'';
     const rid=esc(String(r.id||''));
