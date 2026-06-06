@@ -694,7 +694,7 @@ function buildOffersMap(){
   _offersMap={};
   offersData.forEach(r=>{
     const k=String(r.ean||'').trim();
-    if(!k||!(r.approval||'').toLowerCase()!=='rejected')return;
+    if(!k||(r.approval||'').toLowerCase()==='rejected')return;
     if(!_offersMap[k])_offersMap[k]=[];
     if(r.supplier_name&&r.cost_of_unit!=null){
       _offersMap[k].push({name:r.supplier_name,cost:r.cost_of_unit});
@@ -875,7 +875,7 @@ function buildKanbanCard(r,colour,supplierGroup,groupItems){
   const _catEntry=_catalogMap[String(ean).trim()];
   const catalogPrice=_catEntry?.cost??null;
   const _catSuppliers=(_catEntry?.suppliers||[]).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
-  const _offerSuppliers=(_offersMap[String(ean).trim()]||[]).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
+  const _offerSuppliers=(_offersMap[String(ean).trim()]||[]).filter(o=>o.name!==r.supplier_name||parseFloat(o.cost)!==parseFloat(r.cost_of_unit)).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
   let catalogHtml='';
   if(catalogPrice!=null&&ean){
     const offerVal=parseFloat(cost);
@@ -974,7 +974,7 @@ function renderCards(data,area){
     const _catEntry=_catalogMap[String(ean).trim()];
     const catalogPrice=_catEntry?.cost??null;
     const _catSuppliers=(_catEntry?.suppliers||[]).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
-    const _offerSuppliers=(_offersMap[String(ean).trim()]||[]).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
+    const _offerSuppliers=(_offersMap[String(ean).trim()]||[]).filter(o=>o.name!==r.supplier_name||parseFloat(o.cost)!==parseFloat(r.cost_of_unit)).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
     let catBadgeHtml='';
     if(catalogPrice!=null&&ean){
       const offerVal=parseFloat(r.cost_of_unit);const catVal=parseFloat(catalogPrice);
@@ -1019,7 +1019,7 @@ function renderTable(data,area){
     tbl+=`<td style="font-weight:600">${esc(pname)}</td>`;
     tbl+=`<td><span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:${colour.fg}"><span style="width:6px;height:6px;border-radius:50%;background:${colour.bar};flex-shrink:0;display:inline-block"></span>${esc(sup)}</span></td>`;
     const _catEntry=_catalogMap[String(ean).trim()];const catP=_catEntry?.cost??null;const _catSuppliers=(_catEntry?.suppliers||[]).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
-    const _offerSuppliers=(_offersMap[String(ean).trim()]||[]).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
+    const _offerSuppliers=(_offersMap[String(ean).trim()]||[]).filter(o=>o.name!==r.supplier_name||parseFloat(o.cost)!==parseFloat(r.cost_of_unit)).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
     let catCell='';
     if(catP!=null&&ean){
       const ov=parseFloat(r.cost_of_unit),cv=parseFloat(catP);
@@ -1129,7 +1129,7 @@ function renderDrawer(row){
           <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.38)">Catalog Price</div>
           <div style="font-size:13px;font-weight:800;color:#fff"> <span style="font-size:10px;font-weight:500;color:${arrowColor}">${esc(pct)}</span></div>
           ${_catSuppliers.length?`<div style="margin-top:4px;display:flex;flex-direction:column;gap:3px">${_catSuppliers.slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost)).map(s=>`<div style="font-size:12px;color:rgba(255,255,255,.55);display:flex;justify-content:space-between"><span>${esc(s.name)}</span><span style="color:rgba(74,222,128,.85);font-weight:700"> ${esc(fmtCost(s.cost))}</span></div>`).join('')}</div>`:''}
-          ${(()=>{const _offerSuppliers=(_offersMap[String(row.ean||'').trim()]||[]).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));return _offerSuppliers.length?`<div style="margin-top:7px;padding:7px 9px;background:rgba(253,224,71,.1);border:1px solid rgba(253,224,71,.3);border-radius:8px"><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(253,224,71,.6);margin-bottom:4px">Other Offers</div><div style="display:flex;flex-direction:column;gap:3px">${_offerSuppliers.map(s=>`<div style="font-size:12px;color:rgba(255,255,255,.55);display:flex;justify-content:space-between"><span>${esc(s.name)}</span><span style="color:#fde047;font-weight:700">${esc(fmtCost(s.cost))}</span></div>`).join('')}</div></div>`:'';})()}
+          ${(()=>{const _offerSuppliers=(_offersMap[String(row.ean||'').trim()]||[]).filter(o=>o.name!==row.supplier_name||parseFloat(o.cost)!==parseFloat(row.cost_of_unit)).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));return _offerSuppliers.length?`<div style="margin-top:7px;padding:7px 9px;background:rgba(253,224,71,.1);border:1px solid rgba(253,224,71,.3);border-radius:8px"><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(253,224,71,.6);margin-bottom:4px">Other Offers</div><div style="display:flex;flex-direction:column;gap:3px">${_offerSuppliers.map(s=>`<div style="font-size:12px;color:rgba(255,255,255,.55);display:flex;justify-content:space-between"><span>${esc(s.name)}</span><span style="color:#fde047;font-weight:700">${esc(fmtCost(s.cost))}</span></div>`).join('')}</div></div>`:'';})()}
           </div>
       </div>`;
     })()}
