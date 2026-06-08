@@ -1658,7 +1658,14 @@ async function openSourcingModal(offer){
         <div class="src-group"><label class="src-lbl">Agent</label><div class="src-prefill">${esc(_agentName||'—')}</div><input type="hidden" id="src_agent" value="${esc(_agentName||'')}"></div>
         <div class="src-group"><label class="src-lbl">Fulfillment *</label><select class="src-inp" id="src_fulfillment"><option value="">Select…</option><option>FBM</option><option>FBA</option></select></div>
         <div class="src-group"><label class="src-lbl">SAS Combined Sales *</label><input class="src-inp" id="src_keepa" placeholder="e.g. 120"></div>
-        <div class="src-group"><label class="src-lbl">ASIN(s)</label><input class="src-inp" id="src_asins" placeholder="e.g. B08XYZ123"></div>
+        <div class="src-group src-full"><label class="src-lbl">ASIN(s)</label>
+          <div style="display:flex;flex-direction:column;gap:6px;" id="src_asinList">
+            <div style="display:flex;align-items:center;gap:6px;"><input class="src-inp src-asin-input" type="text" placeholder="e.g. B08XYZ123" style="flex:1"><button type="button" onclick="removeSrcAsin(this)" style="width:28px;height:28px;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:.3;pointer-events:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+          </div>
+          <button type="button" onclick="addSrcAsin()" style="display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:7px 10px;border:1.5px dashed #c4d3f9;border-radius:8px;background:#eef2fd;color:#1847d4;font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;margin-top:6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add another ASIN
+          </button>
+        </div>
       </div>
     </div>
     <div class="src-form-section">
@@ -1736,7 +1743,7 @@ async function saveSourcingFromOffer(){
     supplier_name:document.getElementById('src_supplier').value,
     code:document.getElementById('src_ean').value,
     product_name:document.getElementById('src_productName').value.trim(),
-    asins:document.getElementById('src_asins').value.trim(),
+    asins:getSrcAsins(),
     cost_of_unit:parseFloat(document.getElementById('src_costOfUnit').value)||0,
     cost_of_sale:parseFloat(document.getElementById('src_costOfSale').value)||0,
     net_profit:parseFloat(document.getElementById('src_netProfit').value)||0,
@@ -1791,8 +1798,40 @@ async function saveSourcingFromOffer(){
   btn.disabled=false;btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Approve';
 }
 
+function getSrcAsins(){
+  const list=document.getElementById('src_asinList');
+  if(!list)return'';
+  return Array.from(list.querySelectorAll('.src-asin-input')).map(i=>i.value.trim()).filter(Boolean).join(', ');
+}
+function addSrcAsin(){
+  const list=document.getElementById('src_asinList');
+  if(!list)return;
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;align-items:center;gap:6px;';
+  row.innerHTML=`<input class="src-inp src-asin-input" type="text" placeholder="e.g. B08XYZ123" style="flex:1"><button type="button" onclick="removeSrcAsin(this)" style="width:28px;height:28px;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
+  list.appendChild(row);
+  row.querySelector('input').focus();
+  updateSrcAsinBtns();
+}
+function removeSrcAsin(btn){
+  const list=document.getElementById('src_asinList');
+  if(!list||list.children.length<=1)return;
+  btn.closest('div').remove();
+  updateSrcAsinBtns();
+}
+function updateSrcAsinBtns(){
+  const list=document.getElementById('src_asinList');
+  if(!list)return;
+  const rows=list.children;
+  Array.from(rows).forEach(r=>{
+    const b=r.querySelector('button');
+    if(b){b.style.opacity=rows.length<=1?'.3':'1';b.style.pointerEvents=rows.length<=1?'none':'';}
+  });
+}
+  
 /* ── GLOBALS ── */
 window.openSourcingModal=openSourcingModal;
+window.addSrcAsin=addSrcAsin;window.removeSrcAsin=removeSrcAsin;
 window.closeSourcingModal=closeSourcingModal;
 window.saveSourcingFromOffer=saveSourcingFromOffer;
 window.completeOfferApproval=completeOfferApproval;
