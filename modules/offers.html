@@ -541,7 +541,7 @@ body{overflow:hidden}
     <div class="sf-sep"></div>
     <div class="sf-toggle-chip" id="sfMultiChip" onclick="toggleMultiSupplier()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Multi-supplier EAN
+      Cheapest for EAN
     </div>
     <button class="sf-clear" id="sfClearBtn" onclick="clearSmartFilters()">✕ Clear</button>
   </div>
@@ -953,10 +953,12 @@ function getSmartFiltered(data){
       if(totalSuppliers<minSuppliers)return false;
     }
 
-    // Multi-supplier EAN toggle
+// Cheapest for EAN toggle
     if(_sfMulti){
-      const totalSuppliers=(_offersMap[ean]||[]).map(o=>o.name).filter((n,i,a)=>a.indexOf(n)===i).length;
-      if(totalSuppliers<2)return false;
+      const allForEan=(_offersMap[ean]||[]);
+      if(!allForEan.length)return false;
+      const lowestCost=Math.min(...allForEan.map(o=>parseFloat(o.cost)).filter(n=>!isNaN(n)));
+      if(isNaN(offerVal)||offerVal>lowestCost)return false;
     }
 
     // Price range
