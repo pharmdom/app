@@ -680,7 +680,13 @@ function resolveImg(raw){
 /* ── UTILS ── */
 function esc(s){return String(s!=null?s:'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function getEffectiveCost(r){
-  return r.cost_of_unit;
+  const name=String(r.supplier_name||'').toLowerCase();
+  const needsDerived=name.includes('wts')||name.includes('wholesale trading supplies')||name.includes('intamarque');
+  if(!needsDerived)return r.cost_of_unit;
+  const cas=parseFloat(r.case_qty||r.unit_quantity||0);
+  const cost=parseFloat(r.cost_of_unit||0);
+  if(!cas||isNaN(cas)||isNaN(cost))return r.cost_of_unit;
+  return cost/cas;
 }
 function fmtCost(v){if(!v&&v!==0)return'—';const n=parseFloat(v);return isNaN(n)?String(v):'£'+n.toFixed(2);}
 function fmtDateSh(v){if(!v)return'—';try{const d=new Date(v);return isNaN(d)?String(v):d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}catch(e){return String(v);}}
@@ -787,28 +793,16 @@ function buildOffersMap(){
   Object.values(_offersMap).forEach(arr=>arr.sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost)));
 }
   
-
-function getCatalogEffectiveCost(r){
-  const name=String(r.supplier_name||'').toLowerCase();
-  const needsDerived=name.includes('wts')||name.includes('wholesale trading supplies')||name.includes('intamarque');
-  if(!needsDerived)return r.cost;
-  const cas=parseFloat(r.case_qty||r.unit_quantity||0);
-  const cost=parseFloat(r.cost||0);
-  if(!cas||isNaN(cas)||isNaN(cost))return r.cost;
-  return cost/cas;
-}
-
 async function loadCatalogPrices(){
   try{
-    const{data}=await sb.from('catalog').select('ean,cost,case_qty,unit_quantity,supplier_name').not('ean','is',null).not('cost','is',null);
+const{data}=await sb.from('catalog').select('ean,cost,supplier_name').not('ean','is',null).not('cost','is',null);
     _catalogMap={};
     (data||[]).forEach(r=>{
       const k=String(r.ean||'').trim();
       if(!k)return;
-      const derivedCost=getCatalogEffectiveCost(r);
-      if(!_catalogMap[k])_catalogMap[k]={cost:derivedCost,suppliers:[]};
+      if(!_catalogMap[k])_catalogMap[k]={cost:r.cost,suppliers:[]};
       if(r.supplier_name&&!_catalogMap[k].suppliers.find(s=>s.name===r.supplier_name))
-        _catalogMap[k].suppliers.push({name:r.supplier_name,cost:derivedCost});
+        _catalogMap[k].suppliers.push({name:r.supplier_name,cost:r.cost});
     });
   }catch(e){ console.warn('Could not load catalog prices',e); }
 }
