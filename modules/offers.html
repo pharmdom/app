@@ -720,8 +720,7 @@ const{data}=await sb.from('catalog').select('ean,cost,supplier_name').not('ean',
     (data||[]).forEach(r=>{
       const k=String(r.ean||'').trim();
       if(!k)return;
-      if(!_catalogMap[k])_catalogMap[k]={cost:r.cost,min:parseFloat(r.cost),max:parseFloat(r.cost),suppliers:[]};
-      else{const v=parseFloat(r.cost);if(v<_catalogMap[k].min)_catalogMap[k].min=v;if(v>_catalogMap[k].max)_catalogMap[k].max=v;}
+      if(!_catalogMap[k])_catalogMap[k]={cost:r.cost,suppliers:[]};
       if(r.supplier_name&&!_catalogMap[k].suppliers.find(s=>s.name===r.supplier_name))
         _catalogMap[k].suppliers.push({name:r.supplier_name,cost:r.cost});
     });
@@ -885,20 +884,20 @@ function buildKanbanCard(r,colour,supplierGroup,groupItems){
   const _catEntry=_catalogMap[String(ean).trim()];
   const catalogPrice=_catEntry?.cost??null;
   const _catSuppliers=(_catEntry?.suppliers||[]).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
-  const _offerSuppliers=(_offersMap[String(ean).trim()]||[]).filter(o=>o.name!==r.supplier_name||parseFloat(o.cost)!==parseFloat(r.cost_of_unit)).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
+  const _offerSuppliers=(_offersMap[String(ean).trim()]||[]).filter(o=>o.name!==r.supplier_name).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
   let catalogHtml='';
   if(catalogPrice!=null&&ean){
-    const offerVal=parseFloat(cost);
-    const catVal=parseFloat(catalogPrice);
-let indicator='';
-const catMin=_catEntry?.min??parseFloat(catalogPrice);
-const catMax=_catEntry?.max??parseFloat(catalogPrice);
-let badgeBg='#f0fdf4',badgeBd='#86efac';
-if(!isNaN(offerVal)&&!isNaN(catMin)){
-  if(offerVal<catMin){indicator=`<span style="color:#15803d;font-size:9px;font-weight:800">▼</span>`;badgeBg='#f0fdf4';badgeBd='#86efac';}
-  else if(offerVal>catMax){indicator=`<span style="color:#b91c1c;font-size:9px;font-weight:800">▲</span>`;badgeBg='#fef2f2';badgeBd='#fecaca';}
-}
-    catalogHtml=`<div style="display:flex;align-items:center;gap:4px;margin-top:3px;padding:3px 6px;background:${badgeBg};border:1px solid ${badgeBd};border-radius:6px;font-size:10px;">
+const offerVal=parseFloat(getEffectiveCost(r));
+    const catPrices=_catSuppliers.map(s=>parseFloat(s.cost)).filter(n=>!isNaN(n));
+    const catMin=catPrices.length?Math.min(...catPrices):null;
+    const catMax=catPrices.length?Math.max(...catPrices):null;
+    let indicator='';
+    if(offerVal!=null&&!isNaN(offerVal)&&catMin!=null){
+      if(offerVal<catMin){indicator=`<span style="color:#15803d;font-size:9px;font-weight:800">▼</span>`;}
+      else if(offerVal>catMax){indicator=`<span style="color:#b91c1c;font-size:9px;font-weight:800">▲</span>`;}
+      else{indicator=`<span style="color:#64748b;font-size:9px;font-weight:700">=</span>`;}
+    }
+    catalogHtml=`<div style="display:flex;align-items:center;gap:4px;margin-top:3px;padding:3px 6px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:10px;">
         ${indicator}
         ${_catSuppliers.length?`<span style="color:#94a3b8;font-size:11px;margin-left:auto;display:flex;align-items:center;gap:4px;flex-wrap:wrap;">${_catSuppliers.map(s=>`<span style="white-space:nowrap">${esc(s.name.split(' ')[0])} <span style="color:#0c7a42;font-weight:700">${esc(fmtCost(s.cost))}</span></span>`).join('<span style="color:#cbd5e1;margin:0 3px">·</span>')}</span>`:''}
       </div>
@@ -983,20 +982,21 @@ function renderCards(data,area){
     const _catEntry=_catalogMap[String(ean).trim()];
     const catalogPrice=_catEntry?.cost??null;
     const _catSuppliers=(_catEntry?.suppliers||[]).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
-    const _offerSuppliers=(_offersMap[String(ean).trim()]||[]).filter(o=>o.name!==r.supplier_name||parseFloat(o.cost)!==parseFloat(r.cost_of_unit)).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
+    const _offerSuppliers=(_offersMap[String(ean).trim()]||[]).filter(o=>o.name!==r.supplier_name).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
     let catBadgeHtml='';
     if(catalogPrice!=null&&ean){
-      const offerVal=parseFloat(r.cost_of_unit);const catVal=parseFloat(catalogPrice);
+const offerVal=parseFloat(getEffectiveCost(r));
+      const catPrices=_catSuppliers.map(s=>parseFloat(s.cost)).filter(n=>!isNaN(n));
+      const catMin=catPrices.length?Math.min(...catPrices):null;
+      const catMax=catPrices.length?Math.max(...catPrices):null;
       let indicator='',indColor='#64748b';
-const catMin=_catEntry?.min??parseFloat(catalogPrice);
-const catMax=_catEntry?.max??parseFloat(catalogPrice);
-let badgeBg='#f0fdf4',badgeBd='#86efac';
-if(!isNaN(offerVal)&&!isNaN(catMin)){
-  if(offerVal<catMin){indicator=`<span style="color:#15803d;font-size:9px;font-weight:800">▼</span>`;badgeBg='#f0fdf4';badgeBd='#86efac';}
-  else if(offerVal>catMax){indicator=`<span style="color:#b91c1c;font-size:9px;font-weight:800">▲</span>`;badgeBg='#fef2f2';badgeBd='#fecaca';}
-}
-     catBadgeHtml=`<div style="display:flex;align-items:center;gap:4px;margin-top:6px;padding:3px 7px;background:${badgeBg};border:1px solid ${badgeBd};border-radius:6px;font-size:10px;">
-        ${indicator}
+      if(offerVal!=null&&!isNaN(offerVal)&&catMin!=null){
+        if(offerVal<catMin){indicator='▼';indColor='#15803d';}
+        else if(offerVal>catMax){indicator='▲';indColor='#b91c1c';}
+        else{indicator='=';}
+      }
+      catBadgeHtml=`<div style="display:flex;align-items:center;gap:4px;margin-top:6px;padding:3px 7px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:10px;">
+        ${indicator?`<span style="color:${indColor};font-weight:800;font-size:9px">${indicator}</span>`:''}
         ${_catSuppliers.length?`<span style="color:#94a3b8;font-size:11px;margin-left:auto;display:flex;align-items:center;gap:4px;flex-wrap:wrap;">${_catSuppliers.map(s=>`<span style="white-space:nowrap">${esc(s.name.split(' ')[0])} <span style="color:#0c7a42;font-weight:700">${esc(fmtCost(s.cost))}</span></span>`).join('<span style="color:#cbd5e1;margin:0 3px">·</span>')}</span>`:''}
       </div>
       ${_offerSuppliers.length?`<div style="display:flex;align-items:center;gap:4px;margin-top:3px;padding:3px 7px;background:#fefce8;border:1px solid #fde047;border-radius:6px;font-size:10px;">
@@ -1028,17 +1028,19 @@ function renderTable(data,area){
     tbl+=`<td style="font-weight:600">${esc(pname)}</td>`;
     tbl+=`<td><span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:${colour.fg}"><span style="width:6px;height:6px;border-radius:50%;background:${colour.bar};flex-shrink:0;display:inline-block"></span>${esc(sup)}</span></td>`;
     const _catEntry=_catalogMap[String(ean).trim()];const catP=_catEntry?.cost??null;const _catSuppliers=(_catEntry?.suppliers||[]).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
-    const _offerSuppliers=(_offersMap[String(ean).trim()]||[]).filter(o=>o.name!==r.supplier_name||parseFloat(o.cost)!==parseFloat(r.cost_of_unit)).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
+    const _offerSuppliers=(_offersMap[String(ean).trim()]||[]).filter(o=>o.name!==r.supplier_name).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
     let catCell='';
     if(catP!=null&&ean){
-      const ov=parseFloat(r.cost_of_unit),cv=parseFloat(catP);
+const ov=parseFloat(getEffectiveCost(r));
+      const catPrices=_catSuppliers.map(s=>parseFloat(s.cost)).filter(n=>!isNaN(n));
+      const catMin=catPrices.length?Math.min(...catPrices):null;
+      const catMax=catPrices.length?Math.max(...catPrices):null;
       let ind='',indColor='#64748b';
-      const catMin=_catEntry?.min??parseFloat(catP);
-const catMax=_catEntry?.max??parseFloat(catP);
-if(!isNaN(ov)&&!isNaN(catMin)){
-  if(ov<catMin){ind='▼';indColor='#15803d';}
-  else if(ov>catMax){ind='▲';indColor='#b91c1c';}
-}
+      if(ov!=null&&!isNaN(ov)&&catMin!=null){
+        if(ov<catMin){ind='▼';indColor='#15803d';}
+        else if(ov>catMax){ind='▲';indColor='#b91c1c';}
+        else{ind='=';}
+      }
 
       catCell=`<span style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:11px;color:#15803d;background:#f0fdf4;border:1px solid #86efac;padding:2px 7px;border-radius:20px;font-weight:700"><span style="color:${indColor};font-size:10px">${ind}</span>${_catSuppliers.length?`<span style="color:#94a3b8;font-size:11px;font-weight:400;margin-left:2px">${_catSuppliers.map(s=>`${esc(s.name.split(' ')[0])} <span style="color:#0c7a42;font-weight:700">${esc(fmtCost(s.cost))}</span>`).join(' · ')}</span>`:''}</span>`;
         if(_offerSuppliers.length) catCell+=`<span style="display:inline-flex;align-items:center;gap:4px;margin-left:4px;font-size:11px;background:#fefce8;border:1px solid #fde047;padding:2px 7px;border-radius:20px;color:#92400e;font-weight:700"> ${_offerSuppliers.map(s=>{const ov=parseFloat(r.cost_of_unit),sv=parseFloat(s.cost);const indColor=sv<ov?'#b91c1c':sv>ov?'#15803d':'#ca8a04';const ind=sv<ov?'▼':sv>ov?'▲':'=';return`<span style="color:${indColor};font-size:9px;font-weight:800;margin-right:2px">${ind}</span>${esc(s.name.split(' ')[0])} <span style="font-weight:700">${esc(fmtCost(s.cost))}</span>`;}).join(' · ')}</span>`;
@@ -1125,14 +1127,15 @@ function renderDrawer(row){
       const ean=String(row.ean||'').trim();
       const _catEntry=_catalogMap[ean];const catPrice=_catEntry?.cost??null;const _catSuppliers=_catEntry?.suppliers||[];
       if(!ean||catPrice==null)return'';
-      const offerVal=parseFloat(row.cost_of_unit);
-      const catVal=parseFloat(catPrice);
+const offerVal=parseFloat(getEffectiveCost(row));
+      const catPrices=(_catSuppliers||[]).map(s=>parseFloat(s.cost)).filter(n=>!isNaN(n));
+      const catMin=catPrices.length?Math.min(...catPrices):null;
+      const catMax=catPrices.length?Math.max(...catPrices):null;
       let arrow='',arrowColor='rgba(255,255,255,.7)',pct='',bg='rgba(255,255,255,.07)',bd='rgba(255,255,255,.12)';
-      if(!isNaN(offerVal)&&!isNaN(catVal)){
-        const catMin=_catEntry?.min??parseFloat(catPrice);
-const catMax=_catEntry?.max??parseFloat(catPrice);
-if(offerVal<catMin){arrow='▼';arrowColor='#4ade80';pct=((catMin-offerVal)/catMin*100).toFixed(1)+'% below catalog';bg='rgba(74,222,128,.12)';bd='rgba(74,222,128,.25)';}
-else if(offerVal>catMax){arrow='▲';arrowColor='#f87171';pct=((offerVal-catMax)/catMax*100).toFixed(1)+'% above catalog';bg='rgba(248,113,113,.12)';bd='rgba(248,113,113,.25)';}
+      if(offerVal!=null&&!isNaN(offerVal)&&catMin!=null){
+        if(offerVal<catMin){arrow='▼';arrowColor='#4ade80';pct=((catMin-offerVal)/catMin*100).toFixed(1)+'% below catalog';bg='rgba(74,222,128,.12)';bd='rgba(74,222,128,.25)';}
+        else if(offerVal>catMax){arrow='▲';arrowColor='#f87171';pct=((offerVal-catMax)/catMax*100).toFixed(1)+'% above catalog';bg='rgba(248,113,113,.12)';bd='rgba(248,113,113,.25)';}
+        else{arrow='=';arrowColor='rgba(255,255,255,.55)';pct='within catalog range';}
       }
       return`<div style="margin-top:8px;padding:8px 10px;background:${bg};border:1px solid ${bd};border-radius:9px;display:flex;align-items:center;gap:8px;position:relative;z-index:1">
         <span style="font-size:18px;font-weight:900;color:${arrowColor};line-height:1">${arrow}</span>
@@ -1140,7 +1143,7 @@ else if(offerVal>catMax){arrow='▲';arrowColor='#f87171';pct=((offerVal-catMax)
           <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.38)">Catalog Price</div>
           <div style="font-size:13px;font-weight:800;color:#fff"> <span style="font-size:10px;font-weight:500;color:${arrowColor}">${esc(pct)}</span></div>
           ${_catSuppliers.length?`<div style="margin-top:4px;display:flex;flex-direction:column;gap:3px">${_catSuppliers.slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost)).map(s=>`<div style="font-size:12px;color:rgba(255,255,255,.55);display:flex;justify-content:space-between"><span>${esc(s.name)}</span><span style="color:rgba(74,222,128,.85);font-weight:700"> ${esc(fmtCost(s.cost))}</span></div>`).join('')}</div>`:''}
-          ${(()=>{const _offerSuppliers=(_offersMap[String(row.ean||'').trim()]||[]).filter(o=>o.name!==row.supplier_name||parseFloat(o.cost)!==parseFloat(row.cost_of_unit)).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));return _offerSuppliers.length?`<div style="margin-top:7px;padding:7px 9px;background:rgba(253,224,71,.1);border:1px solid rgba(253,224,71,.3);border-radius:8px"><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(253,224,71,.6);margin-bottom:4px">Other Offers</div><div style="display:flex;flex-direction:column;gap:3px">${_offerSuppliers.map(s=>{const ov=parseFloat(row.cost_of_unit),sv=parseFloat(s.cost);const indColor=sv<ov?'#b91c1c':sv>ov?'#15803d':'#ca8a04';const ind=sv<ov?'▼':sv>ov?'▲':'=';return`<div style="font-size:12px;color:rgba(255,255,255,.55);display:flex;justify-content:space-between;align-items:center"><span style="display:flex;align-items:center;gap:5px"><span style="color:${indColor};font-size:9px;font-weight:800">${ind}</span>${esc(s.name)}</span><span style="color:#fde047;font-weight:700"> ${esc(fmtCost(s.cost))}</span></div>`;}).join('')}</div></div>`:'';})()}
+          ${(()=>{const _offerSuppliers=(_offersMap[String(row.ean||'').trim()]||[]).filter(o=>o.name!==row.supplier_name).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));return _offerSuppliers.length?`<div style="margin-top:7px;padding:7px 9px;background:rgba(253,224,71,.1);border:1px solid rgba(253,224,71,.3);border-radius:8px"><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:rgba(253,224,71,.6);margin-bottom:4px">Other Offers</div><div style="display:flex;flex-direction:column;gap:3px">${_offerSuppliers.map(s=>{const ov=parseFloat(row.cost_of_unit),sv=parseFloat(s.cost);const indColor=sv<ov?'#b91c1c':sv>ov?'#15803d':'#ca8a04';const ind=sv<ov?'▼':sv>ov?'▲':'=';return`<div style="font-size:12px;color:rgba(255,255,255,.55);display:flex;justify-content:space-between;align-items:center"><span style="display:flex;align-items:center;gap:5px"><span style="color:${indColor};font-size:9px;font-weight:800">${ind}</span>${esc(s.name)}</span><span style="color:#fde047;font-weight:700"> ${esc(fmtCost(s.cost))}</span></div>`;}).join('')}</div></div>`:'';})()}
           </div>
       </div>`;
     })()}
