@@ -322,6 +322,35 @@ body{overflow:hidden}
 .src-grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
 .src-full{grid-column:1/-1;}
 .src-prefill{padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;color:#0f172a;background:#f8fafc;font-weight:600;min-height:38px;display:flex;align-items:center;}
+
+/* SMART FILTERS */
+.sf-bar{display:flex;align-items:center;gap:8px;padding:7px 18px;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;overflow:hidden;max-height:0;padding-top:0;padding-bottom:0;opacity:0;pointer-events:none;transition:max-height .25s cubic-bezier(.4,0,.2,1),opacity .2s,padding .25s;}
+.sf-bar.open{max-height:80px;padding-top:7px;padding-bottom:7px;opacity:1;pointer-events:all;}
+.sf-toggle{display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:var(--r-sm);background:var(--surface2);border:1.5px solid var(--border);color:var(--text3);font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s;flex-shrink:0;white-space:nowrap;}
+.sf-toggle:hover{border-color:var(--accent-bd);color:var(--accent);background:var(--accent-bg)}
+.sf-toggle.active{border-color:var(--accent-bd);color:var(--accent);background:var(--accent-bg)}
+.sf-toggle svg{width:13px;height:13px;flex-shrink:0}
+.sf-toggle .sf-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;display:none;}
+.sf-toggle.has-active .sf-dot{display:block;}
+.sf-sep{width:1px;height:20px;background:var(--border);flex-shrink:0}
+.sf-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);flex-shrink:0;}
+.sf-sel-wrap{position:relative;display:inline-flex;align-items:center;flex-shrink:0}
+.sf-sel-wrap svg{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:10px;height:10px;color:var(--text4);pointer-events:none;}
+.sf-sel{padding:5px 24px 5px 9px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:11.5px;font-weight:600;font-family:var(--font);background:var(--surface2);color:var(--text2);outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;transition:all .15s;}
+.sf-sel:focus,.sf-sel.active{border-color:var(--accent);background:var(--accent-bg);color:var(--accent)}
+.sf-price-wrap{display:flex;align-items:center;gap:5px;flex-shrink:0}
+.sf-price-wrap span{font-size:11px;color:var(--text4);font-weight:600}
+.sf-price-inp{width:68px;padding:5px 8px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:11.5px;font-family:var(--font);background:var(--surface2);color:var(--text);outline:none;transition:all .15s;}
+.sf-price-inp:focus{border-color:var(--accent);background:#fff}
+.sf-price-inp.active{border-color:var(--accent);background:var(--accent-bg)}
+.sf-toggle-chip{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);color:var(--text3);font-size:11.5px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s;flex-shrink:0;white-space:nowrap;user-select:none;}
+.sf-toggle-chip:hover{border-color:var(--accent-bd);color:var(--accent)}
+.sf-toggle-chip.active{border-color:var(--accent);background:var(--accent-bg);color:var(--accent)}
+.sf-toggle-chip svg{width:11px;height:11px;flex-shrink:0}
+.sf-clear{padding:5px 9px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:transparent;color:var(--text4);font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s;flex-shrink:0;display:none;}
+.sf-clear:hover{border-color:var(--red-bd);color:var(--red);background:var(--red-bg)}
+.sf-clear.visible{display:block}
+  
 </style>
 
 <div class="pbar" id="pbar"></div>
@@ -444,6 +473,11 @@ body{overflow:hidden}
       <input type="date" class="fsel" id="dateFilter" onchange="renderView()" style="padding-right:8px">
     </div>
     <div class="tb-right">
+      <button class="sf-toggle" id="sfToggleBtn" onclick="toggleSmartFilters()" title="Smart Filters">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+  Filters
+  <span class="sf-dot"></span>
+</button>
       <button class="nav-btn" onclick="openMergeModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M8 6H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/><path d="M16 6h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
         Merge
@@ -462,6 +496,52 @@ body{overflow:hidden}
     </div>
   </div>
 
+  <div class="sf-bar" id="sfBar">
+    <span class="sf-label">Catalog</span>
+    <div class="sf-sel-wrap">
+      <select class="sf-sel" id="sfCatalog" onchange="applySmartFilters()">
+        <option value="">Any</option>
+        <option value="in">In catalog</option>
+        <option value="out">Not in catalog</option>
+      </select>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="sf-sep"></div>
+    <span class="sf-label">vs Catalog</span>
+    <div class="sf-sel-wrap">
+      <select class="sf-sel" id="sfVsCatalog" onchange="applySmartFilters()">
+        <option value="">Any</option>
+        <option value="below">Cheaper than catalog</option>
+        <option value="within">Within catalog range</option>
+        <option value="above">More expensive</option>
+      </select>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="sf-sep"></div>
+    <span class="sf-label">Other offers</span>
+    <div class="sf-sel-wrap">
+      <select class="sf-sel" id="sfOtherOffers" onchange="applySmartFilters()">
+        <option value="">Any</option>
+        <option value="1">2+ suppliers</option>
+        <option value="2">3+ suppliers</option>
+        <option value="3">4+ suppliers</option>
+      </select>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="sf-sep"></div>
+    <span class="sf-label">£</span>
+    <div class="sf-price-wrap">
+      <input type="number" class="sf-price-inp" id="sfPriceMin" placeholder="Min" min="0" step="0.01" oninput="applySmartFilters()">
+      <span>—</span>
+      <input type="number" class="sf-price-inp" id="sfPriceMax" placeholder="Max" min="0" step="0.01" oninput="applySmartFilters()">
+    </div>
+    <div class="sf-sep"></div>
+    <div class="sf-toggle-chip" id="sfMultiChip" onclick="toggleMultiSupplier()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Multi-supplier EAN
+    </div>
+    <button class="sf-clear" id="sfClearBtn" onclick="clearSmartFilters()">✕ Clear</button>
+  </div>
   <div class="offers-content" id="offersContentArea">
     <div class="state-wrap"><span class="spinner spin-md"></span><p>Loading offers…</p></div>
   </div>
@@ -772,6 +852,116 @@ function setChip(id,txt){
   el.innerHTML=(svg?svg.outerHTML:'')+'<span>'+esc(txt)+'</span>';
 }
 
+
+/* ── SMART FILTERS ── */
+let _sfOpen=false;
+let _sfMulti=false;
+
+function toggleSmartFilters(){
+  _sfOpen=!_sfOpen;
+  document.getElementById('sfBar').classList.toggle('open',_sfOpen);
+  document.getElementById('sfToggleBtn').classList.toggle('active',_sfOpen);
+  if(!_sfOpen)clearSmartFilters();
+}
+
+function applySmartFilters(){
+  updateSmartFilterState();
+  renderView();
+}
+
+function toggleMultiSupplier(){
+  _sfMulti=!_sfMulti;
+  document.getElementById('sfMultiChip').classList.toggle('active',_sfMulti);
+  applySmartFilters();
+}
+
+function clearSmartFilters(){
+  document.getElementById('sfCatalog').value='';
+  document.getElementById('sfVsCatalog').value='';
+  document.getElementById('sfOtherOffers').value='';
+  document.getElementById('sfPriceMin').value='';
+  document.getElementById('sfPriceMax').value='';
+  _sfMulti=false;
+  document.getElementById('sfMultiChip').classList.remove('active');
+  updateSmartFilterState();
+  renderView();
+}
+
+function updateSmartFilterState(){
+  const catalog=document.getElementById('sfCatalog').value;
+  const vsCatalog=document.getElementById('sfVsCatalog').value;
+  const otherOffers=document.getElementById('sfOtherOffers').value;
+  const priceMin=document.getElementById('sfPriceMin').value;
+  const priceMax=document.getElementById('sfPriceMax').value;
+  const hasActive=catalog||vsCatalog||otherOffers||priceMin||priceMax||_sfMulti;
+  document.getElementById('sfToggleBtn').classList.toggle('has-active',!!hasActive);
+  document.getElementById('sfClearBtn').classList.toggle('visible',!!hasActive);
+  // Highlight active selects
+  ['sfCatalog','sfVsCatalog','sfOtherOffers'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.classList.toggle('active',!!el.value);
+  });
+  ['sfPriceMin','sfPriceMax'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.classList.toggle('active',!!el.value);
+  });
+}
+
+function getSmartFiltered(data){
+  const catalog=document.getElementById('sfCatalog').value;
+  const vsCatalog=document.getElementById('sfVsCatalog').value;
+  const otherOffers=document.getElementById('sfOtherOffers').value;
+  const priceMin=parseFloat(document.getElementById('sfPriceMin').value)||null;
+  const priceMax=parseFloat(document.getElementById('sfPriceMax').value)||null;
+
+  return data.filter(r=>{
+    const ean=String(r.ean||'').trim();
+    const offerVal=parseFloat(getEffectiveCost(r));
+    const _catEntry=_catalogMap[ean];
+    const _catSuppliers=(_catEntry?.suppliers||[]);
+    const catPrices=_catSuppliers.map(s=>parseFloat(s.cost)).filter(n=>!isNaN(n));
+    const catMin=catPrices.length?Math.min(...catPrices):null;
+    const catMax=catPrices.length?Math.max(...catPrices):null;
+    const inCatalog=!!_catEntry;
+    const offerSupplierCount=(_offersMap[ean]||[]).map(o=>o.name).filter((n,i,a)=>a.indexOf(n)===i).length;
+
+    // Catalog presence
+    if(catalog==='in'&&!inCatalog)return false;
+    if(catalog==='out'&&inCatalog)return false;
+
+    // vs catalog price
+    if(vsCatalog&&catMin!=null&&!isNaN(offerVal)){
+      if(vsCatalog==='below'&&!(offerVal<catMin))return false;
+      if(vsCatalog==='within'&&!(offerVal>=catMin&&offerVal<=catMax))return false;
+      if(vsCatalog==='above'&&!(offerVal>catMax))return false;
+    }else if(vsCatalog&&catMin==null){
+      // No catalog data — can't satisfy a vs-catalog filter
+      if(vsCatalog!=='')return false;
+    }
+
+    // Other offers (count = total unique suppliers for this EAN including self)
+    if(otherOffers){
+      // total unique suppliers in offersMap for this EAN
+      const totalSuppliers=(_offersMap[ean]||[]).map(o=>o.name).filter((n,i,a)=>a.indexOf(n)===i).length;
+      const minSuppliers=parseInt(otherOffers)+1; // otherOffers value is "other" count min, total = that+1
+      if(totalSuppliers<minSuppliers)return false;
+    }
+
+    // Multi-supplier EAN toggle
+    if(_sfMulti){
+      const totalSuppliers=(_offersMap[ean]||[]).map(o=>o.name).filter((n,i,a)=>a.indexOf(n)===i).length;
+      if(totalSuppliers<2)return false;
+    }
+
+    // Price range
+    if(priceMin!==null&&!isNaN(offerVal)&&offerVal<priceMin)return false;
+    if(priceMax!==null&&!isNaN(offerVal)&&offerVal>priceMax)return false;
+
+    return true;
+  });
+}
+
+  
 /* ── FILTERS ── */
 function populateFilters(){
   const sel=document.getElementById('supFilter'),prev=sel.value;
@@ -785,6 +975,8 @@ function populateFilters(){
   canonicals.forEach(c=>{sel.innerHTML+=`<option value="${esc(c)}">${esc(c)}</option>`;});
   if(prev)sel.value=prev;
 }
+
+  
 function getFiltered(){
   const q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
   const supFilter=document.getElementById('supFilter').value;
@@ -792,15 +984,16 @@ function getFiltered(){
   const rawNames=[];
   offersData.forEach(r=>{const s=r.supplier_name||'';if(s&&rawNames.indexOf(s)<0)rawNames.push(s);});
   const supMap=buildSupplierMap(rawNames);
-  return offersData.filter(r=>{
+  let base=offersData.filter(r=>{
     if((r.approval||'').toLowerCase()==='rejected')return false;
     if(q){const s=(String(r.ean||'')+' '+String(r.product_name||'')+' '+String(r.supplier_name||'')).toLowerCase();if(!s.includes(q))return false;}
     if(supFilter){const c=supMap[r.supplier_name||'']||(r.supplier_name||'');if(c!==supFilter)return false;}
     if(dt&&toISO(r.date||'')!==dt)return false;
     return true;
   });
+  if(_sfOpen)base=getSmartFiltered(base);
+  return base;
 }
-
 /* ── VIEW SWITCHING ── */
 function setView(v){
   currentView=v;
@@ -1610,6 +1803,7 @@ window.doApproveOffer=doApproveOffer;
 window.openMergeModal=openMergeModal;window.closeMergeModal=closeMergeModal;window.doMerge=doMerge;
 window.closeConfirm=closeConfirm;window.doConfirm=doConfirm;
 window.openRejectedModal=openRejectedModal;window.closeRejectedModal=closeRejectedModal;
+window.toggleSmartFilters=toggleSmartFilters;window.applySmartFilters=applySmartFilters;window.clearSmartFilters=clearSmartFilters;window.toggleMultiSupplier=toggleMultiSupplier;
 
 /* ── INIT ── */
 (async()=>{ loadCurrentUser(); loadOffers(false); })();
