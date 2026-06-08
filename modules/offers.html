@@ -841,11 +841,13 @@ function getRejected(){return offersData.filter(r=>(r.approval||'').toLowerCase(
 function updateChips(){
   const active=getActive();
   const rejected=getRejected();
+  const filtered=getFiltered();
   const rawNames=[];
   active.forEach(r=>{const s=r.supplier_name||'';if(s&&rawNames.indexOf(s)<0)rawNames.push(s);});
   const supMap=buildSupplierMap(rawNames);
   const supCount=new Set(rawNames.map(n=>supMap[n])).size;
-  setChip('chipTotal',active.length+' Offer'+(active.length!==1?'s':''));
+  const isFiltered=filtered.length!==active.length;
+  setChip('chipTotal',isFiltered?filtered.length+' / '+active.length+' Offers':active.length+' Offer'+(active.length!==1?'s':''));
   setChip('chipSuppliers',supCount+' Supplier'+(supCount!==1?'s':''));
   setChip('chipRejected',rejected.length+' Rejected');
 }
@@ -870,6 +872,7 @@ function toggleSmartFilters(){
 function applySmartFilters(){
   updateSmartFilterState();
   renderView();
+  updateChips();
 }
 
 function toggleMultiSupplier(){
