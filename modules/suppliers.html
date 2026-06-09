@@ -341,6 +341,10 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
       <input type="text" class="sc-allcat-search-input" id="scAllCatSearch" placeholder="Search by EAN or product name…" oninput="clearTimeout(window._acSt);window._acSt=setTimeout(renderAllCatalog,250)">
     </div>
     <button class="sc-select-toggle" id="scAcSelectToggle" onclick="toggleAcBulkSelect()">
+      <button class="sc-select-toggle" id="scAcDownloadBtn" onclick="openDownloadDialog()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+  Download
+</button>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 11 12 14 22 4"/></svg>
       Select
     </button>
@@ -488,6 +492,30 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 <!-- ROOT -->
 <div class="sc-root" id="scRoot">
 
+
+  <div class="sc-confirm-overlay" id="scDownloadOverlay">
+  <div class="sc-confirm-box" style="width:460px;max-width:95vw">
+    <div class="sc-confirm-title">Download Catalog</div>
+    <div class="sc-confirm-desc" style="margin-bottom:14px">Choose which suppliers to include in the download.</div>
+    <div style="margin-bottom:14px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px">
+        <input type="radio" name="dlScope" value="all" checked onchange="toggleDlSupSelect(false)"> All Suppliers
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">
+        <input type="radio" name="dlScope" value="select" onchange="toggleDlSupSelect(true)"> Select Suppliers
+      </label>
+    </div>
+    <div id="scDlSupList" style="display:none;max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r);padding:8px;margin-bottom:14px;display:none;flex-direction:column;gap:4px"></div>
+    <div class="sc-confirm-btns">
+      <button class="sc-btn sc-btn-secondary sc-btn-sm" onclick="closeDownloadDialog()">Cancel</button>
+      <button class="sc-btn sc-btn-primary sc-btn-sm" onclick="doDownloadCatalog()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Download CSV
+      </button>
+    </div>
+  </div>
+</div>
+
   <!-- LEFT: SUPPLIERS -->
   <div class="sc-left">
     <div class="sc-left-inner">
@@ -621,6 +649,20 @@ function palIdx(n){return(n||'?').split('').reduce((a,c)=>a+c.charCodeAt(0),0)%P
 function avColors(n){return PAL[palIdx(n)]}
 function initials(n){const p=(n||'?').trim().split(/\s+/);return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():(n||'?').slice(0,2).toUpperCase();}
 
+
+async function loadOffersForCatalog(){
+  try{
+    const{data}=await sb.from('offers').select('ean,supplier_name,cost_of_unit').not('ean','is',null).not('cost_of_unit','is',null);
+    _catalogOffersMap={};
+    (data||[]).forEach(r=>{
+      const k=String(r.ean||'').trim();
+      if(!k)return;
+      if(!_catalogOffersMap[k])_catalogOffersMap[k]=[];
+      _catalogOffersMap[k].push({name:r.supplier_name||'',cost:r.cost_of_unit});
+    });
+  }catch(e){console.warn('Could not load offers for catalog',e);}
+}
+  
 /* ── PROGRESS BAR ── */
 let _pv=0,_pt=null;
 function pStart(){const b=document.getElementById('scPbar');clearInterval(_pt);_pv=.1;b.style.transform='scaleX(.1)';b.classList.add('active');_pt=setInterval(()=>{_pv=Math.min(_pv+(1-_pv)*.07,.92);b.style.transform=`scaleX(${_pv})`;},250);}
@@ -662,6 +704,7 @@ catalogLoaded=false;
       if(r.purchased)_srcStats[k].purchased++;
     });
     renderSupDropdown();
+    loadOffersForCatalog();
     // Auto-select first supplier
     if(allSuppliers.length){
       const first=allSuppliers[0];
@@ -707,6 +750,8 @@ function toggleSupDropdown(){
     renderSupDropdown();
     setTimeout(()=>document.getElementById('scSupDdSearch').focus(),80);
   }
+
+  
 }
 function closeSupDropdown(){
   if(!dropdownOpen)return;
@@ -863,7 +908,7 @@ function renderSupplierCard(s){
     ns.className='sc-detail-section';
     ns.style.cssText='animation:fadeSlideUp .3s .15s ease both';
     ns.innerHTML=`<div class="sc-detail-head">Notes</div>
-      <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:var(--r);padding:10px 12px;font-size:12px;color:rgba(255,255,255,.55);line-height:1.55">${esc(s.notes)}</div>`;
+      <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:var(--r);padding:10px 12px;font-size:12px;color:rgba(255,255,255,.55);line-height:1.55;white-space:pre-wrap;">${esc(s.notes)}</div>`;
     el.appendChild(ns);
   }
 }
@@ -1081,7 +1126,7 @@ function renderCatalog(){
   const outer=document.createElement('div');outer.className='sc-tbl-outer';
   let html=`<table class="sc-cat-table"><thead><tr>
     ${bulkSelectMode?'<th style="width:32px"><input type="checkbox" class="sc-row-cb" onchange="document.querySelectorAll(\'.sc-row-cb-item\').forEach(c=>{c.checked=this.checked;if(c.checked)selectedIds.add(c.dataset.id);else selectedIds.delete(c.dataset.id)});updateBulkCount()"></th>':''}
-    <th>EAN</th><th>Product Name</th><th>Code</th><th>Case</th><th>Category</th><th>Cost</th><th>Status</th><th>Agent</th><th></th>
+    <th>EAN</th><th>Product Name</th><th>Cost</th><th>Status</th><th>Agent</th><th></th>
   </tr></thead><tbody>`;
   const total=data.length;
   const display=data.slice(0,500);
@@ -1093,11 +1138,28 @@ function renderCatalog(){
     const statusCls=status==='Approved'?'approved':status==='Rejected'?'rejected':'';
     html+=`<tr style="animation-delay:${Math.min(i,20)*0.02}s">
       ${bulkSelectMode?`<td><input type="checkbox" class="sc-row-cb sc-row-cb-item" data-id="${id}" ${selectedIds.has(id)?'checked':''} onchange="if(this.checked)selectedIds.add('${id}');else selectedIds.delete('${id}');updateBulkCount()"></td>`:''}
-      <td><a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(ean||'—')}</a></td>
-      <td style="font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.product_name||'')}">${esc(r.product_name||'—')}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${esc(r.code||'—')}</td>
-      <td>${esc(String(r.case_size||'—'))}</td>
-      <td>${r.category?`<span class="sc-badge blue">${esc(r.category)}</span>`:'<span style="color:var(--text4);font-size:11px">—</span>'}</td>
+<td style="vertical-align:top;padding-top:10px">
+  <a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(ean||'—')}</a>
+  ${(()=>{
+    const offers=_catalogOffersMap[String(r.ean||'').trim()]||[];
+    if(!offers.length)return'';
+    const tid='offtog_'+id;
+    const tpid='offpanel_'+id;
+    return`<div style="margin-top:5px">
+      <button id="${tid}" onclick="event.stopPropagation();toggleCatOffers('${tid}','${tpid}')" style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:20px;border:1px solid var(--accent-bd);background:var(--accent-bg);color:var(--accent);font-size:10px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="9" height="9" id="${tid}_caret" style="transition:transform .18s"><polyline points="6 9 12 15 18 9"/></svg>
+        ${offers.length} offer${offers.length!==1?'s':''}
+      </button>
+      <div id="${tpid}" style="display:none;margin-top:5px;padding:6px 9px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);min-width:160px">
+        ${offers.map(o=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11px;padding:2px 0;border-bottom:1px solid var(--border2)">
+          <span style="color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.name||'Unknown')}</span>
+          <span style="font-weight:700;color:var(--green);flex-shrink:0">£${parseFloat(o.cost).toFixed(2)}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  })()}
+</td>
+      <td style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.product_name||'')}">${esc(r.product_name||'—')}</td>
       <td><span class="cat-cost${!cost?' empty':''}">${cost?'£'+cost:'—'}</span></td>
       <td>
         <select class="sc-status-sel ${statusCls}" id="status_${id}" onchange="updateStatus('${id}',this.value)" onclick="event.stopPropagation()">
@@ -1126,6 +1188,17 @@ function renderCatalog(){
 
 /* ── STATUS UPDATE ── */
 async function updateStatus(id,status){
+  if(status==='Approved'){
+    // Find the catalog row and open sourcing form instead
+    const row=[..._acAllData,...catalogData].find(x=>String(x.id||'')===id);
+    if(row){
+      // Revert the select visually until confirmed
+      const selEl=document.getElementById('status_'+id)||document.getElementById('ac_status_'+id);
+      if(selEl)selEl.value=row.status||'';
+      openCatalogSourcingModal(row);
+      return;
+    }
+  }
   const agent=status?getAgent():'';
   try{
     const{error}=await sb.from('catalog').update({status:status||null,agent:agent||null}).eq('id',id);
@@ -1144,6 +1217,249 @@ async function updateStatus(id,status){
     if(acAgEl)acAgEl.textContent=agent||'—';
     toast('Status updated','success');
   }catch(e){toast('Update failed: '+e.message,'error');}
+}
+
+
+let _catSrcStartTime=null;
+let _catSrcTimerInterval=null;
+let _catSrcRow=null;
+
+async function openCatalogSourcingModal(row){
+  _catSrcRow=row;
+  // Reuse the same sourcing overlay from the offers page — it's included via window.sb shell
+  // Build offer-compatible object from catalog row
+  const fakeOffer={
+    product_name:row.product_name||'',
+    supplier_name:row.supplier_name||'',
+    ean:row.ean||'',
+    cost_of_unit:row.cost||null,
+    id:'__catalog__'+row.id,
+  };
+
+  // Load agent name
+  let agentName=getAgent()||'';
+
+  // Build modal (reuse srcFormBody pattern from offers page)
+  let modalEl=document.getElementById('scCatSourcingModal');
+  if(!modalEl){
+    modalEl=document.createElement('div');
+    modalEl.id='scCatSourcingModal';
+    modalEl.className='sc-confirm-overlay';
+    modalEl.style.cssText='z-index:9500;backdrop-filter:blur(4px)';
+    modalEl.innerHTML=`
+      <div style="background:#fff;border-radius:18px;width:660px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.22)">
+        <div style="padding:15px 22px 13px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;border-radius:18px 18px 0 0;background:linear-gradient(to right,#fafbff,#fff);flex-shrink:0">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:34px;height:34px;border-radius:9px;background:#eff6ff;display:flex;align-items:center;justify-content:center;color:#2563eb;flex-shrink:0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div>
+              <div style="font-size:15px;font-weight:700;color:#0f172a">Approve to Sourcing</div>
+              <div style="font-size:11.5px;color:#94a3b8;margin-top:1px">Complete details — product stays in catalog after approval</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="font-size:12px;font-weight:600;color:#2563eb;background:#eff6ff;padding:4px 11px;border-radius:100px;display:flex;align-items:center;gap:5px">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span id="catSrcTimerText">00:00</span>
+            </div>
+            <button onclick="closeCatalogSourcingModal()" style="width:30px;height:30px;border:none;border-radius:7px;background:#f1f5f9;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:16px 22px" id="catSrcFormBody"></div>
+        <div style="padding:12px 22px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:8px;background:#fafafa;border-radius:0 0 18px 18px;flex-shrink:0">
+          <button class="sc-btn sc-btn-secondary sc-btn-sm" onclick="closeCatalogSourcingModal()">Cancel</button>
+          <button class="sc-btn sc-btn-primary sc-btn-sm" id="catSrcSaveBtn" onclick="saveCatalogSourcing()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Approve
+          </button>
+        </div>
+      </div>`;
+    document.getElementById('scRoot').appendChild(modalEl);
+  }
+
+  // Populate form — identical structure to offers sourcing modal
+  document.getElementById('catSrcFormBody').innerHTML=`
+    <div class="src-form-section" style="font-family:'DM Sans',system-ui,sans-serif">
+      <div class="src-section-title" style="font-family:'DM Sans',system-ui,sans-serif">Identification</div>
+      <div class="src-grid2">
+        <div class="src-group src-full"><label class="src-lbl">Product Name *</label><input class="src-inp" id="catsrc_productName" value="${esc(row.product_name||'')}"></div>
+        <div class="src-group"><label class="src-lbl">Agent</label><div class="src-prefill">${esc(agentName||'—')}</div><input type="hidden" id="catsrc_agent" value="${esc(agentName||'')}"></div>
+        <div class="src-group"><label class="src-lbl">Fulfillment *</label><select class="src-inp" id="catsrc_fulfillment"><option value="">Select…</option><option>FBM</option><option>FBA</option></select></div>
+        <div class="src-group"><label class="src-lbl">SAS Combined Sales *</label><input class="src-inp" id="catsrc_keepa" placeholder="e.g. 120"></div>
+        <div class="src-group"><label class="src-lbl">ASIN(s)</label>
+          <div style="display:flex;flex-direction:column;gap:6px" id="catsrc_asinList">
+            <div style="display:flex;align-items:center;gap:6px"><input class="src-inp catsrc-asin-input" type="text" placeholder="e.g. B08XYZ123" style="flex:1"><button type="button" onclick="removeCatSrcAsin(this)" style="width:28px;height:28px;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:.3;pointer-events:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+          </div>
+          <button type="button" onclick="addCatSrcAsin()" style="display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:7px 10px;border:1.5px dashed #c4d3f9;border-radius:8px;background:#eef2fd;color:#1847d4;font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;margin-top:6px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add ASIN
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="src-form-section">
+      <div class="src-section-title">Supplier</div>
+      <div class="src-grid2">
+        <div class="src-group"><label class="src-lbl">Supplier</label><div class="src-prefill">${esc(row.supplier_name||'—')}</div><input type="hidden" id="catsrc_supplier" value="${esc(row.supplier_name||'')}"></div>
+        <div class="src-group"><label class="src-lbl">EAN</label><input class="src-inp" id="catsrc_ean" value="${esc(row.ean||'')}"></div>
+        <div class="src-group"><label class="src-lbl">Supplier Stock *</label><select class="src-inp" id="catsrc_supplierStock"><option value="">Select…</option><option>Low</option><option>Medium</option><option>High</option></select></div>
+        <div class="src-group"><label class="src-lbl">Supplier Cheapest? *</label><select class="src-inp" id="catsrc_supplierCheapest"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
+      </div>
+    </div>
+    <div class="src-form-section">
+      <div class="src-section-title">Financials</div>
+      <div class="src-grid2">
+        <div class="src-group"><label class="src-lbl">Cost of Unit (£) *</label><input class="src-inp" type="number" step="0.01" id="catsrc_costOfUnit" value="${esc(String(row.cost||''))}"></div>
+        <div class="src-group"><label class="src-lbl">Cost of Sale (£) *</label><input class="src-inp" type="number" step="0.01" id="catsrc_costOfSale"></div>
+        <div class="src-group"><label class="src-lbl">Net Profit (£) *</label><input class="src-inp" type="number" step="0.01" id="catsrc_netProfit"></div>
+        <div class="src-group"><label class="src-lbl">Sale Quantity *</label><input class="src-inp" type="number" id="catsrc_unitQuantity"></div>
+      </div>
+    </div>
+    <div class="src-form-section">
+      <div class="src-section-title">Attributes</div>
+      <div class="src-grid2">
+        <div class="src-group"><label class="src-lbl">Packing *</label><select class="src-inp" id="catsrc_packing"><option value="">Select…</option><option>Fast</option><option>Good</option><option>Medium</option><option>Large</option></select></div>
+        <div class="src-group"><label class="src-lbl">Seasonality *</label><select class="src-inp" id="catsrc_seasonality"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
+        <div class="src-group"><label class="src-lbl">Competition *</label><select class="src-inp" id="catsrc_competition"><option value="">Select…</option><option>Low</option><option>Medium</option><option>High</option></select></div>
+        <div class="src-group src-full"><label class="src-lbl">Initial Note</label><textarea class="src-inp" id="catsrc_notes" rows="2" style="resize:none"></textarea></div>
+      </div>
+    </div>`;
+
+  modalEl.classList.add('open');
+  _catSrcStartTime=Date.now();
+  clearInterval(_catSrcTimerInterval);
+  _catSrcTimerInterval=setInterval(()=>{
+    const s=Math.floor((Date.now()-_catSrcStartTime)/1000);
+    const el=document.getElementById('catSrcTimerText');
+    if(el)el.textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+  },1000);
+}
+
+function closeCatalogSourcingModal(){
+  document.getElementById('scCatSourcingModal')?.classList.remove('open');
+  clearInterval(_catSrcTimerInterval);
+  _catSrcRow=null;
+}
+
+function getCatSrcAsins(){
+  const list=document.getElementById('catsrc_asinList');
+  if(!list)return'';
+  return Array.from(list.querySelectorAll('.catsrc-asin-input')).map(i=>i.value.trim()).filter(Boolean).join(', ');
+}
+function addCatSrcAsin(){
+  const list=document.getElementById('catsrc_asinList');
+  if(!list)return;
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;align-items:center;gap:6px';
+  row.innerHTML=`<input class="src-inp catsrc-asin-input" type="text" placeholder="e.g. B08XYZ123" style="flex:1"><button type="button" onclick="removeCatSrcAsin(this)" style="width:28px;height:28px;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
+  list.appendChild(row);
+  row.querySelector('input').focus();
+  updateCatSrcAsinBtns();
+}
+function removeCatSrcAsin(btn){
+  const list=document.getElementById('catsrc_asinList');
+  if(!list||list.children.length<=1)return;
+  btn.closest('div').remove();
+  updateCatSrcAsinBtns();
+}
+function updateCatSrcAsinBtns(){
+  const list=document.getElementById('catsrc_asinList');if(!list)return;
+  const rows=list.children;
+  Array.from(rows).forEach(r=>{const b=r.querySelector('button');if(b){b.style.opacity=rows.length<=1?'.3':'1';b.style.pointerEvents=rows.length<=1?'none':'';}});
+}
+
+async function saveCatalogSourcing(){
+  const required=['catsrc_productName','catsrc_agent','catsrc_fulfillment','catsrc_keepa','catsrc_supplier','catsrc_ean','catsrc_supplierStock','catsrc_supplierCheapest','catsrc_costOfUnit','catsrc_costOfSale','catsrc_netProfit','catsrc_unitQuantity','catsrc_packing','catsrc_seasonality','catsrc_competition'];
+  let firstErr=null;
+  required.forEach(fid=>{
+    const el=document.getElementById(fid);
+    if(!el||!el.value.trim()){
+      el.style.borderColor='#ef4444';el.style.background='#fff1f2';
+      if(!firstErr)firstErr=el;
+      el.addEventListener('input',()=>{el.style.borderColor='';el.style.background='';},{once:true});
+    }
+  });
+  if(firstErr){firstErr.scrollIntoView({behavior:'smooth',block:'center'});firstErr.focus();toast('Please complete all required fields','error');return;}
+
+  const btn=document.getElementById('catSrcSaveBtn');
+  btn.disabled=true;btn.innerHTML='<span class="sc-spin sc-spin-sm" style="flex-shrink:0"></span> Saving…';
+
+  const seconds=Math.floor((Date.now()-_catSrcStartTime)/1000);
+  const agentName=document.getElementById('catsrc_agent').value.trim()||getAgent()||'';
+  const supplierCheapestRaw=document.getElementById('catsrc_supplierCheapest').value;
+  const notesTxt=document.getElementById('catsrc_notes').value.trim();
+
+  try{
+    const{data:maxRow}=await sb.from('sourcing').select('opportunity_id').order('opportunity_id',{ascending:false}).limit(1).single();
+    const lastNum=maxRow?parseInt(maxRow.opportunity_id.replace('SRC-',''))||0:0;
+    const opportunityId='SRC-'+String(lastNum+1).padStart(6,'0');
+
+    const insertData={
+      opportunity_id:opportunityId,
+      agent:agentName,
+      supplier_name:document.getElementById('catsrc_supplier').value,
+      code:document.getElementById('catsrc_ean').value,
+      product_name:document.getElementById('catsrc_productName').value.trim(),
+      asins:getCatSrcAsins(),
+      cost_of_unit:parseFloat(document.getElementById('catsrc_costOfUnit').value)||0,
+      cost_of_sale:parseFloat(document.getElementById('catsrc_costOfSale').value)||0,
+      net_profit:parseFloat(document.getElementById('catsrc_netProfit').value)||0,
+      unit_quantity:parseInt(document.getElementById('catsrc_unitQuantity').value)||0,
+      keepa:document.getElementById('catsrc_keepa').value,
+      primary_fulfillment:document.getElementById('catsrc_fulfillment').value,
+      supplier_cheapest:supplierCheapestRaw==='Yes'?true:supplierCheapestRaw==='No'?false:null,
+      packing:document.getElementById('catsrc_packing').value,
+      seasonality:document.getElementById('catsrc_seasonality').value,
+      competition:document.getElementById('catsrc_competition').value,
+      supplier_stock:document.getElementById('catsrc_supplierStock').value,
+      purchased:false,approved:false,source:'Catalog',
+    };
+
+    const{error}=await sb.from('sourcing').insert(insertData);
+    if(error)throw error;
+
+    if(notesTxt) await sb.from('sourcing_notes').insert({opportunity_id:opportunityId,author_name:agentName||'Unknown',text:notesTxt});
+
+    await sb.from('sourcing_hours').insert({
+      opportunity_id:opportunityId,agent:agentName,
+      supplier_name:insertData.supplier_name,product_name:insertData.product_name,
+      seconds,formatted:String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0'),
+      code:insertData.code,asins:insertData.asins,
+      cost_of_unit:insertData.cost_of_unit,cost_of_sale:insertData.cost_of_sale,
+      net_profit:insertData.net_profit,keepa:insertData.keepa,
+      primary_fulfillment:insertData.primary_fulfillment,supplier_cheapest:insertData.supplier_cheapest,
+      unit_quantity:insertData.unit_quantity,packing:insertData.packing,
+      seasonality:insertData.seasonality,competition:insertData.competition,
+      supplier_stock:insertData.supplier_stock,
+    });
+
+    // Now update status to Approved in catalog
+    const row=_catSrcRow;
+    const rowId=String(row.id||'');
+    const agent=agentName;
+    await sb.from('catalog').update({status:'Approved',agent}).eq('id',rowId);
+    [catalogData,allCatalogData,_acAllData].forEach(arr=>{
+      const r=arr.find(x=>String(x.id||'')===rowId);
+      if(r){r.status='Approved';r.agent=agent;}
+    });
+    // Update UI selects
+    ['status_','ac_status_'].forEach(prefix=>{
+      const sel=document.getElementById(prefix+rowId);
+      if(sel){sel.value='Approved';sel.className='sc-status-sel approved';}
+    });
+    ['agent_','ac_agent_'].forEach(prefix=>{
+      const el=document.getElementById(prefix+rowId);
+      if(el)el.textContent=agent;
+    });
+
+    closeCatalogSourcingModal();
+    toast('Approved — '+opportunityId,'success');
+  }catch(e){
+    toast('Failed: '+e.message,'error');
+  }
+  btn.disabled=false;btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Approve';
 }
 
 /* ── DELETE PRODUCT ── */
@@ -1292,23 +1608,52 @@ function renderAllCatalog(){
 
   let html=`<table class="sc-allcat-table"><thead><tr>
     ${acBulkMode?'<th style="width:32px"><input type="checkbox" class="sc-row-cb" onchange="document.querySelectorAll(\'.sc-ac-cb-item\').forEach(c=>{c.checked=this.checked;if(c.checked)acSelectedIds.add(c.dataset.id);else acSelectedIds.delete(c.dataset.id)});updateAcBulkCount()"></th>':''}
-    <th>EAN</th><th>Product Name</th><th>Supplier</th><th>Code</th><th>Case</th><th>Category</th><th>Cost</th><th>Status</th><th>Agent</th><th></th>
+    <th>EAN</th><th>Product Name</th><th>Supplier</th><th>Cost</th><th>Status</th><th>Agent</th><th></th>
   </tr></thead><tbody>`;
 
-  display.forEach((r,i)=>{
-    const ean=r.ean||'';
+  // Group by EAN
+const eanGroups={};
+display.forEach(r=>{
+  const k=String(r.ean||'__no_ean__');
+  if(!eanGroups[k])eanGroups[k]=[];
+  eanGroups[k].push(r);
+});
+
+Object.entries(eanGroups).forEach(([ean,rows])=>{
+  const isGroup=rows.length>1;
+  rows.forEach((r,ri)=>{
+    const rid=esc(String(r.id||''));
     const cost=fmtCost(getCatalogEffectiveCost(r));
     const status=r.status||'';
     const statusCls=status==='Approved'?'approved':status==='Rejected'?'rejected':'';
-    const rid=esc(String(r.id||''));
-    html+=`<tr>
+    const isFirst=ri===0;
+    const groupBg=isGroup?(ri%2===0?'rgba(24,71,212,.025)':'rgba(24,71,212,.045)'):'';
+    const leftBorder=isGroup?`border-left:3px solid ${isFirst?'var(--accent-bd)':'var(--border2)'}`:'' ;
+    html+=`<tr style="${groupBg?`background:${groupBg};`:''}${leftBorder}">
       ${acBulkMode?`<td><input type="checkbox" class="sc-row-cb sc-ac-cb-item" data-id="${rid}" ${acSelectedIds.has(rid)?'checked':''} onchange="if(this.checked)acSelectedIds.add('${rid}');else acSelectedIds.delete('${rid}');updateAcBulkCount()"></td>`:''}
-      <td><a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener">${esc(ean||'—')}</a></td>
-      <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.product_name||'')}">${esc(r.product_name||'—')}</td>
+      <td style="vertical-align:top;padding-top:10px">
+  <a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(ean||'—')}</a>
+  ${(()=>{
+    const offers=_catalogOffersMap[String(r.ean||'').trim()]||[];
+    if(!offers.length)return'';
+    const tid='offtog_'+id;
+    const tpid='offpanel_'+id;
+    return`<div style="margin-top:5px">
+      <button id="${tid}" onclick="event.stopPropagation();toggleCatOffers('${tid}','${tpid}')" style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:20px;border:1px solid var(--accent-bd);background:var(--accent-bg);color:var(--accent);font-size:10px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="9" height="9" id="${tid}_caret" style="transition:transform .18s"><polyline points="6 9 12 15 18 9"/></svg>
+        ${offers.length} offer${offers.length!==1?'s':''}
+      </button>
+      <div id="${tpid}" style="display:none;margin-top:5px;padding:6px 9px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);min-width:160px">
+        ${offers.map(o=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11px;padding:2px 0;border-bottom:1px solid var(--border2)">
+          <span style="color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.name||'Unknown')}</span>
+          <span style="font-weight:700;color:var(--green);flex-shrink:0">£${parseFloat(o.cost).toFixed(2)}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  })()}
+</td>
+      <td style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px" title="${esc(r.product_name||'')}">${esc(r.product_name||'—')}</td>
       <td style="font-size:11.5px;color:var(--text3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.supplier_name||'—')}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${esc(r.code||'—')}</td>
-      <td>${esc(String(r.case_size||'—'))}</td>
-      <td>${r.category?`<span class="sc-badge blue">${esc(r.category)}</span>`:'<span style="color:var(--text4);font-size:11px">—</span>'}</td>
       <td><span class="cat-cost${!cost?' empty':''}">${cost?'£'+cost:'—'}</span></td>
       <td>
         <select class="sc-status-sel ${statusCls}" id="ac_status_${rid}" onchange="updateStatus('${rid}',this.value)">
@@ -1325,7 +1670,11 @@ function renderAllCatalog(){
       </td>
     </tr>`;
   });
-
+  // Spacer row between EAN groups when multiple suppliers
+  if(isGroup){
+    html+=`<tr><td colspan="8" style="padding:0;height:4px;background:transparent;border:none"></td></tr>`;
+  }
+});
   html+='</tbody></table>';
 
   if(total>500){
@@ -1704,6 +2053,27 @@ deduped.forEach(row=>{
         }
         insertedCount=toInsertNew.length;
 
+
+        // Delete removed EANs
+if(toDelete.length){
+  const DBATCH=500;
+  for(let i=0;i<toDelete.length;i+=DBATCH){
+    await sb.from('catalog').delete().in('id',toDelete.slice(i,i+DBATCH));
+  }
+  toDelete.forEach(id=>{
+    catalogData=catalogData.filter(x=>x.id!==id);
+    allCatalogData=allCatalogData.filter(x=>x.id!==id);
+  });
+}
+        
+        // Find EANs in DB not present in this import file
+const importEanSet=new Set(deduped.map(r=>String(r.ean||'').trim().replace(/\.0+$/,'')));
+const toDelete=(existing||[]).filter(r=>{
+  const k=String(r.ean||'').trim().replace(/\.0+$/,'');
+  return k&&!importEanSet.has(k);
+}).map(r=>r.id);
+
+        
         // Updates
 if(toUpdate.length){
   const updatePayload=toUpdate.map(u=>({
@@ -1743,12 +2113,8 @@ if(toUpdate.length){
       }
     };
 
-    // If there are price updates, show preview first
-    if(toUpdate.length>0||skipped>0){
-      showImportConfirm(toInsertNew.length,toUpdate,skipped,skippedIncomplete,doThImport,()=>{btn.disabled=false;});
-    }else{
-      await doThImport();
-    }
+// Always show summary first
+showImportConfirm(toInsertNew.length,toUpdate,skipped,skippedIncomplete,doThImport,()=>{btn.disabled=false;},toDelete);
 
   }catch(e){
     toast('Import failed: '+e.message,'error');
@@ -1757,7 +2123,7 @@ if(toUpdate.length){
 }
 
 
-function showImportConfirm(newCount,updates,skipped,incomplete,onConfirm,onCancel){
+function showImportConfirm(newCount,updates,skipped,incomplete,onConfirm,onCancel,toDelete=[]){
   const body=document.getElementById('scImportDrawerBody');
   const foot=document.getElementById('scImportDrawerFoot');
 
@@ -1797,6 +2163,13 @@ function showImportConfirm(newCount,updates,skipped,incomplete,onConfirm,onCance
           <div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Incomplete</div>
         </div>`:''}
       </div>
+
+      ${toDelete.length?`<div style="background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r);padding:10px 12px;text-align:center">
+  <div style="font-size:20px;font-weight:800;color:var(--red)">${toDelete.length}</div>
+  <div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Will Delete</div>
+</div>`:''}
+
+
       ${updates.length?`
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:8px">Price Changes</div>
       <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;max-height:280px;overflow-y:auto">
@@ -1846,6 +2219,7 @@ async function handleRefresh(){
     if(sErr)throw sErr;
     allSuppliers=sups||[];
     renderSupDropdown();
+    await loadOffersForCatalog();
     if(currentSupId){
       const{data:cats,error:cErr}=await sb.from('catalog').select('*').eq('supplier_id',currentSupId).order('product_name').limit(10000);
       if(cErr)throw cErr;
@@ -1893,6 +2267,8 @@ document.addEventListener('keydown',e=>{
     if(document.getElementById('scEditDrawer').classList.contains('open')){closeEditDrawer();return;}
     if(document.getElementById('scConfirmOverlay').classList.contains('open')){closeConfirm();return;}
     if(dropdownOpen){closeSupDropdown();return;}
+    if(document.getElementById('scDownloadOverlay').classList.contains('open')){closeDownloadDialog();return;}
+    if(document.getElementById('scCatSourcingModal')?.classList.contains('open')){closeCatalogSourcingModal();return;}
   }
 });
 document.addEventListener('click',e=>{
@@ -1901,7 +2277,76 @@ document.addEventListener('click',e=>{
   if(dropdownOpen&&!document.getElementById('scSupFilter').contains(e.target)&&!document.getElementById('scSupDropdown').contains(e.target))closeSupDropdown();
 });
 
+
+
+function openDownloadDialog(){
+  const list=document.getElementById('scDlSupList');
+  list.innerHTML='';
+  const sups=[...new Set(_acAllData.map(r=>r.supplier_name||'').filter(Boolean))].sort();
+  sups.forEach(s=>{
+    const lbl=document.createElement('label');
+    lbl.style.cssText='display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;padding:5px 8px;border-radius:6px;transition:background .1s';
+    lbl.onmouseenter=()=>lbl.style.background='var(--surface3)';
+    lbl.onmouseleave=()=>lbl.style.background='';
+    lbl.innerHTML=`<input type="checkbox" class="sc-dl-sup-cb" value="${esc(s)}" style="accent-color:var(--accent)"> ${esc(s)}`;
+    list.appendChild(lbl);
+  });
+  document.querySelector('input[name="dlScope"][value="all"]').checked=true;
+  list.style.display='none';
+  document.getElementById('scDownloadOverlay').classList.add('open');
+}
+function closeDownloadDialog(){document.getElementById('scDownloadOverlay').classList.remove('open');}
+function toggleDlSupSelect(show){
+  const list=document.getElementById('scDlSupList');
+  list.style.display=show?'flex':'none';
+}
+function doDownloadCatalog(){
+  const scope=document.querySelector('input[name="dlScope"]:checked')?.value;
+  let data=_acAllData;
+  if(scope==='select'){
+    const checked=[...document.querySelectorAll('.sc-dl-sup-cb:checked')].map(c=>c.value);
+    if(!checked.length){toast('Select at least one supplier','error');return;}
+    data=data.filter(r=>checked.includes(r.supplier_name||''));
+  }
+  const cols=['ean','product_name','supplier_name','cost','code','case_size','category','status','agent','date'];
+  const header=cols.join(',');
+  const rows=data.map(r=>cols.map(c=>{
+    const v=String(r[c]??'');
+    return v.includes(',')||v.includes('"')||v.includes('\n')?'"'+v.replace(/"/g,'""')+'"':v;
+  }).join(','));
+  const csv=[header,...rows].join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='catalog_'+new Date().toISOString().split('T')[0]+'.csv';
+  a.click();URL.revokeObjectURL(url);
+  closeDownloadDialog();
+  toast('Downloaded '+data.length+' products','success');
+}
+
+
+
+function toggleCatOffers(btnId,panelId){
+  const panel=document.getElementById(panelId);
+  const caret=document.getElementById(btnId+'_caret');
+  if(!panel)return;
+  const open=panel.style.display==='block';
+  panel.style.display=open?'none':'block';
+  if(caret)caret.style.transform=open?'rotate(0deg)':'rotate(180deg)';
+}
+  
+  
 /* ── EXPOSE GLOBALS ── */
+window.toggleCatOffers=toggleCatOffers;
+window.loadOffersForCatalog=loadOffersForCatalog;
+window.openCatalogSourcingModal=openCatalogSourcingModal;
+window.closeCatalogSourcingModal=closeCatalogSourcingModal;
+window.saveCatalogSourcing=saveCatalogSourcing;
+window.addCatSrcAsin=addCatSrcAsin;
+window.removeCatSrcAsin=removeCatSrcAsin;
+window.openDownloadDialog=openDownloadDialog;
+window.closeDownloadDialog=closeDownloadDialog;
+window.toggleDlSupSelect=toggleDlSupSelect;
+window.doDownloadCatalog=doDownloadCatalog;
 window.resetImportToUpload=resetImportToUpload;
 window.selectHeaderRow=selectHeaderRow;
 window.removeImportRow=removeImportRow;
