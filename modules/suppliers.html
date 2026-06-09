@@ -340,14 +340,15 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" class="sc-allcat-search-input" id="scAllCatSearch" placeholder="Search by EAN or product name…" oninput="clearTimeout(window._acSt);window._acSt=setTimeout(renderAllCatalog,250)">
     </div>
-    <button class="sc-select-toggle" id="scAcSelectToggle" onclick="toggleAcBulkSelect()">
-      <button class="sc-select-toggle" id="scAcDownloadBtn" onclick="openDownloadDialog()">
+    
+<button class="sc-select-toggle" id="scAcDownloadBtn" onclick="openDownloadDialog()">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
   Download
 </button>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 11 12 14 22 4"/></svg>
-      Select
-    </button>
+<button class="sc-select-toggle" id="scAcSelectToggle" onclick="toggleAcBulkSelect()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 11 12 14 22 4"/></svg>
+  Select
+</button>
   </div>
   <div class="sc-bulk-bar" id="scAcBulkBar" style="display:none">
     <span class="sc-bulk-bar-count" id="scAcBulkCount">0 selected</span>
@@ -636,6 +637,7 @@ let acSelectedIds  = new Set();
 let importRows     = [];     // parsed rows ready to import
 let importSupId    = null;   // supplier for import
 let _parsedLines   = [];     // raw lines for header picker
+let _catalogOffersMap = {};
 
 
 /* ── AGENT ── */
@@ -1636,8 +1638,8 @@ Object.entries(eanGroups).forEach(([ean,rows])=>{
   ${(()=>{
     const offers=_catalogOffersMap[String(r.ean||'').trim()]||[];
     if(!offers.length)return'';
-    const tid='offtog_'+id;
-    const tpid='offpanel_'+id;
+    const tid='offtog_'+rid;
+    const tpid='offpanel_'+rid;
     return`<div style="margin-top:5px">
       <button id="${tid}" onclick="event.stopPropagation();toggleCatOffers('${tid}','${tpid}')" style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:20px;border:1px solid var(--accent-bd);background:var(--accent-bg);color:var(--accent);font-size:10px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="9" height="9" id="${tid}_caret" style="transition:transform .18s"><polyline points="6 9 12 15 18 9"/></svg>
@@ -2039,8 +2041,15 @@ deduped.forEach(row=>{
 
     const validInsert=toInsertNew; // already filtered above
 
-    removeToast(tid);
-    
+    // Find EANs in DB not present in this import file — computed here so showImportConfirm can use it
+const importEanSet=new Set(deduped.map(r=>String(r.ean||'').trim().replace(/\.0+$/,'')));
+const toDelete=(existing||[]).filter(r=>{
+  const k=String(r.ean||'').trim().replace(/\.0+$/,'');
+  return k&&!importEanSet.has(k);
+}).map(r=>r.id);
+
+removeToast(tid);
+        
     const doThImport=async()=>{
       const tid2=toast('Importing…','loading',0);
       let insertedCount=0,updatedCount=0;
@@ -2053,8 +2062,7 @@ deduped.forEach(row=>{
         }
         insertedCount=toInsertNew.length;
 
-
-        // Delete removed EANs
+// Delete removed EANs
 if(toDelete.length){
   const DBATCH=500;
   for(let i=0;i<toDelete.length;i+=DBATCH){
@@ -2065,13 +2073,6 @@ if(toDelete.length){
     allCatalogData=allCatalogData.filter(x=>x.id!==id);
   });
 }
-        
-        // Find EANs in DB not present in this import file
-const importEanSet=new Set(deduped.map(r=>String(r.ean||'').trim().replace(/\.0+$/,'')));
-const toDelete=(existing||[]).filter(r=>{
-  const k=String(r.ean||'').trim().replace(/\.0+$/,'');
-  return k&&!importEanSet.has(k);
-}).map(r=>r.id);
 
         
         // Updates
@@ -2162,13 +2163,12 @@ function showImportConfirm(newCount,updates,skipped,incomplete,onConfirm,onCance
           <div style="font-size:20px;font-weight:800;color:var(--red)">${incomplete}</div>
           <div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Incomplete</div>
         </div>`:''}
+        ${toDelete.length?`<div style="background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r);padding:10px 12px;text-align:center">
+          <div style="font-size:20px;font-weight:800;color:var(--red)">${toDelete.length}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Will Delete</div>
+        </div>`:''}
       </div>
-
-      ${toDelete.length?`<div style="background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r);padding:10px 12px;text-align:center">
-  <div style="font-size:20px;font-weight:800;color:var(--red)">${toDelete.length}</div>
-  <div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">Will Delete</div>
-</div>`:''}
-
+    
 
       ${updates.length?`
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:8px">Price Changes</div>
