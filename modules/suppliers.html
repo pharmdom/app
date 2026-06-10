@@ -1193,7 +1193,7 @@ function renderCatalog(){
     </div>`;
   })()}
 </td>
-      <td style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.product_name||'')}">${esc(r.product_name||'—')}</td>
+      <td style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0" title="${esc(r.product_name||'')}">${esc(r.product_name||'—')}</td>
       <td><span class="cat-cost${!cost?' empty':''}">${cost?'£'+cost:'—'}</span></td>
       <td>
         <select class="sc-status-sel ${statusCls}" id="status_${id}" onchange="updateStatus('${id}',this.value)" onclick="event.stopPropagation()">
@@ -1202,7 +1202,7 @@ function renderCatalog(){
           <option value="Rejected" ${status==='Rejected'?'selected':''}>Rejected</option>
         </select>
       </td>
-      <td id="agent_${id}" style="font-size:11px;color:var(--text3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.agent||'—')}</td>
+      <td id="agent_${id}" style="font-size:11px;color:var(--text3);max-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.agent||'—')}</td>
       <td>
         <button class="sc-del-btn" onclick="event.stopPropagation();confirmDelProd('${id}','${esc(r.product_name||'')}')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
@@ -1230,7 +1230,13 @@ outer.querySelectorAll('.resizable-th').forEach(th=>{
   handle.addEventListener('mousedown',e=>{
     startX=e.pageX;startW=th.offsetWidth;
     handle._dragging=true;handle.style.background='var(--accent)';
-    const onMove=e=>{th.style.width=Math.max(40,startW+e.pageX-startX)+'px';};
+    const onMove=e=>{
+      const w=Math.max(40,startW+e.pageX-startX)+'px';
+      th.style.width=w;
+      const idx=Array.from(th.parentElement.children).indexOf(th);
+      const col=th.closest('table').querySelectorAll('col')[idx];
+      if(col)col.style.width=w;
+    };
     const onUp=()=>{handle._dragging=false;handle.style.background='';document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);};
     document.addEventListener('mousemove',onMove);
     document.addEventListener('mouseup',onUp);
@@ -1688,7 +1694,7 @@ Object.entries(eanGroups).forEach(([ean,rows])=>{
       <td style="vertical-align:top;padding-top:10px">
   <a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(ean||'—')}</a>
     ${(()=>{
-    if(ri!==0)return'';
+    if(ri!==rows.length-1)return'';
     const offers=_catalogOffersMap[String(r.ean||'').trim()]||[];
     if(!offers.length)return'';
     const tid='offtog_'+rid;
