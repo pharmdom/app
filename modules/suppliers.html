@@ -444,7 +444,12 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
     <div class="sc-section-label">Notes</div>
     <div class="sc-field-group">
       <label>Notes</label>
-      <textarea id="efNotes" placeholder="Any notes about this supplier…"></textarea>
+      <div style="display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap">
+        <button type="button" onclick="insertNoteFormat('bullet')" style="padding:3px 9px;border-radius:5px;border:1.5px solid var(--border);background:var(--surface2);font-size:11px;font-weight:700;font-family:var(--font);cursor:pointer;color:var(--text3)" title="Bullet list">• Bullet</button>
+        <button type="button" onclick="insertNoteFormat('number')" style="padding:3px 9px;border-radius:5px;border:1.5px solid var(--border);background:var(--surface2);font-size:11px;font-weight:700;font-family:var(--font);cursor:pointer;color:var(--text3)" title="Numbered list">1. Number</button>
+        <button type="button" onclick="insertNoteFormat('bold')" style="padding:3px 9px;border-radius:5px;border:1.5px solid var(--border);background:var(--surface2);font-size:11px;font-weight:700;font-family:var(--font);cursor:pointer;color:var(--text3);font-weight:800" title="Bold">B</button>
+      </div>
+      <textarea id="efNotes" placeholder="Any notes about this supplier…" style="min-height:100px"></textarea>
     </div>
   </div>
   <div class="sc-drawer-foot">
@@ -922,7 +927,7 @@ function renderSupplierCard(s){
     ns.className='sc-detail-section';
     ns.style.cssText='animation:fadeSlideUp .3s .15s ease both';
     ns.innerHTML=`<div class="sc-detail-head">Notes</div>
-      <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:var(--r);padding:10px 12px;font-size:12px;color:rgba(255,255,255,.55);line-height:1.55;white-space:pre-wrap;">${esc(s.notes)}</div>`;
+      <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:var(--r);padding:10px 12px;font-size:12px;color:rgba(255,255,255,.55);line-height:1.55;white-space:pre-wrap;">${esc(s.notes).replace(/\*\*(.+?)\*\*/g,'<strong style="color:rgba(255,255,255,.8)">$1</strong>')}</div>`;
     el.appendChild(ns);
   }
 }
@@ -1138,9 +1143,24 @@ function renderCatalog(){
   }
   cc.innerHTML='';
   const outer=document.createElement('div');outer.className='sc-tbl-outer';
-  let html=`<table class="sc-cat-table"><thead><tr>
+  let html=`<table class="sc-cat-table" style="table-layout:fixed">
+  <colgroup>
+    ${bulkSelectMode?'<col style="width:32px">'  :''}
+    <col id="col-ean" style="width:110px">
+    <col id="col-name" style="width:450px">
+    <col id="col-cost" style="width:80px">
+    <col id="col-status" style="width:110px">
+    <col id="col-agent" style="width:90px">
+    <col style="width:32px">
+  </colgroup>
+  <thead><tr>
     ${bulkSelectMode?'<th style="width:32px"><input type="checkbox" class="sc-row-cb" onchange="document.querySelectorAll(\'.sc-row-cb-item\').forEach(c=>{c.checked=this.checked;if(c.checked)selectedIds.add(c.dataset.id);else selectedIds.delete(c.dataset.id)});updateBulkCount()"></th>':''}
-    <th style="width:110px">EAN</th><th style="width:450px">Product Name</th><th style="width:80px">Cost</th><th style="width:110px">Status</th><th style="width:90px">Agent</th><th style="width:32px"></th>
+    <th class="resizable-th" style="width:110px">EAN</th>
+    <th class="resizable-th" style="width:450px">Product Name</th>
+    <th class="resizable-th" style="width:80px">Cost</th>
+    <th class="resizable-th" style="width:110px">Status</th>
+    <th class="resizable-th" style="width:90px">Agent</th>
+    <th style="width:32px"></th>
   </tr></thead><tbody>`;
   const total=data.length;
   const display=data.slice(0,500);
@@ -1197,6 +1217,22 @@ function renderCatalog(){
     </div>`;
   }
   outer.innerHTML=html;
+  // Make columns resizable
+outer.querySelectorAll('.resizable-th').forEach(th=>{
+  const handle=document.createElement('div');
+  handle.style.cssText='position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;user-select:none;z-index:1;';
+  th.style.position='relative';
+  th.appendChild(handle);
+  let startX,startW;
+  handle.addEventListener('mousedown',e=>{
+    startX=e.pageX;startW=th.offsetWidth;
+    const onMove=e=>{th.style.width=Math.max(40,startW+e.pageX-startX)+'px';};
+    const onUp=()=>{document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);};
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onUp);
+    e.preventDefault();
+  });
+});
   cc.appendChild(outer);
 }
 
@@ -1643,11 +1679,13 @@ Object.entries(eanGroups).forEach(([ean,rows])=>{
     const isFirst=ri===0;
     const groupBg=isGroup?'background:rgba(24,71,212,.04)':'';
     const leftBorder=isGroup?'border-left:3px solid var(--accent-bd)':'';
-    html+=`<tr style="${groupBg};${leftBorder}">
+    const topBorder=isGroup&&isFirst?'border-top:2px solid var(--accent-bd)':'';
+    html+=`<tr style="${groupBg};${leftBorder};${topBorder}">
       ${acBulkMode?`<td><input type="checkbox" class="sc-row-cb sc-ac-cb-item" data-id="${rid}" ${acSelectedIds.has(rid)?'checked':''} onchange="if(this.checked)acSelectedIds.add('${rid}');else acSelectedIds.delete('${rid}');updateAcBulkCount()"></td>`:''}
       <td style="vertical-align:top;padding-top:10px">
   <a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(ean||'—')}</a>
-  ${(()=>{
+    ${(()=>{
+    if(ri!==0)return'';
     const offers=_catalogOffersMap[String(r.ean||'').trim()]||[];
     if(!offers.length)return'';
     const tid='offtog_'+rid;
@@ -2345,6 +2383,39 @@ function toggleCatOffers(btnId,panelId){
   panel.style.display=open?'none':'block';
   if(caret)caret.style.transform=open?'rotate(0deg)':'rotate(180deg)';
 }
+
+
+function insertNoteFormat(type){
+  const ta=document.getElementById('efNotes');
+  if(!ta)return;
+  const start=ta.selectionStart,end=ta.selectionEnd;
+  const before=ta.value.substring(0,start);
+  const selected=ta.value.substring(start,end);
+  const after=ta.value.substring(end);
+  const lineStart=before.lastIndexOf('\n')+1;
+  const currentLine=before.substring(lineStart);
+
+  let insert='';
+  if(type==='bullet'){
+    insert=selected
+      ?selected.split('\n').map(l=>'• '+l).join('\n')
+      :(currentLine.trim()?'\n• ':'• ');
+  }else if(type==='number'){
+    // Count existing numbered items to continue sequence
+    const existingNums=(ta.value.match(/^\d+\./gm)||[]).length;
+    insert=selected
+      ?selected.split('\n').map((l,i)=>`${existingNums+i+1}. `+l).join('\n')
+      :(currentLine.trim()?`\n${existingNums+1}. `:`${existingNums+1}. `);
+  }else if(type==='bold'){
+    insert=selected?`**${selected}**`:'****';
+  }
+
+  ta.value=before+insert+after;
+  const newPos=start+insert.length-(type==='bold'&&!selected?2:0);
+  ta.setSelectionRange(newPos,newPos);
+  ta.focus();
+}
+window.insertNoteFormat=insertNoteFormat;
   
   
 /* ── EXPOSE GLOBALS ── */
