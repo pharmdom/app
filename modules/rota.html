@@ -492,6 +492,11 @@ body { overflow: hidden; }
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         <span>Copy</span>
       </button>
+
+      <div id="readOnlyBanner" style="display:none;padding:5px 12px;background:#fef9c3;border:1.5px solid #fde68a;border-radius:9px;font-size:12px;font-weight:600;color:#92400e;">
+        👁 View only
+      </div>
+      
       <button class="planner-add-btn" onclick="openShiftModal()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         <span>Add Shift</span>
@@ -663,6 +668,10 @@ body { overflow: hidden; }
 
 const CURRENT_USER = JSON.parse(sessionStorage.getItem('user') || '{}');
 const IS_ADMIN = ['admin','administrator'].includes((CURRENT_USER.role||'').toLowerCase());
+
+
+const CAN_WRITE = IS_ADMIN || (CURRENT_USER.permissions || []).includes('rota_write');
+  
 /* ══ DEPARTMENT CONFIG ══════════════════════════════════════════════════════ */
 const DEPT_KEY_MAP = {
   'warehouse':'warehouse','digital ops':'digitalops','digitalops':'digitalops',
@@ -800,6 +809,9 @@ async function init() {
     S.currentDate     = snapToMonday(isoDate(new Date()));
     document.getElementById('viewSelect').value = 'week';
     renderAll();
+    if (!CAN_WRITE) {
+      document.getElementById('readOnlyBanner').style.display = '';
+    }
   } catch(e) {
     console.error('Rota init error:', e);
     document.getElementById('gridContent').innerHTML = '<p style="color:#dc2626;font-size:13px;padding:40px;text-align:center">Failed to load data. Please check your connection.</p>';
@@ -1169,6 +1181,7 @@ function checkConflict(){
 
 /* ══ SHIFT MODAL ════════════════════════════════════════════════════════════ */
 function openShiftModal(empId,date,time){
+  if(!requireWrite()) return;
   if(date&&isDateClosed(date)){showToast('This day is marked as closed','warn');return;}
   S.editingId=null; S.shiftType='task'; S.conflictIds=[];
   const st=time?time.slice(0,5):'07:00';
@@ -1281,6 +1294,7 @@ function showConfirm(title,msg,okLabel,okClass){
 function closeConfirm(){document.getElementById('confirmOverlay').classList.remove('visible');if(_confirmResolve){const r=_confirmResolve;_confirmResolve=null;r(false);}}
 
 async function deleteShift(id){
+  if(!requireWrite()) return;
   const ok=await showConfirm('Delete this shift?','This action cannot be undone.','Delete','confirm-btn-danger');
   if(!ok) return;
   const prev=[...S.schedule]; S.schedule=S.schedule.filter(s=>s.id!==String(id));
@@ -1391,7 +1405,7 @@ function toggleEmployeeVisibility(id){
 document.getElementById('teamModal').addEventListener('click',function(e){if(e.target===this)closeTeamModal();});
 
 /* ══ CLOSED DAYS MODAL ══════════════════════════════════════════════════════ */
-function openClosedModal(){renderClosedModal();document.getElementById('closedModal').classList.add('visible');}
+function openClosedModal(){if(!requireWrite()) return;renderClosedModal();document.getElementById('closedModal').classList.add('visible');}
 function closeClosedModal(){document.getElementById('closedModal').classList.remove('visible');}
 function renderClosedModal(){
   const list=S.closedDays.length
@@ -1428,6 +1442,7 @@ document.getElementById('closedModal').addEventListener('click',function(e){if(e
 const COPY = { step:1, srcRange:'week', srcDate:null, destDate:null, preview:[] };
 
 function openCopyModal() {
+  if(!requireWrite()) return;
   COPY.step = 1;
   COPY.srcRange = S.view === '2weeks' ? '2weeks' : S.view === 'day' ? 'day' : 'week';
   COPY.srcDate = S.currentDate;
@@ -1784,6 +1799,15 @@ document.addEventListener('click',function(){
   document.getElementById('navDropBtn')?.classList.remove('open');
 });
 
+
+function requireWrite() {
+  if (!CAN_WRITE) {
+    showToast('You have view-only access to this rota', 'warn');
+    return false;
+  }
+  return true;
+}
+  
 /* ══ GLOBALS ════════════════════════════════════════════════════════════════ */
 window.navigate=navigate; window.changeView=changeView; window.toggleCalendar=toggleCalendar;
 window.calNav=calNav; window.calSelectDate=calSelectDate;
