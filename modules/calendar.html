@@ -431,7 +431,6 @@ textarea.form-inp{resize:vertical;min-height:72px}
 <script>
 (function(){
 'use strict';
-var API_URL='https://script.google.com/macros/s/AKfycbwBDLFzlzafpyQADDInnJ2TjxsESVXMYm5foKKPvO3Ochr1NvdcGcU60BIlI184_-RX/exec';
 var _plannerBlocks=[],_suppliers=[],_purchasedSpend=0,_spendLoaded=false,_weeklyBudget=0;
 var _currentWeekStart=getWeekStart(new Date());
 var _editingBlockId=null,_openDrawerBlockId=null,_formHours=2,_formAgent='';
@@ -499,17 +498,34 @@ function toast(msg,type){
   var ic={success:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',error:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',info:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'};
   t.innerHTML=(ic[type]||'')+esc(msg);c.appendChild(t);setTimeout(function(){if(t.parentNode)t.remove();},3400);
 }
-async function api(body){var r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)});return r.json();}
 
 async function loadAll(){
   pStart();
   try{
-    var r=await api({action:'getAll',weekStart:toISO(_currentWeekStart)});
-    if(r&&r.success){_plannerBlocks=r.blocks||[];_suppliers=r.suppliers||[];_weeklyBudget=parseFloat(r.budget)||0;_purchasedSpend=parseFloat(r.spentThisWeek)||0;_spendLoaded=true;renderAll();}
-    else showCalError('Failed to load data');
-  }catch(e){showCalError('Network error \u2014 check connection');}
+    const[blocksRes,suppliersRes,budgetRes,spendRes]=await Promise.all([
+      sb.from('sourcing_calendar').select('*'),
+      sb.from('suppliers').select('supplier_id,name,website').order('name'),
+      sb.from('sourcing_calendar_config').select('value').eq('key','weekly_budget').single(),
+      sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at', getWeekISO(_currentWeekStart)).lt('created_at', getWeekISO(addDays(_currentWeekStart,7)))
+    ]);
+    if(blocksRes.error)throw blocksRes.error;
+    _plannerBlocks=(blocksRes.data||[]).map(function(r){return{
+      id:r.id,agent:r.agent,date:r.date,supplierName:r.supplier_name,supplierId:r.supplier_id||'',
+      website:r.website||'',hours:parseFloat(r.hours)||0,time:r.time||'',
+      categoryMain:r.category_main||'',categorySub:r.category_sub||'',
+      notes:r.notes||'',createdAt:r.created_at||''
+    };});
+    _suppliers=(suppliersRes.data||[]).map(function(r){return{id:r.supplier_id,name:r.name,website:r.website||''};});
+    _weeklyBudget=parseFloat(budgetRes.data?.value||0);
+    _purchasedSpend=(spendRes.data||[]).reduce(function(a,r){return a+(parseFloat(r.cost_of_unit)||0)*(parseFloat(r.unit_quantity)||1);},0);
+    _spendLoaded=true;
+    renderAll();
+  }catch(e){showCalError('Failed to load: '+e.message);}
   finally{pDone();}
 }
+
+function getWeekISO(d){return new Date(d).toISOString();}
+  
 function showCalError(m){document.getElementById('calOuter').innerHTML='<div class="state-wrap"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><p>'+esc(m)+'</p><span>Refresh or check your API URL</span></div>';}
 function renderAll(){updateBudgetBar();updateChips();renderCalendar();}
 
@@ -607,7 +623,7 @@ function dropBlock(ta,td){
   if(_plannerBlocks.filter(function(b){return b.agent===ta&&b.date===td;}).length>=3){toast('Maximum 3 blocks per day per agent','error');_dragBlockId=null;return;}
   blk.agent=ta;blk.date=td;_dragBlockId=null;
   renderCalendar();updateChips();
-  api({action:'updateBlock',block:blk}).then(function(r){if(r&&r.success)toast('Block moved','success');else toast('Failed to save move','error');}).catch(function(){toast('Error saving','error');});
+  window.sb.from('sourcing_calendar').update({agent:blk.agent,date:blk.date}).eq('id',blk.id).then(function(res){if(!res.error)toast('Block moved','success');else toast('Failed to save move','error');}).catch(function(){toast('Error saving','error');});
 }
 
 function openBlockModal(agentKey,dateStr){
@@ -782,13 +798,13 @@ window.saveBlock=async function(){
   var sb=document.getElementById('blockSaveBtn');sb.disabled=true;sb.innerHTML='<span class="spinner spin-sm" style="border-top-color:#fff;border-color:rgba(255,255,255,.3)"></span>Saving\u2026';
   pStart();
   try{
-    var r=await api({action:_editingBlockId?'updateBlock':'addBlock',block:blk});
-    if(r&&r.success){
+var payload={id:blk.id,agent:blk.agent,date:blk.date,supplier_name:blk.supplierName,supplier_id:blk.supplierId||null,website:blk.website||null,hours:blk.hours,time:blk.time||null,category_main:blk.categoryMain||null,category_sub:blk.categorySub||null,notes:blk.notes||null,created_at:blk.createdAt};
+    var{error:saveErr}=await window.sb.from('sourcing_calendar').upsert(payload,{onConflict:'id'});
+    if(!saveErr){
       if(_editingBlockId){var idx=_plannerBlocks.findIndex(function(b){return b.id===_editingBlockId;});if(idx>-1)_plannerBlocks[idx]=blk;else _plannerBlocks.push(blk);_openDrawerBlockId=blk.id;}
-      else{if(r.id)blk.id=r.id;_plannerBlocks.push(blk);}
+      else _plannerBlocks.push(blk);
       closeBlockModal();renderAll();toast(_editingBlockId?'Block updated':'Block added','success');
-    }else{toast('Failed to save: '+(r.message||''),'error');sb.disabled=false;sb.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>Save Block';}
-  }catch(e){toast('Error saving block','error');sb.disabled=false;sb.innerHTML='Save Block';}
+    }else{toast('Failed to save: '+saveErr.message,'error');sb.disabled=false;sb.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>Save Block';}}catch(e){toast('Error saving block','error');sb.disabled=false;sb.innerHTML='Save Block';}
   finally{pDone();}
 };
 
@@ -800,9 +816,9 @@ window.confirmDeleteExec=async function(){
   document.getElementById('delConfirm').classList.remove('open');
   var btn=document.getElementById('delConfirmBtn');btn.disabled=true;pStart();
   try{
-    var r=await api({action:'deleteBlock',id:id});
-    if(r&&r.success){_plannerBlocks=_plannerBlocks.filter(function(b){return b.id!==id;});if(_openDrawerBlockId===id){closeDrawer();_openDrawerBlockId=null;}renderAll();toast('Block deleted','info');}
-    else toast('Failed to delete','error');
+    var{error:delErr}=await window.sb.from('sourcing_calendar').delete().eq('id',id);
+    if(!delErr){_plannerBlocks=_plannerBlocks.filter(function(b){return b.id!==id;});if(_openDrawerBlockId===id){closeDrawer();_openDrawerBlockId=null;}renderAll();toast('Block deleted','info');}
+    else toast('Failed to delete: '+delErr.message,'error');
   }catch(e){toast('Error','error');}
   finally{pDone();btn.disabled=false;_deleteTargetId=null;}
 };
@@ -857,7 +873,7 @@ window.openBudgetModal=function(){document.getElementById('budgetInput').value=_
 window.closeBudgetModal=function(){document.getElementById('budgetOverlay').classList.remove('open');};
 window.saveBudget=async function(){
   var v=parseFloat(document.getElementById('budgetInput').value)||0;pStart();
-  try{var r=await api({action:'setBudget',budget:v});if(r&&r.success){_weeklyBudget=v;updateBudgetBar();closeBudgetModal();toast('Budget updated','success');}else toast('Failed to save budget','error');}
+  try{var{error:bErr}=await window.sb.from('sourcing_calendar_config').upsert({key:'weekly_budget',value:String(v)},{onConflict:'key'});if(!bErr){_weeklyBudget=v;updateBudgetBar();closeBudgetModal();toast('Budget updated','success');}else toast('Failed to save budget','error');}
   catch(e){toast('Error','error');}finally{pDone();}
 };
 
@@ -866,7 +882,11 @@ window.shiftWeek=function(dir){
   var el=document.getElementById('bgtSpent');el.classList.add('loading');el.style.minWidth='64px';el.style.height='22px';el.textContent='\u00a0';
   document.getElementById('bgtSpentSub').textContent='calculating\u2026';
   renderCalendar();updateChips();
-  api({action:'getSpentThisWeek',weekStart:toISO(_currentWeekStart)}).then(function(r){if(r&&r.success){_purchasedSpend=parseFloat(r.spent)||0;_spendLoaded=true;updateBudgetBar();}}).catch(function(){});
+ var ws=getWeekISO(_currentWeekStart),we=getWeekISO(addDays(_currentWeekStart,7));
+  window.sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at',ws).lt('created_at',we).then(function(res){
+    _purchasedSpend=(res.data||[]).reduce(function(a,r){return a+(parseFloat(r.cost_of_unit)||0)*(parseFloat(r.unit_quantity)||1);},0);
+    _spendLoaded=true;updateBudgetBar();
+  }).catch(function(){});
 };
 
 document.addEventListener('keydown',function(e){
