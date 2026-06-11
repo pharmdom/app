@@ -552,9 +552,7 @@ async function saveActionToDB(sku, action, note) {
 async function clearNonRejectedFromDB() {
   if (!sb) return;
   try {
-    await sb.from('replenishment_skus').delete().neq('action', 'rej').is('action', null);
-    // Delete where action is null or not 'rej'
-    await sb.from('replenishment_skus').delete().not('action', 'eq', 'rej');
+    await sb.from('replenishment_skus').delete().or('action.is.null,action.neq.rej');
   } catch(e) { console.warn('DB clear error', e); }
 }
 
@@ -622,6 +620,7 @@ async function processFiles() {
   if (!rawSkus || !rawSales) return;
   const btn = document.getElementById('processBtn');
   btn.disabled = true;
+  await clearNonRejectedFromDB();
   btn.innerHTML = '<span class="spinner" style="width:13px;height:13px;border-width:2px;border-color:rgba(255,255,255,.3);border-top-color:#fff;margin-right:4px"></span>Processing…';
 
   // Load price context and previously seen SKUs in parallel
@@ -693,17 +692,12 @@ async function processFiles() {
     });
   });
 
-  result.sort((a, b) => a.d - b.d);
+result.sort((a, b) => a.d - b.d);
 
-  // Restore acts/notes from sessionStorage
-  try {
-    const savedActs = JSON.parse(sessionStorage.getItem('rep_acts') || '{}');
-    const savedNotes = JSON.parse(sessionStorage.getItem('rep_notes') || '{}');
-    acts = savedActs;
-    notes = savedNotes;
-  } catch(e) { acts = {}; notes = {}; }
+  acts = {};
+  notes = {};
 
-  // Merge DB actions for rejected items back in
+ // Merge DB actions for rejected items back in
   rejectedSkus.forEach(sku => {
     if (!acts[sku]) {
       const dbRec = seenSkus[sku];
@@ -745,12 +739,7 @@ function showUpload() {
 }
 
 // ── PERSIST ──
-function persist() {
-  try {
-    sessionStorage.setItem('rep_acts', JSON.stringify(acts));
-    sessionStorage.setItem('rep_notes', JSON.stringify(notes));
-  } catch(e) {}
-}
+function persist() {} // DB is source of truth
 
 // ── RENDER ──
 function render() {
