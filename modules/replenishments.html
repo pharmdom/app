@@ -1122,6 +1122,45 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.getElementById('confirmOverlay').classList.contains('open')) closeConfirm();
 });
 
+
+async function restoreFromDB() {
+  if (!sb) return;
+  try {
+    const { data, error } = await sb.from('replenishment_skus').select('*').order('days_left', { ascending: true });
+    if (error || !data || !data.length) return;
+
+    ALL = data.map(r => ({
+      s: r.sku,
+      t: r.name || r.sku,
+      ean: r.ean || '',
+      u: r.urgency || 'O',
+      av: parseFloat(r.available) || 0,
+      inc: parseFloat(r.incoming) || 0,
+      r: parseFloat(r.daily_rate) || 0,
+      d: parseFloat(r.days_left) || 0,
+      q: parseInt(r.order_qty) || 0,
+      cogs: parseFloat(r.cogs) || 0,
+      lastSupplier: '',
+    }));
+
+    acts = {};
+    notes = {};
+    data.forEach(r => {
+      if (r.action) acts[r.sku] = r.action;
+      if (r.note)   notes[r.sku] = r.note;
+    });
+
+    // Sync sessionStorage too
+    persist();
+
+    showContent();
+    render();
+  } catch(e) {
+    console.warn('Could not restore from DB', e);
+  }
+}
+
+  
 // ── GLOBALS (called from inline HTML) ──
 window.dragOver = dragOver;
 window.dragLeave = dragLeave;
@@ -1141,7 +1180,12 @@ window.doConfirm = doConfirm;
 window.togglePricePanel = togglePricePanel;
 
 // Load price context on init (in case user already has data from a previous session)
-if (sb) loadPriceContext();
+if (sb) init();
+
+async function init() {
+  await loadPriceContext();
+  await restoreFromDB();
+}
 
 })();
 </script>
