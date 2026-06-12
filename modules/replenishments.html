@@ -710,10 +710,9 @@ const result = [];
 result.sort((a, b) => a.d - b.d);
 
 // Group subsets under main products
-const PACK_RE = /\s*pack\s+of\s+\d+/i;
+const PACK_RE = /(\s*pack\s+of\s+\d+|\s*\d+\s*packs?)/i;
 const grouped = [];
-const mainMap = {}; // normalized base name -> index in grouped
-
+const mainMap = {};
 result.forEach(x => {
   const isSubset = PACK_RE.test(x.t);
   if (!isSubset) {
@@ -721,13 +720,13 @@ result.forEach(x => {
     mainMap[x.t.toLowerCase()] = grouped.length;
     grouped.push(x);
   } else {
-    // Find main product by stripping the pack suffix from the name
     const baseName = x.t.replace(PACK_RE, '').trim().toLowerCase();
-    const parentIdx = Object.keys(mainMap).find(k => k.startsWith(baseName) || baseName.startsWith(k));
+    const parentIdx = Object.keys(mainMap).find(k =>
+      k.includes(baseName) || baseName.includes(k)
+    );
     if (parentIdx !== undefined) {
       grouped[mainMap[parentIdx]].subsets.push({ s: x.s, t: x.t, av: x.av });
     } else {
-      // No matching main product found — treat as standalone
       x.subsets = [];
       grouped.push(x);
     }
@@ -760,7 +759,7 @@ ALL = grouped;
 
   showContent();
   render();
-  toast(result.length + ' SKUs loaded', 'success');
+  toast(ALL.length + ' SKUs loaded', 'success');
 }
 
 // ── SHOW/HIDE ──
