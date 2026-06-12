@@ -534,7 +534,7 @@ async function saveSkusToDB(skus) {
       days_left: x.d,
       order_qty: x.q,
       cogs: x.cogs || null,
-      uploaded_at: new Date().toISOString()
+      uploaded_at: new Date().toISOString(),
       image_url: x.img || null,
     }));
     await sb.from('replenishment_skus').upsert(rows, { onConflict: 'sku' });
@@ -652,16 +652,16 @@ async function processFiles() {
     if (r.upc_code && r.upc_code.trim()) salesMap[r.upc_code.trim().toLowerCase()] = r;
   });
 
-  const result = [];
+const result = [];
   rawSkus.forEach(r => {
-
-    const imageUrl = (salesRow.image_url || salesRow.main_image || salesRow.image || '').trim();
     const sku = (r.sku || '').trim();
     if (!sku) return;
-
+    if (purchasedSkus.has(sku)) return;
     const salesRow = salesMap[sku.toLowerCase()] || {};
     const tags = (salesRow.tags || '').toLowerCase();
-    if (tags.includes('clearance')) return;
+    const tagList = tags.split(',').map(t => t.trim());
+    if (tagList.some(t => t === 'clearance line')) return;
+    const imageUrl = (salesRow.image_url || '').trim();
 
     
 
@@ -964,6 +964,9 @@ function buildFocusCard(x) {
   }
 
   return `<div class="focus-card ${cardBorderCls}">
+    ${x.img ? `<div style="width:100%;height:120px;border-radius:var(--r-sm);overflow:hidden;margin-bottom:10px;background:var(--surface2);border:1px solid var(--border2);">
+      <img src="${esc(x.img)}" alt="" style="width:100%;height:100%;object-fit:contain;" onerror="this.closest('div').style.display='none'">
+    </div>` : ''}
     <div class="focus-card-name">${esc(x.t)}</div>
     <div class="focus-card-meta">
       <span class="pill-sku">${esc(x.s)}</span>
@@ -977,24 +980,13 @@ function buildFocusCard(x) {
       <span>Last supplier: ${esc(x.lastSupplier || '—')}</span>
     </div>
     ${qtyBreakdown}
-
-    ${subsetHtml}
-
-    // Subsets panel
-let subsetHtml = '';
-if (x.subsets && x.subsets.length) {
-  const rows = x.subsets.map(s =>
-    `<div class="qty-row">
-      <span class="qty-row-label" style="font-size:11px;">${esc(s.t)}</span>
-      <span class="qty-row-val val-available">${s.av.toLocaleString()} units</span>
-    </div>`
-  ).join('');
-  subsetHtml = `<div class="qty-breakdown" style="margin-bottom:12px;">
-    <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:6px;">Pack variants</div>
-    ${rows}
-  </div>`;
-}
-  
+    ${(x.subsets && x.subsets.length) ? `<div class="qty-breakdown" style="margin-bottom:12px;">
+      <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:6px;">Pack variants</div>
+      ${x.subsets.map(s => `<div class="qty-row">
+        <span class="qty-row-label" style="font-size:11px;">${esc(s.t)}</span>
+        <span class="qty-row-val val-available">${s.av.toLocaleString()} units</span>
+      </div>`).join('')}
+    </div>` : ''}
     ${pricePanelHtml}
     <div class="focus-card-actions card-actions">
       <button class="abtn${a === 'pur' ? ' on-pur' : ''}" onclick="actAndAdvance('${esc(x.s)}','pur')">
@@ -1066,8 +1058,11 @@ function buildBucketCard(x) {
     </div>`;
   }
 
-  return `<div class="bucket-card ${borderCls}">
+return `<div class="bucket-card ${borderCls}">
     <div class="bucket-card-top">
+      ${x.img ? `<div style="width:36px;height:36px;border-radius:6px;overflow:hidden;background:var(--surface2);border:1px solid var(--border2);flex-shrink:0;">
+        <img src="${esc(x.img)}" alt="" style="width:100%;height:100%;object-fit:contain;" onerror="this.closest('div').style.display='none'">
+      </div>` : ''}
       <div class="bucket-card-body">
         <div class="bucket-card-name" title="${esc(x.t)}">${esc(x.t)}</div>
         <div class="bucket-card-meta">
