@@ -439,6 +439,7 @@ body{overflow:hidden}
             <span class="bucket-tab bt-na" id="btab-na" onclick="setBucketTab('na')">Not Available</span>
             <span class="bucket-tab bt-rej" id="btab-rej" onclick="setBucketTab('rej')">Rejected</span>
             <div style="width:1px;height:14px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>
+            <span class="bucket-tab" id="bsort-recent" onclick="setBucketSort('recent')" style="border:1px solid var(--border);">Recent</span>
             <span class="bucket-tab" id="bsort-days" onclick="setBucketSort('days')" style="border:1px solid var(--border);">Days</span>
             <span class="bucket-tab" id="bsort-name" onclick="setBucketSort('name')" style="border:1px solid var(--border);">Name</span>
           </div>
@@ -465,6 +466,7 @@ const sb = window.sb;
 let ALL = [];
 let acts = {};
 let notes = {};
+let actsOrder = [];
 let sortK = 'days';
 let sortA = 1;
 let rawSkus = null;
@@ -472,7 +474,7 @@ let rawSales = null;
 let confirmFn = null;
 let queueIdx = 0;
 let bucketTab = 'all';
-let bucketSort = 'days';
+let bucketSort = 'recent';
 
 // Catalog + offers data from Supabase
 let _catalogMap = {};  // ean -> [{supplier_name, cost}]
@@ -790,17 +792,23 @@ function render() {
   }
 
   // Bucket
-  let actioned = ALL.filter(x => !!acts[x.s]);
+let actioned = ALL.filter(x => !!acts[x.s]);
   if (bucketTab !== 'all') actioned = actioned.filter(x => acts[x.s] === bucketTab);
   if (q) actioned = actioned.filter(x =>
     x.s.toLowerCase().includes(q) || x.t.toLowerCase().includes(q)
   );
-  actioned.sort((a, b) => bucketSort === 'days' ? a.d - b.d : a.t.localeCompare(b.t));
+  if (bucketSort === 'recent') {
+    actioned.sort((a, b) => actsOrder.indexOf(a.s) - actsOrder.indexOf(b.s));
+  } else if (bucketSort === 'days') {
+    actioned.sort((a, b) => a.d - b.d);
+  } else {
+    actioned.sort((a, b) => a.t.localeCompare(b.t));
+  }
 
   ['all','pur','na','rej'].forEach(k => {
     document.getElementById('btab-' + k)?.classList.toggle('active', bucketTab === k);
   });
-  ['days','name'].forEach(k => {
+['recent','days','name'].forEach(k => {
     const el = document.getElementById('bsort-' + k);
     if (el) {
       el.classList.toggle('active', bucketSort === k);
@@ -1035,16 +1043,20 @@ function togglePricePanel(id) {
 // ── ACTIONS ──
 function actAndAdvance(sku, key) {
   acts[sku] = key;
+  actsOrder = actsOrder.filter(s => s !== sku);
+  actsOrder.unshift(sku); // most recent at front
   persist();
   saveActionToDB(sku, key, notes[sku] || '');
   render();
 }
 function undoAct(sku) {
   delete acts[sku];
+  actsOrder = actsOrder.filter(s => s !== sku);
   persist();
   saveActionToDB(sku, null, null);
   render();
 }
+  
 function queueNav(dir) {
   const pending = ALL.filter(x => !acts[x.s]);
   queueIdx = Math.max(0, Math.min(pending.length - 1, queueIdx + dir));
