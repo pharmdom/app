@@ -535,6 +535,7 @@ async function saveSkusToDB(skus) {
       order_qty: x.q,
       cogs: x.cogs || null,
       uploaded_at: new Date().toISOString()
+      image_url: x.img || null,
     }));
     await sb.from('replenishment_skus').upsert(rows, { onConflict: 'sku' });
   } catch(e) { console.warn('DB save error', e); }
@@ -635,6 +636,13 @@ async function processFiles() {
       .map(([k]) => k)
   );
 
+
+  const purchasedSkus = new Set(
+  Object.entries(seenSkus)
+    .filter(([, v]) => v.action === 'pur')
+    .map(([k]) => k)
+);
+
   // Build sales map from File 2
   const salesMap = {};
   rawSales.forEach(r => {
@@ -646,12 +654,16 @@ async function processFiles() {
 
   const result = [];
   rawSkus.forEach(r => {
+
+    const imageUrl = (salesRow.image_url || salesRow.main_image || salesRow.image || '').trim();
     const sku = (r.sku || '').trim();
     if (!sku) return;
 
     const salesRow = salesMap[sku.toLowerCase()] || {};
     const tags = (salesRow.tags || '').toLowerCase();
     if (tags.includes('clearance')) return;
+
+    
 
     const available = parseFloat(r.available || r.stock || 0);
     const incomingRaw = parseFloat(r.incoming || 0);
@@ -691,10 +703,38 @@ async function processFiles() {
       q: netNeeded,          // recommended = (rate×30) - available - transit
       cogs: prevCogs,
       lastSupplier: '',
+      img: imageUrl
     });
   });
 
 result.sort((a, b) => a.d - b.d);
+
+// Group subsets under main products
+const PACK_RE = /\s*pack\s+of\s+\d+/i;
+const grouped = [];
+const mainMap = {}; // normalized base name -> index in grouped
+
+result.forEach(x => {
+  const isSubset = PACK_RE.test(x.t);
+  if (!isSubset) {
+    x.subsets = [];
+    mainMap[x.t.toLowerCase()] = grouped.length;
+    grouped.push(x);
+  } else {
+    // Find main product by stripping the pack suffix from the name
+    const baseName = x.t.replace(PACK_RE, '').trim().toLowerCase();
+    const parentIdx = Object.keys(mainMap).find(k => k.startsWith(baseName) || baseName.startsWith(k));
+    if (parentIdx !== undefined) {
+      grouped[mainMap[parentIdx]].subsets.push({ s: x.s, t: x.t, av: x.av });
+    } else {
+      // No matching main product found — treat as standalone
+      x.subsets = [];
+      grouped.push(x);
+    }
+  }
+});
+
+ALL = grouped;
 
   acts = {};
   notes = {};
@@ -714,7 +754,6 @@ result.sort((a, b) => a.d - b.d);
   const newSkus = result.filter(x => !rejectedSkus.has(x.s));
   await saveSkusToDB(newSkus);
 
-  ALL = result;
 
   btn.disabled = false;
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>Generate List';
@@ -938,6 +977,24 @@ function buildFocusCard(x) {
       <span>Last supplier: ${esc(x.lastSupplier || '—')}</span>
     </div>
     ${qtyBreakdown}
+
+    ${subsetHtml}
+
+    // Subsets panel
+let subsetHtml = '';
+if (x.subsets && x.subsets.length) {
+  const rows = x.subsets.map(s =>
+    `<div class="qty-row">
+      <span class="qty-row-label" style="font-size:11px;">${esc(s.t)}</span>
+      <span class="qty-row-val val-available">${s.av.toLocaleString()} units</span>
+    </div>`
+  ).join('');
+  subsetHtml = `<div class="qty-breakdown" style="margin-bottom:12px;">
+    <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:6px;">Pack variants</div>
+    ${rows}
+  </div>`;
+}
+  
     ${pricePanelHtml}
     <div class="focus-card-actions card-actions">
       <button class="abtn${a === 'pur' ? ' on-pur' : ''}" onclick="actAndAdvance('${esc(x.s)}','pur')">
@@ -1131,6 +1188,7 @@ async function restoreFromDB() {
     if (error || !data || !data.length) return;
 
     ALL = data.map(r => ({
+      subsets: [],
       s: r.sku,
       t: r.name || r.sku,
       ean: r.ean || '',
@@ -1142,6 +1200,7 @@ async function restoreFromDB() {
       q: parseInt(r.order_qty) || 0,
       cogs: parseFloat(r.cogs) || 0,
       lastSupplier: '',
+      img: r.image_url || '',
     }));
 
     acts = {};
