@@ -724,19 +724,21 @@ result.forEach(x => {
   }
 });
 
-// Second pass: attach packs to their main, or push as standalone
+// Second pass: attach packs to their main only — discard if no main in list
+// Also build a full name set from both files for reference (used to know if main exists but was filtered)
+const allMainNames = new Set();
+rawSkus.forEach(r => { const n = normName(r.name || ''); if (n && !PACK_RE.test(r.name||'')) allMainNames.add(n); });
+rawSales.forEach(r => { const n = normName(r.product_title || ''); if (n && !PACK_RE.test(r.product_title||'')) allMainNames.add(n); });
+
 result.forEach(x => {
   if (!PACK_RE.test(x.t)) return;
   const base    = normName(x.t.replace(PACK_RE, ''));
   const parentI = mainIdxMap[base];
   if (parentI !== undefined) {
     grouped[parentI].subsets.push({ s: x.s, t: x.t, av: x.av });
-  } else {
-    x.subsets = [];
-    grouped.push(x);
   }
+  // else: main was filtered out or doesn't exist → discard this pack entirely
 });
-
 ALL = grouped;
 
 
