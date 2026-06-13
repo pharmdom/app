@@ -708,46 +708,37 @@ const result = [];
   });
 
 result.sort((a, b) => a.d - b.d);
-// Group subsets under main products
-const PACK_RE = /(\s*pack\s+of\s+\d+|\s*\d+\s*packs?)/i;
-const grouped = [];
-const mainMap = {};
 
-// Seed mainMap with all non-pack product names from File 2 (salesMap)
-// so subsets can find parents even if the main product didn't make it through File 1 filters
-Object.values(salesMap).forEach(r => {
-  const name = (r.product_title || r.name || '').trim().toLowerCase();
-  if (!name || PACK_RE.test(name)) return;
-  if (mainMap[name] === undefined) mainMap[name] = -1; // -1 = from File 2 only, no card yet
-});
+const PACK_RE = /\s*-?\s*(pack of \d+|\d+ packs?)\s*$/i;
+function normName(s){ return String(s||'').replace(/\s+/g,' ').trim().toLowerCase().replace(/-\s*$/,'').trim(); }
+
+// First pass: collect all main (non-pack) products in order
+const mainIdxMap = {}; // normName(title) → index in grouped
+const grouped = [];
 
 result.forEach(x => {
-  const isSubset = PACK_RE.test(x.t);
-  if (!isSubset) {
+  if (!PACK_RE.test(x.t)) {
     x.subsets = [];
-    mainMap[x.t.toLowerCase()] = grouped.length; // overwrite -1 if already seeded from File 2
+    mainIdxMap[normName(x.t)] = grouped.length;
     grouped.push(x);
-  } else {
-    const baseName = x.t.replace(PACK_RE, '').trim().toLowerCase();
-    const parentKey = Object.keys(mainMap).find(k =>
-      k.includes(baseName) || baseName.includes(k)
-    );
-    if (parentKey !== undefined && mainMap[parentKey] >= 0) {
-      // Parent exists as a real card from File 1
-      grouped[mainMap[parentKey]].subsets.push({ s: x.s, t: x.t, av: x.av });
-    } else if (parentKey !== undefined && mainMap[parentKey] === -1) {
-      // Parent name found in File 2 but didn't make it through File 1 filters
-      // Promote this subset to standalone since there's no main card to attach to
-      x.subsets = [];
-      grouped.push(x);
-    } else {
-      // No match anywhere — treat as standalone
-      x.subsets = [];
-      grouped.push(x);
-    }
   }
 });
+
+// Second pass: attach packs to their main, or push as standalone
+result.forEach(x => {
+  if (!PACK_RE.test(x.t)) return;
+  const base    = normName(x.t.replace(PACK_RE, ''));
+  const parentI = mainIdxMap[base];
+  if (parentI !== undefined) {
+    grouped[parentI].subsets.push({ s: x.s, t: x.t, av: x.av });
+  } else {
+    x.subsets = [];
+    grouped.push(x);
+  }
+});
+
 ALL = grouped;
+
 
   acts = {};
   notes = {};
