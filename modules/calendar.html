@@ -281,6 +281,34 @@ textarea.form-inp{resize:vertical;min-height:72px}
 .insight-progress-fill{height:100%;border-radius:99px;transition:width .5s cubic-bezier(.4,0,.2,1)}
 @media(max-width:900px){.insights-grid{grid-template-columns:repeat(2,1fr)}.insight-card-wide{grid-column:span 2}}
 @media(max-width:500px){.insights-grid{grid-template-columns:1fr}.insight-card-wide{grid-column:span 1}}
+
+
+
+.insight-card[data-breakdown]{cursor:pointer}
+.insight-card[data-breakdown]:hover{border-color:var(--accent-bd)}
+.insight-card[data-breakdown]:hover .insight-val{color:var(--accent)}
+.insight-link{font-size:10.5px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:3px}
+.insight-link svg{width:10px;height:10px}
+
+.bd-drawer-overlay{position:fixed;inset:0;background:rgba(12,21,38,.35);z-index:1350;opacity:0;pointer-events:none;transition:opacity .25s;backdrop-filter:blur(2px)}
+.bd-drawer-overlay.open{opacity:1;pointer-events:all}
+.bd-drawer{position:fixed;top:0;right:0;width:400px;max-width:97vw;height:100vh;background:var(--surface);box-shadow:-12px 0 50px rgba(12,21,38,.15);z-index:1400;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow:hidden}
+.bd-drawer.open{transform:translateX(0)}
+.bd-drawer-hdr{padding:18px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0;position:relative}
+.bd-drawer-title{font-size:15px;font-weight:800;color:var(--text)}
+.bd-drawer-sub{font-size:11.5px;color:var(--text4);margin-top:2px}
+.bd-drawer-close{position:absolute;top:14px;right:14px;width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);transition:all .15s}
+.bd-drawer-close:hover{background:var(--border);color:var(--text)}
+.bd-drawer-close svg{width:12px;height:12px}
+.bd-drawer-body{flex:1;overflow-y:auto;padding:14px 20px}
+.bd-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border2)}
+.bd-row:last-child{border-bottom:none}
+.bd-row-name{font-size:12.5px;font-weight:600;color:var(--text2);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bd-row-val{font-size:12px;font-weight:700;color:var(--text);font-family:var(--mono);flex-shrink:0;min-width:46px;text-align:right}
+.bd-row-bar{flex:1.6;height:6px;background:var(--border2);border-radius:99px;overflow:hidden;min-width:50px}
+.bd-row-bar-fill{height:100%;border-radius:99px;transition:width .4s cubic-bezier(.4,0,.2,1)}
+.bd-row-pct{font-size:10.5px;color:var(--text4);flex-shrink:0;min-width:36px;text-align:right;font-family:var(--mono)}
+.bd-empty{text-align:center;padding:40px 20px;color:var(--text4);font-size:13px}
 </style>
 
 <div class="pbar" id="pbar"></div>
@@ -400,6 +428,15 @@ textarea.form-inp{resize:vertical;min-height:72px}
   <div id="drawerHeroWrap"></div>
   <div class="drawer-body" id="drawerBody"></div>
   <div class="drawer-foot" id="drawerFoot"></div>
+</div>
+<div class="bd-drawer-overlay" id="bdDrawerOverlay" onclick="closeBreakdownDrawer()"></div>
+<div class="bd-drawer" id="bdDrawer">
+  <div class="bd-drawer-hdr">
+    <button class="bd-drawer-close" onclick="closeBreakdownDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <div class="bd-drawer-title" id="bdDrawerTitle">Breakdown</div>
+    <div class="bd-drawer-sub" id="bdDrawerSub"></div>
+  </div>
+  <div class="bd-drawer-body" id="bdDrawerBody"></div>
 </div>
 <div class="planner-app">
   <nav class="topnav">
@@ -565,7 +602,33 @@ function toast(msg,type){
 }
 
 
-
+/* ══ INSIGHT BREAKDOWN DRAWER ══ */
+window.closeBreakdownDrawer=function(){
+  document.getElementById('bdDrawerOverlay').classList.remove('open');
+  document.getElementById('bdDrawer').classList.remove('open');
+};
+function openBreakdownDrawer(title,sub,rows,colorVar){
+  document.getElementById('bdDrawerTitle').textContent=title;
+  document.getElementById('bdDrawerSub').textContent=sub;
+  var body=document.getElementById('bdDrawerBody');
+  if(!rows.length){
+    body.innerHTML='<div class="bd-empty">No data for this period</div>';
+  }else{
+    var max=rows[0].value;
+    body.innerHTML=rows.map(function(r){
+      var pct=max>0?(r.value/max*100):0;
+      return '<div class="bd-row">'
+        +'<span class="bd-row-name" title="'+esc(r.name)+'">'+esc(r.name)+'</span>'
+        +'<div class="bd-row-bar"><div class="bd-row-bar-fill" style="width:'+pct+'%;background:'+colorVar+'"></div></div>'
+        +'<span class="bd-row-val">'+esc(String(r.value))+'</span>'
+        +(r.pctLabel!=null?'<span class="bd-row-pct">'+r.pctLabel+'</span>':'')
+        +'</div>';
+    }).join('');
+  }
+  document.getElementById('bdDrawerOverlay').classList.add('open');
+  document.getElementById('bdDrawer').classList.add('open');
+}
+  
 /* ══ INSIGHTS ══ */
 async function loadAndRenderInsights(){
   var sec=document.getElementById('insightsSection');
@@ -581,9 +644,9 @@ async function loadAndRenderInsights(){
   var ws=getWeekISO(_currentWeekStart),we=getWeekISO(addDays(_currentWeekStart,7));
 
   try{
-    const[catRes,srcRes]=await Promise.all([
-      sb.from('catalog').select('date,status'),
-      sb.from('sourcing').select('purchased,created_at,sourcing_approvals(status,created_at)')
+const[catRes,srcRes]=await Promise.all([
+      sb.from('catalog').select('date,status,supplier_name'),
+      sb.from('sourcing').select('purchased,created_at,supplier_name,sourcing_approvals(status,created_at)')
     ]);
     var cats=catRes.data||[];
 
@@ -616,16 +679,65 @@ async function loadAndRenderInsights(){
       return (r.sourcing_approvals||[]).some(function(a){return a.status==='approved';});
     }).length;
 
-    grid.innerHTML='';
-    grid.appendChild(insightCard('blue','<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>','Catalog Last Updated',lastUpdated,'Across all suppliers'));
-    grid.appendChild(insightCard('green','<polyline points="20 6 9 17 4 12"/>','Approved This Week',approvedCount,'Sourcing leads approved'));
-    grid.appendChild(insightCard('amber','<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>','Purchased This Week',purchasedCount,'Leads marked purchased'));
+// Build per-supplier breakdowns
+    var approvedRows=src.filter(function(r){
+      return (r.sourcing_approvals||[]).some(function(a){return a.status==='approved';});
+    });
+    var purchasedRows=src.filter(function(r){return r.purchased;});
 
-var catCard=insightCard('blue','<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>','Catalog Approved',pctCat+'%',approvedCat.toLocaleString()+' of '+totalCat.toLocaleString()+' products');
+    function groupCount(rows){
+      var m={};
+      rows.forEach(function(r){
+        var name=r.supplier_name||'Unknown supplier';
+        m[name]=(m[name]||0)+1;
+      });
+      return Object.keys(m).map(function(k){return{name:k,value:m[k]};}).sort(function(a,b){return b.value-a.value;});
+    }
+    var approvedBySupplier=groupCount(approvedRows);
+    var purchasedBySupplier=groupCount(purchasedRows);
+
+    grid.innerHTML='';
+    var cardLastUpdated=insightCard('blue','<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>','Catalog Last Updated',lastUpdated,'Across all suppliers');
+    grid.appendChild(cardLastUpdated);
+
+    var cardApproved=insightCard('green','<polyline points="20 6 9 17 4 12"/>','Approved This Week',approvedCount,'Sourcing leads approved \u00b7 by supplier \u2192');
+    cardApproved.dataset.breakdown='approved';
+    cardApproved.addEventListener('click',function(){
+      openBreakdownDrawer('Approved This Week','for '+fmtDay(_currentWeekStart)+' \u2013 '+fmtDay(addDays(_currentWeekStart,6))+' \u00b7 by supplier',approvedBySupplier,'var(--green)');
+    });
+    grid.appendChild(cardApproved);
+
+    var cardPurchased=insightCard('amber','<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>','Purchased This Week',purchasedCount,'Leads marked purchased \u00b7 by supplier \u2192');
+    cardPurchased.dataset.breakdown='purchased';
+    cardPurchased.addEventListener('click',function(){
+      openBreakdownDrawer('Purchased This Week','for '+fmtDay(_currentWeekStart)+' \u2013 '+fmtDay(addDays(_currentWeekStart,6))+' \u00b7 by supplier',purchasedBySupplier,'var(--amber)');
+    });
+    grid.appendChild(cardPurchased);
+// Per-supplier catalog approval %
+    var catBySupplier={};
+    cats.forEach(function(r){
+      var name=r.supplier_name||'Unknown supplier';
+      if(!catBySupplier[name])catBySupplier[name]={approved:0,total:0};
+      catBySupplier[name].total++;
+      if(r.status==='Approved')catBySupplier[name].approved++;
+    });
+    var catApprovedRows=Object.keys(catBySupplier).map(function(k){
+      var d=catBySupplier[k],pct=d.total?Math.round(d.approved/d.total*100):0;
+      return{name:k,value:pct,pctLabel:d.approved+'/'+d.total};
+    }).sort(function(a,b){return b.value-a.value;});
+
+    var catCard=insightCard('blue','<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>','Catalog Approved',pctCat+'%',approvedCat.toLocaleString()+' of '+totalCat.toLocaleString()+' products \u00b7 by supplier \u2192');
     var fillColor=pctCat>70?'linear-gradient(90deg,var(--green),#22c55e)':pctCat>30?'linear-gradient(90deg,var(--accent),#4f80f7)':'linear-gradient(90deg,var(--amber),#f59e0b)';
     var track=document.createElement('div');track.className='insight-progress-track';
     var fill=document.createElement('div');fill.className='insight-progress-fill';fill.style.width=pctCat+'%';fill.style.background=fillColor;
     track.appendChild(fill);catCard.appendChild(track);
+    catCard.dataset.breakdown='catalog';
+    catCard.addEventListener('click',function(){
+      // value is %, but bar widths should reflect % directly (max 100)
+      var rows=catApprovedRows.map(function(r){return{name:r.name,value:r.value,pctLabel:r.pctLabel+' \u00b7 '+r.value+'%'};});
+      var maxRows=rows.slice();maxRows[0]&&(maxRows[0].value=Math.max(maxRows[0].value,1));
+      openBreakdownDrawer('Catalog Approved \u2014 by Supplier','Approval rate per supplier',rows.map(function(r){return{name:r.name,value:r.value,pctLabel:r.pctLabel};}),'var(--accent)');
+    });
     grid.appendChild(catCard);
 
     var hoursCardEl=document.createElement('div');
