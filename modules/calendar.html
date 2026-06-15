@@ -52,7 +52,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .week-nav-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
 .week-nav-btn svg{width:14px;height:14px}
 .week-label{font-size:14px;font-weight:800;color:var(--text);letter-spacing:-.2px;min-width:200px;text-align:center}
-.cal-outer{flex:1;overflow:auto;padding:12px 0px 24px}
+.cal-outer{flex:1;overflow-y:auto;overflow-x:auto;padding:12px 0px 48px}
 .cal-grid{display:grid;grid-template-columns:88px repeat(7,1fr);gap:1px;border-radius:var(--r-lg);overflow:visible;border:1px solid var(--border);background:var(--border);min-width:700px}
 .cal-day-hdr{background:var(--surface2);padding:8px 10px;text-align:center}
 .cal-day-hdr.empty{background:var(--surface2)}
@@ -312,8 +312,33 @@ textarea.form-inp{resize:vertical;min-height:72px}
 .ins-donut-name{font-size:10.5px;font-weight:700;color:var(--text2);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .ins-donut-sub{font-size:9.5px;color:var(--text4);margin-top:1px;font-family:var(--mono)}
 
-.ins-activity-legend{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--text3);margin-bottom:8px}
+.ins-activity-legend{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--text3);margin-bottom:10px}
 .ins-leg-dot{width:9px;height:9px;border-radius:2px;display:inline-block}
+
+.ins-summary-compare{display:flex;align-items:baseline;gap:8px;margin-top:2px}
+.ins-summary-compare-delta{font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:2px}
+.ins-summary-compare-delta.up{color:var(--green)}
+.ins-summary-compare-delta.down{color:var(--red)}
+.ins-summary-compare-delta.flat{color:var(--text4)}
+.ins-summary-compare-delta svg{width:11px;height:11px}
+
+.ins-combined-donut-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.ins-combined-donut-svg{width:130px;height:130px;flex-shrink:0}
+.ins-combined-legend{flex:1;min-width:200px;display:flex;flex-direction:column;gap:7px}
+.ins-combined-legend-item{display:flex;align-items:center;gap:8px;font-size:12px}
+.ins-combined-legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.ins-combined-legend-name{flex:1;color:var(--text2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ins-combined-legend-pct{font-family:var(--mono);font-weight:700;color:var(--text);flex-shrink:0}
+
+.ins-table{width:100%;border-collapse:collapse;font-size:12px}
+.ins-table th{text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);padding:0 8px 8px;border-bottom:1px solid var(--border2)}
+.ins-table td{padding:8px 8px;border-bottom:1px solid var(--border2);color:var(--text2);font-weight:600}
+.ins-table tr:last-child td{border-bottom:none}
+.ins-table td.num{font-family:var(--mono);text-align:right}
+.ins-stale-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;font-family:var(--mono)}
+.ins-stale-badge.ok{background:var(--green-bg);color:var(--green)}
+.ins-stale-badge.warn{background:var(--amber-bg);color:var(--amber)}
+.ins-stale-badge.bad{background:var(--red-bg);color:var(--red)}
 
 @media(max-width:900px){.insights-modal{width:96vw;height:90vh}.ins-donut-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:600px){.ins-summary-row{flex-direction:column}.ins-donut-grid{grid-template-columns:repeat(2,1fr)}.ins-heatmap{flex-wrap:wrap}.ins-heat-cell{flex:1 1 40px}}
@@ -473,12 +498,17 @@ textarea.form-inp{resize:vertical;min-height:72px}
       </div>
     </div>
     <div class="ins-modal-body">
-      <div class="ins-panel active" id="insPanelHours">
+<div class="ins-panel active" id="insPanelHours">
         <div class="ins-summary-row">
           <div class="ins-summary-card">
             <div class="ins-summary-label">Total Hours This Week</div>
             <div class="ins-summary-val loading" id="insHoursTotal"></div>
             <div class="ins-summary-sub">Across all agents</div>
+          </div>
+          <div class="ins-summary-card">
+            <div class="ins-summary-label">Suppliers Worked This Week</div>
+            <div class="ins-summary-val loading" id="insSuppliersTotal"></div>
+            <div class="ins-summary-compare" id="insSuppliersCompare"></div>
           </div>
         </div>
         <div class="ins-card">
@@ -514,9 +544,15 @@ textarea.form-inp{resize:vertical;min-height:72px}
             <div class="ins-progress-track"><div class="ins-progress-fill" id="insCatProgressFill" style="width:0%"></div></div>
           </div>
         </div>
-        <div class="ins-card">
+<div class="ins-card">
           <div class="ins-sec-lbl">Approval Rate by Supplier</div>
           <div id="insCatDonuts" class="ins-loading-rows">
+            <div class="ins-loading-row"></div><div class="ins-loading-row"></div><div class="ins-loading-row"></div>
+          </div>
+        </div>
+        <div class="ins-card">
+          <div class="ins-sec-lbl">Not Sourced in Last 7 Days</div>
+          <div id="insCatStaleTable" class="ins-loading-rows">
             <div class="ins-loading-row"></div><div class="ins-loading-row"></div><div class="ins-loading-row"></div>
           </div>
         </div>
@@ -739,17 +775,21 @@ window.addEventListener('resize',positionInsightsTabIndicator);
 
 async function loadInsightsData(){
   var ws=getWeekISO(_insWeekStart),we=getWeekISO(addDays(_insWeekStart,7));
-  ['insHoursAgentChart','insHoursSupplierRows','insHoursHeatmap','insCatDonuts','insActivityChart'].forEach(function(id){
+['insHoursAgentChart','insHoursSupplierRows','insHoursHeatmap','insCatDonuts','insCatStaleTable','insActivityChart'].forEach(function(id){
     var el=document.getElementById(id);if(el)el.innerHTML='<div class="ins-loading-rows"><div class="ins-loading-row"></div><div class="ins-loading-row"></div><div class="ins-loading-row"></div></div>';
   });
-  ['insHoursTotal','insCatLastUpdated','insCatApprovedPct','insApprovedTotal','insPurchasedTotal'].forEach(function(id){
+  ['insHoursTotal','insSuppliersTotal','insCatLastUpdated','insCatApprovedPct','insApprovedTotal','insPurchasedTotal'].forEach(function(id){
     var el=document.getElementById(id);if(el){el.classList.add('loading');el.textContent='';}
   });
+  document.getElementById('insSuppliersCompare').innerHTML='';
 
-  try{
-    const[catRes,srcRes]=await Promise.all([
+try{
+    var prevWs=getWeekISO(addDays(_insWeekStart,-7)),prevWe=getWeekISO(_insWeekStart);
+    const[catRes,srcRes,prevSrcRes,lastSourcedRes]=await Promise.all([
       sb.from('catalog').select('date,status,supplier_name'),
-      sb.from('sourcing').select('purchased,created_at,supplier_name,sourcing_approvals(status,created_at)')
+      sb.from('sourcing').select('purchased,created_at,supplier_name,sourcing_approvals(status,created_at)'),
+      sb.from('sourcing').select('supplier_name').gte('created_at',prevWs).lt('created_at',prevWe),
+      sb.from('sourcing').select('supplier_name,created_at').order('created_at',{ascending:false})
     ]);
     var cats=catRes.data||[];
 
@@ -803,7 +843,16 @@ async function loadInsightsData(){
       var name=b.supplierName||'Unassigned';
       bySupplierHrs[name]=(bySupplierHrs[name]||0)+(parseFloat(b.hours)||0);
     });
-    var hoursBySupplier=Object.keys(bySupplierHrs).map(function(k){return{name:k,value:bySupplierHrs[k]};}).sort(function(a,b){return b.value-a.value;});
+var hoursBySupplier=Object.keys(bySupplierHrs).map(function(k){return{name:k,value:bySupplierHrs[k]};}).sort(function(a,b){return b.value-a.value;});
+
+    var suppliersThisWeek=Object.keys(bySupplierHrs).length;
+    var prevSupplierSet={};
+    (prevSrcRes.data||[]).forEach(function(r){prevSupplierSet[r.supplier_name||'Unassigned']=true;});
+    var insSrcThisWeek=src;
+    var srcSupplierSetThisWeek={};
+    insSrcThisWeek.forEach(function(r){srcSupplierSetThisWeek[r.supplier_name||'Unassigned']=true;});
+    var suppliersWorkedThisWeek=Object.keys(srcSupplierSetThisWeek).length;
+    var suppliersWorkedPrevWeek=Object.keys(prevSupplierSet).length;
 
     var byDay={};
     insWeekBlocks.forEach(function(b){byDay[b.date]=(byDay[b.date]||0)+(parseFloat(b.hours)||0);});
@@ -817,8 +866,29 @@ async function loadInsightsData(){
       if((r.sourcing_approvals||[]).some(function(a){return a.status==='approved';}))actMap[name].approved++;
       if(r.purchased)actMap[name].purchased++;
     });
-    var activityRows=Object.keys(actMap).map(function(k){return{name:k,approved:actMap[k].approved,purchased:actMap[k].purchased};})
+var activityRows=Object.keys(actMap).map(function(k){return{name:k,approved:actMap[k].approved,purchased:actMap[k].purchased};})
       .sort(function(a,b){return (b.approved+b.purchased)-(a.approved+a.purchased);});
+
+    var lastSourcedMap={};
+    (lastSourcedRes.data||[]).forEach(function(r){
+      var name=r.supplier_name||'Unknown supplier';
+      if(!lastSourcedMap[name])lastSourcedMap[name]=r.created_at;
+    });
+    var nowMs=Date.now();
+    var staleRows=catRows.filter(function(r){
+      var last=lastSourcedMap[r.name];
+      if(!last)return true;
+      var days=(nowMs-new Date(last).getTime())/86400000;
+      return days>7;
+    }).map(function(r){
+      var last=lastSourcedMap[r.name];
+      var days=last?Math.floor((nowMs-new Date(last).getTime())/86400000):null;
+      return{name:r.name,pct:r.pct,lastSourced:last,daysAgo:days};
+    }).sort(function(a,b){
+      if(a.daysAgo==null)return -1;
+      if(b.daysAgo==null)return 1;
+      return b.daysAgo-a.daysAgo;
+    });
 
     _insightsData={
       lastUpdated:lastUpdated,
@@ -826,12 +896,14 @@ async function loadInsightsData(){
       approvedCount:approvedRows.length,purchasedCount:purchasedRows.length,
       hoursByAgent:hoursByAgent,totalHours:totalHours,
       hoursBySupplier:hoursBySupplier,dayHours:dayHours,
-      activityRows:activityRows
+      activityRows:activityRows,
+      suppliersThisWeek:suppliersThisWeek,suppliersWorkedThisWeek:suppliersWorkedThisWeek,suppliersWorkedPrevWeek:suppliersWorkedPrevWeek,
+      staleRows:staleRows
     };
     _insightsLoaded=true;
     renderInsightsPanels();
-  }catch(e){
-    ['insHoursAgentChart','insCatDonuts','insActivityChart'].forEach(function(id){
+}catch(e){
+    ['insHoursAgentChart','insCatDonuts','insCatStaleTable','insActivityChart'].forEach(function(id){
       var el=document.getElementById(id);if(el)el.innerHTML='<div class="ins-empty">Failed to load: '+esc(e.message)+'</div>';
     });
   }
@@ -839,7 +911,7 @@ async function loadInsightsData(){
 
 function buildAgentBarChart(rows){
   if(!rows.length)return '<div class="ins-empty">No sourcing blocks scheduled this week</div>';
-  var w=560,h=170,padL=34,padB=26,padT=10,padR=10;
+  var w=560,h=170,padL=34,padB=26,padT=24,padR=10;
   var maxV=Math.max.apply(null,rows.map(function(r){return r.value;}))||1;
   var n=rows.length,gap=14;
   var barW=Math.min(64,(w-padL-padR-(n-1)*gap)/n);
@@ -875,45 +947,82 @@ function buildDayHeatmap(dayHours){
   }).join('')+'</div>';
 }
 
+var DONUT_COLOURS=['#1847d4','#0c7a42','#d97706','#7c3aed','#db2777','#0891b2','#65a30d','#dc2626','#4338ca','#0d9488','#ca8a04','#9333ea'];
+
 function buildCatalogDonuts(rows){
-  if(!rows.length)return '<div class="ins-empty">No catalog data available</div>';
-  var top=rows.slice(0,8);
-  return '<div class="ins-donut-grid">'+top.map(function(r){
-    var pct=r.pct,r1=15.9155;
-    var dash=(pct/100*2*Math.PI*r1).toFixed(2);
-    var circ=(2*Math.PI*r1).toFixed(2);
-    return '<div class="ins-donut-card">'
-      +'<svg viewBox="0 0 40 40" class="ins-donut-svg">'
-      +'<circle cx="20" cy="20" r="'+r1+'" fill="none" stroke="var(--border2)" stroke-width="4"/>'
-      +'<circle cx="20" cy="20" r="'+r1+'" fill="none" stroke="var(--accent)" stroke-width="4" stroke-dasharray="'+dash+' '+circ+'" stroke-linecap="round" transform="rotate(-90 20 20)"/>'
-      +'<text x="20" y="23" text-anchor="middle" font-size="9" font-weight="800" fill="var(--text)" font-family="var(--font)">'+pct+'%</text>'
-      +'</svg>'
-      +'<div class="ins-donut-name" title="'+esc(r.name)+'">'+esc(r.name)+'</div>'
-      +'<div class="ins-donut-sub">'+r.approved+'/'+r.total+'</div>'
+  var filtered=rows.filter(function(r){return r.pct>=1;}).sort(function(a,b){return b.pct-a.pct;});
+  if(!filtered.length)return '<div class="ins-empty">No catalog data available</div>';
+
+  var totalPct=filtered.reduce(function(a,r){return a+r.pct;},0)||1;
+  var r1=52,circ=2*Math.PI*r1,offset=0,segs='';
+  filtered.forEach(function(r,i){
+    var frac=r.pct/totalPct;
+    var len=frac*circ;
+    var col=DONUT_COLOURS[i%DONUT_COLOURS.length];
+    segs+='<circle cx="65" cy="65" r="'+r1+'" fill="none" stroke="'+col+'" stroke-width="16" '
+      +'stroke-dasharray="'+len.toFixed(2)+' '+(circ-len).toFixed(2)+'" stroke-dashoffset="'+(-offset).toFixed(2)+'" transform="rotate(-90 65 65)"/>';
+    offset+=len;
+  });
+
+  var legend=filtered.map(function(r,i){
+    var col=DONUT_COLOURS[i%DONUT_COLOURS.length];
+    return '<div class="ins-combined-legend-item">'
+      +'<span class="ins-combined-legend-dot" style="background:'+col+'"></span>'
+      +'<span class="ins-combined-legend-name" title="'+esc(r.name)+'">'+esc(r.name)+'</span>'
+      +'<span class="ins-combined-legend-pct">'+r.pct+'% &middot; '+r.approved+'/'+r.total+'</span>'
       +'</div>';
-  }).join('')+'</div>';
+  }).join('');
+
+  return '<div class="ins-combined-donut-wrap">'
+    +'<svg viewBox="0 0 130 130" class="ins-combined-donut-svg">'
+    +'<circle cx="65" cy="65" r="'+r1+'" fill="none" stroke="var(--border2)" stroke-width="16"/>'
+    +segs
+    +'</svg>'
+    +'<div class="ins-combined-legend">'+legend+'</div>'
+    +'</div>';
+}
+
+function buildStaleSuppliersTable(rows){
+  if(!rows.length)return '<div class="ins-empty">All suppliers sourced within the last 7 days</div>';
+  var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var trs=rows.map(function(r){
+    var dateStr='Never';
+    if(r.lastSourced){
+      var d=new Date(r.lastSourced);
+      dateStr=d.getDate()+' '+months[d.getMonth()]+', '+d.getFullYear();
+    }
+    var badgeClass=r.daysAgo==null?'bad':(r.daysAgo>30?'bad':(r.daysAgo>14?'warn':'ok'));
+    var badgeLabel=r.daysAgo==null?'Never':r.daysAgo+'d ago';
+    return '<tr>'
+      +'<td>'+esc(r.name)+'</td>'
+      +'<td class="num">'+r.pct+'%</td>'
+      +'<td class="num">'+dateStr+'</td>'
+      +'<td class="num"><span class="ins-stale-badge '+badgeClass+'">'+badgeLabel+'</span></td>'
+      +'</tr>';
+  }).join('');
+  return '<table class="ins-table"><thead><tr><th>Supplier</th><th style="text-align:right">Approval Rate</th><th style="text-align:right">Last Sourced</th><th style="text-align:right">Status</th></tr></thead><tbody>'+trs+'</tbody></table>';
 }
 
 function buildActivityChart(rows){
   if(!rows.length)return '<div class="ins-empty">No activity this week</div>';
   var top=rows.slice(0,8);
-  var w=580,rowH=30,padL=8,padR=46,labelW=110;
+  var w=580,rowH=38,padL=0,padR=46,labelW=110;
   var maxV=Math.max.apply(null,top.map(function(r){return Math.max(r.approved,r.purchased);}))||1;
-  var h=top.length*rowH+10;
+  var h=top.length*rowH+6;
   var barAreaW=w-labelW-padR-padL;
   var bars='';
   top.forEach(function(r,i){
-    var y=10+i*rowH;
+    var y=6+i*rowH;
     var aw=maxV>0?(r.approved/maxV*barAreaW):0;
     var pw=maxV>0?(r.purchased/maxV*barAreaW):0;
     bars+='<text x="'+padL+'" y="'+(y+9)+'" font-size="11" font-weight="600" fill="var(--text2)" font-family="var(--font)">'+esc(r.name.length>16?r.name.slice(0,15)+'\u2026':r.name)+'</text>';
     bars+='<rect x="'+(padL+labelW)+'" y="'+y+'" width="'+aw+'" height="9" rx="3" fill="var(--accent)" opacity="0.85"/>';
     bars+='<text x="'+(padL+labelW+aw+6)+'" y="'+(y+8)+'" font-size="10" font-weight="700" fill="var(--text3)" font-family="var(--mono)">'+r.approved+'</text>';
-    bars+='<rect x="'+(padL+labelW)+'" y="'+(y+12)+'" width="'+pw+'" height="9" rx="3" fill="var(--text4)" opacity="0.85"/>';
-    bars+='<text x="'+(padL+labelW+pw+6)+'" y="'+(y+20)+'" font-size="10" font-weight="700" fill="var(--text3)" font-family="var(--mono)">'+r.purchased+'</text>';
+    bars+='<rect x="'+(padL+labelW)+'" y="'+(y+14)+'" width="'+pw+'" height="9" rx="3" fill="var(--text4)" opacity="0.85"/>';
+    bars+='<text x="'+(padL+labelW+pw+6)+'" y="'+(y+22)+'" font-size="10" font-weight="700" fill="var(--text3)" font-family="var(--mono)">'+r.purchased+'</text>';
   });
   return '<div class="ins-activity-legend"><span class="ins-leg-dot" style="background:var(--accent)"></span>Approved<span class="ins-leg-dot" style="background:var(--text4);margin-left:14px"></span>Purchased</div>'
-    +'<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:'+h+'px;display:block">'+bars+'</svg>';
+    +'<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:'+h+'px;display:block" preserveAspectRatio="xMinYMin meet">'+bars+'</svg>';
 }
 
 function insRowsHtml(rows,unit,emptyMsg){
@@ -935,6 +1044,17 @@ function renderInsightsPanels(){
   document.getElementById('insHoursTotal').classList.remove('loading');
   document.getElementById('insHoursTotal').textContent=d.totalHours+'h';
   document.getElementById('insHoursAgentChart').innerHTML=buildAgentBarChart(d.hoursByAgent);
+  document.getElementById('insSuppliersTotal').classList.remove('loading');
+  document.getElementById('insSuppliersTotal').textContent=d.suppliersWorkedThisWeek;
+  (function(){
+    var cur=d.suppliersWorkedThisWeek,prev=d.suppliersWorkedPrevWeek,diff=cur-prev,el=document.getElementById('insSuppliersCompare');
+    var arrowUp='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>';
+    var arrowDown='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>';
+    var cls=diff>0?'up':(diff<0?'down':'flat');
+    var icon=diff>0?arrowUp:(diff<0?arrowDown:'');
+    var label=diff===0?'No change vs last week':(Math.abs(diff)+' '+(diff>0?'more':'fewer')+' vs last week ('+prev+')');
+    el.innerHTML='<span class="ins-summary-compare-delta '+cls+'">'+icon+label+'</span>';
+  })();
   document.getElementById('insHoursSupplierRows').innerHTML=insRowsHtml(d.hoursBySupplier,'h','No supplier hours recorded');
   document.getElementById('insHoursHeatmap').innerHTML=buildDayHeatmap(d.dayHours);
 
@@ -943,8 +1063,9 @@ function renderInsightsPanels(){
   document.getElementById('insCatApprovedPct').classList.remove('loading');
   document.getElementById('insCatApprovedPct').textContent=d.pctCat+'%';
   document.getElementById('insCatApprovedSub').textContent=d.approvedCat.toLocaleString()+' of '+d.totalCat.toLocaleString()+' products';
-  document.getElementById('insCatProgressFill').style.width=d.pctCat+'%';
+document.getElementById('insCatProgressFill').style.width=d.pctCat+'%';
   document.getElementById('insCatDonuts').innerHTML=buildCatalogDonuts(d.catRows);
+  document.getElementById('insCatStaleTable').innerHTML=buildStaleSuppliersTable(d.staleRows);
 
   document.getElementById('insApprovedTotal').classList.remove('loading');
   document.getElementById('insApprovedTotal').textContent=d.approvedCount;
