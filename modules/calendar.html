@@ -1140,6 +1140,11 @@ function buildSourceGroupedChart(rows){
   
 var AGENT_BRIGHTNESS=[1,0.82,0.64,0.5];
 var ROW_SEG_COLOURS=['#1847d4','#0c7a42','#d97706','#7c3aed','#db2777','#0891b2','#65a30d','#dc2626'];
+function rowSegColour(agentName){
+  var idx=AGENTS.findIndex(function(a){return a.name===agentName;});
+  if(idx<0)idx=AGENTS.length;
+  return ROW_SEG_COLOURS[idx%ROW_SEG_COLOURS.length];
+}
   
 function insRowsHtml(rows,unit,emptyMsg){
   if(!rows.length)return '<div class="ins-empty">'+emptyMsg+'</div>';
@@ -1147,11 +1152,11 @@ function insRowsHtml(rows,unit,emptyMsg){
   return rows.map(function(r){
     var pct=max>0?(r.value/max*100):0;
     var segs='';
-if(r.agents&&r.agents.length>1){
+if(r.agents&&r.agents.length){
       segs=r.agents.map(function(a,i){
         var segPct=r.value>0?(a.hours/r.value*100):0;
         var pctOfMax=r.value>0?Math.round(a.hours/r.value*100):0;
-        var col=ROW_SEG_COLOURS[i%ROW_SEG_COLOURS.length];
+        var col=rowSegColour(a.name);
         return '<span class="ins-row-bar-seg" style="width:'+segPct+'%;background:'+col+'" title="'+esc(a.name)+': '+a.hours+'h ('+pctOfMax+'%)"></span>';
          }).join('');
     }
