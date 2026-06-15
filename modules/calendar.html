@@ -342,10 +342,7 @@ textarea.form-inp{resize:vertical;min-height:72px}
 .ins-combined-legend-name{color:var(--text2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px}
 .ins-combined-legend-pct{font-family:var(--mono);font-weight:800;color:var(--accent);flex-shrink:0;font-size:12px}
 .ins-combined-legend-nums{font-family:var(--mono);font-weight:500;color:var(--text4);flex-shrink:0;font-size:10px}
-.ins-cat-row{display:flex;gap:14px;align-items:stretch}
-.ins-cat-row .ins-card{flex:1;margin-bottom:0}
-.ins-cat-row .ins-card.ins-stale-card{flex:0 0 320px;display:flex;flex-direction:column}
-.ins-stale-scroll{overflow-y:auto;max-height:280px}
+
 
 .ins-table{width:100%;border-collapse:collapse;font-size:12px}
 .ins-table th{text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);padding:0 8px 8px;border-bottom:1px solid var(--border2)}
@@ -561,19 +558,19 @@ textarea.form-inp{resize:vertical;min-height:72px}
             <div class="ins-progress-track"><div class="ins-progress-fill" id="insCatProgressFill" style="width:0%"></div></div>
           </div>
         </div>
-<div class="ins-cat-row">
-          <div class="ins-card">
-            <div class="ins-sec-lbl">Approval Rate by Supplier</div>
-            <div id="insCatDonuts" class="ins-loading-rows">
-              <div class="ins-loading-row"></div><div class="ins-loading-row"></div><div class="ins-loading-row"></div>
-            </div>
+<div class="ins-card">
+          <div class="ins-sec-lbl">Approval Rate by Supplier</div>
+          <div id="insCatDonuts" class="ins-loading-rows">
+            <div class="ins-loading-row"></div><div class="ins-loading-row"></div><div class="ins-loading-row"></div>
           </div>
-          <div class="ins-card ins-stale-card">
-            <div class="ins-sec-lbl">Not Sourced in Last 7 Days</div>
-            <div id="insCatStaleTable" class="ins-loading-rows ins-stale-scroll">
-              <div class="ins-loading-row"></div><div class="ins-loading-row"></div><div class="ins-loading-row"></div>
-            </div>
+        </div>
+        <div class="ins-card">
+          <div class="ins-sec-lbl">Not Sourced in Last 7 Days</div>
+          <div id="insCatStaleTable" class="ins-loading-rows">
+            <div class="ins-loading-row"></div><div class="ins-loading-row"></div><div class="ins-loading-row"></div>
           </div>
+        </div>
+  
         </div>
       </div>
       <div class="ins-panel" id="insPanelActivity">
@@ -1056,9 +1053,14 @@ function buildStaleSuppliersTable(rows){
 }
 
 
-var SOURCE_COLOURS={Offers:'#1847d4',Catalog:'#0c7a42',Leads:'#d97706'};
-var SOURCE_COLOURS_LIGHT={Offers:'#8aa6ed',Catalog:'#7bc99a',Leads:'#f0bd7a'};
-function buildActivityChart(rows){
+var APPROVED_BASE='#1847d4';   // solid blue = Approved
+var PURCHASED_BASE='#f59e0b';  // solid amber = Purchased
+// Per-source tints for Approved bars (darker shades of blue)
+var SOURCE_APPROVED={Offers:'#1847d4',Catalog:'#1e6bb5',Leads:'#3b82f6'};
+// Per-source tints for Purchased bars (amber gradient shades)
+var SOURCE_PURCHASED={Offers:'#f59e0b',Catalog:'#d97706',Leads:'#fbbf24'};
+
+ function buildActivityChart(rows){
   if(!rows.length)return '<div class="ins-empty">No activity this week</div>';
   var top=rows.slice(0,8);
   var w=580,rowH=38,padL=0,padR=46,labelW=110;
@@ -1072,34 +1074,40 @@ function buildActivityChart(rows){
     var aw=maxV>0?(r.approved/maxV*barAreaW):0;
     var pw=maxV>0?(r.purchased/maxV*barAreaW):0;
     bars+='<text x="'+padL+'" y="'+(y+9)+'" font-size="11" font-weight="600" fill="var(--text2)" font-family="var(--font)">'+esc(r.name.length>16?r.name.slice(0,15)+'\u2026':r.name)+'</text>';
-
+    // Approved bar (blue tints per source)
     var ax=padL+labelW;
     SRC_ORDER.forEach(function(src){
       var cnt=(r.approvedBySrc&&r.approvedBySrc[src])||0;
       var segW=r.approved>0?(cnt/r.approved*aw):0;
       if(segW>0){
-        bars+='<rect x="'+ax+'" y="'+y+'" width="'+segW+'" height="9" fill="'+(SOURCE_COLOURS[src]||'var(--accent)')+'" opacity="0.9"><title>'+esc(src)+': '+cnt+'</title></rect>';
+        bars+='<rect x="'+ax+'" y="'+y+'" width="'+segW+'" height="9" rx="2" fill="'+SOURCE_APPROVED[src]+'" opacity="0.92"><title>Approved via '+esc(src)+': '+cnt+'</title></rect>';
         ax+=segW;
       }
     });
     bars+='<text x="'+(padL+labelW+aw+6)+'" y="'+(y+8)+'" font-size="10" font-weight="700" fill="var(--text3)" font-family="var(--mono)">'+r.approved+'</text>';
-
+    // Purchased bar (amber tints per source)
     var px=padL+labelW;
     SRC_ORDER.forEach(function(src){
       var cnt=(r.purchasedBySrc&&r.purchasedBySrc[src])||0;
       var segW=r.purchased>0?(cnt/r.purchased*pw):0;
       if(segW>0){
-        bars+='<rect x="'+px+'" y="'+(y+14)+'" width="'+segW+'" height="9" fill="'+(SOURCE_COLOURS_LIGHT[src]||'var(--text4)')+'" opacity="0.9"><title>'+esc(src)+': '+cnt+'</title></rect>';
+        bars+='<rect x="'+px+'" y="'+(y+14)+'" width="'+segW+'" height="9" rx="2" fill="'+SOURCE_PURCHASED[src]+'" opacity="0.85"><title>Purchased via '+esc(src)+': '+cnt+'</title></rect>';
         px+=segW;
       }
     });
     bars+='<text x="'+(padL+labelW+pw+6)+'" y="'+(y+22)+'" font-size="10" font-weight="700" fill="var(--text3)" font-family="var(--mono)">'+r.purchased+'</text>';
   });
-  var legend='<div class="ins-activity-legend">'
-    +'<div class="ins-source-group"><span class="ins-leg-dot" style="background:'+SOURCE_COLOURS.Offers+'"></span>Offers</div>'
-    +'<div class="ins-source-group"><span class="ins-leg-dot" style="background:'+SOURCE_COLOURS.Catalog+'"></span>Catalog</div>'
-    +'<div class="ins-source-group"><span class="ins-leg-dot" style="background:'+SOURCE_COLOURS.Leads+'"></span>Leads</div>'
-    +'<span style="margin-left:auto;font-weight:500;color:var(--text4)">Darker = Approved &middot; Lighter = Purchased</span>'
+  // Legend: two status colours, with source sub-tints shown
+  var legend='<div class="ins-activity-legend" style="gap:16px;flex-wrap:wrap">'
+    +'<span style="font-size:11px;font-weight:700;color:var(--text2)">Approved:</span>'
+    +'<div class="ins-source-group"><span class="ins-leg-dot" style="background:'+SOURCE_APPROVED.Offers+'"></span>Offers</div>'
+    +'<div class="ins-source-group"><span class="ins-leg-dot" style="background:'+SOURCE_APPROVED.Catalog+'"></span>Catalog</div>'
+    +'<div class="ins-source-group"><span class="ins-leg-dot" style="background:'+SOURCE_APPROVED.Leads+'"></span>Leads</div>'
+    +'<span style="width:1px;height:14px;background:var(--border);display:inline-block;margin:0 4px"></span>'
+    +'<span style="font-size:11px;font-weight:700;color:var(--text2)">Purchased:</span>'
+    +'<div class="ins-source-group"><span class="ins-leg-dot" style="background:'+SOURCE_PURCHASED.Offers+'"></span>Offers</div>'
+    +'<div class="ins-source-group"><span class="ins-leg-dot" style="background:'+SOURCE_PURCHASED.Catalog+'"></span>Catalog</div>'
+    +'<div class="ins-source-group"><span class="ins-leg-dot" style="background:'+SOURCE_PURCHASED.Leads+'"></span>Leads</div>'
     +'</div>';
   return legend+'<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:'+h+'px;display:block" preserveAspectRatio="xMinYMin meet">'+bars+'</svg>';
 }
@@ -1114,19 +1122,32 @@ function insRowsHtml(rows,unit,emptyMsg){
     if(r.agents&&r.agents.length){
       segs=r.agents.map(function(a,i){
         var segPct=r.value>0?(a.hours/r.value*100):0;
-        var col=AGENT_BAR_COLOURS[i%AGENT_BAR_COLOURS.length];
+        var col='var(--accent)';
         var pctOfMax=r.value>0?Math.round(a.hours/r.value*100):0;
         return '<span class="ins-row-bar-seg" style="width:'+segPct+'%;background:'+col+'" title="'+esc(a.name)+': '+a.hours+'h ('+pctOfMax+'%)"></span>';
       }).join('');
     }
     return '<div class="ins-row">'
       +'<span class="ins-row-name" title="'+esc(r.name)+'">'+esc(r.name)+'</span>'
-      +'<div class="ins-row-bar"><div class="ins-row-bar-fill" style="width:'+pct+'%;display:flex;overflow:hidden">'+segs+'</div></div>'
+      +'<div class="ins-row-bar"><div class="ins-row-bar-fill" style="width:'+pct+'%;background:linear-gradient(90deg,var(--accent),#4f80f7);border-radius:99px"></div></div>'
       +'<span class="ins-row-val">'+esc(String(r.value))+(unit||'')+'</span>'
       +'</div>';
   }).join('');
 }
 
+function insSupplierRowsHtml(rows){
+  if(!rows.length)return '<div class="ins-empty">No supplier hours recorded</div>';
+  var max=rows[0].value||1;
+  return rows.map(function(r){
+    var pct=max>0?(r.value/max*100):0;
+    return '<div class="ins-row">'
+      +'<span class="ins-row-name" title="'+esc(r.name)+'">'+esc(r.name)+'</span>'
+      +'<div class="ins-row-bar"><div style="width:'+pct+'%;height:100%;background:linear-gradient(90deg,var(--accent),#4f80f7);border-radius:99px"></div></div>'
+      +'<span class="ins-row-val">'+esc(String(r.value))+'h</span>'
+      +'</div>';
+  }).join('');
+}
+  
 function renderInsightsPanels(){
   var d=_insightsData;if(!d)return;
 
@@ -1144,7 +1165,7 @@ function renderInsightsPanels(){
     var label=diff===0?'No change vs last week':(Math.abs(diff)+' '+(diff>0?'more':'fewer')+' vs last week ('+prev+')');
     el.innerHTML='<span class="ins-summary-compare-delta '+cls+'">'+icon+label+'</span>';
   })();
-  document.getElementById('insHoursSupplierRows').innerHTML=insRowsHtml(d.hoursBySupplier,'h','No supplier hours recorded');
+  document.getElementById('insHoursSupplierRows').innerHTML=insSupplierRowsHtml(d.hoursBySupplier);
   document.getElementById('insHoursHeatmap').innerHTML=buildDayHeatmap(d.dayHours);
 
   document.getElementById('insCatLastUpdated').classList.remove('loading');
