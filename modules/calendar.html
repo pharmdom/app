@@ -46,6 +46,9 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .bgt-progress-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,var(--accent),#4f80f7);transition:width .6s cubic-bezier(.4,0,.2,1)}
 .bgt-val.loading{position:relative;color:transparent;overflow:hidden;border-radius:4px;background:var(--border)}
 .bgt-val.loading::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.6) 50%,transparent 100%);animation:shimmer 1.4s infinite;transform:translateX(-100%)}
+.bgt-set-prompt{font-size:10.5px;font-weight:600;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;margin-top:1px;display:inline-block}
+.bgt-carryover-positive{color:var(--green)}
+.bgt-carryover-negative{color:var(--red)}
 @keyframes shimmer{to{transform:translateX(100%)}}
 .week-nav{display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 0px 0px;flex-shrink:0}
 .week-nav-btn{width:32px;height:32px;border-radius:var(--r-sm);background:var(--surface);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);transition:all .15s}
@@ -529,13 +532,14 @@ textarea.form-inp{resize:vertical;min-height:72px}
 <div class="overlay" id="budgetOverlay">
   <div class="modal" style="width:380px">
     <div class="modal-hdr">
-      <div><div class="modal-title">Weekly Budget</div><div class="modal-sub">Set the sourcing budget for this week</div></div>
+      <div><div class="modal-title">Weekly Budget</div><div class="modal-sub" id="budgetModalSub">Set the sourcing budget for this week</div></div>
       <button class="modal-close" onclick="closeBudgetModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
-    <div class="form-row">
+    <div class="form-row" style="margin-bottom:10px">
       <div class="form-label">Weekly Sourcing Budget (&#163;)</div>
-      <input type="number" class="form-inp" id="budgetInput" placeholder="20000" min="0" step="500">
+      <input type="number" class="form-inp" id="budgetInput" placeholder="0" min="0" step="500">
     </div>
+    <div id="budgetCarryoverHint" style="display:none;font-size:11.5px;color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 11px;margin-bottom:4px"></div>
     <div class="modal-footer">
       <button class="btn btn-secondary btn-sm" onclick="closeBudgetModal()">Cancel</button>
       <button class="btn btn-primary btn-sm" onclick="saveBudget()">Save Budget</button>
@@ -742,9 +746,13 @@ textarea.form-inp{resize:vertical;min-height:72px}
     </div>
   </nav>
   <div class="budget-bar">
-    <div class="bgt-item">
+<div class="bgt-item">
       <div class="bgt-icon total"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-      <div><div class="bgt-label">Weekly Budget</div><div class="bgt-val" id="bgtTotal">&#163;&#8212;</div></div>
+      <div>
+        <div class="bgt-label">Weekly Budget</div>
+        <div class="bgt-val" id="bgtTotal">&#163;&#8212;</div>
+        <div class="bgt-sub" id="bgtCarryover" style="display:none"></div>
+      </div>
     </div>
     <div class="bgt-divider"></div>
     <div class="bgt-item">
@@ -786,7 +794,7 @@ textarea.form-inp{resize:vertical;min-height:72px}
 <script>
 (function(){
 'use strict';
-var _plannerBlocks=[],_suppliers=[],_purchasedSpend=0,_spendLoaded=false,_weeklyBudget=0;
+var _plannerBlocks=[],_suppliers=[],_purchasedSpend=0,_spendLoaded=false,_weeklyBudget=0,_weeklyCarryover=0,_budgetLoaded=false;
 var _currentWeekStart=getWeekStart(new Date());
 var _editingBlockId=null,_openDrawerBlockId=null,_formHours=2,_formAgent='';
 var _dragBlockId=null,_deleteTargetId=null;
@@ -1294,11 +1302,14 @@ document.getElementById('insCatProgressFill').style.width=d.pctCat+'%';
 async function loadAll(){
   pStart();
   try{
-const[blocksRes,suppliersRes,budgetRes,spendRes,usersRes,visibleRes]=await Promise.all([
+var prevWeekStart=addDays(_currentWeekStart,-7);
+    const[blocksRes,suppliersRes,budgetRes,spendRes,prevBudgetRes,prevSpendRes,usersRes,visibleRes]=await Promise.all([
       sb.from('sourcing_calendar').select('*'),
       sb.from('suppliers').select('supplier_id,name,website').order('name'),
-      sb.from('sourcing_calendar_config').select('value').eq('key','weekly_budget').single(),
-      sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at', getWeekISO(_currentWeekStart)).lt('created_at', getWeekISO(addDays(_currentWeekStart,7))),
+      sb.from('sourcing_calendar_budgets').select('budget').eq('week_start',toISO(_currentWeekStart)).maybeSingle(),
+      sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at',getWeekISO(_currentWeekStart)).lt('created_at',getWeekISO(addDays(_currentWeekStart,7))),
+      sb.from('sourcing_calendar_budgets').select('budget').eq('week_start',toISO(prevWeekStart)).maybeSingle(),
+      sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at',getWeekISO(prevWeekStart)).lt('created_at',getWeekISO(_currentWeekStart)),
       sb.from('users').select('user_id,first_name,last_name,role,status').in('role',['Digital Ops','Admin']).eq('status','Active').order('first_name'),
       sb.from('sourcing_calendar_config').select('value').eq('key','visible_agents').maybeSingle()
     ]);
@@ -1339,10 +1350,13 @@ var completion={status:'pending',note:''};
       categories:cats,categoryMain:r.category_main||'',categorySub:r.category_sub||'',
       notesExtra:notesExtra,notes:r.notes||'',completion:completion,createdAt:r.created_at||''
     };});
-    _suppliers=(suppliersRes.data||[]).map(function(r){return{id:r.supplier_id,name:r.name,website:r.website||''};});
-    _weeklyBudget=parseFloat(budgetRes.data?.value||0);
+_suppliers=(suppliersRes.data||[]).map(function(r){return{id:r.supplier_id,name:r.name,website:r.website||''};});
+    _weeklyBudget=parseFloat((budgetRes.data&&budgetRes.data.budget)||0);
+    var prevBudget=parseFloat((prevBudgetRes.data&&prevBudgetRes.data.budget)||0);
+    var prevSpend=(prevSpendRes.data||[]).reduce(function(a,r){return a+(parseFloat(r.cost_of_unit)||0)*(parseFloat(r.unit_quantity)||1);},0);
+    _weeklyCarryover=prevBudget>0?(prevBudget-prevSpend):0;
     _purchasedSpend=(spendRes.data||[]).reduce(function(a,r){return a+(parseFloat(r.cost_of_unit)||0)*(parseFloat(r.unit_quantity)||1);},0);
-    _spendLoaded=true;
+    _spendLoaded=true;_budgetLoaded=true;
     renderAll();
   }catch(e){showCalError('Failed to load: '+e.message);}
   finally{pDone();}
@@ -1354,9 +1368,28 @@ function showCalError(m){document.getElementById('calOuter').innerHTML='<div cla
 function renderAll(){updateBudgetBar();updateChips();renderCalendar();_insightsLoaded=false;if(document.getElementById('insightsOverlay').classList.contains('open')&&_insightsData)loadInsightsData();}
 
 function updateBudgetBar(){
-  var out=_weeklyBudget-_purchasedSpend,pct=_weeklyBudget>0?Math.min(100,(_purchasedSpend/_weeklyBudget)*100):0;
-  document.getElementById('bgtTotal').textContent=fmtGBP(_weeklyBudget||null);
-  document.getElementById('bgtOutstanding').textContent=fmtGBP(out);
+  var effective=_weeklyBudget+_weeklyCarryover;
+  var out=effective-_purchasedSpend,pct=effective>0?Math.min(100,(_purchasedSpend/effective)*100):0;
+  var totalEl=document.getElementById('bgtTotal');
+  var carryEl=document.getElementById('bgtCarryover');
+  if(!_budgetLoaded){
+    totalEl.textContent='\u00a3\u2014';
+    carryEl.style.display='none';
+  }else if(_weeklyBudget===0){
+    totalEl.innerHTML='\u00a30 <span class="bgt-set-prompt" onclick="openBudgetModal()">Set budget</span>';
+    carryEl.style.display='none';
+  }else{
+    totalEl.textContent=fmtGBP(_weeklyBudget);
+    if(_weeklyCarryover!==0){
+      var sign=_weeklyCarryover>0?'+':'';
+      carryEl.className='bgt-sub '+(_weeklyCarryover>0?'bgt-carryover-positive':'bgt-carryover-negative');
+      carryEl.textContent=sign+fmtGBP(_weeklyCarryover)+' carryover';
+      carryEl.style.display='block';
+    }else{
+      carryEl.style.display='none';
+    }
+  }
+  document.getElementById('bgtOutstanding').textContent=effective>0?fmtGBP(out):'\u00a3\u2014';
   document.getElementById('bgtPct').textContent=Math.round(pct)+'%';
   document.getElementById('bgtFill').style.width=pct+'%';
   document.getElementById('bgtFill').style.background=pct>90?'linear-gradient(90deg,#ef4444,#b91c1c)':pct>70?'linear-gradient(90deg,#f59e0b,#d97706)':'linear-gradient(90deg,var(--accent),#4f80f7)';
@@ -1365,6 +1398,7 @@ function updateBudgetBar(){
     document.getElementById('bgtSpentSub').textContent=_purchasedSpend>0?'from '+Math.round(pct)+'% of budget':'from purchased leads';
   }
 }
+  
 function updateChips(){
   var wb=getWeekBlocks(),hrs=wb.reduce(function(a,b){return a+(parseFloat(b.hours)||0);},0);
   document.getElementById('chipWeekHrs').querySelector('span').textContent=hrs+'h this week';
@@ -1719,7 +1753,18 @@ function df(l,v){return '<div class="det-field"><label>'+esc(l)+'</label><div cl
 function closeDrawer(){document.getElementById('drawerOverlay').classList.remove('open');document.getElementById('detailDrawer').classList.remove('open');_openDrawerBlockId=null;}
 window.closeDrawer=closeDrawer;
 
-  window.openBudgetModal=function(){document.getElementById('budgetInput').value=_weeklyBudget||'';document.getElementById('budgetOverlay').classList.add('open');setTimeout(function(){document.getElementById('budgetInput').focus();},150);};
+window.openBudgetModal=function(){
+  document.getElementById('budgetInput').value=_weeklyBudget||'';
+  document.getElementById('budgetModalSub').textContent='Week of '+fmtDay(_currentWeekStart)+' \u2013 '+fmtDay(addDays(_currentWeekStart,6));
+  var hint=document.getElementById('budgetCarryoverHint');
+  if(_weeklyCarryover!==0){
+    var sign=_weeklyCarryover>0?'+':'';
+    hint.innerHTML='Previous week carryover: <strong>'+(sign+fmtGBP(_weeklyCarryover))+'</strong> — will be added to effective budget automatically.';
+    hint.style.display='block';
+  }else{hint.style.display='none';}
+  document.getElementById('budgetOverlay').classList.add('open');
+  setTimeout(function(){document.getElementById('budgetInput').focus();},150);
+};
 window.closeBudgetModal=function(){document.getElementById('budgetOverlay').classList.remove('open');};
 
 var _agentToggleState={};
@@ -1757,21 +1802,38 @@ window.saveVisibleAgents=async function(){
   }catch(e){toast('Error','error');}
   finally{pDone();}
 };
-  window.saveBudget=async function(){
+window.saveBudget=async function(){
   var v=parseFloat(document.getElementById('budgetInput').value)||0;pStart();
-  try{var{error:bErr}=await window.sb.from('sourcing_calendar_config').upsert({key:'weekly_budget',value:String(v)},{onConflict:'key'});if(!bErr){_weeklyBudget=v;updateBudgetBar();closeBudgetModal();toast('Budget updated','success');}else toast('Failed to save budget','error');}
-  catch(e){toast('Error','error');}finally{pDone();}
+  try{
+    var{error:bErr}=await window.sb.from('sourcing_calendar_budgets').upsert({week_start:toISO(_currentWeekStart),budget:v},{onConflict:'week_start'});
+    if(!bErr){_weeklyBudget=v;updateBudgetBar();closeBudgetModal();toast('Budget updated','success');}
+    else toast('Failed to save budget: '+bErr.message,'error');
+  }catch(e){toast('Error','error');}finally{pDone();}
 };
 
 window.shiftWeek=function(dir){
-  _currentWeekStart=addDays(_currentWeekStart,dir*7);_spendLoaded=false;
+  _currentWeekStart=addDays(_currentWeekStart,dir*7);_spendLoaded=false;_budgetLoaded=false;
+  _weeklyBudget=0;_weeklyCarryover=0;
   var el=document.getElementById('bgtSpent');el.classList.add('loading');el.style.minWidth='64px';el.style.height='22px';el.textContent='\u00a0';
   document.getElementById('bgtSpentSub').textContent='calculating\u2026';
+  document.getElementById('bgtTotal').textContent='\u00a3\u2014';
+  document.getElementById('bgtCarryover').style.display='none';
   renderCalendar();updateChips();
- var ws=getWeekISO(_currentWeekStart),we=getWeekISO(addDays(_currentWeekStart,7));
-  window.sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at',ws).lt('created_at',we).then(function(res){
-    _purchasedSpend=(res.data||[]).reduce(function(a,r){return a+(parseFloat(r.cost_of_unit)||0)*(parseFloat(r.unit_quantity)||1);},0);
-    _spendLoaded=true;updateBudgetBar();
+  var ws=getWeekISO(_currentWeekStart),we=getWeekISO(addDays(_currentWeekStart,7));
+  var prevWeekStart=addDays(_currentWeekStart,-7);
+  Promise.all([
+    window.sb.from('sourcing_calendar_budgets').select('budget').eq('week_start',toISO(_currentWeekStart)).maybeSingle(),
+    window.sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at',ws).lt('created_at',we),
+    window.sb.from('sourcing_calendar_budgets').select('budget').eq('week_start',toISO(prevWeekStart)).maybeSingle(),
+    window.sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at',getWeekISO(prevWeekStart)).lt('created_at',getWeekISO(_currentWeekStart))
+  ]).then(function(results){
+    _weeklyBudget=parseFloat((results[0].data&&results[0].data.budget)||0);
+    _purchasedSpend=(results[1].data||[]).reduce(function(a,r){return a+(parseFloat(r.cost_of_unit)||0)*(parseFloat(r.unit_quantity)||1);},0);
+    var prevBudget=parseFloat((results[2].data&&results[2].data.budget)||0);
+    var prevSpend=(results[3].data||[]).reduce(function(a,r){return a+(parseFloat(r.cost_of_unit)||0)*(parseFloat(r.unit_quantity)||1);},0);
+    _weeklyCarryover=prevBudget>0?(prevBudget-prevSpend):0;
+    _spendLoaded=true;_budgetLoaded=true;
+    updateBudgetBar();
   }).catch(function(){});
 };
 
