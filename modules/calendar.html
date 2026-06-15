@@ -223,6 +223,12 @@ textarea.form-inp{resize:vertical;min-height:72px}
 .btn-danger{background:var(--surface);border-color:var(--red-bd);color:var(--red)}.btn-danger:hover{background:var(--red-bg)}
 .btn-sm{padding:6px 12px;font-size:11.5px}
 .btn:disabled{opacity:.5;cursor:default}
+.agent-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface2)}
+.agent-toggle-name{font-size:13px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:8px}
+.agent-toggle-switch{position:relative;width:38px;height:22px;border-radius:20px;background:var(--border);cursor:pointer;transition:background .2s;flex-shrink:0}
+.agent-toggle-switch.on{background:var(--accent)}
+.agent-toggle-switch::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.agent-toggle-switch.on::after{left:18px}
 .spinner{display:inline-block;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .65s linear infinite}
 .spin-sm{width:16px;height:16px}.spin-md{width:28px;height:28px;border-width:3px}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -483,6 +489,19 @@ textarea.form-inp{resize:vertical;min-height:72px}
     </div>
   </div>
 </div>
+<div class="overlay" id="agentsOverlay">
+  <div class="modal" style="width:380px">
+    <div class="modal-hdr">
+      <div><div class="modal-title">Manage Agents</div><div class="modal-sub">Choose who appears in the planner</div></div>
+      <button class="modal-close" onclick="closeAgentsModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div id="agentsToggleList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:6px"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-sm" onclick="closeAgentsModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveVisibleAgents()">Save</button>
+    </div>
+  </div>
+</div>
 <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
 <div class="drawer" id="detailDrawer">
   <div id="drawerHeroWrap"></div>
@@ -621,9 +640,13 @@ textarea.form-inp{resize:vertical;min-height:72px}
 <nav class="topnav">
     <div class="tnav-left">
       <div class="tnav-chips">
-        <button class="insights-pill-btn" onclick="openInsightsModal()">
+<button class="insights-pill-btn" onclick="openInsightsModal()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-6"/></svg>
           Insights
+        </button>
+        <button class="insights-pill-btn" onclick="openAgentsModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Agents
         </button>
         <div class="tnav-chip" id="chipWeekHrs">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -697,9 +720,8 @@ var _editingBlockId=null,_openDrawerBlockId=null,_formHours=2,_formAgent='';
 var _formCatMain='',_formCatSub='',_dragBlockId=null,_deleteTargetId=null;
 var _formCatSelections={};
 
-var AGENTS=[];
-var AGENT_PALETTE=['#1847d4','#0c7a42','#d97706','#7c3aed','#db2777','#0891b2','#65a30d','#dc2626','#4338ca','#0d9488','#ca8a04','#9333ea'];
-
+var AGENTS=[],_allAgents=[];
+var _visibleAgentKeys=null;
 var CAT_ICONS={
   'Electronics':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
   'Home & Garden':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
@@ -738,16 +760,8 @@ function fmtLong(s){var d=parseLocalDate(s);return d.toLocaleDateString('en-GB',
 function fmtShort(s){var d=parseLocalDate(s);return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});}
 function isToday(d){return toISO(d)===toISO(new Date());}
 function DAYS(){return ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];}
-function hexToRgb(h){h=h.replace('#','');return[parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)];}
 function agentColour(k){
-  var idx=AGENTS.findIndex(function(a){return a.key===k;});
-  if(idx<0)idx=0;
-  var hex=AGENT_PALETTE[idx%AGENT_PALETTE.length];
-  var rgb=hexToRgb(hex);
-  var bg='rgba('+rgb[0]+','+rgb[1]+','+rgb[2]+',.10)';
-  var dark='rgb('+Math.round(rgb[0]*.25)+','+Math.round(rgb[1]*.25)+','+Math.round(rgb[2]*.35)+')';
-  var darkEnd='rgb('+Math.round(rgb[0]*.4)+','+Math.round(rgb[1]*.4)+','+Math.round(rgb[2]*.5)+')';
-  return{bg:bg,fg:hex,dark:dark,darkEnd:darkEnd};
+  return{bg:'#f1f5f9',fg:'#334155',dark:'#0c1526',darkEnd:'#141d2e'};
 }
 function initials(s){if(!s)return '?';var p=s.trim().split(/\s+/).filter(Boolean);return p.length===1?p[0].slice(0,2).toUpperCase():(p[0][0]+p[p.length-1][0]).toUpperCase();}
 function agentAvHtml(key,size,dark){
@@ -1226,17 +1240,21 @@ document.getElementById('insCatProgressFill').style.width=d.pctCat+'%';
 async function loadAll(){
   pStart();
   try{
-    const[blocksRes,suppliersRes,budgetRes,spendRes,usersRes]=await Promise.all([
+const[blocksRes,suppliersRes,budgetRes,spendRes,usersRes,visibleRes]=await Promise.all([
       sb.from('sourcing_calendar').select('*'),
       sb.from('suppliers').select('supplier_id,name,website').order('name'),
       sb.from('sourcing_calendar_config').select('value').eq('key','weekly_budget').single(),
       sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at', getWeekISO(_currentWeekStart)).lt('created_at', getWeekISO(addDays(_currentWeekStart,7))),
-      sb.from('users').select('user_id,first_name,last_name,role,status').in('role',['Digital Ops','Admin']).eq('status','Active').order('first_name')
+      sb.from('users').select('user_id,first_name,last_name,role,status').in('role',['Digital Ops','Admin']).eq('status','Active').order('first_name'),
+      sb.from('sourcing_calendar_config').select('value').eq('key','visible_agents').maybeSingle()
     ]);
     if(blocksRes.error)throw blocksRes.error;
-    AGENTS=(usersRes.data||[]).map(function(r){
+    _allAgents=(usersRes.data||[]).map(function(r){
       return{name:((r.first_name||'')+' '+(r.last_name||'')).trim()||r.user_id,key:r.user_id,img:''};
     });
+    try{_visibleAgentKeys=visibleRes.data&&visibleRes.data.value?JSON.parse(visibleRes.data.value):null;}catch(e){_visibleAgentKeys=null;}
+    if(!_visibleAgentKeys)_visibleAgentKeys=_allAgents.map(function(a){return a.key;});
+    AGENTS=_allAgents.filter(function(a){return _visibleAgentKeys.indexOf(a.key)>-1;});
     _plannerBlocks=(blocksRes.data||[]).map(function(r){return{
       id:r.id,agent:r.agent,date:r.date,supplierName:r.supplier_name,supplierId:r.supplier_id||'',
       website:r.website||'',hours:parseFloat(r.hours)||0,time:r.time||'',
@@ -1597,9 +1615,45 @@ function df(l,v){return '<div class="det-field"><label>'+esc(l)+'</label><div cl
 function closeDrawer(){document.getElementById('drawerOverlay').classList.remove('open');document.getElementById('detailDrawer').classList.remove('open');_openDrawerBlockId=null;}
 window.closeDrawer=closeDrawer;
 
-window.openBudgetModal=function(){document.getElementById('budgetInput').value=_weeklyBudget||'';document.getElementById('budgetOverlay').classList.add('open');setTimeout(function(){document.getElementById('budgetInput').focus();},150);};
+  window.openBudgetModal=function(){document.getElementById('budgetInput').value=_weeklyBudget||'';document.getElementById('budgetOverlay').classList.add('open');setTimeout(function(){document.getElementById('budgetInput').focus();},150);};
 window.closeBudgetModal=function(){document.getElementById('budgetOverlay').classList.remove('open');};
-window.saveBudget=async function(){
+
+var _agentToggleState={};
+window.openAgentsModal=function(){
+  _agentToggleState={};
+  _allAgents.forEach(function(a){_agentToggleState[a.key]=_visibleAgentKeys.indexOf(a.key)>-1;});
+  renderAgentToggleList();
+  document.getElementById('agentsOverlay').classList.add('open');
+};
+window.closeAgentsModal=function(){document.getElementById('agentsOverlay').classList.remove('open');};
+function renderAgentToggleList(){
+  var wrap=document.getElementById('agentsToggleList');wrap.innerHTML='';
+  _allAgents.forEach(function(a){
+    var row=document.createElement('div');row.className='agent-toggle-row';
+    var on=!!_agentToggleState[a.key];
+    row.innerHTML='<span class="agent-toggle-name">'+agentAvHtml(a.key,22,false)+esc(a.name)+'</span>'
+      +'<span class="agent-toggle-switch'+(on?' on':'')+'" data-key="'+esc(a.key)+'"></span>';
+    row.querySelector('.agent-toggle-switch').addEventListener('click',function(){
+      var k=this.dataset.key;_agentToggleState[k]=!_agentToggleState[k];this.classList.toggle('on',_agentToggleState[k]);
+    });
+    wrap.appendChild(row);
+  });
+}
+window.saveVisibleAgents=async function(){
+  var keys=Object.keys(_agentToggleState).filter(function(k){return _agentToggleState[k];});
+  if(!keys.length){toast('At least one agent must be visible','error');return;}
+  pStart();
+  try{
+    var{error}=await window.sb.from('sourcing_calendar_config').upsert({key:'visible_agents',value:JSON.stringify(keys)},{onConflict:'key'});
+    if(!error){
+      _visibleAgentKeys=keys;
+      AGENTS=_allAgents.filter(function(a){return _visibleAgentKeys.indexOf(a.key)>-1;});
+      closeAgentsModal();renderAll();toast('Agents updated','success');
+    }else toast('Failed to save: '+error.message,'error');
+  }catch(e){toast('Error','error');}
+  finally{pDone();}
+};
+  window.saveBudget=async function(){
   var v=parseFloat(document.getElementById('budgetInput').value)||0;pStart();
   try{var{error:bErr}=await window.sb.from('sourcing_calendar_config').upsert({key:'weekly_budget',value:String(v)},{onConflict:'key'});if(!bErr){_weeklyBudget=v;updateBudgetBar();closeBudgetModal();toast('Budget updated','success');}else toast('Failed to save budget','error');}
   catch(e){toast('Error','error');}finally{pDone();}
@@ -1624,6 +1678,7 @@ document.addEventListener('keydown',function(e){
     if(document.getElementById('budgetOverlay').classList.contains('open')){closeBudgetModal();return;}
     if(document.getElementById('detailDrawer').classList.contains('open')){closeDrawer();return;}
     if(document.getElementById('insightsOverlay').classList.contains('open')){closeInsightsModal();return;}
+    if(document.getElementById('agentsOverlay').classList.contains('open')){closeAgentsModal();return;}
   }
 });
 
