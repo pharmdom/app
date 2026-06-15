@@ -697,11 +697,8 @@ var _editingBlockId=null,_openDrawerBlockId=null,_formHours=2,_formAgent='';
 var _formCatMain='',_formCatSub='',_dragBlockId=null,_deleteTargetId=null;
 var _formCatSelections={};
 
-var AGENTS=[
-  {name:'Anees Syed',  key:'anees', img:'https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/dark_pharmdom.png'},
-  {name:'Abu Harara',  key:'abu',   img:'https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/dark_pharmdom.png'},
-  {name:'Tousif Ahmed',key:'tousif',img:'https://raw.githubusercontent.com/packdez/agency/refs/heads/main/assets/tousifAhmed.png'},
-];
+var AGENTS=[];
+var AGENT_PALETTE=['#1847d4','#0c7a42','#d97706','#7c3aed','#db2777','#0891b2','#65a30d','#dc2626','#4338ca','#0d9488','#ca8a04','#9333ea'];
 
 var CAT_ICONS={
   'Electronics':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
@@ -741,7 +738,17 @@ function fmtLong(s){var d=parseLocalDate(s);return d.toLocaleDateString('en-GB',
 function fmtShort(s){var d=parseLocalDate(s);return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});}
 function isToday(d){return toISO(d)===toISO(new Date());}
 function DAYS(){return ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];}
-function agentColour(k){var m={anees:{bg:'#f5f3ff',fg:'#6d28d9',dark:'#3b0764',darkEnd:'#4c1d95'},abu:{bg:'#ecfdf5',fg:'#065f46',dark:'#022c22',darkEnd:'#064e3b'},tousif:{bg:'#eff6ff',fg:'#1d4ed8',dark:'#1e3a8a',darkEnd:'#1e40af'}};return m[k]||{bg:'#f1f5f9',fg:'#334155',dark:'#0c1526',darkEnd:'#141d2e'};}
+function hexToRgb(h){h=h.replace('#','');return[parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)];}
+function agentColour(k){
+  var idx=AGENTS.findIndex(function(a){return a.key===k;});
+  if(idx<0)idx=0;
+  var hex=AGENT_PALETTE[idx%AGENT_PALETTE.length];
+  var rgb=hexToRgb(hex);
+  var bg='rgba('+rgb[0]+','+rgb[1]+','+rgb[2]+',.10)';
+  var dark='rgb('+Math.round(rgb[0]*.25)+','+Math.round(rgb[1]*.25)+','+Math.round(rgb[2]*.35)+')';
+  var darkEnd='rgb('+Math.round(rgb[0]*.4)+','+Math.round(rgb[1]*.4)+','+Math.round(rgb[2]*.5)+')';
+  return{bg:bg,fg:hex,dark:dark,darkEnd:darkEnd};
+}
 function initials(s){if(!s)return '?';var p=s.trim().split(/\s+/).filter(Boolean);return p.length===1?p[0].slice(0,2).toUpperCase():(p[0][0]+p[p.length-1][0]).toUpperCase();}
 function agentAvHtml(key,size,dark){
   var a=AGENTS.find(function(x){return x.key===key;})||{name:key,key:key,img:''};
@@ -1219,13 +1226,17 @@ document.getElementById('insCatProgressFill').style.width=d.pctCat+'%';
 async function loadAll(){
   pStart();
   try{
-    const[blocksRes,suppliersRes,budgetRes,spendRes]=await Promise.all([
+    const[blocksRes,suppliersRes,budgetRes,spendRes,usersRes]=await Promise.all([
       sb.from('sourcing_calendar').select('*'),
       sb.from('suppliers').select('supplier_id,name,website').order('name'),
       sb.from('sourcing_calendar_config').select('value').eq('key','weekly_budget').single(),
-      sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at', getWeekISO(_currentWeekStart)).lt('created_at', getWeekISO(addDays(_currentWeekStart,7)))
+      sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at', getWeekISO(_currentWeekStart)).lt('created_at', getWeekISO(addDays(_currentWeekStart,7))),
+      sb.from('users').select('user_id,first_name,last_name,role,status').in('role',['Digital Ops','Admin']).eq('status','active').order('first_name')
     ]);
     if(blocksRes.error)throw blocksRes.error;
+    AGENTS=(usersRes.data||[]).map(function(r){
+      return{name:((r.first_name||'')+' '+(r.last_name||'')).trim()||r.user_id,key:r.user_id,img:''};
+    });
     _plannerBlocks=(blocksRes.data||[]).map(function(r){return{
       id:r.id,agent:r.agent,date:r.date,supplierName:r.supplier_name,supplierId:r.supplier_id||'',
       website:r.website||'',hours:parseFloat(r.hours)||0,time:r.time||'',
