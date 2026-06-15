@@ -236,6 +236,18 @@ textarea.form-inp{resize:vertical;min-height:72px}
 .notes-section-lbl.red{color:var(--red)}
 .notes-section-lbl.neutral{color:var(--text4)}
 .notes-section-lbl svg{width:10px;height:10px;flex-shrink:0}
+.blk-status-pending .day-block-item{border-left:3px solid transparent}
+.blk-status-in_progress .day-block-item{border-left:3px solid var(--amber)}
+.blk-status-done .day-block-item{border-left:3px solid var(--green)}
+.status-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:10.5px;font-weight:700;cursor:pointer;transition:all .15s;border:1.5px solid;white-space:nowrap}
+.status-badge.pending{background:var(--surface2);border-color:var(--border);color:var(--text4)}
+.status-badge.in_progress{background:var(--amber-bg);border-color:var(--amber-bd);color:var(--amber)}
+.status-badge.done{background:var(--green-bg);border-color:var(--green-bd);color:var(--green)}
+.status-badge svg{width:10px;height:10px;flex-shrink:0}
+.completion-note-row{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.completion-note-row .form-inp{flex:1;font-size:12px;padding:7px 10px}
+.completion-save-btn{padding:7px 13px;border-radius:var(--r-sm);background:var(--accent);border:none;color:#fff;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;white-space:nowrap;transition:background .15s;flex-shrink:0}
+.completion-save-btn:hover{background:var(--accent-l)}
 .note-pill{display:flex;align-items:flex-start;gap:7px;padding:8px 11px;border-radius:var(--r-sm);font-size:12.5px;font-weight:600;line-height:1.4;border:1.5px solid}
 .note-pill.must-do{background:var(--green-bg);border-color:var(--green-bd);color:var(--green)}
 .note-pill.must-not-do{background:var(--red-bg);border-color:var(--red-bd);color:var(--red)}
@@ -540,6 +552,25 @@ textarea.form-inp{resize:vertical;min-height:72px}
     <div class="modal-footer">
       <button class="btn btn-secondary btn-sm" onclick="closeAgentsModal()">Cancel</button>
       <button class="btn btn-primary btn-sm" onclick="saveVisibleAgents()">Save</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="completionOverlay">
+  <div class="modal" style="width:380px">
+    <div class="modal-hdr">
+      <div><div class="modal-title">Mark as Done</div><div class="modal-sub">Add an optional completion note</div></div>
+      <button class="modal-close" onclick="closeCompletionModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="form-row" style="margin-bottom:0">
+      <div class="form-label">Completion Note <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(optional)</span></div>
+      <input type="text" class="form-inp" id="completionNoteInput" placeholder="e.g. 342 rows checked, skipped audio section">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-sm" onclick="closeCompletionModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" style="background:var(--green);border-color:var(--green)" onclick="confirmCompletion()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Mark Done
+      </button>
     </div>
   </div>
 </div>
@@ -1298,11 +1329,15 @@ var notesExtra=[];
       if(!notesExtra.length&&r.notes){
         notesExtra=r.notes.split('\n').filter(Boolean).map(function(l){return{type:'must_do',text:l};});
       }
+var completion={status:'pending',note:''};
+      if(r.completion){
+        try{var cp=typeof r.completion==='object'?r.completion:JSON.parse(r.completion);completion={status:cp.status||'pending',note:cp.note||''};}catch(e){}
+      }
       return{
       id:r.id,agent:r.agent,date:r.date,supplierName:r.supplier_name,supplierId:r.supplier_id||'',
       website:r.website||'',hours:parseFloat(r.hours)||0,time:r.time||'',
       categories:cats,categoryMain:r.category_main||'',categorySub:r.category_sub||'',
-      notesExtra:notesExtra,notes:r.notes||'',createdAt:r.created_at||''
+      notesExtra:notesExtra,notes:r.notes||'',completion:completion,createdAt:r.created_at||''
     };});
     _suppliers=(suppliersRes.data||[]).map(function(r){return{id:r.supplier_id,name:r.name,website:r.website||''};});
     _weeklyBudget=parseFloat(budgetRes.data?.value||0);
@@ -1379,19 +1414,42 @@ function renderCalendar(){
   });
 }
 
+function statusBadgeHtml(status){
+  var icons={pending:'',in_progress:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',done:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'};
+  var labels={pending:'Pending',in_progress:'In Progress',done:'Done'};
+  return '<span class="status-badge '+status+'">'+(icons[status]||'')+labels[status]+'</span>';
+}
+function cycleStatus(blkId,e){
+  e.stopPropagation();
+  var blk=_plannerBlocks.find(function(b){return b.id===blkId;});if(!blk)return;
+  var next={pending:'in_progress',in_progress:'done',done:'pending'};
+  var newStatus=next[blk.completion.status]||'pending';
+  if(newStatus==='done'){
+    openCompletionModal(blkId);
+  }else{
+    blk.completion={status:newStatus,note:blk.completion.note||''};
+    saveCompletion(blk);
+    renderCalendar();
+    if(_openDrawerBlockId===blkId)renderDrawer(blk);
+  }
+}
 function buildDayBlock(blocks){
   var wrap=document.createElement('div');wrap.className='day-block';
   blocks.forEach(function(blk){
+    var status=(blk.completion&&blk.completion.status)||'pending';
     var item=document.createElement('div');item.className='day-block-item';
+    item.style.cssText='border-left:3px solid '+(status==='done'?'var(--green)':status==='in_progress'?'var(--amber)':'transparent')+';padding-left:6px';
     var cat=(blk.categories&&blk.categories.length)?blk.categories[0]:'';
     var extra=(blk.categories&&blk.categories.length>1)?(' +'+(blk.categories.length-1)):'';
-   item.innerHTML='<div class="dbi-left">'
-  +'<div class="dbi-sup" title="'+esc(blk.supplierName||'\u2014')+'">'+esc(blk.supplierName||'\u2014')+'</div>'
-  +(cat?'<div class="dbi-meta">'+esc(cat)+esc(extra)+'</div>':'')
-  +'</div>'
-  +'<div class="dbi-right">'
-  +'<span class="dbi-hours">'+esc(blk.hours+'h')+'</span>'
-  +'</div></div>';
+    item.innerHTML='<div class="dbi-left">'
+      +'<div class="dbi-sup" title="'+esc(blk.supplierName||'\u2014')+'">'+esc(blk.supplierName||'\u2014')+'</div>'
+      +(cat?'<div class="dbi-meta">'+esc(cat)+esc(extra)+'</div>':'')
+      +'</div>'
+      +'<div class="dbi-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">'
+      +'<span class="dbi-hours">'+esc(blk.hours+'h')+'</span>'
+      +statusBadgeHtml(status)
+      +'</div></div>';
+    item.querySelector('.status-badge').addEventListener('click',function(e){cycleStatus(blk.id,e);});
     item.addEventListener('click',function(){openDrawer(blk.id);});
     item.draggable=true;
     item.addEventListener('dragstart',function(e){e.stopPropagation();_dragBlockId=blk.id;item.style.opacity='.45';});
@@ -1593,11 +1651,13 @@ window.saveBlock=async function(){
   if(!_editingBlockId&&_plannerBlocks.filter(function(b){return b.agent===_formAgent&&b.date===date;}).length>=3){toast('Maximum 3 blocks per agent per day','error');return;}
 var cats=_formCategories.map(function(c){return c.trim();}).filter(Boolean);
   var notesExtra=_formNotesExtra.map(function(n){return{type:n.type,text:n.text.trim()};}).filter(function(n){return n.text;});
-  var blk={id:_editingBlockId||uuid(),agent:_formAgent,date:date,supplierName:supName,supplierId:document.getElementById('blockSupId').value,website:document.getElementById('blockWebsite').value||'',hours:_formHours,time:document.getElementById('blockTime').value||'09:00',categories:cats,notesExtra:notesExtra,createdAt:new Date().toISOString()};
+  var existingBlk=_editingBlockId?_plannerBlocks.find(function(b){return b.id===_editingBlockId;}):null;
+  var completion=existingBlk?existingBlk.completion:{status:'pending',note:''};
+  var blk={id:_editingBlockId||uuid(),agent:_formAgent,date:date,supplierName:supName,supplierId:document.getElementById('blockSupId').value,website:document.getElementById('blockWebsite').value||'',hours:_formHours,time:document.getElementById('blockTime').value||'09:00',categories:cats,notesExtra:notesExtra,completion:completion,createdAt:new Date().toISOString()};
   var sb=document.getElementById('blockSaveBtn');sb.disabled=true;sb.innerHTML='<span class="spinner spin-sm" style="border-top-color:#fff;border-color:rgba(255,255,255,.3)"></span>Saving\u2026';
   pStart();
   try{
-var payload={id:blk.id,agent:blk.agent,date:blk.date,supplier_name:blk.supplierName,supplier_id:blk.supplierId||null,website:blk.website||null,hours:blk.hours,time:blk.time||null,categories:JSON.stringify(blk.categories),notes_extra:JSON.stringify(blk.notesExtra),created_at:blk.createdAt};
+var payload={id:blk.id,agent:blk.agent,date:blk.date,supplier_name:blk.supplierName,supplier_id:blk.supplierId||null,website:blk.website||null,hours:blk.hours,time:blk.time||null,categories:JSON.stringify(blk.categories),notes_extra:JSON.stringify(blk.notesExtra),completion:JSON.stringify(blk.completion),created_at:blk.createdAt};
   var{error:saveErr}=await window.sb.from('sourcing_calendar').upsert(payload,{onConflict:'id'});
     if(!saveErr){
       if(_editingBlockId){var idx=_plannerBlocks.findIndex(function(b){return b.id===_editingBlockId;});if(idx>-1)_plannerBlocks[idx]=blk;else _plannerBlocks.push(blk);_openDrawerBlockId=blk.id;}
@@ -1657,14 +1717,24 @@ var mustDo=(blk.notesExtra||[]).filter(function(n){return n.type==='must_do';});
     });
     body+='</div>';
   }
+var cStatus=(blk.completion&&blk.completion.status)||'pending';
+  var cNote=(blk.completion&&blk.completion.note)||'';
   body+='<div class="det-sec-lbl">Details</div>'+df('Date',fmtLong(blk.date))+df('Start Time',(blk.time||'').replace(/^(\d{1,2}):(\d{2}).*$/,function(m,h,min){var hr=parseInt(h);return (hr%12||12)+':'+min+' '+(hr<12?'AM':'PM');})||'\u2014');
+  if(cStatus==='done'&&cNote){
+    body+='<div class="det-field"><label>Completion Note</label><div class="dval">'+esc(cNote)+'</div></div>';
+  }
   document.getElementById('drawerBody').innerHTML=body;
+  var nextStatus={pending:'in_progress',in_progress:'done',done:'pending'};
+  var nextLabel={pending:'Mark In Progress',in_progress:'Mark Done',done:'Reset to Pending'};
+  var nextIcon={pending:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',in_progress:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>',done:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'};
+  var nextBtnStyle={pending:'background:var(--amber);border-color:var(--amber)',in_progress:'background:var(--green);border-color:var(--green)',done:'background:var(--surface);border-color:var(--border);color:var(--text3)'};
   document.getElementById('drawerFoot').innerHTML=
     '<button class="btn btn-danger btn-sm" onclick="askDeleteBlock(\''+esc(blk.id)+'\')">'
     +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete</button>'
-    +'<button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="editBlock(\''+esc(blk.id)+'\')">'
-    +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>';
-}
+    +'<button class="btn btn-sm" style="margin-left:auto;'+nextBtnStyle[cStatus]+'" onclick="drawerCycleStatus(\''+esc(blk.id)+'\')">'
+    +nextIcon[cStatus]+nextLabel[cStatus]+'</button>'
+    +'<button class="btn btn-primary btn-sm" onclick="editBlock(\''+esc(blk.id)+'\')">'
+    +'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>';}
 function df(l,v){return '<div class="det-field"><label>'+esc(l)+'</label><div class="dval'+(v?'':' empty')+'">'+esc(v||'\u2014')+'</div></div>';}
   
 function closeDrawer(){document.getElementById('drawerOverlay').classList.remove('open');document.getElementById('detailDrawer').classList.remove('open');_openDrawerBlockId=null;}
@@ -1734,8 +1804,49 @@ document.addEventListener('keydown',function(e){
     if(document.getElementById('detailDrawer').classList.contains('open')){closeDrawer();return;}
     if(document.getElementById('insightsOverlay').classList.contains('open')){closeInsightsModal();return;}
     if(document.getElementById('agentsOverlay').classList.contains('open')){closeAgentsModal();return;}
+    if(document.getElementById('completionOverlay').classList.contains('open')){closeCompletionModal();return;}
   }
 });
+
+window.drawerCycleStatus=function(blkId){
+  var blk=_plannerBlocks.find(function(b){return b.id===blkId;});if(!blk)return;
+  var next={pending:'in_progress',in_progress:'done',done:'pending'};
+  var newStatus=next[blk.completion.status||'pending']||'pending';
+  if(newStatus==='done'){
+    openCompletionModal(blkId);
+  }else{
+    blk.completion={status:newStatus,note:blk.completion.note||''};
+    saveCompletion(blk);
+    renderCalendar();
+    renderDrawer(blk);
+  }
+};
+var _completionTargetId=null;
+function openCompletionModal(blkId){
+  _completionTargetId=blkId;
+  var blk=_plannerBlocks.find(function(b){return b.id===blkId;});
+  document.getElementById('completionNoteInput').value=(blk&&blk.completion&&blk.completion.note)||'';
+  document.getElementById('completionOverlay').classList.add('open');
+  setTimeout(function(){document.getElementById('completionNoteInput').focus();},150);
+}
+function closeCompletionModal(){
+  document.getElementById('completionOverlay').classList.remove('open');
+  _completionTargetId=null;
+}
+window.closeCompletionModal=closeCompletionModal;
+window.confirmCompletion=function(){
+  var blk=_plannerBlocks.find(function(b){return b.id===_completionTargetId;});if(!blk)return;
+  blk.completion={status:'done',note:document.getElementById('completionNoteInput').value.trim()};
+  saveCompletion(blk);
+  closeCompletionModal();
+  renderCalendar();
+  if(_openDrawerBlockId===blk.id)renderDrawer(blk);
+};
+async function saveCompletion(blk){
+  try{
+    await window.sb.from('sourcing_calendar').update({completion:JSON.stringify(blk.completion)}).eq('id',blk.id);
+  }catch(e){toast('Failed to save status','error');}
+}
 
 window.openBlockModal=openBlockModal;window.closeBlockModal=closeBlockModal;
 loadAll();
