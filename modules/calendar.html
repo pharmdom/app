@@ -1414,25 +1414,6 @@ function renderCalendar(){
   });
 }
 
-function statusBadgeHtml(status){
-  var icons={pending:'',in_progress:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',done:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'};
-  var labels={pending:'Pending',in_progress:'In Progress',done:'Done'};
-  return '<span class="status-badge '+status+'">'+(icons[status]||'')+labels[status]+'</span>';
-}
-function cycleStatus(blkId,e){
-  e.stopPropagation();
-  var blk=_plannerBlocks.find(function(b){return b.id===blkId;});if(!blk)return;
-  var next={pending:'in_progress',in_progress:'done',done:'pending'};
-  var newStatus=next[blk.completion.status]||'pending';
-  if(newStatus==='done'){
-    openCompletionModal(blkId);
-  }else{
-    blk.completion={status:newStatus,note:blk.completion.note||''};
-    saveCompletion(blk);
-    renderCalendar();
-    if(_openDrawerBlockId===blkId)renderDrawer(blk);
-  }
-}
 function buildDayBlock(blocks){
   var wrap=document.createElement('div');wrap.className='day-block';
   blocks.forEach(function(blk){
@@ -1445,11 +1426,9 @@ function buildDayBlock(blocks){
       +'<div class="dbi-sup" title="'+esc(blk.supplierName||'\u2014')+'">'+esc(blk.supplierName||'\u2014')+'</div>'
       +(cat?'<div class="dbi-meta">'+esc(cat)+esc(extra)+'</div>':'')
       +'</div>'
-      +'<div class="dbi-right" style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">'
+      +'<div class="dbi-right">'
       +'<span class="dbi-hours">'+esc(blk.hours+'h')+'</span>'
-      +statusBadgeHtml(status)
       +'</div></div>';
-    item.querySelector('.status-badge').addEventListener('click',function(e){cycleStatus(blk.id,e);});
     item.addEventListener('click',function(){openDrawer(blk.id);});
     item.draggable=true;
     item.addEventListener('dragstart',function(e){e.stopPropagation();_dragBlockId=blk.id;item.style.opacity='.45';});
