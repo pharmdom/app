@@ -223,6 +223,12 @@ textarea.form-inp{resize:vertical;min-height:72px}
 .btn-danger{background:var(--surface);border-color:var(--red-bd);color:var(--red)}.btn-danger:hover{background:var(--red-bg)}
 .btn-sm{padding:6px 12px;font-size:11.5px}
 .btn:disabled{opacity:.5;cursor:default}
+.cat-input-row{display:flex;align-items:center;gap:6px}
+.cat-input-row .form-inp{flex:1}
+.cat-remove-btn{width:36px;height:36px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.cat-remove-btn:hover{border-color:var(--red-bd);color:var(--red);background:var(--red-bg)}
+.cat-pill-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.cat-pill{padding:3px 9px;border-radius:20px;background:var(--accent-bg);border:1px solid var(--accent-bd);color:var(--accent);font-size:10.5px;font-weight:600}
 .agent-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface2)}
 .agent-toggle-name{font-size:13px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:8px}
 .agent-toggle-switch{position:relative;width:38px;height:22px;border-radius:20px;background:var(--border);cursor:pointer;transition:background .2s;flex-shrink:0}
@@ -448,18 +454,20 @@ textarea.form-inp{resize:vertical;min-height:72px}
         <button class="btn btn-primary btn-sm" style="width:100%" onclick="confirmStep('stepSupplier','stepDetails')">Continue &#8594;</button>
       </div>
     </div>
-    <div class="step-section" id="stepDetails">
+<div class="step-section" id="stepDetails">
       <div class="step-header" onclick="toggleStep('stepDetails')">
         <div class="step-header-left"><div class="step-num">4</div><div class="step-label">Category &amp; Notes</div><div class="step-summary" id="stepDetailsSummary"></div></div>
       </div>
       <div class="step-body">
         <div class="form-label" style="margin-bottom:8px">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><rect x="2" y="3" width="7" height="7" rx="1"/><rect x="15" y="3" width="7" height="7" rx="1"/><rect x="2" y="14" width="7" height="7" rx="1"/><rect x="15" y="14" width="7" height="7" rx="1"/></svg>
-          Category <span style="font-size:10px;color:var(--text4);font-weight:400;text-transform:none;letter-spacing:0">(select one or more)</span>
+          Categories
         </div>
-        <div class="cat-main-grid" id="catMainGrid"></div>
-        <div id="catSubsWrap" style="margin-bottom:10px"></div>
-        <div style="margin-bottom:12px;font-size:11px;color:var(--accent);font-weight:600" id="catSelected"></div>
+        <div id="catInputsWrap" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
+        <button class="btn btn-secondary btn-sm" type="button" onclick="addCatInput()" style="margin-bottom:14px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Category
+        </button>
         <div class="form-label" style="margin-bottom:6px">Notes / Instructions</div>
         <textarea class="form-inp" id="blockNotes" placeholder="e.g. Don&#39;t focus on X brands&#10;e.g. 50% of the sheet checked till row 342"></textarea>
       </div>
@@ -492,7 +500,7 @@ textarea.form-inp{resize:vertical;min-height:72px}
 <div class="overlay" id="agentsOverlay">
   <div class="modal" style="width:380px">
     <div class="modal-hdr">
-      <div><div class="modal-title">Manage Agents</div><div class="modal-sub">Choose who appears in the planner</div></div>
+      <div><div class="modal-title">Manage Agents</div><div class="modal-sub">Choose agent(s) to assign sourcing</div></div>
       <button class="modal-close" onclick="closeAgentsModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div id="agentsToggleList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:6px"></div>
@@ -717,30 +725,11 @@ textarea.form-inp{resize:vertical;min-height:72px}
 var _plannerBlocks=[],_suppliers=[],_purchasedSpend=0,_spendLoaded=false,_weeklyBudget=0;
 var _currentWeekStart=getWeekStart(new Date());
 var _editingBlockId=null,_openDrawerBlockId=null,_formHours=2,_formAgent='';
-var _formCatMain='',_formCatSub='',_dragBlockId=null,_deleteTargetId=null;
-var _formCatSelections={};
+var _dragBlockId=null,_deleteTargetId=null;
+var _formCategories=[];
 
 var AGENTS=[],_allAgents=[];
 var _visibleAgentKeys=null;
-var CAT_ICONS={
-  'Electronics':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
-  'Home & Garden':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
-  'Toys & Games':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>',
-  'Sports':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l4.24 4.24"/><path d="M14.83 9.17l4.24-4.24"/><path d="M14.83 14.83l4.24 4.24"/><path d="M9.17 14.83l-4.24 4.24"/><circle cx="12" cy="12" r="4"/></svg>',
-  'Health & Beauty':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
-  'Automotive':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
-  'Business':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="12"/><path d="M2 12h20"/></svg>',
-};
-
-var CATEGORIES={
-  'Electronics':    ['TVs & Displays','Computers & Laptops','Audio','Phones & Tablets','Cameras','Smart Home','Gaming','Accessories'],
-  'Home & Garden':  ['Furniture','Lighting','Kitchen','Bedding','Bathroom','Garden & Outdoor','Storage','DIY & Tools'],
-  'Toys & Games':   ['Action Figures','Dolls','Board Games','Outdoor Play','Educational','Baby & Toddler','Puzzles','STEM'],
-  'Sports':         ['Fitness Equipment','Outdoor Sports','Cycling','Swimming','Team Sports','Combat Sports','Golf','Running'],
-  'Health & Beauty':['Skincare','Haircare','Vitamins','Medicines','Dental','Personal Care','Fragrances','Baby Care'],
-  'Automotive':     ['Car Accessories','Tools','Tyres','Electronics','Cleaning','Parts','Motorbike'],
-  'Business':       ['Office Supplies','Packaging','Cleaning','Safety','Catering','IT Equipment'],
-};
 
 function esc(s){return String(s!=null?s:'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function uuid(){return 'bl_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);}
@@ -1255,10 +1244,23 @@ const[blocksRes,suppliersRes,budgetRes,spendRes,usersRes,visibleRes]=await Promi
     try{_visibleAgentKeys=visibleRes.data&&visibleRes.data.value?JSON.parse(visibleRes.data.value):null;}catch(e){_visibleAgentKeys=null;}
     if(!_visibleAgentKeys)_visibleAgentKeys=_allAgents.map(function(a){return a.key;});
     AGENTS=_allAgents.filter(function(a){return _visibleAgentKeys.indexOf(a.key)>-1;});
-    _plannerBlocks=(blocksRes.data||[]).map(function(r){return{
+_plannerBlocks=(blocksRes.data||[]).map(function(r){
+      var cats=[];
+      if(r.categories){
+        try{cats=Array.isArray(r.categories)?r.categories:JSON.parse(r.categories);}catch(e){cats=[];}
+      }
+      if(!cats.length&&r.category_main){
+        var _cats=r.category_main.split('||').filter(Boolean);
+        var _subs=(r.category_sub||'').split('||');
+        cats=_cats.map(function(cat,i){
+          var subs=(_subs[i]||'').split(',').filter(Boolean);
+          return subs.length?(cat+' > '+subs.join(', ')):cat;
+        });
+      }
+      return{
       id:r.id,agent:r.agent,date:r.date,supplierName:r.supplier_name,supplierId:r.supplier_id||'',
       website:r.website||'',hours:parseFloat(r.hours)||0,time:r.time||'',
-      categoryMain:r.category_main||'',categorySub:r.category_sub||'',
+      categories:cats,categoryMain:r.category_main||'',categorySub:r.category_sub||'',
       notes:r.notes||'',createdAt:r.created_at||''
     };});
     _suppliers=(suppliersRes.data||[]).map(function(r){return{id:r.supplier_id,name:r.name,website:r.website||''};});
@@ -1340,14 +1342,11 @@ function buildDayBlock(blocks){
   var wrap=document.createElement('div');wrap.className='day-block';
   blocks.forEach(function(blk){
     var item=document.createElement('div');item.className='day-block-item';
-    var _cm=(blk.categoryMain||'').split('||')[0];
-    var _cs=(blk.categorySub||'').split('||')[0].split(',')[0];
-    var cat=_cm+(_cs?' \u203a '+_cs:'');
+    var cat=(blk.categories&&blk.categories.length)?blk.categories[0]:'';
+    var extra=(blk.categories&&blk.categories.length>1)?(' +'+(blk.categories.length-1)):'';
    item.innerHTML='<div class="dbi-left">'
   +'<div class="dbi-sup" title="'+esc(blk.supplierName||'\u2014')+'">'+esc(blk.supplierName||'\u2014')+'</div>'
-  +(cat?'<div class="dbi-meta" style="display:flex;align-items:center;gap:3px">'
-    +(CAT_ICONS[_cm]?'<span style="display:inline-flex;align-items:center;opacity:.5;flex-shrink:0;width:10px;height:10px;color:var(--text4)">'+CAT_ICONS[_cm].replace('viewBox','width="10" height="10" viewBox')+'</span>':'' )
-    +'<span>'+esc(cat)+'</span></div>':'')
+  +(cat?'<div class="dbi-meta">'+esc(cat)+esc(extra)+'</div>':'')
   +'</div>'
   +'<div class="dbi-right">'
   +'<span class="dbi-hours">'+esc(blk.hours+'h')+'</span>'
@@ -1372,8 +1371,9 @@ function dropBlock(ta,td){
   window.sb.from('sourcing_calendar').update({agent:blk.agent,date:blk.date}).eq('id',blk.id).then(function(res){if(!res.error)toast('Block moved','success');else toast('Failed to save move','error');}).catch(function(){toast('Error saving','error');});
 }
 
+
 function openBlockModal(agentKey,dateStr){
-  _editingBlockId=null;_formHours=2;_formAgent=agentKey||'';_formCatMain='';_formCatSub='';_formCatSelections={};_openDrawerBlockId=null;
+  _editingBlockId=null;_formHours=2;_formAgent=agentKey||'';_formCategories=[''];_openDrawerBlockId=null;
   document.getElementById('blockModalTitle').textContent='Schedule Sourcing Block';
   document.getElementById('blockModalSub').textContent='Allocate time slot for a soucring agent';
   document.getElementById('supSearch').value='';document.getElementById('blockSupId').value='';
@@ -1385,21 +1385,24 @@ function openBlockModal(agentKey,dateStr){
   renderDatePills(dateStr||toISO(new Date()));
   if(agentKey)setTimeout(function(){confirmStep('stepAgent','stepDate');},300);
   document.getElementById('blockDate').value=dateStr||toISO(new Date());
-  renderHours();renderCatGrid();
-  document.getElementById('catSubsWrap').innerHTML='';document.getElementById('catSelected').textContent='';
+  renderHours();renderCatInputs();
   resetSteps();document.getElementById('blockOverlay').classList.add('open');
   setTimeout(function(){document.getElementById('supSearch').focus();},200);
 }
 
 function openBlockModalForEdit(blk){
   _editingBlockId=blk.id;_formHours=parseFloat(blk.hours)||2;_formAgent=blk.agent||'';
-  _formCatMain=blk.categoryMain||'';_formCatSub=blk.categorySub||'';_formCatSelections={};
-  if(_formCatMain){
-    var _cats=_formCatMain.split('||');
-    var _subs=_formCatSub.split('||');
-    _cats.forEach(function(cat,i){
-      _formCatSelections[cat]=_subs[i]?_subs[i].split(',').filter(Boolean):[];
+  if(blk.categories&&blk.categories.length){
+    _formCategories=blk.categories.slice();
+  }else if(blk.categoryMain){
+    var _cats=blk.categoryMain.split('||').filter(Boolean);
+    var _subs=(blk.categorySub||'').split('||');
+    _formCategories=_cats.map(function(cat,i){
+      var subs=(_subs[i]||'').split(',').filter(Boolean);
+      return subs.length?(cat+' > '+subs.join(', ')):cat;
     });
+  }else{
+    _formCategories=[''];
   }
   document.getElementById('blockModalTitle').textContent='Edit Sourcing Block';
   document.getElementById('blockModalSub').textContent='Update block details';
@@ -1411,7 +1414,7 @@ function openBlockModalForEdit(blk){
   hideSupDropdown();
   renderAgentsGrid(blk.agent||'');renderDatePills(blk.date||toISO(new Date()));
   document.getElementById('blockDate').value=blk.date||toISO(new Date());
-  renderHours();renderCatGrid();renderSubCats();updateCatSelected();
+  renderHours();renderCatInputs();
   resetSteps();
   ['stepAgent','stepDate','stepSupplier','stepDetails'].forEach(function(id){
     var el=document.getElementById(id);if(el){el.classList.add('completed','editing');el.classList.remove('active');}
@@ -1452,6 +1455,26 @@ function renderDatePills(sel){
 function renderHours(){document.getElementById('hoursVal').textContent=_formHours;}
 window.stepHours=function(d){_formHours=Math.max(.5,Math.min(12,_formHours+d));renderHours();};
 
+function renderCatInputs(){
+  var wrap=document.getElementById('catInputsWrap');wrap.innerHTML='';
+  if(!_formCategories.length)_formCategories=[''];
+  _formCategories.forEach(function(val,i){
+    var row=document.createElement('div');row.className='cat-input-row';
+    var inp=document.createElement('input');inp.type='text';inp.className='form-inp';inp.placeholder='e.g. Electronics > TVs';inp.value=val;
+    inp.addEventListener('input',function(){_formCategories[i]=this.value;});
+    row.appendChild(inp);
+    var rm=document.createElement('button');rm.type='button';rm.className='cat-remove-btn';
+    rm.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+    rm.addEventListener('click',function(){
+      if(_formCategories.length===1){_formCategories[0]='';renderCatInputs();return;}
+      _formCategories.splice(i,1);renderCatInputs();
+    });
+    row.appendChild(rm);
+    wrap.appendChild(row);
+  });
+}
+window.addCatInput=function(){_formCategories.push('');renderCatInputs();};
+
 window.confirmStep=function(cur,nxt){
   if(cur==='stepAgent'&&!_formAgent){shake(document.getElementById('stepAgent'));toast('Select an agent','error');return;}
   if(cur==='stepDate'&&!document.getElementById('blockDate').value){shake(document.getElementById('stepDate'));toast('Select a date','error');return;}
@@ -1477,49 +1500,6 @@ function onDateChange(){var d=document.getElementById('blockDate').value;if(!d)r
 window.onDateChange=onDateChange;
 function resetSteps(){['stepAgent','stepDate','stepSupplier','stepDetails'].forEach(function(id){var e=document.getElementById(id);if(!e)return;e.classList.remove('completed','editing');if(id==='stepAgent')e.classList.add('active');else e.classList.remove('active');var s=document.getElementById(id+'Summary');if(s)s.textContent='';});}
 
-function renderCatGrid(){
-  var g=document.getElementById('catMainGrid');g.innerHTML='';
-  Object.keys(CATEGORIES).forEach(function(cat){
-    var btn=document.createElement('button'),isA=!!_formCatSelections[cat];
-    btn.className='cat-btn'+(isA?' multi-active':'');
-    var icon=CAT_ICONS[cat]||'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>';
-    btn.innerHTML='<div class="cat-btn-icon">'+icon+'</div><span>'+esc(cat)+'</span>'
-      +'<span class="cat-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>';
-    btn.addEventListener('click',function(){if(_formCatSelections[cat])delete _formCatSelections[cat];else _formCatSelections[cat]=[];_formCatMain=Object.keys(_formCatSelections)[0]||'';renderCatGrid();renderSubCats();updateCatSelected();});
-    g.appendChild(btn);
-  });
-}
-
-function renderSubCats(){
-  var wrap=document.getElementById('catSubsWrap');wrap.innerHTML='';
-  var active=Object.keys(_formCatSelections);if(!active.length)return;
-  active.forEach(function(cat){
-    var subs=CATEGORIES[cat]||[];if(!subs.length)return;
-    var icon=CAT_ICONS[cat]||'';
-    var group=document.createElement('div');group.className='cat-subs-group';
-    var hdr=document.createElement('div');hdr.className='cat-subs-group-hdr';
-    hdr.innerHTML=(icon?'<span class="g-icon">'+icon+'</span>':'')+esc(cat);
-    group.appendChild(hdr);
-    var pills=document.createElement('div');pills.className='cat-subs-pills';
-    subs.forEach(function(sub){
-      var btn=document.createElement('button'),sel=(_formCatSelections[cat]||[]).indexOf(sub)>-1;
-      btn.className='cat-sub-btn'+(sel?' multi-active':'');btn.textContent=sub;
-      btn.addEventListener('click',function(){var arr=_formCatSelections[cat]||[];var idx=arr.indexOf(sub);if(idx>-1)arr.splice(idx,1);else arr.push(sub);_formCatSelections[cat]=arr;renderSubCats();updateCatSelected();});
-      pills.appendChild(btn);
-    });
-    group.appendChild(pills);wrap.appendChild(group);
-  });
-}
-
-function updateCatSelected(){
-  var el=document.getElementById('catSelected'),parts=[];
-  Object.keys(_formCatSelections).forEach(function(cat){var s=_formCatSelections[cat];parts.push(cat+(s.length?' ('+s.join(', ')+')':''));});
-  // Serialize all selections into the two sheet fields using || as delimiter
-  var cats=Object.keys(_formCatSelections);
-  _formCatMain=cats.join('||');
-  _formCatSub=cats.map(function(cat){return (_formCatSelections[cat]||[]).join(',');}).join('||');
-}
-
 var _sst=null;
 window.onSupSearch=function(v){clearTimeout(_sst);document.getElementById('blockSupId').value='';document.getElementById('blockWebsite').value='';if(!v||v.length<2){hideSupDropdown();return;}_sst=setTimeout(function(){filterSuppliers(v);},200);};
 function filterSuppliers(q){
@@ -1540,12 +1520,13 @@ window.saveBlock=async function(){
   if(!date){shake(document.getElementById('stepDate'));toast('Please select a date','error');return;}
   if(!supName){shake(document.getElementById('stepSupplier'));toast('Please enter a supplier name','error');return;}
   if(!_editingBlockId&&_plannerBlocks.filter(function(b){return b.agent===_formAgent&&b.date===date;}).length>=3){toast('Maximum 3 blocks per agent per day','error');return;}
-  var blk={id:_editingBlockId||uuid(),agent:_formAgent,date:date,supplierName:supName,supplierId:document.getElementById('blockSupId').value,website:document.getElementById('blockWebsite').value||'',hours:_formHours,time:document.getElementById('blockTime').value||'09:00',categoryMain:_formCatMain,categorySub:_formCatSub,notes:document.getElementById('blockNotes').value||'',createdAt:new Date().toISOString()};
+var cats=_formCategories.map(function(c){return c.trim();}).filter(Boolean);
+  var blk={id:_editingBlockId||uuid(),agent:_formAgent,date:date,supplierName:supName,supplierId:document.getElementById('blockSupId').value,website:document.getElementById('blockWebsite').value||'',hours:_formHours,time:document.getElementById('blockTime').value||'09:00',categories:cats,notes:document.getElementById('blockNotes').value||'',createdAt:new Date().toISOString()};
   var sb=document.getElementById('blockSaveBtn');sb.disabled=true;sb.innerHTML='<span class="spinner spin-sm" style="border-top-color:#fff;border-color:rgba(255,255,255,.3)"></span>Saving\u2026';
   pStart();
   try{
-var payload={id:blk.id,agent:blk.agent,date:blk.date,supplier_name:blk.supplierName,supplier_id:blk.supplierId||null,website:blk.website||null,hours:blk.hours,time:blk.time||null,category_main:blk.categoryMain||null,category_sub:blk.categorySub||null,notes:blk.notes||null,created_at:blk.createdAt};
-    var{error:saveErr}=await window.sb.from('sourcing_calendar').upsert(payload,{onConflict:'id'});
+var payload={id:blk.id,agent:blk.agent,date:blk.date,supplier_name:blk.supplierName,supplier_id:blk.supplierId||null,website:blk.website||null,hours:blk.hours,time:blk.time||null,categories:JSON.stringify(blk.categories),notes:blk.notes||null,created_at:blk.createdAt};
+  var{error:saveErr}=await window.sb.from('sourcing_calendar').upsert(payload,{onConflict:'id'});
     if(!saveErr){
       if(_editingBlockId){var idx=_plannerBlocks.findIndex(function(b){return b.id===_editingBlockId;});if(idx>-1)_plannerBlocks[idx]=blk;else _plannerBlocks.push(blk);_openDrawerBlockId=blk.id;}
       else _plannerBlocks.push(blk);
@@ -1578,10 +1559,7 @@ window.openDrawer=function(id){
 function renderDrawer(blk){
   var agent=AGENTS.find(function(a){return a.key===blk.agent;})||{name:blk.agent,key:blk.agent,img:''};
   var col=agentColour(blk.agent);
-  var catMain=blk.categoryMain||'',catSub=blk.categorySub||'';
-  // Render all categories if multiple
-  var _catParts=(catMain||'').split('||').filter(Boolean);
-  var _subParts=(catSub||'').split('||');
+  var cats=blk.categories||[];
   document.getElementById('drawerHeroWrap').innerHTML=
     '<div class="drawer-hero" style="background:linear-gradient(140deg,'+col.dark+' 0%,'+col.darkEnd+' 100%)">'
     +'<button class="drw-close" onclick="closeDrawer()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
@@ -1589,15 +1567,9 @@ function renderDrawer(blk){
     +'<div class="drw-name">'+esc(blk.supplierName||'\u2014')+'</div>'
     +'<div style="display:flex;align-items:stretch;gap:6px;position:relative;z-index:1;margin-top:6px">'
     +'<div class="drw-kpi" style="flex:0 0 auto;min-width:72px;display:flex;flex-direction:column;justify-content:center"><div class="drw-kpi-lbl"></div><div class="drw-kpi-val">'+esc(blk.hours+' hrs')+'</div></div>'
-    +(_catParts.length?'<div class="drw-kpi" style="flex:1"><div class="drw-kpi-lbl">Category</div>'
-  +_catParts.map(function(cat,i){
-    var sub=(_subParts[i]||'').split(',').filter(Boolean);
-    return '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin-bottom:3px">'
-    +(CAT_ICONS[cat]?'<span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;opacity:.8;flex-shrink:0;color:rgba(255,255,255,.9)">'+CAT_ICONS[cat].replace('viewBox','width="12" height="12" viewBox')+'</span>':'')
-    +'<span class="drw-kpi-val" style="font-size:11px;font-weight:700;flex-shrink:0">'+esc(cat)+'</span>'
-    +(sub.length?sub.map(function(s){return '<span class="drw-cat-sub-pill">'+esc(s)+'</span>';}).join(''):'')
-    +'</div>';
-  }).join('')+'</div>':'')
+    +(cats.length?'<div class="drw-kpi" style="flex:1"><div class="drw-kpi-lbl">Categories</div>'
+  +'<div class="drw-cat-subs">'+cats.map(function(c){return '<span class="drw-cat-sub-pill">'+esc(c)+'</span>';}).join('')+'</div>'
+  +'</div>':'')
     +'</div>'+'</div>';
   var body='';
   if(blk.website)body+='<div class="det-sec-lbl">Links</div><a href="'+esc(blk.website)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;background:var(--accent-bg);border:1px solid var(--accent-bd);border-radius:var(--r-sm);font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;margin-bottom:14px;word-break:break-all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'+esc(blk.website)+'</a>';
