@@ -321,7 +321,8 @@ textarea.form-inp{resize:vertical;min-height:72px}
 .ins-donut-name{font-size:10.5px;font-weight:700;color:var(--text2);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .ins-donut-sub{font-size:9.5px;color:var(--text4);margin-top:1px;font-family:var(--mono)}
 
-.ins-activity-legend{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--text3);margin-bottom:10px}
+.ins-activity-legend{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--text3);margin-bottom:10px;flex-wrap:wrap}
+.ins-activity-legend .ins-leg-item{display:flex;align-items:center;gap:5px}
 .ins-leg-dot{width:9px;height:9px;border-radius:2px;display:inline-block}
 
 .ins-source-legend{display:flex;align-items:center;gap:18px;font-size:11px;font-weight:600;color:var(--text3);margin-bottom:12px;flex-wrap:wrap}
@@ -543,8 +544,9 @@ textarea.form-inp{resize:vertical;min-height:72px}
             <div class="ins-loading-row"></div><div class="ins-loading-row"></div><div class="ins-loading-row"></div>
           </div>
         </div>
-        <div class="ins-card">
+<div class="ins-card">
           <div class="ins-sec-lbl">Hours by Supplier</div>
+          <div id="insHoursSupplierLegend"></div>
           <div id="insHoursSupplierRows" class="ins-loading-rows">
             <div class="ins-loading-row"></div><div class="ins-loading-row"></div><div class="ins-loading-row"></div>
           </div>
@@ -1139,11 +1141,18 @@ function buildSourceGroupedChart(rows){
 
   
 var AGENT_BRIGHTNESS=[1,0.82,0.64,0.5];
-var ROW_SEG_COLOURS=['#1847d4','#0c7a42','#d97706','#7c3aed','#db2777','#0891b2','#65a30d','#dc2626'];
+var ROW_SEG_COLOURS=['#1847d4','#0c7a42','#d97706','#7c3aed','#db2777','#0891b2','#65a30d','#dc2626','#4338ca','#0d9488','#ca8a04','#9333ea'];
 function rowSegColour(agentName){
   var idx=AGENTS.findIndex(function(a){return a.name===agentName;});
   if(idx<0)idx=AGENTS.length;
   return ROW_SEG_COLOURS[idx%ROW_SEG_COLOURS.length];
+}
+function buildAgentLegend(){
+  return '<div class="ins-activity-legend">'
+    +AGENTS.map(function(a){
+      return '<span class="ins-leg-item"><span class="ins-leg-dot" style="background:'+rowSegColour(a.name)+'"></span>'+esc(a.name.split(' ')[0])+'</span>';
+    }).join('')
+    +'</div>';
 }
   
 function insRowsHtml(rows,unit,emptyMsg){
@@ -1185,6 +1194,7 @@ function renderInsightsPanels(){
     var label=diff===0?'No change vs last week':(Math.abs(diff)+' '+(diff>0?'more':'fewer')+' vs last week ('+prev+')');
     el.innerHTML='<span class="ins-summary-compare-delta '+cls+'">'+icon+label+'</span>';
   })();
+  document.getElementById('insHoursSupplierLegend').innerHTML=buildAgentLegend();
   document.getElementById('insHoursSupplierRows').innerHTML=insRowsHtml(d.hoursBySupplier,'h','No supplier hours recorded');
   document.getElementById('insHoursHeatmap').innerHTML=buildDayHeatmap(d.dayHours);
 
