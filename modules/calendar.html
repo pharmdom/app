@@ -359,6 +359,11 @@ textarea.form-inp{resize:vertical;min-height:72px}
 .ins-stale-badge.warn{background:var(--amber-bg);color:var(--amber)}
 .ins-stale-badge.bad{background:var(--red-bg);color:var(--red)}
 
+.ins-activity-row{display:flex;gap:14px;align-items:stretch}
+.ins-activity-row .ins-card{margin-bottom:0}
+.ins-activity-row .ins-card-main{flex:1.8}
+.ins-activity-row .ins-card-side{flex:1}
+  
 @media(max-width:900px){.insights-modal{width:96vw;height:90vh}.ins-donut-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:600px){.ins-summary-row{flex-direction:column}.ins-donut-grid{grid-template-columns:repeat(2,1fr)}.ins-heatmap{flex-wrap:wrap}.ins-heat-cell{flex:1 1 40px}}
 </style>
@@ -589,12 +594,21 @@ textarea.form-inp{resize:vertical;min-height:72px}
             <div class="ins-summary-sub">Leads marked purchased</div>
           </div>
         </div>
-        <div class="ins-card">
-          <div class="ins-sec-lbl">Approved vs Purchased &mdash; By Supplier</div>
-          <div id="insActivityChart" class="ins-loading-rows">
-            <div class="ins-loading-row"></div><div class="ins-loading-row"></div><div class="ins-loading-row"></div>
+<div class="ins-activity-row">
+          <div class="ins-card ins-card-main">
+            <div class="ins-sec-lbl">Approved vs Purchased &mdash; By Supplier</div>
+            <div id="insActivityChart" class="ins-loading-rows">
+              <div class="ins-loading-row"></div><div class="ins-loading-row"></div><div class="ins-loading-row"></div>
+            </div>
+          </div>
+          <div class="ins-card ins-card-side">
+            <div class="ins-sec-lbl">Activity by Source</div>
+            <div id="insSourceChart" class="ins-loading-rows">
+              <div class="ins-loading-row"></div><div class="ins-loading-row"></div><div class="ins-loading-row"></div>
+            </div>
           </div>
         </div>
+
       </div>
     </div>
   </div>
@@ -794,7 +808,7 @@ window.addEventListener('resize',positionInsightsTabIndicator);
 
 async function loadInsightsData(){
   var ws=getWeekISO(_insWeekStart),we=getWeekISO(addDays(_insWeekStart,7));
-['insHoursAgentChart','insHoursSupplierRows','insHoursHeatmap','insCatDonuts','insCatStaleTable','insActivityChart'].forEach(function(id){
+['insHoursAgentChart','insHoursSupplierRows','insHoursHeatmap','insCatDonuts','insCatStaleTable','insActivityChart','insSourceChart'].forEach(function(id){
     var el=document.getElementById(id);if(el)el.innerHTML='<div class="ins-loading-rows"><div class="ins-loading-row"></div><div class="ins-loading-row"></div><div class="ins-loading-row"></div></div>';
   });
   ['insHoursTotal','insSuppliersTotal','insCatLastUpdated','insCatApprovedPct','insApprovedTotal','insPurchasedTotal'].forEach(function(id){
@@ -899,6 +913,17 @@ var actMap={};
 var activityRows=Object.keys(actMap).map(function(k){return{name:k,approved:actMap[k].approved,purchased:actMap[k].purchased,approvedBySrc:actMap[k].approvedBySrc,purchasedBySrc:actMap[k].purchasedBySrc};})
       .sort(function(a,b){return (b.approved+b.purchased)-(a.approved+a.purchased);});
 
+
+  var SRC_ORDER_KEYS=['Offers','Catalog','Leads'];
+    var sourceTotals=SRC_ORDER_KEYS.map(function(s){
+      var approved=0,purchased=0;
+      Object.keys(actMap).forEach(function(k){
+        approved+=(actMap[k].approvedBySrc[s]||0);
+        purchased+=(actMap[k].purchasedBySrc[s]||0);
+      });
+      return{name:s,approved:approved,purchased:purchased};
+    });
+
     var lastSourcedMap={};
     (lastSourcedRes.data||[]).forEach(function(r){
       var name=r.supplier_name||'Unknown supplier';
@@ -926,14 +951,14 @@ var activityRows=Object.keys(actMap).map(function(k){return{name:k,approved:actM
       approvedCount:approvedRows.length,purchasedCount:purchasedRows.length,
       hoursByAgent:hoursByAgent,totalHours:totalHours,
       hoursBySupplier:hoursBySupplier,dayHours:dayHours,
-      activityRows:activityRows,
+activityRows:activityRows,sourceTotals:sourceTotals,
       suppliersThisWeek:suppliersThisWeek,suppliersWorkedThisWeek:suppliersWorkedThisWeek,suppliersWorkedPrevWeek:suppliersWorkedPrevWeek,
       staleRows:staleRows
     };
     _insightsLoaded=true;
     renderInsightsPanels();
 }catch(e){
-    ['insHoursAgentChart','insCatDonuts','insCatStaleTable','insActivityChart'].forEach(function(id){
+    ['insHoursAgentChart','insCatDonuts','insCatStaleTable','insActivityChart','insSourceChart'].forEach(function(id){
       var el=document.getElementById(id);if(el)el.innerHTML='<div class="ins-empty">Failed to load: '+esc(e.message)+'</div>';
     });
   }
@@ -1057,7 +1082,6 @@ function buildStaleSuppliersTable(rows){
 
 
 var APPROVED_BASE='#1847d4',PURCHASED_BASE='#0c7a42';
-var SRC_OPACITY={Offers:1,Catalog:0.65,Leads:0.35};
 function buildActivityChart(rows){
   if(!rows.length)return '<div class="ins-empty">No activity this week</div>';
   var top=rows.slice(0,8);
@@ -1065,56 +1089,53 @@ function buildActivityChart(rows){
   var maxV=Math.max.apply(null,top.map(function(r){return Math.max(r.approved,r.purchased);}))||1;
   var h=top.length*rowH+6;
   var barAreaW=w-labelW-padR-padL;
-  var SRC_ORDER=['Offers','Catalog','Leads'];
   var bars='';
   top.forEach(function(r,i){
     var y=6+i*rowH;
     var aw=maxV>0?(r.approved/maxV*barAreaW):0;
     var pw=maxV>0?(r.purchased/maxV*barAreaW):0;
     bars+='<text x="'+padL+'" y="'+(y+9)+'" font-size="11" font-weight="600" fill="var(--text2)" font-family="var(--font)">'+esc(r.name.length>16?r.name.slice(0,15)+'\u2026':r.name)+'</text>';
-
-    var ax=padL+labelW;
-    SRC_ORDER.forEach(function(src){
-      var cnt=(r.approvedBySrc&&r.approvedBySrc[src])||0;
-      var segW=r.approved>0?(cnt/r.approved*aw):0;
-      if(segW>0){
-        bars+='<rect x="'+ax+'" y="'+y+'" width="'+segW+'" height="9" fill="'+APPROVED_BASE+'" opacity="'+SRC_OPACITY[src]+'"><title>Approved \u00b7 '+esc(src)+': '+cnt+'</title></rect>';
-        ax+=segW;
-      }
-    });
+    bars+='<rect x="'+(padL+labelW)+'" y="'+y+'" width="'+aw+'" height="9" rx="3" fill="'+APPROVED_BASE+'" opacity="0.85"/>';
     bars+='<text x="'+(padL+labelW+aw+6)+'" y="'+(y+8)+'" font-size="10" font-weight="700" fill="var(--text3)" font-family="var(--mono)">'+r.approved+'</text>';
-
-    var px=padL+labelW;
-    SRC_ORDER.forEach(function(src){
-      var cnt=(r.purchasedBySrc&&r.purchasedBySrc[src])||0;
-      var segW=r.purchased>0?(cnt/r.purchased*pw):0;
-      if(segW>0){
-        bars+='<rect x="'+px+'" y="'+(y+14)+'" width="'+segW+'" height="9" fill="'+PURCHASED_BASE+'" opacity="'+SRC_OPACITY[src]+'"><title>Purchased \u00b7 '+esc(src)+': '+cnt+'</title></rect>';
-        px+=segW;
-      }
-    });
+    bars+='<rect x="'+(padL+labelW)+'" y="'+(y+14)+'" width="'+pw+'" height="9" rx="3" fill="'+PURCHASED_BASE+'" opacity="0.85"/>';
     bars+='<text x="'+(padL+labelW+pw+6)+'" y="'+(y+22)+'" font-size="10" font-weight="700" fill="var(--text3)" font-family="var(--mono)">'+r.purchased+'</text>';
   });
-  var legend='<div class="ins-activity-legend">'
-    +'<div class="ins-source-status">'
-      +'<span class="ins-source-status-lbl"><span class="ins-leg-dot" style="background:'+APPROVED_BASE+'"></span> Approved</span>'
-      +'<div class="ins-source-swatches">'
-        +SRC_ORDER.map(function(s){return '<span class="ins-source-swatch" style="background:'+APPROVED_BASE+';opacity:'+SRC_OPACITY[s]+'" title="'+s+'"></span>';}).join('')
-      +'</div>'
-    +'</div>'
-    +'<div class="ins-source-status">'
-      +'<span class="ins-source-status-lbl"><span class="ins-leg-dot" style="background:'+PURCHASED_BASE+'"></span> Purchased</span>'
-      +'<div class="ins-source-swatches">'
-        +SRC_ORDER.map(function(s){return '<span class="ins-source-swatch" style="background:'+PURCHASED_BASE+';opacity:'+SRC_OPACITY[s]+'" title="'+s+'"></span>';}).join('')
-      +'</div>'
-    +'</div>'
-    +'<div style="display:flex;gap:8px;align-items:center;margin-left:auto">'
-      +SRC_ORDER.map(function(s){return '<span class="ins-source-swatch-lbl">'+s+'</span>';}).join('')
-    +'</div>'
-    +'</div>';
+  var legend='<div class="ins-activity-legend"><span class="ins-leg-dot" style="background:'+APPROVED_BASE+'"></span>Approved<span class="ins-leg-dot" style="background:'+PURCHASED_BASE+';margin-left:14px"></span>Purchased</div>';
   return legend+'<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:'+h+'px;display:block" preserveAspectRatio="xMinYMin meet">'+bars+'</svg>';
 }
 
+
+function buildSourceGroupedChart(rows){
+  if(!rows.length)return '<div class="ins-empty">No activity this week</div>';
+  var w=320,h=190,padL=34,padB=26,padT=24,padR=10;
+  var maxV=Math.max.apply(null,rows.map(function(r){return Math.max(r.approved,r.purchased);}))||1;
+  var n=rows.length,groupGap=22,barGap=4;
+  var groupW=Math.min(70,(w-padL-padR-(n-1)*groupGap)/n);
+  var barW=(groupW-barGap)/2;
+  var chartW=n*groupW+(n-1)*groupGap;
+  var startX=padL+((w-padL-padR)-chartW)/2;
+  var chartH=h-padT-padB;
+  var bars='',labels='',gridlines='';
+  [0,.25,.5,.75,1].forEach(function(f){
+    var y=padT+chartH-(chartH*f);
+    gridlines+='<line x1="'+padL+'" y1="'+y+'" x2="'+(w-padR)+'" y2="'+y+'" stroke="var(--border2)" stroke-width="1"/>';
+  });
+  rows.forEach(function(r,i){
+    var gx=startX+i*(groupW+groupGap);
+    var ah=maxV>0?(r.approved/maxV*chartH):0;
+    var ph=maxV>0?(r.purchased/maxV*chartH):0;
+    var ay=padT+chartH-ah,py=padT+chartH-ph;
+    bars+='<rect x="'+gx+'" y="'+ay+'" width="'+barW+'" height="'+ah+'" rx="4" fill="'+APPROVED_BASE+'" opacity="0.85"><title>Approved: '+r.approved+'</title></rect>';
+    bars+='<rect x="'+(gx+barW+barGap)+'" y="'+py+'" width="'+barW+'" height="'+ph+'" rx="4" fill="'+PURCHASED_BASE+'" opacity="0.85"><title>Purchased: '+r.purchased+'</title></rect>';
+    if(r.approved>0)bars+='<text x="'+(gx+barW/2)+'" y="'+(ay-5)+'" text-anchor="middle" font-size="10" font-weight="700" fill="var(--text2)" font-family="var(--mono)">'+r.approved+'</text>';
+    if(r.purchased>0)bars+='<text x="'+(gx+barW+barGap+barW/2)+'" y="'+(py-5)+'" text-anchor="middle" font-size="10" font-weight="700" fill="var(--text2)" font-family="var(--mono)">'+r.purchased+'</text>';
+    labels+='<text x="'+(gx+groupW/2)+'" y="'+(h-6)+'" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--text3)" font-family="var(--font)">'+esc(r.name)+'</text>';
+  });
+  var legend='<div class="ins-activity-legend"><span class="ins-leg-dot" style="background:'+APPROVED_BASE+'"></span>Approved<span class="ins-leg-dot" style="background:'+PURCHASED_BASE+';margin-left:14px"></span>Purchased</div>';
+  return legend+'<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:'+h+'px;display:block">'+gridlines+bars+labels+'</svg>';
+}
+
+  
 var AGENT_BRIGHTNESS=[1,0.82,0.64,0.5];
 function insRowsHtml(rows,unit,emptyMsg){
   if(!rows.length)return '<div class="ins-empty">'+emptyMsg+'</div>';
@@ -1171,6 +1192,7 @@ document.getElementById('insCatProgressFill').style.width=d.pctCat+'%';
   document.getElementById('insPurchasedTotal').classList.remove('loading');
   document.getElementById('insPurchasedTotal').textContent=d.purchasedCount;
   document.getElementById('insActivityChart').innerHTML=buildActivityChart(d.activityRows);
+  document.getElementById('insSourceChart').innerHTML=buildSourceGroupedChart(d.sourceTotals);
 }
 
   
