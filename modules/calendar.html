@@ -49,6 +49,9 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .bgt-set-prompt{font-size:10.5px;font-weight:600;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;margin-top:1px;display:inline-block}
 .bgt-carryover-positive{color:var(--green)}
 .bgt-carryover-negative{color:var(--red)}
+.repl-row{display:flex;align-items:center;gap:8px}
+.repl-row .form-inp{flex:1}
+.repl-row .repl-amount{width:110px;flex-shrink:0}
 @keyframes shimmer{to{transform:translateX(100%)}}
 .week-nav{display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 0px 0px;flex-shrink:0}
 .week-nav-btn{width:32px;height:32px;border-radius:var(--r-sm);background:var(--surface);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);transition:all .15s}
@@ -546,6 +549,27 @@ textarea.form-inp{resize:vertical;min-height:72px}
     </div>
   </div>
 </div>
+<div class="overlay" id="replOverlay">
+  <div class="modal" style="width:460px">
+    <div class="modal-hdr">
+      <div><div class="modal-title">Replenishment Spend</div><div class="modal-sub" id="replModalSub">Track spend allocated to replenishments this week</div></div>
+      <button class="modal-close" onclick="closeReplModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div id="replList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;max-height:300px;overflow-y:auto"></div>
+    <button class="btn btn-secondary btn-sm" type="button" onclick="addReplRow()" style="width:100%;margin-bottom:4px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Replenishment
+    </button>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:12px;font-weight:700;color:var(--text3)">Total replenishment spend</div>
+      <div style="font-size:15px;font-weight:800;color:var(--text)" id="replTotal">£0.00</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-sm" onclick="closeReplModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveReplenishments()">Save</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="agentsOverlay">
   <div class="modal" style="width:380px">
     <div class="modal-hdr">
@@ -735,6 +759,10 @@ textarea.form-inp{resize:vertical;min-height:72px}
       </div>
     </div>
     <div class="tnav-actions">
+      <button class="nav-btn" onclick="openReplModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v4H4z"/><path d="M4 12h16v4H4z"/><path d="M4 20h8"/></svg>
+        Replenishments
+      </button>
       <button class="nav-btn" onclick="openBudgetModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         Budget
@@ -752,6 +780,7 @@ textarea.form-inp{resize:vertical;min-height:72px}
         <div class="bgt-label">Weekly Budget</div>
         <div class="bgt-val" id="bgtTotal">&#163;&#8212;</div>
         <div class="bgt-sub" id="bgtCarryover" style="display:none"></div>
+        <div class="bgt-sub" id="bgtReplSub" style="display:none;color:var(--amber)"></div>
       </div>
     </div>
     <div class="bgt-divider"></div>
@@ -794,7 +823,7 @@ textarea.form-inp{resize:vertical;min-height:72px}
 <script>
 (function(){
 'use strict';
-var _plannerBlocks=[],_suppliers=[],_purchasedSpend=0,_spendLoaded=false,_weeklyBudget=0,_weeklyCarryover=0,_budgetLoaded=false;
+var _plannerBlocks=[],_suppliers=[],_purchasedSpend=0,_spendLoaded=false,_weeklyBudget=0,_weeklyCarryover=0,_budgetLoaded=false,_replenishments=[],_replLoaded=false;
 var _currentWeekStart=getWeekStart(new Date());
 var _editingBlockId=null,_openDrawerBlockId=null,_formHours=2,_formAgent='';
 var _dragBlockId=null,_deleteTargetId=null;
@@ -1303,7 +1332,7 @@ async function loadAll(){
   pStart();
   try{
 var prevWeekStart=addDays(_currentWeekStart,-7);
-    const[blocksRes,suppliersRes,budgetRes,spendRes,prevBudgetRes,prevSpendRes,usersRes,visibleRes]=await Promise.all([
+    const[blocksRes,suppliersRes,budgetRes,spendRes,prevBudgetRes,prevSpendRes,usersRes,visibleRes,replRes]=await Promise.all([
       sb.from('sourcing_calendar').select('*'),
       sb.from('suppliers').select('supplier_id,name,website').order('name'),
       sb.from('sourcing_calendar_budgets').select('budget').eq('week_start',toISO(_currentWeekStart)).maybeSingle(),
@@ -1311,7 +1340,8 @@ var prevWeekStart=addDays(_currentWeekStart,-7);
       sb.from('sourcing_calendar_budgets').select('budget').eq('week_start',toISO(prevWeekStart)).maybeSingle(),
       sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at',getWeekISO(prevWeekStart)).lt('created_at',getWeekISO(_currentWeekStart)),
       sb.from('users').select('user_id,first_name,last_name,role,status').in('role',['Digital Ops','Admin']).eq('status','Active').order('first_name'),
-      sb.from('sourcing_calendar_config').select('value').eq('key','visible_agents').maybeSingle()
+      sb.from('sourcing_calendar_config').select('value').eq('key','visible_agents').maybeSingle(),
+      sb.from('sourcing_calendar_replenishments').select('*').eq('week_start',toISO(_currentWeekStart)).order('created_at')
     ]);
     if(blocksRes.error)throw blocksRes.error;
     _allAgents=(usersRes.data||[]).map(function(r){
@@ -1356,7 +1386,8 @@ _suppliers=(suppliersRes.data||[]).map(function(r){return{id:r.supplier_id,name:
     var prevSpend=(prevSpendRes.data||[]).reduce(function(a,r){return a+(parseFloat(r.cost_of_unit)||0)*(parseFloat(r.unit_quantity)||1);},0);
     _weeklyCarryover=prevBudget>0?(prevBudget-prevSpend):0;
     _purchasedSpend=(spendRes.data||[]).reduce(function(a,r){return a+(parseFloat(r.cost_of_unit)||0)*(parseFloat(r.unit_quantity)||1);},0);
-    _spendLoaded=true;_budgetLoaded=true;
+    _replenishments=(replRes.data||[]).map(function(r){return{id:r.id,label:r.label,amount:parseFloat(r.amount)||0};});
+    _replLoaded=true;_spendLoaded=true;_budgetLoaded=true;
     renderAll();
   }catch(e){showCalError('Failed to load: '+e.message);}
   finally{pDone();}
@@ -1368,8 +1399,9 @@ function showCalError(m){document.getElementById('calOuter').innerHTML='<div cla
 function renderAll(){updateBudgetBar();updateChips();renderCalendar();_insightsLoaded=false;if(document.getElementById('insightsOverlay').classList.contains('open')&&_insightsData)loadInsightsData();}
 
 function updateBudgetBar(){
+  var replTotal=_replenishments.reduce(function(a,r){return a+r.amount;},0);
   var effective=_weeklyBudget+_weeklyCarryover;
-  var out=effective-_purchasedSpend,pct=effective>0?Math.min(100,(_purchasedSpend/effective)*100):0;
+  var out=effective-_purchasedSpend-replTotal,pct=effective>0?Math.min(100,((_purchasedSpend+replTotal)/effective)*100):0;
   var totalEl=document.getElementById('bgtTotal');
   var carryEl=document.getElementById('bgtCarryover');
   if(!_budgetLoaded){
@@ -1389,6 +1421,10 @@ function updateBudgetBar(){
       carryEl.style.display='none';
     }
   }
+
+  var replEl=document.getElementById('bgtReplSub');
+  if(replTotal>0){replEl.textContent='\u2212'+fmtGBP(replTotal)+' replenishments';replEl.style.display='block';}
+  else{replEl.style.display='none';}
   document.getElementById('bgtOutstanding').textContent=effective>0?fmtGBP(out):'\u00a3\u2014';
   document.getElementById('bgtPct').textContent=Math.round(pct)+'%';
   document.getElementById('bgtFill').style.width=pct+'%';
@@ -1821,18 +1857,20 @@ window.shiftWeek=function(dir){
   renderCalendar();updateChips();
   var ws=getWeekISO(_currentWeekStart),we=getWeekISO(addDays(_currentWeekStart,7));
   var prevWeekStart=addDays(_currentWeekStart,-7);
-  Promise.all([
+Promise.all([
     window.sb.from('sourcing_calendar_budgets').select('budget').eq('week_start',toISO(_currentWeekStart)).maybeSingle(),
     window.sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at',ws).lt('created_at',we),
     window.sb.from('sourcing_calendar_budgets').select('budget').eq('week_start',toISO(prevWeekStart)).maybeSingle(),
-    window.sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at',getWeekISO(prevWeekStart)).lt('created_at',getWeekISO(_currentWeekStart))
+    window.sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at',getWeekISO(prevWeekStart)).lt('created_at',getWeekISO(_currentWeekStart)),
+    window.sb.from('sourcing_calendar_replenishments').select('*').eq('week_start',toISO(_currentWeekStart)).order('created_at')
   ]).then(function(results){
     _weeklyBudget=parseFloat((results[0].data&&results[0].data.budget)||0);
     _purchasedSpend=(results[1].data||[]).reduce(function(a,r){return a+(parseFloat(r.cost_of_unit)||0)*(parseFloat(r.unit_quantity)||1);},0);
     var prevBudget=parseFloat((results[2].data&&results[2].data.budget)||0);
     var prevSpend=(results[3].data||[]).reduce(function(a,r){return a+(parseFloat(r.cost_of_unit)||0)*(parseFloat(r.unit_quantity)||1);},0);
     _weeklyCarryover=prevBudget>0?(prevBudget-prevSpend):0;
-    _spendLoaded=true;_budgetLoaded=true;
+    _replenishments=(results[4].data||[]).map(function(r){return{id:r.id,label:r.label,amount:parseFloat(r.amount)||0};});
+    _replLoaded=true;_spendLoaded=true;_budgetLoaded=true;
     updateBudgetBar();
   }).catch(function(){});
 };
@@ -1846,6 +1884,7 @@ document.addEventListener('keydown',function(e){
     if(document.getElementById('insightsOverlay').classList.contains('open')){closeInsightsModal();return;}
     if(document.getElementById('agentsOverlay').classList.contains('open')){closeAgentsModal();return;}
     if(document.getElementById('completionOverlay').classList.contains('open')){closeCompletionModal();return;}
+    if(document.getElementById('replOverlay').classList.contains('open')){closeReplModal();return;}
   }
 });
 
@@ -1888,6 +1927,59 @@ async function saveCompletion(blk){
     await window.sb.from('sourcing_calendar').update({completion:JSON.stringify(blk.completion)}).eq('id',blk.id);
   }catch(e){toast('Failed to save status','error');}
 }
+
+var _replDraft=[];
+window.openReplModal=function(){
+  _replDraft=_replenishments.map(function(r){return{id:r.id,label:r.label,amount:r.amount,isNew:false};});
+  document.getElementById('replModalSub').textContent='Week of '+fmtDay(_currentWeekStart)+' \u2013 '+fmtDay(addDays(_currentWeekStart,6));
+  renderReplList();
+  document.getElementById('replOverlay').classList.add('open');
+};
+function closeReplModal(){document.getElementById('replOverlay').classList.remove('open');}
+window.closeReplModal=closeReplModal;
+function renderReplList(){
+  var list=document.getElementById('replList');list.innerHTML='';
+  if(!_replDraft.length){
+    list.innerHTML='<div style="text-align:center;padding:20px;color:var(--text4);font-size:12.5px">No replenishments added yet</div>';
+  }else{
+    _replDraft.forEach(function(item,i){
+      var row=document.createElement('div');row.className='repl-row';
+      var labelInp=document.createElement('input');labelInp.type='text';labelInp.className='form-inp';labelInp.placeholder='e.g. Baby Care restock';labelInp.value=item.label;
+      labelInp.addEventListener('input',function(){_replDraft[i].label=this.value;updateReplTotal();});
+      var amtInp=document.createElement('input');amtInp.type='number';amtInp.className='form-inp repl-amount';amtInp.placeholder='0.00';amtInp.min='0';amtInp.step='0.01';amtInp.value=item.amount||'';
+      amtInp.addEventListener('input',function(){_replDraft[i].amount=parseFloat(this.value)||0;updateReplTotal();});
+      var rm=document.createElement('button');rm.type='button';rm.className='cat-remove-btn';
+      rm.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+      rm.addEventListener('click',function(){_replDraft.splice(i,1);renderReplList();});
+      row.appendChild(labelInp);row.appendChild(amtInp);row.appendChild(rm);
+      list.appendChild(row);
+    });
+  }
+  updateReplTotal();
+}
+function updateReplTotal(){
+  var t=_replDraft.reduce(function(a,r){return a+(parseFloat(r.amount)||0);},0);
+  document.getElementById('replTotal').textContent=fmtGBP(t);
+}
+window.addReplRow=function(){_replDraft.push({id:'repl_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),label:'',amount:0,isNew:true});renderReplList();};
+window.saveReplenishments=async function(){
+  var toSave=_replDraft.filter(function(r){return r.label.trim()&&r.amount>0;});
+  var toDelete=_replenishments.filter(function(r){return !_replDraft.find(function(d){return d.id===r.id;});}).map(function(r){return r.id;});
+  pStart();
+  try{
+    var promises=[];
+    toSave.forEach(function(r){
+      promises.push(window.sb.from('sourcing_calendar_replenishments').upsert({id:r.id,week_start:toISO(_currentWeekStart),label:r.label.trim(),amount:r.amount},{onConflict:'id'}));
+    });
+    if(toDelete.length){
+      promises.push(window.sb.from('sourcing_calendar_replenishments').delete().in('id',toDelete));
+    }
+    await Promise.all(promises);
+    _replenishments=toSave.map(function(r){return{id:r.id,label:r.label.trim(),amount:r.amount};});
+    closeReplModal();updateBudgetBar();toast('Replenishments saved','success');
+  }catch(e){toast('Failed to save replenishments','error');}
+  finally{pDone();}
+};
 
 window.openBlockModal=openBlockModal;window.closeBlockModal=closeBlockModal;
 loadAll();
