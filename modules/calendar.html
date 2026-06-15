@@ -685,22 +685,35 @@ function toast(msg,type){
   var ic={success:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',error:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',info:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'};
   t.innerHTML=(ic[type]||'')+esc(msg);c.appendChild(t);setTimeout(function(){if(t.parentNode)t.remove();},3400);
 }
+
+
 /* ══ INSIGHTS MODAL ══ */
-var _insightsData=null,_insightsLoaded=false,_currentInsightsTab='catalog';
+var _insightsData=null,_insightsLoaded=false,_currentInsightsTab='hours';
+var _insWeekStart=null;
 
 window.openInsightsModal=function(){
+  if(!_insWeekStart)_insWeekStart=new Date(_currentWeekStart);
   document.getElementById('insightsOverlay').classList.add('open');
-  document.getElementById('insModalWeekLbl').textContent='for '+fmtDay(_currentWeekStart)+' \u2013 '+fmtDay(addDays(_currentWeekStart,6));
+  updateInsightsWeekLabel();
   positionInsightsTabIndicator();
   if(!_insightsLoaded)loadInsightsData();
 };
 window.closeInsightsModal=function(){
   document.getElementById('insightsOverlay').classList.remove('open');
 };
+function updateInsightsWeekLabel(){
+  document.getElementById('insModalWeekLbl').textContent=fmtDay(_insWeekStart)+' \u2013 '+fmtDay(addDays(_insWeekStart,6));
+}
+window.shiftInsightsWeek=function(dir){
+  _insWeekStart=addDays(_insWeekStart,dir*7);
+  updateInsightsWeekLabel();
+  _insightsLoaded=false;
+  loadInsightsData();
+};
 
 window.switchInsightsTab=function(tab){
   if(tab===_currentInsightsTab)return;
-  var panels={catalog:'insPanelCatalog',approved:'insPanelApproved',purchased:'insPanelPurchased',hours:'insPanelHours'};
+  var panels={hours:'insPanelHours',catalog:'insPanelCatalog',activity:'insPanelActivity'};
   var curEl=document.getElementById(panels[_currentInsightsTab]);
   var nextEl=document.getElementById(panels[tab]);
   curEl.classList.add('leaving');
@@ -725,7 +738,14 @@ function positionInsightsTabIndicator(){
 window.addEventListener('resize',positionInsightsTabIndicator);
 
 async function loadInsightsData(){
-  var ws=getWeekISO(_currentWeekStart),we=getWeekISO(addDays(_currentWeekStart,7));
+  var ws=getWeekISO(_insWeekStart),we=getWeekISO(addDays(_insWeekStart,7));
+  ['insHoursAgentChart','insHoursSupplierRows','insHoursHeatmap','insCatDonuts','insActivityChart'].forEach(function(id){
+    var el=document.getElementById(id);if(el)el.innerHTML='<div class="ins-loading-rows"><div class="ins-loading-row"></div><div class="ins-loading-row"></div><div class="ins-loading-row"></div></div>';
+  });
+  ['insHoursTotal','insCatLastUpdated','insCatApprovedPct','insApprovedTotal','insPurchasedTotal'].forEach(function(id){
+    var el=document.getElementById(id);if(el){el.classList.add('loading');el.textContent='';}
+  });
+
   try{
     const[catRes,srcRes]=await Promise.all([
       sb.from('catalog').select('date,status,supplier_name'),
@@ -733,7 +753,6 @@ async function loadInsightsData(){
     ]);
     var cats=catRes.data||[];
 
-    // Catalog last updated
     var lastUpdated='No imports yet',latestT=0,latestStr='';
     cats.forEach(function(r){
       if(!r.date)return;
@@ -747,23 +766,14 @@ async function loadInsightsData(){
       lastUpdated=(+dp[0])+' '+months[+dp[1]-1]+', '+dp[2];
     }
 
-    // Catalog approved %
     var totalCat=cats.length;
     var approvedCat=cats.filter(function(r){return r.status==='Approved';}).length;
     var pctCat=totalCat?Math.round(approvedCat/totalCat*100):0;
 
-    // Sourcing this week
     var src=(srcRes.data||[]).filter(function(r){return r.created_at>=ws&&r.created_at<we;});
     var purchasedRows=src.filter(function(r){return r.purchased;});
     var approvedRows=src.filter(function(r){return (r.sourcing_approvals||[]).some(function(a){return a.status==='approved';});});
 
-    function groupCount(rows){
-      var m={};
-      rows.forEach(function(r){var name=r.supplier_name||'Unknown supplier';m[name]=(m[name]||0)+1;});
-      return Object.keys(m).map(function(k){return{name:k,value:m[k]};}).sort(function(a,b){return b.value-a.value;});
-    }
-
-    // Catalog per-supplier approval %
     var catBySupplier={};
     cats.forEach(function(r){
       var name=r.supplier_name||'Unknown supplier';
@@ -773,34 +783,137 @@ async function loadInsightsData(){
     });
     var catRows=Object.keys(catBySupplier).map(function(k){
       var d=catBySupplier[k],pct=d.total?Math.round(d.approved/d.total*100):0;
-      return{name:k,value:pct,pctLabel:d.approved+'/'+d.total};
-    }).sort(function(a,b){return b.value-a.value;});
+      return{name:k,approved:d.approved,total:d.total,pct:pct};
+    }).sort(function(a,b){return b.total-a.total;});
 
-    // Hours by agent
-    var wb=getWeekBlocks();
+    var insWeekBlocks=_plannerBlocks.filter(function(b){
+      return b.date>=toISO(_insWeekStart)&&b.date<=toISO(addDays(_insWeekStart,6));
+    });
     var byAgent={};
-    wb.forEach(function(b){
+    insWeekBlocks.forEach(function(b){
       var ag=AGENTS.find(function(a){return a.key===b.agent;});
       var name=ag?ag.name:(b.agent||'Unassigned');
       byAgent[name]=(byAgent[name]||0)+(parseFloat(b.hours)||0);
     });
-    var hoursRows=Object.keys(byAgent).map(function(k){return{name:k,value:byAgent[k]};}).sort(function(a,b){return b.value-a.value;});
-    var totalHours=hoursRows.reduce(function(a,r){return a+r.value;},0);
+    var hoursByAgent=Object.keys(byAgent).map(function(k){return{name:k,value:byAgent[k]};}).sort(function(a,b){return b.value-a.value;});
+    var totalHours=hoursByAgent.reduce(function(a,r){return a+r.value;},0);
+
+    var bySupplierHrs={};
+    insWeekBlocks.forEach(function(b){
+      var name=b.supplierName||'Unassigned';
+      bySupplierHrs[name]=(bySupplierHrs[name]||0)+(parseFloat(b.hours)||0);
+    });
+    var hoursBySupplier=Object.keys(bySupplierHrs).map(function(k){return{name:k,value:bySupplierHrs[k]};}).sort(function(a,b){return b.value-a.value;});
+
+    var byDay={};
+    insWeekBlocks.forEach(function(b){byDay[b.date]=(byDay[b.date]||0)+(parseFloat(b.hours)||0);});
+    var dayHours=[];
+    for(var i=0;i<7;i++){var iso=toISO(addDays(_insWeekStart,i));dayHours.push({date:iso,value:byDay[iso]||0});}
+
+    var actMap={};
+    src.forEach(function(r){
+      var name=r.supplier_name||'Unknown supplier';
+      if(!actMap[name])actMap[name]={approved:0,purchased:0};
+      if((r.sourcing_approvals||[]).some(function(a){return a.status==='approved';}))actMap[name].approved++;
+      if(r.purchased)actMap[name].purchased++;
+    });
+    var activityRows=Object.keys(actMap).map(function(k){return{name:k,approved:actMap[k].approved,purchased:actMap[k].purchased};})
+      .sort(function(a,b){return (b.approved+b.purchased)-(a.approved+a.purchased);});
 
     _insightsData={
       lastUpdated:lastUpdated,
       approvedCat:approvedCat,totalCat:totalCat,pctCat:pctCat,catRows:catRows,
-      approvedCount:approvedRows.length,approvedBySupplier:groupCount(approvedRows),
-      purchasedCount:purchasedRows.length,purchasedBySupplier:groupCount(purchasedRows),
-      hoursRows:hoursRows,totalHours:totalHours
+      approvedCount:approvedRows.length,purchasedCount:purchasedRows.length,
+      hoursByAgent:hoursByAgent,totalHours:totalHours,
+      hoursBySupplier:hoursBySupplier,dayHours:dayHours,
+      activityRows:activityRows
     };
     _insightsLoaded=true;
     renderInsightsPanels();
   }catch(e){
-    ['insCatRows','insApprovedRows','insPurchasedRows','insHoursRows'].forEach(function(id){
-      document.getElementById(id).innerHTML='<div class="ins-empty">Failed to load: '+esc(e.message)+'</div>';
+    ['insHoursAgentChart','insCatDonuts','insActivityChart'].forEach(function(id){
+      var el=document.getElementById(id);if(el)el.innerHTML='<div class="ins-empty">Failed to load: '+esc(e.message)+'</div>';
     });
   }
+}
+
+function buildAgentBarChart(rows){
+  if(!rows.length)return '<div class="ins-empty">No sourcing blocks scheduled this week</div>';
+  var w=560,h=170,padL=34,padB=26,padT=10,padR=10;
+  var maxV=Math.max.apply(null,rows.map(function(r){return r.value;}))||1;
+  var n=rows.length,gap=14;
+  var barW=Math.min(64,(w-padL-padR-(n-1)*gap)/n);
+  var chartW=n*barW+(n-1)*gap;
+  var startX=padL+( (w-padL-padR)-chartW )/2;
+  var chartH=h-padT-padB;
+  var bars='',labels='',gridlines='';
+  [0,.25,.5,.75,1].forEach(function(f){
+    var y=padT+chartH-(chartH*f);
+    gridlines+='<line x1="'+padL+'" y1="'+y+'" x2="'+(w-padR)+'" y2="'+y+'" stroke="var(--border2)" stroke-width="1"/>';
+  });
+  rows.forEach(function(r,i){
+    var x=startX+i*(barW+gap);
+    var bh=maxV>0?(r.value/maxV*chartH):0;
+    var y=padT+chartH-bh;
+    bars+='<rect x="'+x+'" y="'+y+'" width="'+barW+'" height="'+bh+'" rx="5" fill="var(--accent)" opacity="0.85"/>';
+    bars+='<text x="'+(x+barW/2)+'" y="'+(y-6)+'" text-anchor="middle" font-size="11" font-weight="700" fill="var(--text2)" font-family="var(--font)">'+r.value+'h</text>';
+    labels+='<text x="'+(x+barW/2)+'" y="'+(h-6)+'" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--text3)" font-family="var(--font)">'+esc(r.name.split(' ')[0])+'</text>';
+  });
+  return '<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:'+h+'px;display:block">'+gridlines+bars+labels+'</svg>';
+}
+
+function buildDayHeatmap(dayHours){
+  var maxV=Math.max.apply(null,dayHours.map(function(d){return d.value;}))||0;
+  var DN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  return '<div class="ins-heatmap">'+dayHours.map(function(d,i){
+    var ratio=maxV>0?d.value/maxV:0;
+    var level=d.value===0?0:(ratio<=.34?1:(ratio<=.67?2:3));
+    return '<div class="ins-heat-cell ins-heat-'+level+'" title="'+esc(DN[i])+': '+d.value+'h">'
+      +'<div class="ins-heat-day">'+DN[i]+'</div>'
+      +'<div class="ins-heat-val">'+(d.value>0?d.value+'h':'\u2014')+'</div>'
+      +'</div>';
+  }).join('')+'</div>';
+}
+
+function buildCatalogDonuts(rows){
+  if(!rows.length)return '<div class="ins-empty">No catalog data available</div>';
+  var top=rows.slice(0,8);
+  return '<div class="ins-donut-grid">'+top.map(function(r){
+    var pct=r.pct,r1=15.9155;
+    var dash=(pct/100*2*Math.PI*r1).toFixed(2);
+    var circ=(2*Math.PI*r1).toFixed(2);
+    return '<div class="ins-donut-card">'
+      +'<svg viewBox="0 0 40 40" class="ins-donut-svg">'
+      +'<circle cx="20" cy="20" r="'+r1+'" fill="none" stroke="var(--border2)" stroke-width="4"/>'
+      +'<circle cx="20" cy="20" r="'+r1+'" fill="none" stroke="var(--accent)" stroke-width="4" stroke-dasharray="'+dash+' '+circ+'" stroke-linecap="round" transform="rotate(-90 20 20)"/>'
+      +'<text x="20" y="23" text-anchor="middle" font-size="9" font-weight="800" fill="var(--text)" font-family="var(--font)">'+pct+'%</text>'
+      +'</svg>'
+      +'<div class="ins-donut-name" title="'+esc(r.name)+'">'+esc(r.name)+'</div>'
+      +'<div class="ins-donut-sub">'+r.approved+'/'+r.total+'</div>'
+      +'</div>';
+  }).join('')+'</div>';
+}
+
+function buildActivityChart(rows){
+  if(!rows.length)return '<div class="ins-empty">No activity this week</div>';
+  var top=rows.slice(0,8);
+  var w=580,rowH=30,padL=8,padR=46,labelW=110;
+  var maxV=Math.max.apply(null,top.map(function(r){return Math.max(r.approved,r.purchased);}))||1;
+  var h=top.length*rowH+10;
+  var barAreaW=w-labelW-padR-padL;
+  var bars='';
+  top.forEach(function(r,i){
+    var y=10+i*rowH;
+    var aw=maxV>0?(r.approved/maxV*barAreaW):0;
+    var pw=maxV>0?(r.purchased/maxV*barAreaW):0;
+    bars+='<text x="'+padL+'" y="'+(y+9)+'" font-size="11" font-weight="600" fill="var(--text2)" font-family="var(--font)">'+esc(r.name.length>16?r.name.slice(0,15)+'\u2026':r.name)+'</text>';
+    bars+='<rect x="'+(padL+labelW)+'" y="'+y+'" width="'+aw+'" height="9" rx="3" fill="var(--accent)" opacity="0.85"/>';
+    bars+='<text x="'+(padL+labelW+aw+6)+'" y="'+(y+8)+'" font-size="10" font-weight="700" fill="var(--text3)" font-family="var(--mono)">'+r.approved+'</text>';
+    bars+='<rect x="'+(padL+labelW)+'" y="'+(y+12)+'" width="'+pw+'" height="9" rx="3" fill="var(--text4)" opacity="0.85"/>';
+    bars+='<text x="'+(padL+labelW+pw+6)+'" y="'+(y+20)+'" font-size="10" font-weight="700" fill="var(--text3)" font-family="var(--mono)">'+r.purchased+'</text>';
+  });
+  return '<div class="ins-activity-legend"><span class="ins-leg-dot" style="background:var(--accent)"></span>Approved<span class="ins-leg-dot" style="background:var(--text4);margin-left:14px"></span>Purchased</div>'
+    +'<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:'+h+'px;display:block">'+bars+'</svg>';
 }
 
 function insRowsHtml(rows,unit,emptyMsg){
@@ -812,7 +925,6 @@ function insRowsHtml(rows,unit,emptyMsg){
       +'<span class="ins-row-name" title="'+esc(r.name)+'">'+esc(r.name)+'</span>'
       +'<div class="ins-row-bar"><div class="ins-row-bar-fill" style="width:'+pct+'%"></div></div>'
       +'<span class="ins-row-val">'+esc(String(r.value))+(unit||'')+'</span>'
-      +(r.pctLabel!=null?'<span class="ins-row-pct">'+r.pctLabel+'</span>':'')
       +'</div>';
   }).join('');
 }
@@ -820,37 +932,28 @@ function insRowsHtml(rows,unit,emptyMsg){
 function renderInsightsPanels(){
   var d=_insightsData;if(!d)return;
 
-  // Catalog tab
+  document.getElementById('insHoursTotal').classList.remove('loading');
+  document.getElementById('insHoursTotal').textContent=d.totalHours+'h';
+  document.getElementById('insHoursAgentChart').innerHTML=buildAgentBarChart(d.hoursByAgent);
+  document.getElementById('insHoursSupplierRows').innerHTML=insRowsHtml(d.hoursBySupplier,'h','No supplier hours recorded');
+  document.getElementById('insHoursHeatmap').innerHTML=buildDayHeatmap(d.dayHours);
+
   document.getElementById('insCatLastUpdated').classList.remove('loading');
   document.getElementById('insCatLastUpdated').textContent=d.lastUpdated;
   document.getElementById('insCatApprovedPct').classList.remove('loading');
   document.getElementById('insCatApprovedPct').textContent=d.pctCat+'%';
   document.getElementById('insCatApprovedSub').textContent=d.approvedCat.toLocaleString()+' of '+d.totalCat.toLocaleString()+' products';
   document.getElementById('insCatProgressFill').style.width=d.pctCat+'%';
-  document.getElementById('insCatRows').className='';
-  document.getElementById('insCatRows').innerHTML=insRowsHtml(
-    d.catRows.map(function(r){return{name:r.name,value:r.value+'%',pctLabel:r.pctLabel,_raw:r.value};}).map(function(r){return{name:r.name,value:r._raw,pctLabel:r.pctLabel+' \u00b7 '+r._raw+'%'};}),
-    '%','No catalog data available'
-  );
+  document.getElementById('insCatDonuts').innerHTML=buildCatalogDonuts(d.catRows);
 
-  // Approved tab
   document.getElementById('insApprovedTotal').classList.remove('loading');
   document.getElementById('insApprovedTotal').textContent=d.approvedCount;
-  document.getElementById('insApprovedRows').className='';
-  document.getElementById('insApprovedRows').innerHTML=insRowsHtml(d.approvedBySupplier,'','No approvals this week');
-
-  // Purchased tab
   document.getElementById('insPurchasedTotal').classList.remove('loading');
   document.getElementById('insPurchasedTotal').textContent=d.purchasedCount;
-  document.getElementById('insPurchasedRows').className='';
-  document.getElementById('insPurchasedRows').innerHTML=insRowsHtml(d.purchasedBySupplier,'','No purchases this week');
+  document.getElementById('insActivityChart').innerHTML=buildActivityChart(d.activityRows);
+}
 
-  // Hours tab
-  document.getElementById('insHoursTotal').classList.remove('loading');
-  document.getElementById('insHoursTotal').textContent=d.totalHours+'h';
-  document.getElementById('insHoursRows').className='';
-  document.getElementById('insHoursRows').innerHTML=insRowsHtml(d.hoursRows.map(function(r){return{name:r.name,value:r.value};}),'h','No sourcing blocks scheduled this week');
-}  
+  
 async function loadAll(){
   pStart();
   try{
