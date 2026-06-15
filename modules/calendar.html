@@ -229,6 +229,11 @@ textarea.form-inp{resize:vertical;min-height:72px}
 .cat-remove-btn:hover{border-color:var(--red-bd);color:var(--red);background:var(--red-bg)}
 .cat-pill-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
 .cat-pill{padding:3px 9px;border-radius:20px;background:var(--accent-bg);border:1px solid var(--accent-bd);color:var(--accent);font-size:10.5px;font-weight:600}
+.note-pill-list{display:flex;flex-direction:column;gap:6px}
+.note-pill{display:flex;align-items:flex-start;gap:7px;padding:8px 11px;border-radius:var(--r-sm);font-size:12.5px;font-weight:600;line-height:1.4;border:1.5px solid}
+.note-pill.must-do{background:var(--green-bg);border-color:var(--green-bd);color:var(--green)}
+.note-pill.must-not-do{background:var(--red-bg);border-color:var(--red-bd);color:var(--red)}
+.note-pill svg{width:13px;height:13px;flex-shrink:0;margin-top:1px}
 .agent-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface2)}
 .agent-toggle-name{font-size:13px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:8px}
 .agent-toggle-switch{position:relative;width:38px;height:22px;border-radius:20px;background:var(--border);cursor:pointer;transition:background .2s;flex-shrink:0}
@@ -468,8 +473,24 @@ textarea.form-inp{resize:vertical;min-height:72px}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add Category
         </button>
-        <div class="form-label" style="margin-bottom:6px">Notes / Instructions</div>
-        <textarea class="form-inp" id="blockNotes" placeholder="e.g. Don&#39;t focus on X brands&#10;e.g. 50% of the sheet checked till row 342"></textarea>
+<div class="form-label" style="margin-bottom:8px;color:var(--green)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><polyline points="20 6 9 17 4 12"/></svg>
+          Must Do
+        </div>
+        <div id="mustDoWrap" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
+        <button class="btn btn-secondary btn-sm" type="button" onclick="addNoteInput('must_do')" style="margin-bottom:14px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Must Do
+        </button>
+        <div class="form-label" style="margin-bottom:8px;color:var(--red)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Must Not Do
+        </div>
+        <div id="mustNotDoWrap" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
+        <button class="btn btn-secondary btn-sm" type="button" onclick="addNoteInput('must_not_do')" style="margin-bottom:0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Must Not Do
+        </button>
       </div>
     </div>
     <div class="modal-footer">
@@ -727,6 +748,7 @@ var _currentWeekStart=getWeekStart(new Date());
 var _editingBlockId=null,_openDrawerBlockId=null,_formHours=2,_formAgent='';
 var _dragBlockId=null,_deleteTargetId=null;
 var _formCategories=[];
+var _formNotesExtra=[];
 
 var AGENTS=[],_allAgents=[];
 var _visibleAgentKeys=null;
@@ -1257,11 +1279,18 @@ _plannerBlocks=(blocksRes.data||[]).map(function(r){
           return subs.length?(cat+' > '+subs.join(', ')):cat;
         });
       }
+var notesExtra=[];
+      if(r.notes_extra){
+        try{notesExtra=Array.isArray(r.notes_extra)?r.notes_extra:JSON.parse(r.notes_extra);}catch(e){notesExtra=[];}
+      }
+      if(!notesExtra.length&&r.notes){
+        notesExtra=r.notes.split('\n').filter(Boolean).map(function(l){return{type:'must_do',text:l};});
+      }
       return{
       id:r.id,agent:r.agent,date:r.date,supplierName:r.supplier_name,supplierId:r.supplier_id||'',
       website:r.website||'',hours:parseFloat(r.hours)||0,time:r.time||'',
       categories:cats,categoryMain:r.category_main||'',categorySub:r.category_sub||'',
-      notes:r.notes||'',createdAt:r.created_at||''
+      notesExtra:notesExtra,notes:r.notes||'',createdAt:r.created_at||''
     };});
     _suppliers=(suppliersRes.data||[]).map(function(r){return{id:r.supplier_id,name:r.name,website:r.website||''};});
     _weeklyBudget=parseFloat(budgetRes.data?.value||0);
@@ -1373,11 +1402,11 @@ function dropBlock(ta,td){
 
 
 function openBlockModal(agentKey,dateStr){
-  _editingBlockId=null;_formHours=2;_formAgent=agentKey||'';_formCategories=[''];_openDrawerBlockId=null;
+  _editingBlockId=null;_formHours=2;_formAgent=agentKey||'';_formCategories=[''];_formNotesExtra=[];_openDrawerBlockId=null;
   document.getElementById('blockModalTitle').textContent='Schedule Sourcing Block';
   document.getElementById('blockModalSub').textContent='Allocate time slot for a soucring agent';
   document.getElementById('supSearch').value='';document.getElementById('blockSupId').value='';
-  document.getElementById('blockWebsite').value='';document.getElementById('blockNotes').value='';
+  document.getElementById('blockWebsite').value='';
   document.getElementById('blockTime').value='09:00';
   var sb=document.getElementById('blockSaveBtn');sb.disabled=false;sb.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>Save Block';
   hideSupDropdown();
@@ -1385,7 +1414,7 @@ function openBlockModal(agentKey,dateStr){
   renderDatePills(dateStr||toISO(new Date()));
   if(agentKey)setTimeout(function(){confirmStep('stepAgent','stepDate');},300);
   document.getElementById('blockDate').value=dateStr||toISO(new Date());
-  renderHours();renderCatInputs();
+  renderHours();renderCatInputs();renderAllNoteInputs();
   resetSteps();document.getElementById('blockOverlay').classList.add('open');
   setTimeout(function(){document.getElementById('supSearch').focus();},200);
 }
@@ -1404,17 +1433,23 @@ function openBlockModalForEdit(blk){
   }else{
     _formCategories=[''];
   }
+if(blk.notesExtra&&blk.notesExtra.length){
+    _formNotesExtra=blk.notesExtra.map(function(n){return{type:n.type,text:n.text};});
+  }else if(blk.notes){
+    _formNotesExtra=blk.notes.split('\n').filter(Boolean).map(function(l){return{type:'must_do',text:l};});
+  }else{
+    _formNotesExtra=[];
+  }
   document.getElementById('blockModalTitle').textContent='Edit Sourcing Block';
   document.getElementById('blockModalSub').textContent='Update block details';
   document.getElementById('supSearch').value=blk.supplierName||'';
   document.getElementById('blockSupId').value=blk.supplierId||'';
   document.getElementById('blockWebsite').value=blk.website||'';
-  document.getElementById('blockNotes').value=blk.notes||'';
   document.getElementById('blockTime').value=blk.time||'09:00';
   hideSupDropdown();
   renderAgentsGrid(blk.agent||'');renderDatePills(blk.date||toISO(new Date()));
   document.getElementById('blockDate').value=blk.date||toISO(new Date());
-  renderHours();renderCatInputs();
+  renderHours();renderCatInputs();renderAllNoteInputs();
   resetSteps();
   ['stepAgent','stepDate','stepSupplier','stepDetails'].forEach(function(id){
     var el=document.getElementById(id);if(el){el.classList.add('completed','editing');el.classList.remove('active');}
@@ -1475,6 +1510,30 @@ function renderCatInputs(){
 }
 window.addCatInput=function(){_formCategories.push('');renderCatInputs();};
 
+function renderNoteInputs(type){
+  var wrapId=type==='must_do'?'mustDoWrap':'mustNotDoWrap';
+  var wrap=document.getElementById(wrapId);wrap.innerHTML='';
+  var items=_formNotesExtra.filter(function(n){return n.type===type;});
+  items.forEach(function(item){
+    var row=document.createElement('div');row.className='cat-input-row';
+    var inp=document.createElement('input');inp.type='text';inp.className='form-inp';
+    inp.placeholder=type==='must_do'?'e.g. Check stock levels before approving':'e.g. Don\'t approve items over \u00a3500';
+    inp.value=item.text;
+    inp.addEventListener('input',function(){item.text=this.value;});
+    row.appendChild(inp);
+    var rm=document.createElement('button');rm.type='button';rm.className='cat-remove-btn';
+    rm.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+    rm.addEventListener('click',function(){
+      var idx=_formNotesExtra.indexOf(item);if(idx>-1)_formNotesExtra.splice(idx,1);
+      renderNoteInputs(type);
+    });
+    row.appendChild(rm);
+    wrap.appendChild(row);
+  });
+}
+function renderAllNoteInputs(){renderNoteInputs('must_do');renderNoteInputs('must_not_do');}
+window.addNoteInput=function(type){_formNotesExtra.push({type:type,text:''});renderNoteInputs(type);};
+  
 window.confirmStep=function(cur,nxt){
   if(cur==='stepAgent'&&!_formAgent){shake(document.getElementById('stepAgent'));toast('Select an agent','error');return;}
   if(cur==='stepDate'&&!document.getElementById('blockDate').value){shake(document.getElementById('stepDate'));toast('Select a date','error');return;}
@@ -1521,11 +1580,12 @@ window.saveBlock=async function(){
   if(!supName){shake(document.getElementById('stepSupplier'));toast('Please enter a supplier name','error');return;}
   if(!_editingBlockId&&_plannerBlocks.filter(function(b){return b.agent===_formAgent&&b.date===date;}).length>=3){toast('Maximum 3 blocks per agent per day','error');return;}
 var cats=_formCategories.map(function(c){return c.trim();}).filter(Boolean);
-  var blk={id:_editingBlockId||uuid(),agent:_formAgent,date:date,supplierName:supName,supplierId:document.getElementById('blockSupId').value,website:document.getElementById('blockWebsite').value||'',hours:_formHours,time:document.getElementById('blockTime').value||'09:00',categories:cats,notes:document.getElementById('blockNotes').value||'',createdAt:new Date().toISOString()};
+  var notesExtra=_formNotesExtra.map(function(n){return{type:n.type,text:n.text.trim()};}).filter(function(n){return n.text;});
+  var blk={id:_editingBlockId||uuid(),agent:_formAgent,date:date,supplierName:supName,supplierId:document.getElementById('blockSupId').value,website:document.getElementById('blockWebsite').value||'',hours:_formHours,time:document.getElementById('blockTime').value||'09:00',categories:cats,notesExtra:notesExtra,createdAt:new Date().toISOString()};
   var sb=document.getElementById('blockSaveBtn');sb.disabled=true;sb.innerHTML='<span class="spinner spin-sm" style="border-top-color:#fff;border-color:rgba(255,255,255,.3)"></span>Saving\u2026';
   pStart();
   try{
-var payload={id:blk.id,agent:blk.agent,date:blk.date,supplier_name:blk.supplierName,supplier_id:blk.supplierId||null,website:blk.website||null,hours:blk.hours,time:blk.time||null,categories:JSON.stringify(blk.categories),notes:blk.notes||null,created_at:blk.createdAt};
+var payload={id:blk.id,agent:blk.agent,date:blk.date,supplier_name:blk.supplierName,supplier_id:blk.supplierId||null,website:blk.website||null,hours:blk.hours,time:blk.time||null,categories:JSON.stringify(blk.categories),notes_extra:JSON.stringify(blk.notesExtra),created_at:blk.createdAt};
   var{error:saveErr}=await window.sb.from('sourcing_calendar').upsert(payload,{onConflict:'id'});
     if(!saveErr){
       if(_editingBlockId){var idx=_plannerBlocks.findIndex(function(b){return b.id===_editingBlockId;});if(idx>-1)_plannerBlocks[idx]=blk;else _plannerBlocks.push(blk);_openDrawerBlockId=blk.id;}
@@ -1573,7 +1633,18 @@ function renderDrawer(blk){
     +'</div>'+'</div>';
   var body='';
   if(blk.website)body+='<div class="det-sec-lbl">Links</div><a href="'+esc(blk.website)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;background:var(--accent-bg);border:1px solid var(--accent-bd);border-radius:var(--r-sm);font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;margin-bottom:14px;word-break:break-all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'+esc(blk.website)+'</a>';
-  if(blk.notes)body+='<div class="det-sec-lbl">Notes &amp; Instructions</div><div class="notes-block"><div class="notes-block-hdr">For '+esc(agent.name)+'</div>'+blk.notes.split('\n').filter(Boolean).map(function(l){return '<div class="note-item"><div class="note-bullet"></div><div class="note-text">'+esc(l)+'</div></div>';}).join('')+'</div>';
+var mustDo=(blk.notesExtra||[]).filter(function(n){return n.type==='must_do';});
+  var mustNotDo=(blk.notesExtra||[]).filter(function(n){return n.type==='must_not_do';});
+  if(mustDo.length||mustNotDo.length){
+    body+='<div class="det-sec-lbl">Notes &amp; Instructions</div><div class="note-pill-list" style="margin-bottom:14px">';
+    mustDo.forEach(function(n){
+      body+='<div class="note-pill must-do"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>'+esc(n.text)+'</span></div>';
+    });
+    mustNotDo.forEach(function(n){
+      body+='<div class="note-pill must-not-do"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg><span>'+esc(n.text)+'</span></div>';
+    });
+    body+='</div>';
+  }
   body+='<div class="det-sec-lbl">Details</div>'+df('Date',fmtLong(blk.date))+df('Start Time',(blk.time||'').replace(/^(\d{1,2}):(\d{2}).*$/,function(m,h,min){var hr=parseInt(h);return (hr%12||12)+':'+min+' '+(hr<12?'AM':'PM');})||'\u2014');
   document.getElementById('drawerBody').innerHTML=body;
   document.getElementById('drawerFoot').innerHTML=
