@@ -1894,7 +1894,7 @@ function splitCSVLine(line){
 }
 
 const COL_MAP={
-  ean:['ean','barcode','gtin','ean13','ean/upc','inner barcode','unit barcode'],
+  ean:['ean','barcode','gtin','ean13','ean/upc','inner barcode','unit barcode', 'barcode'],
   product_name:['product name','productname','name','title','description','product description','product'],
   code:['code','sku','supplier code','product code','item code'],
   cost:['cost','price','unit cost','wholesale price','buy price','piece price','unit'],
@@ -1910,6 +1910,17 @@ function detectMapping(headers){
     const found=headers.find(h=>aliases.includes(h.toLowerCase().trim()));
     map[col]=found||'';
   });
+  // If ean didn't map but there's a BARCODE column, use it for EAN
+  // If barcode didn't map but EAN column exists, use it for barcode
+  const barcodeCol=headers.find(h=>h.toLowerCase().trim()==='barcode'||h.toLowerCase().trim()==='outer barcode');
+  const eanCol=headers.find(h=>h.toLowerCase().trim()==='ean'||h.toLowerCase().trim()==='ean13'||h.toLowerCase().trim()==='gtin');
+  if(!map['ean']&&barcodeCol) map['ean']=barcodeCol;
+  if(!map['barcode']&&eanCol) map['barcode']=eanCol;
+  // Never let ean and barcode map to the same column — barcode wins the tie, ean looks elsewhere
+  if(map['ean']&&map['barcode']&&map['ean']===map['barcode']){
+    const fallback=headers.find(h=>['ean','ean13','gtin'].includes(h.toLowerCase().trim()));
+    map['ean']=fallback||'';
+  }
   return map;
 }
 
