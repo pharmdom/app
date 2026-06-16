@@ -487,7 +487,15 @@ textarea.form-inp{resize:vertical;min-height:72px}
 .tour-btn-next:hover{background:var(--accent-l)}
 .tour-btn-finish{background:var(--green);border-color:var(--green);color:#fff}
 .tour-btn-finish:hover{filter:brightness(1.08)}
+.guide-modal-hero{transition:padding .25s ease,max-height .25s ease}
+.guide-modal-hero.collapsed{padding:14px 28px 14px}
+.guide-modal-hero.collapsed .guide-hero-badge{display:none}
+.guide-modal-hero.collapsed .guide-hero-sub{display:none}
+.guide-modal-hero.collapsed .guide-hero-actions{display:none}
+.guide-modal-hero.collapsed .guide-hero-title{font-size:14px;font-weight:700;margin-bottom:0;letter-spacing:0}
+.guide-modal-hero.collapsed .guide-hero-badge{margin-bottom:0}
 @media(max-width:600px){.guide-cards{grid-template-columns:1fr}.guide-modal{max-height:96vh}.tour-card{width:92vw}}
+  
 </style>
 
 <div class="pbar" id="pbar"></div>
@@ -2356,38 +2364,45 @@ var TOUR_STEPS=[
   }
 ];
 
-function openGuide(){
+window.openGuide=function(){
   document.getElementById('guideOverlay').classList.add('open');
-}
-function closeGuide(){
+};
+window.closeGuide=function(){
   document.getElementById('guideOverlay').classList.remove('open');
   if(_tourActive)endTour();
-}
+};
 
-function startTour(){
-  closeGuide();
+window.startTour=function(){
+  window.closeGuide();
   _tourActive=true;
   _tourStep=0;
-  document.getElementById('tourHighlight').style.display='block';
-  document.getElementById('tourCard').style.display='block';
+  var hl=document.getElementById('tourHighlight');
+  var card=document.getElementById('tourCard');
+  hl.style.display='block';
+  hl.style.opacity='1';
+  card.style.display='block';
+  card.style.opacity='1';
   renderTourStep();
-}
+};
 
 function endTour(){
   _tourActive=false;
-  document.getElementById('tourHighlight').style.display='none';
-  document.getElementById('tourCard').style.display='none';
+  var hl=document.getElementById('tourHighlight');
+  var card=document.getElementById('tourCard');
+  hl.style.display='none';
+  card.style.display='none';
   document.body.style.overflow='';
 }
+window.endTour=endTour;
 
-function tourNext(){
+window.tourNext=function(){
   if(_tourStep<TOUR_STEPS.length-1){
     _tourStep++;
     renderTourStep();
   }else{
     endTour();
   }
-}
+};
 
 function renderTourStep(){
   var step=TOUR_STEPS[_tourStep];
@@ -2456,6 +2471,24 @@ function renderTourStep(){
     nb.className='tour-btn '+(isLast?'tour-btn-finish':'tour-btn-next');
   },320);
 }
+
+// collapse guide hero on scroll
+(function(){
+  var guideBody=document.getElementById('guideOverlay');
+  if(guideBody){
+    var bodyEl=guideBody.querySelector('.guide-body');
+    var heroEl=guideBody.querySelector('.guide-modal-hero');
+    if(bodyEl&&heroEl){
+      bodyEl.addEventListener('scroll',function(){
+        if(bodyEl.scrollTop>40){
+          heroEl.classList.add('collapsed');
+        }else{
+          heroEl.classList.remove('collapsed');
+        }
+      });
+    }
+  }
+})();
 
 // keyboard shortcut
 document.addEventListener('keydown',function(e){
