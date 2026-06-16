@@ -1800,7 +1800,7 @@ function handleFileSelect(file){
   if(ext==='csv'){
     const reader=new FileReader();
     reader.onload=e=>parseCSV(e.target.result);
-    reader.readAsText(file);
+    reader.readAsText(file,'latin1');
   }else if(ext==='xlsx'||ext==='xls'){
     if(!window.XLSX){showImportError('XLSX library not loaded');return;}
     const reader=new FileReader();
@@ -1857,7 +1857,7 @@ function selectHeaderRow(rowIdx){
   if(sel)sel.style.background='var(--accent-bg)';
 
   const lines=_parsedLines;
-  const headers=splitCSVLine(lines[rowIdx]).map(h=>h.trim().replace(/^"|"$/g,''));
+  const headers=splitCSVLine(lines[rowIdx]).map(h=>h.trim().replace(/^"|"$/g,'').replace(/\xa3/g,'£'));
 
   let currentCategory='';
   const rows=[];
@@ -1870,7 +1870,7 @@ function selectHeaderRow(rowIdx){
       return;
     }
     const obj={};
-    headers.forEach((h,i)=>obj[h]=(vals[i]||'').trim().replace(/^"|"$/g,''));
+    headers.forEach((h,i)=>obj[h]=(vals[i]||'').trim().replace(/^"|"$/g,'').replace(/\xa3/g,'£'));
     if(currentCategory&&!obj['category']&&!obj['Category']&&!obj['CATEGORY']){
       obj['__detectedCategory']=currentCategory;
     }
@@ -1897,7 +1897,7 @@ const COL_MAP={
   ean:['ean','barcode','gtin','ean13','ean/upc','inner barcode','unit barcode', 'barcode'],
   product_name:['product name','productname','name','title','description','product description','product'],
   code:['code','sku','supplier code','product code','item code'],
-  cost:['cost','price','unit cost','wholesale price','buy price','piece price','unit'],
+  cost:['cost','price','unit cost','wholesale price','buy price','piece price','unit', 'PIECE PRICE £'],
   case_size:['case','case size','pack size','pack','qty per case','case qty','available'],
   category:['category','cat','type','department'],
   barcode:['barcode','outer barcode','internal barcode'],
