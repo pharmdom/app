@@ -185,6 +185,23 @@ html, body {
 
 @media (max-width: 900px) { .kanban-wrapper { overflow-x: auto; overflow-y: hidden; } .kanban-column { min-width: 240px; flex-shrink: 0; } .drawer { width: 92vw; } }
 @media (max-width: 640px) { .page-wrapper { padding: 8px; } .drawer { width: 100%; max-width: 100%; } .drawer-kpi-row { grid-template-columns: repeat(2,1fr); } .info-grid { grid-template-columns: 1fr; } .platform-grid { grid-template-columns: repeat(2,1fr); } .kanban-column { min-width: 220px; flex-shrink: 0; } .table-modal { width: 98vw; height: 85vh; border-radius: 10px; } }
+/* ══ ASIN MULTI-FIELD ══ */
+.asin-field-wrap{display:flex;flex-direction:column;gap:6px}
+.asin-row{display:flex;align-items:center;gap:6px}
+.asin-input{flex:1;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;font-family:'SF Mono','Fira Code',monospace;color:#0f172a;background:#fff;outline:none;transition:border-color .15s;letter-spacing:.3px}
+.asin-input:focus{border-color:#2563eb}
+.asin-check-btn{width:30px;height:30px;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.asin-check-btn:hover{border-color:#94a3b8}
+.asin-check-btn.checked{background:#f0fdf4;border-color:#86efac}
+.asin-check-btn.checked svg{stroke:#16a34a}
+.asin-check-btn svg{width:13px;height:13px;stroke:#cbd5e1;transition:stroke .15s}
+.asin-remove-btn{width:26px;height:26px;border-radius:6px;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#cbd5e1;transition:color .15s}
+.asin-remove-btn:hover{color:#dc2626}
+.asin-remove-btn svg{width:11px;height:11px}
+.asin-add-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1.5px dashed #e2e8f0;border-radius:7px;background:transparent;font-size:11px;font-weight:600;font-family:inherit;color:#94a3b8;cursor:pointer;transition:all .15s;margin-top:2px}
+.asin-add-btn:hover{border-color:#2563eb;color:#2563eb}
+.asin-add-btn svg{width:11px;height:11px}
+  
 </style>
 
 <div class="page-wrapper">
@@ -626,7 +643,7 @@ function renderDrawer(row) {
     body += sec('Listing Info')
       + '<div class="info-grid">'
       + editCard(id,'listing_name',row.listing_name||'','text','Listing Name')
-      + editCard(id,'asins',row.asins||'','text','ASINs')
+      + renderAsinField(id, row.asins, row.asins_status)
       + editCard(id,'supplier_name',row.supplier_name||'','text','Supplier Name')
       + editCard(id,'code',row.code||'','text','EAN')
       + (stage==='ready'||stage==='listed' ? boolCard(id,'warehouse',row.warehouse,'Warehouse Notified') : '')
@@ -918,7 +935,121 @@ function showToast(msg, type) {
   setTimeout(() => t.remove(), type==='info' ? 10000 : 2500);
 }
 
-/* ── EXPOSE ── */
+/* ── ASIN MULTI-FIELD ── */
+function renderAsinField(id, asinsRaw, asinsStatus) {
+  const asins = (asinsRaw || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (!asins.length) asins.push('');
+  const status = asinsStatus || {};
+
+  let html = '<div class="info-card" style="grid-column:1/-1"><label>ASINs</label><div class="asin-field-wrap" id="asinFieldWrap_' + ea(id) + '">';
+  asins.forEach((asin, i) => {
+    const checked = !!status[asin];
+    html += '<div class="asin-row" data-idx="' + i + '">'
+      + '<input class="asin-input" type="text" value="' + esc(asin) + '" placeholder="e.g. B001ABCDEF"'
+      + ' onblur="saveAsins(\'' + ea(id) + '\')"'
+      + ' oninput="updateAsinInput(\'' + ea(id) + '\',' + i + ',this.value)">'
+      + '<button class="asin-check-btn' + (checked ? ' checked' : '') + '" title="' + (checked ? 'Reviewed' : 'Mark as reviewed') + '" onclick="toggleAsinCheck(\'' + ea(id) + '\',' + i + ')">'
+      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+      + '</button>'
+      + '<button class="asin-remove-btn" title="Remove" onclick="removeAsin(\'' + ea(id) + '\',' + i + ')">'
+      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+      + '</button>'
+      + '</div>';
+  });
+  html += '</div>'
+    + '<button class="asin-add-btn" onclick="addAsin(\'' + ea(id) + '\')">'
+    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+    + 'Add ASIN</button></div>';
+  return html;
+}
+
+function getAsinList(id) {
+  const wrap = document.getElementById('asinFieldWrap_' + id);
+  if (!wrap) return [];
+  return Array.from(wrap.querySelectorAll('.asin-input')).map(inp => inp.value.trim()).filter(Boolean);
+}
+
+function updateAsinInput(id, idx, value) {
+  const row = allData.find(p => p.opportunity_id === id);
+  if (!row) return;
+  const asins = (row.asins || '').split(',').map(s => s.trim()).filter(Boolean);
+  while (asins.length <= idx) asins.push('');
+  asins[idx] = value;
+  row.asins = asins.join(', ');
+}
+
+window.saveAsins = async function(id) {
+  const row = allData.find(p => p.opportunity_id === id);
+  if (!row) return;
+  const newAsins = getAsinList(id).join(', ');
+  row.asins = newAsins;
+  const { error } = await sb.from('listing').update({ asins: newAsins, last_updated: new Date().toISOString() }).eq('opportunity_id', id);
+  if (error) { showToast('Failed to save ASINs', 'error'); return; }
+  showToast('Saved', 'success');
+  refreshCard(id);
+};
+
+window.addAsin = function(id) {
+  const row = allData.find(p => p.opportunity_id === id);
+  if (!row) return;
+  const asins = (row.asins || '').split(',').map(s => s.trim()).filter(Boolean);
+  asins.push('');
+  row.asins = asins.join(', ');
+  const wrap = document.getElementById('asinFieldWrap_' + id);
+  if (!wrap) return;
+  const status = row.asins_status || {};
+  const i = asins.length - 1;
+  const div = document.createElement('div');
+  div.className = 'asin-row'; div.dataset.idx = i;
+  div.innerHTML = '<input class="asin-input" type="text" value="" placeholder="e.g. B001ABCDEF"'
+    + ' onblur="saveAsins(\'' + ea(id) + '\')"'
+    + ' oninput="updateAsinInput(\'' + ea(id) + '\',' + i + ',this.value)">'
+    + '<button class="asin-check-btn" title="Mark as reviewed" onclick="toggleAsinCheck(\'' + ea(id) + '\',' + i + ')">'
+    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+    + '</button>'
+    + '<button class="asin-remove-btn" title="Remove" onclick="removeAsin(\'' + ea(id) + '\',' + i + ')">'
+    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+    + '</button>';
+  wrap.appendChild(div);
+  div.querySelector('.asin-input').focus();
+};
+
+window.removeAsin = async function(id, idx) {
+  const row = allData.find(p => p.opportunity_id === id);
+  if (!row) return;
+  const asins = (row.asins || '').split(',').map(s => s.trim()).filter(Boolean);
+  const removed = asins.splice(idx, 1)[0];
+  row.asins = asins.join(', ');
+  const status = { ...(row.asins_status || {}) };
+  delete status[removed];
+  row.asins_status = status;
+  const { error } = await sb.from('listing').update({ asins: row.asins, asins_status: status, last_updated: new Date().toISOString() }).eq('opportunity_id', id);
+  if (error) { showToast('Failed to remove ASIN', 'error'); return; }
+  showToast('Removed', 'success');
+  renderDrawer(row);
+};
+
+window.toggleAsinCheck = async function(id, idx) {
+  const row = allData.find(p => p.opportunity_id === id);
+  if (!row) return;
+  const wrap = document.getElementById('asinFieldWrap_' + id);
+  if (!wrap) return;
+  const inputs = wrap.querySelectorAll('.asin-input');
+  const asin = inputs[idx] ? inputs[idx].value.trim() : '';
+  if (!asin) { showToast('Enter an ASIN first', 'error'); return; }
+  const status = { ...(row.asins_status || {}) };
+  status[asin] = !status[asin];
+  row.asins_status = status;
+  const { error } = await sb.from('listing').update({ asins_status: status, last_updated: new Date().toISOString() }).eq('opportunity_id', id);
+  if (error) { showToast('Failed to save', 'error'); return; }
+  const btn = wrap.querySelectorAll('.asin-check-btn')[idx];
+  if (btn) {
+    btn.classList.toggle('checked', !!status[asin]);
+    btn.title = status[asin] ? 'Reviewed' : 'Mark as reviewed';
+  }
+};
+  
+/* ── Global EXPOSE ── */
 window.toggleFilters   = toggleFilters;
 window.applyFilters    = applyFilters;
 window.clearFilters    = clearFilters;
