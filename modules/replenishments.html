@@ -352,7 +352,7 @@ body{overflow:hidden}
       </button>
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="searchInput" placeholder="Search SKU, name or EAN…" oninput="clearTimeout(window._rst);window._rst=setTimeout(render,150)">
+        <input type="text" id="searchInput" placeholder="Search SKU, name or EAN…" onkeydown="if(event.key==='Enter')render()" onblur="render()">
       </div>
     </div>
   </nav>
@@ -836,7 +836,13 @@ let actioned = ALL.filter(x => !!acts[x.s]);
     x.s.toLowerCase().includes(q) || x.t.toLowerCase().includes(q)
   );
   if (bucketSort === 'recent') {
-    actioned.sort((a, b) => actsOrder.indexOf(a.s) - actsOrder.indexOf(b.s));
+    actioned.sort((a, b) => {
+      const ai = actsOrder.indexOf(a.s);
+      const bi = actsOrder.indexOf(b.s);
+      const an = ai === -1 ? Infinity : ai;
+      const bn = bi === -1 ? Infinity : bi;
+      return an - bn;
+    });
   } else if (bucketSort === 'days') {
     actioned.sort((a, b) => a.d - b.d);
   } else {
@@ -1105,13 +1111,21 @@ function actAndAdvance(sku, key) {
   saveActionToDB(sku, key, notes[sku] || '');
   render();
 }
+
+
 function undoAct(sku) {
   delete acts[sku];
   actsOrder = actsOrder.filter(s => s !== sku);
   persist();
   saveActionToDB(sku, null, null);
+  // Find where this SKU lands in the pending list after undo, then jump to it
+  const pending = ALL.filter(x => !acts[x.s]);
+  pending.sort((a, b) => a.d - b.d);
+  const idx = pending.findIndex(x => x.s === sku);
+  if (idx !== -1) queueIdx = idx;
   render();
 }
+  
   
 function queueNav(dir) {
   const pending = ALL.filter(x => !acts[x.s]);
