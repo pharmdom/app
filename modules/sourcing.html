@@ -1580,11 +1580,13 @@ function minimizeModal() {
 function _syncMiniCard() {
   // Use window._sourcingStartTime as the authoritative source so it works
   // even after page navigation wipes the sourcing closure's startTime
-  const t = startTime || window._sourcingStartTime;
-  if (t) {
+const t = startTime || window._sourcingStartTime;
+  if (t && !isNaN(t)) {
     const s = Math.floor((Date.now() - t) / 1000);
-    const timerStr = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
-    document.getElementById('miniCardTimer').textContent = timerStr;
+    if (!isNaN(s) && s >= 0) {
+      const timerStr = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+      document.getElementById('miniCardTimer').textContent = timerStr;
+    }
   }
 
   // Try to get the name live from the form; fall back to the cached value
@@ -1620,8 +1622,10 @@ function maximizeModal() {
     startTimer(); // ← replaces the inline setInterval
   } else {
     window.loadModule('sourcing');
-    setTimeout(() => {
+setTimeout(() => {
       clearInterval(timerInterval);
+      // Restore startTime into this new closure before starting the timer
+      if (window._sourcingStartTime) startTime = window._sourcingStartTime;
       buildAddForm();
       if (window._sourcingFormValues) {
         _restoreFormValues(window._sourcingFormValues);
@@ -1631,7 +1635,7 @@ function maximizeModal() {
         modal.classList.add('open');
         startTimer();
       }
-}, 800);
+    }, 800);
   }
 }  
 
