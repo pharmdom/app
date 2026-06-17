@@ -1311,13 +1311,6 @@ function openAddModal() {
   startTime = Date.now(); startTimer(); buildAddForm();
 }
 
-function closeModal() {
-  document.getElementById('addModal').classList.remove('open');
-  document.getElementById('modalMiniCard').style.display = 'none';
-  document.title = '⏱ Sourcing — Adding Product';
-  clearInterval(timerInterval);
-  clearInterval(_miniTimerInterval);
-}
 
 function startTimer() {
   clearInterval(timerInterval);
@@ -1558,60 +1551,56 @@ function removeToast(id) { document.getElementById(id)?.remove(); }
 let _miniTimerInterval = null;
 
 function minimizeModal() {
-  clearInterval(timerInterval); // stop the modal timer first
+  clearInterval(timerInterval);
   document.getElementById('addModal').classList.remove('open');
   document.getElementById('modalMiniCard').style.display = 'block';
-  document.title = '⏱ Sourcing  — Adding Product';
+  document.title = '⏱ Sourcing — Adding Product';
   _syncMiniCard();
   clearInterval(_miniTimerInterval);
   _miniTimerInterval = setInterval(_syncMiniCard, 1000);
 }
 
 function _syncMiniCard() {
-  // Timer
+  // Only update the mini card timer — never touch #timerText
   if (startTime) {
     const s = Math.floor((Date.now() - startTime) / 1000);
     const timerStr = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
     document.getElementById('miniCardTimer').textContent = timerStr;
-    document.getElementById('timerText').textContent = timerStr;
   }
   // Product name preview
   const nameEl = document.getElementById('f_productName');
   const nameVal = nameEl ? nameEl.value.trim() : '';
   const miniName = document.getElementById('miniCardName');
   const miniNameText = document.getElementById('miniCardNameText');
-  if (nameVal) {
-    miniName.style.display = 'block';
-    miniNameText.textContent = nameVal;
-  } else {
-    miniName.style.display = 'none';
+  if (miniName && miniNameText) {
+    if (nameVal) { miniName.style.display = 'block'; miniNameText.textContent = nameVal; }
+    else { miniName.style.display = 'none'; }
   }
 }
 
 function maximizeModal() {
   clearInterval(_miniTimerInterval);
+  clearInterval(timerInterval);
+  _miniTimerInterval = null;
   document.getElementById('modalMiniCard').style.display = 'none';
   document.title = 'Pharm & Dom';
 
   if (document.getElementById('addModal')) {
-    // Sourcing is already loaded — just reopen and rebuild the form
     buildAddForm();
     document.getElementById('addModal').classList.add('open');
-    clearInterval(timerInterval);
     timerInterval = setInterval(() => {
       const s = Math.floor((Date.now() - startTime) / 1000);
       const el = document.getElementById('timerText');
       if (el) el.textContent = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
     }, 1000);
   } else {
-    // Sourcing not loaded — navigate back, then reopen with rebuilt form
     window.loadModule('sourcing');
     setTimeout(() => {
+      clearInterval(timerInterval);
       buildAddForm();
       const modal = document.getElementById('addModal');
       if (modal) {
         modal.classList.add('open');
-        clearInterval(timerInterval);
         timerInterval = setInterval(() => {
           const s = Math.floor((Date.now() - startTime) / 1000);
           const el = document.getElementById('timerText');
@@ -1624,10 +1613,23 @@ function maximizeModal() {
 
 function cancelMinimizedModal() {
   clearInterval(_miniTimerInterval);
-  document.getElementById('modalMiniCard').style.display = 'none';
-  document.title = '⏱ Sourcing  — Adding Product';
   clearInterval(timerInterval);
+  _miniTimerInterval = null;
+  document.getElementById('modalMiniCard').style.display = 'none';
+  document.title = 'Pharm & Dom';
 }
+
+function closeModal() {
+  clearInterval(timerInterval);
+  clearInterval(_miniTimerInterval);
+  _miniTimerInterval = null;
+  document.getElementById('addModal').classList.remove('open');
+  document.getElementById('modalMiniCard').style.display = 'none';
+  document.title = 'Pharm & Dom';
+}
+
+
+
     
 /* ══ EXPOSE GLOBALS ══ */
 window.minimizeModal = minimizeModal;
