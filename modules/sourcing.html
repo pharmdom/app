@@ -632,6 +632,11 @@ async function init() {
     fetchUsers(),
   ]);
   startRealtime();
+
+  // Restore minimized form state if returning from another page
+  if (window._sourcingStartTime) {
+    startTime = window._sourcingStartTime;
+  }
 }
 
 /* ══ STATS ══ */
@@ -1308,7 +1313,9 @@ function showDeleteConfirm(id) {
 /* ══ ADD MODAL ══ */
 function openAddModal() {
   document.getElementById('addModal').classList.add('open');
-  startTime = Date.now(); startTimer(); buildAddForm();
+  startTime = Date.now();
+  window._sourcingStartTime = startTime;
+  startTimer(); buildAddForm();
 }
 
 
@@ -1555,6 +1562,11 @@ function minimizeModal() {
   document.getElementById('addModal').classList.remove('open');
   document.getElementById('modalMiniCard').style.display = 'block';
   document.title = '⏱ Sourcing — Adding Product';
+
+  // Persist form state and startTime globally so they survive page navigation
+  window._sourcingStartTime = startTime;
+  window._sourcingFormValues = _saveFormValues();
+
   _syncMiniCard();
   clearInterval(_miniTimerInterval);
   _miniTimerInterval = setInterval(_syncMiniCard, 1000);
@@ -1596,15 +1608,16 @@ function maximizeModal() {
     setTimeout(() => {
       clearInterval(timerInterval);
       buildAddForm();
+      if (window._sourcingFormValues) {
+        _restoreFormValues(window._sourcingFormValues);
+      }
       const modal = document.getElementById('addModal');
       if (modal) {
         modal.classList.add('open');
-        startTimer(); // ← replaces the inline setInterval
+        startTimer();
       }
-    }, 400);
+    }, 800);
   }
-}
-
 
 function _saveFormValues() {
   const ids = [
@@ -1651,19 +1664,23 @@ function _restoreFormValues(vals) {
   applyYNColors();
 }
 
-function cancelMinimizedModal() {
-  clearInterval(_miniTimerInterval);
-  clearInterval(timerInterval);
-  _miniTimerInterval = null;
-  document.getElementById('modalMiniCard').style.display = 'none';
-  document.title = 'Pharm & Dom';
-}
-
 function closeModal() {
   clearInterval(timerInterval);
   clearInterval(_miniTimerInterval);
   _miniTimerInterval = null;
+  window._sourcingStartTime = null;
+  window._sourcingFormValues = null;
   document.getElementById('addModal').classList.remove('open');
+  document.getElementById('modalMiniCard').style.display = 'none';
+  document.title = 'Pharm & Dom';
+}
+
+function cancelMinimizedModal() {
+  clearInterval(_miniTimerInterval);
+  clearInterval(timerInterval);
+  _miniTimerInterval = null;
+  window._sourcingStartTime = null;
+  window._sourcingFormValues = null;
   document.getElementById('modalMiniCard').style.display = 'none';
   document.title = 'Pharm & Dom';
 }
@@ -1694,6 +1711,7 @@ window.toggleDatePicker = toggleDatePicker;
 window.setDatePreset = setDatePreset;
 window.onCustomDateChange = onCustomDateChange;
 
+   
 init();
 })();
   
