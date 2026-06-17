@@ -383,6 +383,9 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
+  
   <script>
   // ── SUPABASE ──
   const SUPABASE_URL  = 'https://mbmgcqknbajwndiveewf.supabase.co';
@@ -565,6 +568,7 @@
     return `<div class="nav-item" id="nav-${key}" onclick="(${onClick.toString()})()">${icon}<span class="nav-item-label">${label}</span></div>`;
   }
 
+  
   function navGroup(id, label, icon, childrenArr) {
     return `<div class="nav-group">
       <div class="nav-group-header" onclick="toggleGroup('${id}')" id="group-header-${id}">
@@ -738,6 +742,7 @@
 
   <div id="modalMiniCard" style="
   display:none;position:fixed;bottom:20px;right:20px;z-index:9999;
+  cursor:grab;
   background:#fff;border-radius:14px;border:1px solid #e2e8f0;
   box-shadow:0 8px 32px rgba(15,23,42,.16),0 2px 8px rgba(15,23,42,.08);
   width:260px;overflow:hidden;
@@ -759,5 +764,79 @@
     <div id="miniCardNameText" style="font-size:12.5px;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
   </div>
 </div>
+
+
+
+
+<script>
+(function() {
+  function initMiniCardDrag() {
+    const card = document.getElementById('modalMiniCard');
+    if (!card) return;
+    let dragging = false, ox = 0, oy = 0;
+
+    card.addEventListener('mousedown', e => {
+      if (e.target.closest('button')) return;
+      dragging = true;
+      card.style.cursor = 'grabbing';
+      const rect = card.getBoundingClientRect();
+      card.style.left   = rect.left + 'px';
+      card.style.bottom = 'auto';
+      card.style.right  = 'auto';
+      card.style.top    = rect.top + 'px';
+      ox = e.clientX - rect.left;
+      oy = e.clientY - rect.top;
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      let x = e.clientX - ox;
+      let y = e.clientY - oy;
+      x = Math.max(0, Math.min(window.innerWidth  - card.offsetWidth,  x));
+      y = Math.max(0, Math.min(window.innerHeight - card.offsetHeight, y));
+      card.style.left = x + 'px';
+      card.style.top  = y + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      card.style.cursor = 'grab';
+    });
+
+    card.addEventListener('touchstart', e => {
+      if (e.target.closest('button')) return;
+      const t = e.touches[0];
+      const rect = card.getBoundingClientRect();
+      card.style.left   = rect.left + 'px';
+      card.style.bottom = 'auto';
+      card.style.right  = 'auto';
+      card.style.top    = rect.top + 'px';
+      ox = t.clientX - rect.left;
+      oy = t.clientY - rect.top;
+    }, { passive: true });
+
+    card.addEventListener('touchmove', e => {
+      const t = e.touches[0];
+      let x = t.clientX - ox;
+      let y = t.clientY - oy;
+      x = Math.max(0, Math.min(window.innerWidth  - card.offsetWidth,  x));
+      y = Math.max(0, Math.min(window.innerHeight - card.offsetHeight, y));
+      card.style.left = x + 'px';
+      card.style.top  = y + 'px';
+      e.preventDefault();
+    }, { passive: false });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMiniCardDrag);
+  } else {
+    initMiniCardDrag();
+  }
+})();
+</script>
+
+
 </body>
 </html>
