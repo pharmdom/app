@@ -304,6 +304,7 @@ body{overflow:hidden}
   border-radius:50%;animation:spin .65s linear infinite;width:16px;height:16px;}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@media(min-width:640px){.upload-body{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}}
 </style>
 
 <div class="toasts" id="toasts"></div>
@@ -360,26 +361,49 @@ body{overflow:hidden}
   <!-- Upload zone -->
   <div class="upload-zone" id="uploadZone">
     <div class="upload-card">
-      <div class="upload-card-header">
-        <div class="upload-card-title">Upload this week's processed replenishment file</div>
+    <div class="upload-card-header">
+        <div class="upload-card-title">Upload this week's Veeqo forecast files</div>
+        <div style="font-size:12px;color:var(--text4);margin-top:3px;line-height:1.5">All 3 files required — clearance lines and SKU mapping are handled automatically</div>
       </div>
-     <div class="upload-body">
+      <div class="upload-body">
         <div class="upload-slot">
-          <div class="upload-slot-label"><span>File</span> Processed replenishment CSV (from Claude)</div>
-          <div class="upload-drop" id="drop1" ondragover="dragOver(event,this)" ondragleave="dragLeave(this)" ondrop="dropFile(event,'main')">
-            <input type="file" accept=".csv,.tsv,.txt" onchange="fileChosen(this,'main')">
+          <div class="upload-slot-label"><span>File 1</span> All Forecast</div>
+          <div class="upload-drop" id="drop1" ondragover="dragOver(event,1)" ondragleave="dragLeave(this)" ondrop="dropFile(event,1)">
+            <input type="file" accept=".csv,.tsv,.txt" onchange="fileChosen(this,1)">
             <div class="upload-drop-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
             </div>
             <div class="upload-drop-text" id="drop1text">Drop CSV here or click to browse</div>
-            <div class="upload-drop-hint">replenishment_processed…</div>
+            <div class="upload-drop-hint">reports_products_export…</div>
           </div>
         </div>
-      </div>      
+        <div class="upload-slot">
+          <div class="upload-slot-label"><span>File 2</span> Clearance Forecast</div>
+          <div class="upload-drop" id="drop2" ondragover="dragOver(event,2)" ondragleave="dragLeave(this)" ondrop="dropFile(event,2)">
+            <input type="file" accept=".csv,.tsv,.txt" onchange="fileChosen(this,2)">
+            <div class="upload-drop-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
+            </div>
+            <div class="upload-drop-text" id="drop2text">Drop CSV here or click to browse</div>
+            <div class="upload-drop-hint">clearance_forecast…</div>
+          </div>
+        </div>
+        <div class="upload-slot">
+          <div class="upload-slot-label"><span>File 3</span> All SKUs</div>
+          <div class="upload-drop" id="drop3" ondragover="dragOver(event,3)" ondragleave="dragLeave(this)" ondrop="dropFile(event,3)">
+            <input type="file" accept=".csv,.tsv,.txt" onchange="fileChosen(this,3)">
+            <div class="upload-drop-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
+            </div>
+            <div class="upload-drop-text" id="drop3text">Drop CSV here or click to browse</div>
+            <div class="upload-drop-hint">sellables_export…</div>
+          </div>
+        </div>
+      </div>
       <div class="upload-card-footer">
         <div class="upload-rules">
-          Pre-processed by Claude · Clearance excluded · Min 2/day · Sorted by urgency
-        </div>
+          Clearance excluded automatically · SKUs mapped from File 3 · Images pulled in
+        </div>        
         <button class="btn btn-primary" id="processBtn" disabled onclick="processFiles()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           Generate List
@@ -456,7 +480,9 @@ let notes = {};
 let actsOrder = [];
 let sortK = 'days';
 let sortA = 1;
-let rawMain = null;
+let rawF1 = null;
+let rawF2 = null;
+let rawF3 = null;
 let confirmFn = null;
 let queueIdx = 0;
 let bucketTab = 'all';
@@ -562,6 +588,12 @@ function parseCSV(text) {
   return rows;
 }
 
+
+// ── STRIP HTML TAGS FROM TITLE ──
+function stripHtml(str) {
+  return (str || '').replace(/<[^>]*>/gi, '').trim();
+}
+  
 function splitLine(line, delim) {
   const result = [];
   let cur = '';
@@ -577,26 +609,32 @@ function splitLine(line, delim) {
 }
 
 // ── FILE HANDLING ──
-function dragOver(e, el) { e.preventDefault(); el.classList.add('drag-over'); }
+function dragOver(e, slot) { e.preventDefault(); document.getElementById('drop' + slot).classList.add('drag-over'); }
 function dragLeave(el) { el.classList.remove('drag-over'); }
-function dropFile(e, type) {
+
+  
+function dropFile(e, slot) {
   e.preventDefault();
-  document.getElementById('drop1').classList.remove('drag-over');
+  document.getElementById('drop' + slot).classList.remove('drag-over');
   const file = e.dataTransfer.files[0];
-  if (file) loadFile(file);
+  if (file) loadFile(file, slot);
 }
-function fileChosen(input, type) {
-  if (input.files[0]) loadFile(input.files[0]);
+function fileChosen(input, slot) {
+  if (input.files[0]) loadFile(input.files[0], slot);
 }
-function loadFile(file) {
+function loadFile(file, slot) {
   const reader = new FileReader();
   reader.onload = e => {
-    rawMain = parseCSV(e.target.result);
-    markDrop('drop1','drop1text',file.name);
-    document.getElementById('processBtn').disabled = false;
+    const parsed = parseCSV(e.target.result);
+    if (slot === 1) rawF1 = parsed;
+    else if (slot === 2) rawF2 = parsed;
+    else if (slot === 3) rawF3 = parsed;
+    markDrop('drop' + slot, 'drop' + slot + 'text', file.name);
+    document.getElementById('processBtn').disabled = !(rawF1 && rawF2 && rawF3);
   };
   reader.readAsText(file);
 }
+
 function markDrop(dropId, textId, name) {
   document.getElementById(dropId).classList.add('loaded');
   document.getElementById(textId).textContent = name;
@@ -604,103 +642,112 @@ function markDrop(dropId, textId, name) {
 
 // ── PROCESS FILES ──
 async function processFiles() {
-  if (!rawMain) return;
+  if (!rawF1 || !rawF2 || !rawF3) return;
   const btn = document.getElementById('processBtn');
   btn.disabled = true;
   await clearNonRejectedFromDB();
   btn.innerHTML = '<span class="spinner" style="width:13px;height:13px;border-width:2px;border-color:rgba(255,255,255,.3);border-top-color:#fff;margin-right:4px"></span>Processing…';
 
-  // Load price context and previously seen SKUs in parallel
   const [, seenSkus] = await Promise.all([loadPriceContext(), loadSeenSkus()]);
 
-  // Build rejected set (should never be hidden)
   const rejectedSkus = new Set(
-    Object.entries(seenSkus)
-      .filter(([, v]) => v.action === 'rej')
-      .map(([k]) => k)
+    Object.entries(seenSkus).filter(([, v]) => v.action === 'rej').map(([k]) => k)
+  );
+  const purchasedSkus = new Set(
+    Object.entries(seenSkus).filter(([, v]) => v.action === 'pur').map(([k]) => k)
   );
 
+  // Step 1 — build clearance exclusion set from File 2 using sellable_id
+  const clearanceIds = new Set(rawF2.map(r => (r.sellable_id || '').trim()).filter(Boolean));
 
-  const purchasedSkus = new Set(
-  Object.entries(seenSkus)
-    .filter(([, v]) => v.action === 'pur')
-    .map(([k]) => k)
-);
+  // Step 2 — Full Forecast = File 1 minus File 2
+  const fullForecast = rawF1.filter(r => !clearanceIds.has((r.sellable_id || '').trim()));
+  const excludedCount = rawF1.length - fullForecast.length;
 
+// Strip HTML tags from title on all Full Forecast rows before File 3 comparison
+  fullForecast.forEach(r => { r.title = stripHtml(r.title); });
 
+  const f3Map = {}; // product_title (lowercased) → { sku_code, image_url }
+  rawF3.forEach(r => {
+    const tags = (r.tags || '').split(',').map(t => t.trim().toLowerCase());
+    if (tags.includes('clearance line')) return;
+    const title = (r.product_title || '').trim().toLowerCase();
+    if (!title) return;
+    f3Map[title] = {
+      sku: (r.sku_code || '').trim(),
+      img: (r.image_url || '').trim(),
+    };
+  });
 
-  // Build grouped list from pre-processed CSV
-  // Mains have no parent_sku, packs have parent_sku set to their parent's SKU
-  const mainIdxMap = {}; // sku → index in grouped
+  // Step 4 — Enrich Full Forecast: replace SKU and add image where title matches
+  let skuReplaced = 0;
+  let imgMatched = 0;
+  const enriched = fullForecast.map(r => {
+    const titleKey = (r.title || '').replace(/<[^>]*>/g, '').trim().toLowerCase();
+    const match = f3Map[titleKey];
+    const out = { ...r };
+    if (match) {
+      if (match.sku) { out.sku = match.sku; skuReplaced++; }
+      if (match.img) { out.image_url = match.img; imgMatched++; }
+    }
+    return out;
+  });
+
+  // Step 5 — Build grouped list (same logic as before, using enriched rows)
+  const mainIdxMap = {};
   const grouped = [];
 
-  // First pass: add all main products
-  rawMain.forEach(r => {
+  enriched.forEach(r => {
     const sku = (r.sku || '').trim();
-    if (!sku || r.parent_sku) return;
+    if (!sku) return;
     if (purchasedSkus.has(sku)) return;
+    const dailyRate = parseFloat(r.daily_sell_out_rate) || 0;
+    const available = parseFloat(r.available_qty) || 0;
+    const incoming  = parseFloat(r.incoming_transit_qty) || 0;
+    const daysLeft  = dailyRate > 0 ? Math.round((available + incoming) / dailyRate) : 999;
+    const orderQty  = Math.max(0, Math.round(dailyRate * 30) - available - incoming);
+    const urgency   = daysLeft <= 0 ? 'C' : daysLeft < 7 ? 'C' : daysLeft < 20 ? 'R' : 'O';
+
     const obj = {
       s: sku,
-      t: r.name || sku,
-      ean: (r.ean || '').trim(),
-      u: r.urgency || 'O',
-      av: parseFloat(r.available) || 0,
-      inc: parseFloat(r.incoming_transit) || 0,
-      r: parseFloat(r.daily_rate) || 0,
-      d: parseFloat(r.days_left) || 0,
-      q: parseInt(r.order_qty) || 0,
-      cogs: parseFloat(r.cogs) || 0,
-      lastSupplier: '',
+      t: (r.title || '').replace(/<[^>]*>/g, '').trim() || sku,
+      ean: (r.sku || '').trim(),
+      u: urgency,
+      av: available,
+      inc: incoming,
+      r: dailyRate,
+      d: daysLeft,
+      q: orderQty,
+      cogs: parseFloat(r.cost_price) || 0,
+      lastSupplier: (r.supplier_name || '').trim(),
       img: (r.image_url || '').trim(),
-      subsets: []
+      subsets: [],
     };
     mainIdxMap[sku] = grouped.length;
     grouped.push(obj);
   });
 
-  // Second pass: attach pack variants to their parent
-  rawMain.forEach(r => {
-    const sku = (r.sku || '').trim();
-    const parentSku = (r.parent_sku || '').trim();
-    if (!sku || !parentSku) return;
-    const parentI = mainIdxMap[parentSku];
-    if (parentI !== undefined) {
-      grouped[parentI].subsets.push({
-        s: sku,
-        t: r.name || sku,
-        av: parseFloat(r.available) || 0
-      });
-    }
-  });
-
   ALL = grouped;
-  
-
   acts = {};
   notes = {};
 
- // Merge DB actions for rejected items back in
   rejectedSkus.forEach(sku => {
-    if (!acts[sku]) {
-      const dbRec = seenSkus[sku];
-      if (dbRec) {
-        acts[sku] = dbRec.action;
-        if (dbRec.note) notes[sku] = dbRec.note;
-      }
+    const dbRec = seenSkus[sku];
+    if (dbRec && !acts[sku]) {
+      acts[sku] = dbRec.action;
+      if (dbRec.note) notes[sku] = dbRec.note;
     }
   });
 
-  // Save all new SKUs to DB (excluding rejected which are already there)
   const newSkus = grouped.filter(x => !rejectedSkus.has(x.s));
   await saveSkusToDB(newSkus);
-
 
   btn.disabled = false;
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>Generate List';
 
   showContent();
   render();
-  toast(ALL.length + ' SKUs loaded', 'success');
+  toast(`${ALL.length} SKUs · ${excludedCount} clearance excluded · ${skuReplaced} SKUs mapped · ${imgMatched} images matched`, 'success');
 }
 
 // ── SHOW/HIDE ──
@@ -709,12 +756,21 @@ function showContent() {
   document.getElementById('repContent').style.display = 'flex';
   document.getElementById('repContent').style.flexDirection = 'column';
 }
+
 function showUpload() {
   document.getElementById('uploadZone').style.display = 'flex';
   document.getElementById('repContent').style.display = 'none';
-rawMain = null;
-  document.getElementById('drop1').classList.remove('loaded');
-  document.getElementById('drop1text').textContent = 'Drop CSV here or click to browse';
+  rawF1 = null; rawF2 = null; rawF3 = null;
+  ['drop1','drop2','drop3'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('loaded');
+  });
+  const t1 = document.getElementById('drop1text');
+  const t2 = document.getElementById('drop2text');
+  const t3 = document.getElementById('drop3text');
+  if (t1) t1.textContent = 'Drop CSV here or click to browse';
+  if (t2) t2.textContent = 'Drop CSV here or click to browse';
+  if (t3) t3.textContent = 'Drop CSV here or click to browse';
   document.getElementById('processBtn').disabled = true;
 }
 
@@ -919,13 +975,6 @@ function buildFocusCard(x) {
       <span>Last supplier: ${esc(x.lastSupplier || '—')}</span>
     </div>
     ${qtyBreakdown}
-    ${(x.subsets && x.subsets.length) ? `<div class="qty-breakdown" style="margin-bottom:12px;">
-      <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:6px;">Pack variants</div>
-      ${x.subsets.map(s => `<div class="qty-row">
-        <span class="qty-row-label" style="font-size:11px;">${esc(s.t)}</span>
-        <span class="qty-row-val val-available">${s.av.toLocaleString()} units</span>
-      </div>`).join('')}
-    </div>` : ''}
     ${pricePanelHtml}
     <div class="focus-card-actions card-actions">
       <button class="abtn${a === 'pur' ? ' on-pur' : ''}" onclick="actAndAdvance('${esc(x.s)}','pur')">
