@@ -1319,14 +1319,6 @@ function openAddModal() {
 }
 
 
-function startTimer() {
-  clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    const s = Math.floor((Date.now() - startTime) / 1000);
-    document.getElementById('timerText').textContent = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
-  }, 1000);
-}
-
 function buildAddForm() {
   const supOpts = suppliers.map(s => `<option value="${escAttr(s.name)}" data-code="${escAttr(s.code||'')}">${escHtml(s.name)}</option>`).join('');
   const usrOpts = users.map(u => `<option value="${escAttr(u.name)}">${escHtml(u.name)}</option>`).join('');
@@ -1577,26 +1569,37 @@ function minimizeModal() {
   _miniTimerInterval = setInterval(_syncMiniCard, 1000);
 }
 
+function startTimer() {
+  clearInterval(timerInterval);
+  // Always keep window global in sync
+  if (startTime) window._sourcingStartTime = startTime;
+  timerInterval = setInterval(() => {
+    if (!startTime) return;
+    const s = Math.floor((Date.now() - startTime) / 1000);
+    if (isNaN(s) || s < 0) return;
+    const timerStr = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+    const el = document.getElementById('timerText');
+    if (el) el.textContent = timerStr;
+  }, 1000);
+}
+
 function _syncMiniCard() {
-  // Use window._sourcingStartTime as the authoritative source so it works
-  // even after page navigation wipes the sourcing closure's startTime
-const t = startTime || window._sourcingStartTime;
+  // Only run if mini card is actually visible
+  const card = document.getElementById('modalMiniCard');
+  if (!card || card.style.display === 'none') return;
+
+  const t = startTime || window._sourcingStartTime;
   if (t && !isNaN(t)) {
     const s = Math.floor((Date.now() - t) / 1000);
     if (!isNaN(s) && s >= 0) {
-      const timerStr = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
-      document.getElementById('miniCardTimer').textContent = timerStr;
+      document.getElementById('miniCardTimer').textContent =
+        String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
     }
   }
 
-  // Try to get the name live from the form; fall back to the cached value
   const nameEl = document.getElementById('f_productName');
   const nameVal = nameEl ? nameEl.value.trim() : (window._sourcingMiniCardName || '');
-
-  // Keep the cache updated while the form is still in DOM
-  if (nameEl && nameEl.value.trim()) {
-    window._sourcingMiniCardName = nameEl.value.trim();
-  }
+  if (nameEl && nameEl.value.trim()) window._sourcingMiniCardName = nameEl.value.trim();
 
   const miniName = document.getElementById('miniCardName');
   const miniNameText = document.getElementById('miniCardNameText');
