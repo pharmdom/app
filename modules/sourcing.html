@@ -1563,9 +1563,14 @@ function minimizeModal() {
   document.getElementById('modalMiniCard').style.display = 'block';
   document.title = '⏱ Sourcing — Adding Product';
 
-  // Persist form state and startTime globally so they survive page navigation
+  // Persist globally so they survive page navigation
   window._sourcingStartTime = startTime;
   window._sourcingFormValues = _saveFormValues();
+
+  // Also cache the product name separately so _syncMiniCard can show it
+  // even after the form DOM is gone
+  const nameEl = document.getElementById('f_productName');
+  window._sourcingMiniCardName = nameEl ? nameEl.value.trim() : '';
 
   _syncMiniCard();
   clearInterval(_miniTimerInterval);
@@ -1573,15 +1578,24 @@ function minimizeModal() {
 }
 
 function _syncMiniCard() {
-  // Only update the mini card timer — never touch #timerText
-  if (startTime) {
-    const s = Math.floor((Date.now() - startTime) / 1000);
+  // Use window._sourcingStartTime as the authoritative source so it works
+  // even after page navigation wipes the sourcing closure's startTime
+  const t = startTime || window._sourcingStartTime;
+  if (t) {
+    const s = Math.floor((Date.now() - t) / 1000);
     const timerStr = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
     document.getElementById('miniCardTimer').textContent = timerStr;
   }
-  // Product name preview
+
+  // Try to get the name live from the form; fall back to the cached value
   const nameEl = document.getElementById('f_productName');
-  const nameVal = nameEl ? nameEl.value.trim() : '';
+  const nameVal = nameEl ? nameEl.value.trim() : (window._sourcingMiniCardName || '');
+
+  // Keep the cache updated while the form is still in DOM
+  if (nameEl && nameEl.value.trim()) {
+    window._sourcingMiniCardName = nameEl.value.trim();
+  }
+
   const miniName = document.getElementById('miniCardName');
   const miniNameText = document.getElementById('miniCardNameText');
   if (miniName && miniNameText) {
@@ -1589,6 +1603,7 @@ function _syncMiniCard() {
     else { miniName.style.display = 'none'; }
   }
 }
+
 
 function maximizeModal() {
   clearInterval(_miniTimerInterval);
@@ -1665,12 +1680,14 @@ function _restoreFormValues(vals) {
   applyYNColors();
 }
 
+
 function closeModal() {
   clearInterval(timerInterval);
   clearInterval(_miniTimerInterval);
   _miniTimerInterval = null;
   window._sourcingStartTime = null;
   window._sourcingFormValues = null;
+  window._sourcingMiniCardName = null;
   document.getElementById('addModal').classList.remove('open');
   document.getElementById('modalMiniCard').style.display = 'none';
   document.title = 'Pharm & Dom';
@@ -1682,6 +1699,7 @@ function cancelMinimizedModal() {
   _miniTimerInterval = null;
   window._sourcingStartTime = null;
   window._sourcingFormValues = null;
+  window._sourcingMiniCardName = null;
   document.getElementById('modalMiniCard').style.display = 'none';
   document.title = 'Pharm & Dom';
 }
