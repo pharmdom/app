@@ -1570,7 +1570,8 @@ function minimizeModal() {
   document.getElementById('modalMiniCard').style.display = 'block';
   document.title = '⏱ Sourcing — Adding Product';
 
-  window._sourcingStartTime = startTime;
+// Always snapshot the current startTime into window at minimize time
+  if (startTime) window._sourcingStartTime = startTime;
   window._sourcingFormValues = _saveFormValues();
 
   const nameEl = document.getElementById('f_productName');
@@ -1614,12 +1615,14 @@ function maximizeModal() {
   document.getElementById('modalMiniCard').style.display = 'none';
   document.title = 'Pharm & Dom';
 
-  if (document.getElementById('addModal')) {
+if (document.getElementById('addModal')) {
+    // Sync startTime from window global in case it drifted
+    if (window._sourcingStartTime) startTime = window._sourcingStartTime;
     const saved = _saveFormValues();
     buildAddForm();
     _restoreFormValues(saved);
     document.getElementById('addModal').classList.add('open');
-    startTimer(); // ← replaces the inline setInterval
+    startTimer();
   } else {
     window.loadModule('sourcing');
 setTimeout(() => {
