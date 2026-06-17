@@ -1549,26 +1549,6 @@ function removeToast(id) { document.getElementById(id)?.remove(); }
 /* ══ MINI CARD / MINIMIZE ══ */
 let _miniTimerInterval = null;
 
-function minimizeModal() {
-  clearInterval(timerInterval);
-  document.getElementById('addModal').classList.remove('open');
-  document.getElementById('modalMiniCard').style.display = 'block';
-  document.title = '⏱ Sourcing — Adding Product';
-
-  // Persist globally so they survive page navigation
-  window._sourcingStartTime = startTime;
-  window._sourcingFormValues = _saveFormValues();
-
-  // Also cache the product name separately so _syncMiniCard can show it
-  // even after the form DOM is gone
-  const nameEl = document.getElementById('f_productName');
-  window._sourcingMiniCardName = nameEl ? nameEl.value.trim() : '';
-
-  _syncMiniCard();
-  clearInterval(_miniTimerInterval);
-  _miniTimerInterval = setInterval(_syncMiniCard, 1000);
-}
-
 function startTimer() {
   clearInterval(timerInterval);
   // Always keep window global in sync
@@ -1583,8 +1563,24 @@ function startTimer() {
   }, 1000);
 }
 
+function minimizeModal() {
+  clearInterval(timerInterval);
+  clearInterval(window._miniTimerInterval);
+  document.getElementById('addModal').classList.remove('open');
+  document.getElementById('modalMiniCard').style.display = 'block';
+  document.title = '⏱ Sourcing — Adding Product';
+
+  window._sourcingStartTime = startTime;
+  window._sourcingFormValues = _saveFormValues();
+
+  const nameEl = document.getElementById('f_productName');
+  window._sourcingMiniCardName = nameEl ? nameEl.value.trim() : '';
+
+  _syncMiniCard();
+  window._miniTimerInterval = setInterval(_syncMiniCardGlobal, 1000);
+}
+
 function _syncMiniCard() {
-  // Only run if mini card is actually visible
   const card = document.getElementById('modalMiniCard');
   if (!card || card.style.display === 'none') return;
 
@@ -1608,11 +1604,12 @@ function _syncMiniCard() {
     else { miniName.style.display = 'none'; }
   }
 }
-
+    
 
 function maximizeModal() {
-  clearInterval(_miniTimerInterval);
+  clearInterval(window._miniTimerInterval);
   clearInterval(timerInterval);
+  window._miniTimerInterval = null;
   _miniTimerInterval = null;
   document.getElementById('modalMiniCard').style.display = 'none';
   document.title = 'Pharm & Dom';
@@ -1687,11 +1684,10 @@ function _restoreFormValues(vals) {
   applyYNColors();
 }
 
-
 function closeModal() {
   clearInterval(timerInterval);
-  clearInterval(_miniTimerInterval);
-  _miniTimerInterval = null;
+  clearInterval(window._miniTimerInterval);
+  window._miniTimerInterval = null;
   window._sourcingStartTime = null;
   window._sourcingFormValues = null;
   window._sourcingMiniCardName = null;
@@ -1701,9 +1697,9 @@ function closeModal() {
 }
 
 function cancelMinimizedModal() {
-  clearInterval(_miniTimerInterval);
+  clearInterval(window._miniTimerInterval);
   clearInterval(timerInterval);
-  _miniTimerInterval = null;
+  window._miniTimerInterval = null;
   window._sourcingStartTime = null;
   window._sourcingFormValues = null;
   window._sourcingMiniCardName = null;
@@ -1740,5 +1736,29 @@ window.onCustomDateChange = onCustomDateChange;
    
 init();
 })();
-  
+
+window._syncMiniCardGlobal = function() {
+  const card = document.getElementById('modalMiniCard');
+  if (!card || card.style.display === 'none') return;
+
+  const t = window._sourcingStartTime;
+  if (t && !isNaN(t)) {
+    const s = Math.floor((Date.now() - t) / 1000);
+    if (!isNaN(s) && s >= 0) {
+      const el = document.getElementById('miniCardTimer');
+      if (el) el.textContent = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+    }
+  }
+
+  const nameEl = document.getElementById('f_productName');
+  const nameVal = nameEl ? nameEl.value.trim() : (window._sourcingMiniCardName || '');
+  if (nameEl && nameEl.value.trim()) window._sourcingMiniCardName = nameEl.value.trim();
+
+  const miniName = document.getElementById('miniCardName');
+  const miniNameText = document.getElementById('miniCardNameText');
+  if (miniName && miniNameText) {
+    if (nameVal) { miniName.style.display = 'block'; miniNameText.textContent = nameVal; }
+    else { miniName.style.display = 'none'; }
+  }
+};
 </script>
