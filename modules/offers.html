@@ -547,7 +547,7 @@ body{overflow:hidden}
   </div>
 
   <!-- Sourcing Add Modal -->
-<div class="confirm-overlay" id="sourcingModal" style="z-index:2000;backdrop-filter:blur(4px);" onclick="if(event.target===this)window._minimizeOffersModal&&window._minimizeOffersModal()">
+<div class="confirm-overlay" id="sourcingModal" style="z-index:2000;backdrop-filter:blur(4px);">
   <div style="background:#fff;border-radius:18px;width:660px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.22);">
     <div style="padding:15px 22px 13px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;border-radius:18px 18px 0 0;background:linear-gradient(to right,#fafbff,#fff);flex-shrink:0;">
       <div style="display:flex;align-items:center;gap:10px;">
@@ -1708,69 +1708,13 @@ async function openSourcingModal(offer){
     const el=document.getElementById('srcTimerText');
     if(el)el.textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
   },1000);
-
-  window._sourcingStartTime = _srcStartTime;
-window._sourcingFormValues = null; // offers page doesn't need form persistence
-window._sourcingMiniCardName = document.getElementById('src_productName')?.value.trim() || (offer.product_name||'');
 }
 
 function closeSourcingModal(){
   document.getElementById('sourcingModal').classList.remove('open');
   clearInterval(_srcTimerInterval);
-  clearInterval(window._miniTimerInterval);
-  window._miniTimerInterval = null;
-  window._sourcingStartTime = null;
-  window._sourcingMiniCardName = null;
-  document.getElementById('modalMiniCard').style.display = 'none';
-  document.title = 'Pharm & Dom';
   _srcOffer=null;
 }
-
-
-function _minimizeOffersModal(){
-  clearInterval(_srcTimerInterval);
-  clearInterval(window._miniTimerInterval);
-  document.getElementById('sourcingModal').classList.remove('open');
-  document.getElementById('modalMiniCard').style.display = 'block';
-  document.title = '⏱ Sourcing — Adding Product';
-  window._sourcingStartTime = _srcStartTime;
-  window._sourcingMiniCardName = document.getElementById('src_productName')?.value.trim() || (_srcOffer?.product_name||'');
-  window._miniTimerInterval = setInterval(window._syncMiniCardGlobal, 1000);
-  if(window._syncMiniCardGlobal) window._syncMiniCardGlobal();
-}
-window._minimizeOffersModal = _minimizeOffersModal;
-
-function _maximizeOffersModal(){
-  clearInterval(window._miniTimerInterval);
-  window._miniTimerInterval = null;
-  document.getElementById('modalMiniCard').style.display = 'none';
-  document.title = 'Pharm & Dom';
-  if(_srcOffer && document.getElementById('sourcingModal')){
-    _srcStartTime = window._sourcingStartTime || _srcStartTime;
-    document.getElementById('sourcingModal').classList.add('open');
-    clearInterval(_srcTimerInterval);
-    _srcTimerInterval = setInterval(()=>{
-      const s = Math.floor((Date.now()-_srcStartTime)/1000);
-      const el = document.getElementById('srcTimerText');
-      if(el) el.textContent = String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
-    },1000);
-  }
-}
-window._maximizeOffersModal = _maximizeOffersModal;
-
-
-function _cancelOffersModal(){
-  clearInterval(window._miniTimerInterval);
-  clearInterval(_srcTimerInterval);
-  window._miniTimerInterval = null;
-  window._sourcingStartTime = null;
-  window._sourcingMiniCardName = null;
-  _srcOffer = null;
-  _pendingApprovalOffer = null;
-  document.getElementById('modalMiniCard').style.display = 'none';
-  document.title = 'Pharm & Dom';
-}
-window._cancelOffersModal = _cancelOffersModal;
 
 async function saveSourcingFromOffer(){
   const required=['src_productName','src_agent','src_fulfillment','src_keepa','src_supplier','src_ean','src_supplierStock','src_supplierCheapest','src_costOfUnit','src_costOfSale','src_netProfit','src_unitQuantity','src_packing','src_seasonality','src_competition'];
