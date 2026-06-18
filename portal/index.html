@@ -186,18 +186,40 @@
     .sidebar-footer { padding: 10px; border-top: 1px solid rgba(255,255,255,0.06); position: relative; z-index: 2; }
     .sidebar-user-card {
       display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm);
-      cursor: pointer; transition: all 0.18s ease; position: relative;
+      position: relative;
     }
-    .sidebar-user-card:hover { background: rgba(255,255,255,0.06); }
     .sidebar-user-card-text { flex: 1; min-width: 0; }
-    .sidebar-footer-hint {
-      display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 600;
-      color: var(--accent); letter-spacing: 0.2px; margin-top: 2px; opacity: 0.85;
+    .sidebar-footer-toggle {
+      width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
+      color: rgba(255,255,255,0.45); cursor: pointer; display: flex;
+      align-items: center; justify-content: center; transition: all 0.18s ease;
     }
-    .sidebar-footer-hint svg { width: 11px; height: 11px; transition: transform 0.18s; }
-    .sidebar-user-card:hover .sidebar-footer-hint svg { transform: translateX(2px); }
-    .sidebar.collapsed .sidebar-footer-hint { display: none; }
-    .sidebar.collapsed:hover .sidebar-footer-hint { display: flex; }
+    .sidebar-footer-toggle:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    .sidebar-footer-toggle svg { width: 13px; height: 13px; transition: transform 0.22s ease; }
+    .sidebar-footer-toggle.open svg { transform: rotate(180deg); }
+    .sidebar-footer-toggle.open { background: color-mix(in srgb, var(--accent) 75%, transparent); color: #fff; border-color: transparent; }
+    .sidebar.collapsed .sidebar-footer-toggle { display: none; }
+    .sidebar.collapsed:hover .sidebar-footer-toggle { display: flex; }
+
+    .sidebar-footer-flyout {
+      position: absolute; left: 10px; right: 10px; bottom: calc(100% + 8px);
+      background: #11182b; border: 1px solid rgba(255,255,255,0.09);
+      border-radius: var(--radius-sm); box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+      padding: 6px; opacity: 0; transform: translateY(6px) scale(0.97);
+      pointer-events: none; transition: all 0.18s cubic-bezier(0.16,1,0.3,1);
+      transform-origin: bottom center;
+    }
+    .sidebar-footer-flyout.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+    .sidebar-footer-flyout-item {
+      display: flex; align-items: center; gap: 9px; padding: 9px 10px;
+      border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;
+      color: rgba(255,255,255,0.7); transition: all 0.15s ease;
+    }
+    .sidebar-footer-flyout-item:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); color: #fff; }
+    .sidebar-footer-flyout-item svg { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.8; }
+    .sidebar.collapsed .sidebar-footer-flyout { left: 8px; right: 8px; }
+    
     .sidebar-avatar {
       width: 30px; height: 30px; border-radius: 50%;
       background: linear-gradient(135deg, var(--accent) 0%, #7c3aed 100%);
@@ -510,18 +532,22 @@
         </button>
       </div>
       <nav class="sidebar-nav" id="sidebarNav"></nav>
-<div class="sidebar-footer">
-        <div class="sidebar-user-card" id="nav-reports" onclick="loadModule('reports')" title="View Reports">
+<div class="sidebar-footer" style="position:relative;">
+        <div class="sidebar-footer-flyout" id="footerFlyout">
+          <div class="sidebar-footer-flyout-item" id="nav-reports" onclick="loadModule('reports'); closeFooterFlyout();">
+            ${ic.reports}
+            <span>Reports</span>
+          </div>
+        </div>
+        <div class="sidebar-user-card">
           <div class="sidebar-avatar">${initials}</div>
           <div class="sidebar-user-card-text">
             <div class="sidebar-user-name">${fullName}</div>
             <div class="sidebar-user-role">${user.role}</div>
-            <div class="sidebar-footer-hint">
-              ${ic.reports}
-              <span>View Reports</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </div>
           </div>
+          <button class="sidebar-footer-toggle" id="footerToggleBtn" onclick="toggleFooterFlyout(event)" title="More">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
         </div>
       </div>
     `);
@@ -580,6 +606,23 @@
 
     nav.innerHTML = html;
   }
+
+
+  // ── FOOTER FLYOUT ──
+  function toggleFooterFlyout(e) {
+    e.stopPropagation();
+    const flyout = document.getElementById('footerFlyout');
+    const btn = document.getElementById('footerToggleBtn');
+    const isOpen = flyout.classList.contains('open');
+    flyout.classList.toggle('open', !isOpen);
+    btn.classList.toggle('open', !isOpen);
+  }
+  function closeFooterFlyout() {
+    document.getElementById('footerFlyout')?.classList.remove('open');
+    document.getElementById('footerToggleBtn')?.classList.remove('open');
+  }
+  window.toggleFooterFlyout = toggleFooterFlyout;
+  window.closeFooterFlyout = closeFooterFlyout;
 
   function navItem(key, icon, label, onClick) {
     return `<div class="nav-item" id="nav-${key}" onclick="(${onClick.toString()})()">${icon}<span class="nav-item-label">${label}</span></div>`;
@@ -651,11 +694,15 @@
     loadPage(key);
   }
 
-  document.addEventListener('click', e => {
+document.addEventListener('click', e => {
     const wrap = document.querySelector('.user-menu-wrap');
     if (wrap && !wrap.contains(e.target)) {
       document.getElementById('userDropdown').classList.remove('open');
       document.getElementById('topbarUser').classList.remove('open');
+    }
+    const footer = document.querySelector('.sidebar-footer');
+    if (footer && !footer.contains(e.target)) {
+      closeFooterFlyout();
     }
   });
 
