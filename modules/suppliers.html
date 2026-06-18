@@ -1297,6 +1297,7 @@ async function openCatalogSourcingModal(row){
     modalEl.id='scCatSourcingModal';
     modalEl.className='sc-confirm-overlay';
     modalEl.style.cssText='z-index:9500;backdrop-filter:blur(4px)';
+    modalEl.onclick = e => { if(e.target===modalEl) _minimizeSuppliersModal(); };
     modalEl.innerHTML=`
       <div style="background:#fff;border-radius:18px;width:660px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.22)">
         <div style="padding:15px 22px 13px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;border-radius:18px 18px 0 0;background:linear-gradient(to right,#fafbff,#fff);flex-shrink:0">
@@ -1391,8 +1392,59 @@ async function openCatalogSourcingModal(row){
 function closeCatalogSourcingModal(){
   document.getElementById('scCatSourcingModal')?.classList.remove('open');
   clearInterval(_catSrcTimerInterval);
+  clearInterval(window._miniTimerInterval);
+  window._miniTimerInterval = null;
+  window._sourcingStartTime = null;
+  window._sourcingMiniCardName = null;
+  document.getElementById('modalMiniCard').style.display = 'none';
+  document.title = 'Pharm & Dom';
   _catSrcRow=null;
 }
+
+function _minimizeSuppliersModal(){
+  clearInterval(_catSrcTimerInterval);
+  clearInterval(window._miniTimerInterval);
+  document.getElementById('scCatSourcingModal')?.classList.remove('open');
+  document.getElementById('modalMiniCard').style.display = 'block';
+  document.title = '⏱ Sourcing — Adding Product';
+  window._sourcingStartTime = _catSrcStartTime;
+  window._sourcingMiniCardName = document.getElementById('catsrc_productName')?.value.trim() || (_catSrcRow?.product_name||'');
+  window._miniTimerInterval = setInterval(window._syncMiniCardGlobal, 1000);
+  if(window._syncMiniCardGlobal) window._syncMiniCardGlobal();
+}
+window._minimizeSuppliersModal = _minimizeSuppliersModal;
+
+function _maximizeSuppliersModal(){
+  clearInterval(window._miniTimerInterval);
+  window._miniTimerInterval = null;
+  document.getElementById('modalMiniCard').style.display = 'none';
+  document.title = 'Pharm & Dom';
+  const modal = document.getElementById('scCatSourcingModal');
+  if(_catSrcRow && modal){
+    _catSrcStartTime = window._sourcingStartTime || _catSrcStartTime;
+    modal.classList.add('open');
+    clearInterval(_catSrcTimerInterval);
+    _catSrcTimerInterval = setInterval(()=>{
+      const s = Math.floor((Date.now()-_catSrcStartTime)/1000);
+      const el = document.getElementById('catSrcTimerText');
+      if(el) el.textContent = String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+    },1000);
+  }
+}
+window._maximizeSuppliersModal = _maximizeSuppliersModal;
+
+function _cancelSuppliersModal(){
+  clearInterval(window._miniTimerInterval);
+  clearInterval(_catSrcTimerInterval);
+  window._miniTimerInterval = null;
+  window._sourcingStartTime = null;
+  window._sourcingMiniCardName = null;
+  _catSrcRow = null;
+  document.getElementById('scCatSourcingModal')?.classList.remove('open');
+  document.getElementById('modalMiniCard').style.display = 'none';
+  document.title = 'Pharm & Dom';
+}
+window._cancelSuppliersModal = _cancelSuppliersModal;
 
 function getCatSrcAsins(){
   const list=document.getElementById('catsrc_asinList');
