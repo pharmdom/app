@@ -1396,6 +1396,7 @@ function closeCatalogSourcingModal(){
   window._miniTimerInterval = null;
   window._sourcingStartTime = null;
   window._sourcingMiniCardName = null;
+  window._suppliersMinimizedRow = null;
   document.getElementById('modalMiniCard').style.display = 'none';
   document.title = 'Pharm & Dom';
   _catSrcRow=null;
@@ -1408,6 +1409,7 @@ function _minimizeSuppliersModal(){
   document.getElementById('modalMiniCard').style.display = 'block';
   document.title = '⏱ Sourcing — Adding Product';
   window._sourcingStartTime = _catSrcStartTime;
+  window._suppliersMinimizedRow = _catSrcRow;  // ← persist row to window
   // Capture name at minimize time
   const nameEl = document.getElementById('catsrc_productName');
   window._sourcingMiniCardName = (nameEl ? nameEl.value.trim() : '') || (_catSrcRow?.product_name||'');
@@ -1421,11 +1423,24 @@ function _maximizeSuppliersModal(){
   window._miniTimerInterval = null;
   document.getElementById('modalMiniCard').style.display = 'none';
   document.title = 'Pharm & Dom';
-  if(!_catSrcRow) return;
-  // Restore the start time from the global
+  // Use local row if available, fall back to the persisted window copy
+  const row = _catSrcRow || window._suppliersMinimizedRow;
+  if(!row){
+    // No row available — we're on a different page, navigate to suppliers first
+    window.loadModule('suppliers');
+    setTimeout(()=>{
+      const r = window._suppliersMinimizedRow;
+      if(r && window._sourcingStartTime){
+        _catSrcRow = r;
+        _catSrcStartTime = window._sourcingStartTime;
+        openCatalogSourcingModal(r);
+      }
+    }, 900);
+    return;
+  }
   if(window._sourcingStartTime) _catSrcStartTime = window._sourcingStartTime;
-  // Re-open the modal — call openCatalogSourcingModal which rebuilds it if needed
-  openCatalogSourcingModal(_catSrcRow);
+  _catSrcRow = row;
+  openCatalogSourcingModal(row);
 }
 window._maximizeSuppliersModal = _maximizeSuppliersModal;
 
@@ -1435,6 +1450,7 @@ function _cancelSuppliersModal(){
   window._miniTimerInterval = null;
   window._sourcingStartTime = null;
   window._sourcingMiniCardName = null;
+  window._suppliersMinimizedRow = null;
   _catSrcRow = null;
   document.getElementById('scCatSourcingModal')?.classList.remove('open');
   document.getElementById('modalMiniCard').style.display = 'none';
