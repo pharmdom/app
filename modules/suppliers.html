@@ -1397,6 +1397,7 @@ function closeCatalogSourcingModal(){
   window._sourcingStartTime = null;
   window._sourcingMiniCardName = null;
   window._suppliersMinimizedRow = null;
+  window._suppliersFormValues = null;
   document.getElementById('modalMiniCard').style.display = 'none';
   document.title = 'Pharm & Dom';
   _catSrcRow=null;
@@ -1409,8 +1410,9 @@ function _minimizeSuppliersModal(){
   document.getElementById('modalMiniCard').style.display = 'block';
   document.title = '⏱ Sourcing — Adding Product';
   window._sourcingStartTime = _catSrcStartTime;
-  window._suppliersMinimizedRow = _catSrcRow;  // ← persist row to window
-  // Capture name at minimize time
+  window._suppliersMinimizedRow = _catSrcRow;
+  // Save form values at minimize time
+  window._suppliersFormValues = _saveCatSrcFormValues();
   const nameEl = document.getElementById('catsrc_productName');
   window._sourcingMiniCardName = (nameEl ? nameEl.value.trim() : '') || (_catSrcRow?.product_name||'');
   window._miniTimerInterval = setInterval(window._syncMiniCardGlobal, 1000);
@@ -1418,15 +1420,15 @@ function _minimizeSuppliersModal(){
 }
 window._minimizeSuppliersModal = _minimizeSuppliersModal;
 
+
 function _maximizeSuppliersModal(){
   clearInterval(window._miniTimerInterval);
+  clearInterval(_catSrcTimerInterval);  // ← kill timer before re-opening
   window._miniTimerInterval = null;
   document.getElementById('modalMiniCard').style.display = 'none';
   document.title = 'Pharm & Dom';
-  // Use local row if available, fall back to the persisted window copy
   const row = _catSrcRow || window._suppliersMinimizedRow;
   if(!row){
-    // No row available — we're on a different page, navigate to suppliers first
     window.loadModule('suppliers');
     setTimeout(()=>{
       const r = window._suppliersMinimizedRow;
@@ -1434,6 +1436,7 @@ function _maximizeSuppliersModal(){
         _catSrcRow = r;
         _catSrcStartTime = window._sourcingStartTime;
         openCatalogSourcingModal(r);
+        if(window._suppliersFormValues) _restoreCatSrcFormValues(window._suppliersFormValues);
       }
     }, 900);
     return;
@@ -1441,8 +1444,10 @@ function _maximizeSuppliersModal(){
   if(window._sourcingStartTime) _catSrcStartTime = window._sourcingStartTime;
   _catSrcRow = row;
   openCatalogSourcingModal(row);
+  if(window._suppliersFormValues) _restoreCatSrcFormValues(window._suppliersFormValues);
 }
 window._maximizeSuppliersModal = _maximizeSuppliersModal;
+  
 
 function _cancelSuppliersModal(){
   clearInterval(window._miniTimerInterval);
@@ -1451,6 +1456,7 @@ function _cancelSuppliersModal(){
   window._sourcingStartTime = null;
   window._sourcingMiniCardName = null;
   window._suppliersMinimizedRow = null;
+  window._suppliersFormValues = null;
   _catSrcRow = null;
   document.getElementById('scCatSourcingModal')?.classList.remove('open');
   document.getElementById('modalMiniCard').style.display = 'none';
@@ -2493,7 +2499,43 @@ function insertNoteFormat(type){
   ta.focus();
 }
 window.insertNoteFormat=insertNoteFormat;
-  
+
+
+function _saveCatSrcFormValues(){
+  const ids = ['catsrc_productName','catsrc_fulfillment','catsrc_keepa','catsrc_ean',
+    'catsrc_supplierStock','catsrc_supplierCheapest','catsrc_costOfUnit','catsrc_costOfSale',
+    'catsrc_netProfit','catsrc_unitQuantity','catsrc_packing','catsrc_seasonality',
+    'catsrc_competition','catsrc_notes'];
+  const vals = {};
+  ids.forEach(id => { const el = document.getElementById(id); if(el) vals[id] = el.value; });
+  const asinList = document.getElementById('catsrc_asinList');
+  if(asinList) vals._asins = Array.from(asinList.querySelectorAll('.catsrc-asin-input')).map(i=>i.value);
+  return vals;
+}
+
+function _restoreCatSrcFormValues(vals){
+  if(!vals) return;
+  // Wait one tick for the form to render
+  setTimeout(()=>{
+    Object.entries(vals).forEach(([id, value]) => {
+      if(id === '_asins') return;
+      const el = document.getElementById(id);
+      if(el) el.value = value;
+    });
+    if(vals._asins && vals._asins.length){
+      const list = document.getElementById('catsrc_asinList');
+      if(!list) return;
+      list.innerHTML = '';
+      vals._asins.forEach(asinVal => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:6px';
+        row.innerHTML = `<input class="src-inp catsrc-asin-input" type="text" value="${esc(asinVal)}" placeholder="e.g. B08XYZ123" style="flex:1"><button type="button" onclick="removeCatSrcAsin(this)" style="width:28px;height:28px;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
+        list.appendChild(row);
+      });
+      updateCatSrcAsinBtns();
+    }
+  }, 50);
+}
   
 /* ── EXPOSE GLOBALS ── */
 window.toggleCatOffers=toggleCatOffers;
