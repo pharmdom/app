@@ -350,7 +350,9 @@ body{overflow:hidden}
 .sf-clear{padding:5px 9px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:transparent;color:var(--text4);font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s;flex-shrink:0;display:none;}
 .sf-clear:hover{border-color:var(--red-bd);color:var(--red);background:var(--red-bg)}
 .sf-clear.visible{display:block}
-  
+
+.savings-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;background:#dcfce7;border:1px solid #86efac;color:#15803d;font-size:10px;font-weight:800;vertical-align:middle;margin-left:5px;letter-spacing:.1px;}
+.savings-badge svg{width:9px;height:9px;flex-shrink:0;}
 </style>
 
 <div class="pbar" id="pbar"></div>
@@ -1083,6 +1085,12 @@ function buildKanbanCard(r,colour,supplierGroup,groupItems){
   const catalogPrice=_catEntry?.cost??null;
   const _catSuppliers=(_catEntry?.suppliers||[]).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
   const _offerSuppliers=(_offersMap[String(ean).trim()]||[]).filter(o=>o.name!==r.supplier_name).slice().sort((a,b)=>parseFloat(a.cost)-parseFloat(b.cost));
+  const offerValRaw=parseFloat(getEffectiveCost(r));
+  const catPricesRaw=_catSuppliers.map(s=>parseFloat(s.cost)).filter(n=>!isNaN(n));
+  const catMinRaw=catPricesRaw.length?Math.min(...catPricesRaw):null;
+  const savingsBadge=(catMinRaw!==null&&!isNaN(offerValRaw)&&offerValRaw<catMinRaw)
+    ?`<span class="savings-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>${((catMinRaw-offerValRaw)/catMinRaw*100).toFixed(1)}% saved</span>`
+    :'';
   let catalogHtml='';
   if(catalogPrice!=null&&ean){
 const offerVal=parseFloat(getEffectiveCost(r));
@@ -1106,7 +1114,7 @@ const offerVal=parseFloat(getEffectiveCost(r));
   }
 if(ean){html+=`<div style="display:flex;align-items:center;justify-content:space-between"><div class="k-card-ean"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;flex-shrink:0"><rect x="2" y="4" width="3" height="15"/><rect x="7" y="4" width="2" height="15"/><rect x="11" y="4" width="4" height="15"/><rect x="17" y="4" width="2" height="15"/></svg>${eanLink(ean)}</div><span class="k-card-date">${esc(date)}</span></div>`;}
   html+=`<div class="k-card-foot">
-    <span class="k-card-cost${cf==='—'?' no-price':''}" data-id="${esc(rid)}" onclick="event.stopPropagation();_openCardDrawer('${esc(rid)}','${esc(supplierGroup)}')">${esc(cf)}</span>
+    <span class="k-card-cost${cf==='—'?' no-price':''}" data-id="${esc(rid)}" onclick="event.stopPropagation();_openCardDrawer('${esc(rid)}','${esc(supplierGroup)}')">${esc(cf)}</span>${savingsBadge}
     <div style="display:flex;align-items:center;gap:5px">
       <div class="k-card-actions">
         <button class="k-act-btn k-act-approve" onclick="event.stopPropagation();doApproveOfferCard('${esc(rid)}',this)" title="Approve">
