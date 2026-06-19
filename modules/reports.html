@@ -1,1 +1,255 @@
-<p>This is for all reports: sourcing hours, analytics, etc</p>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f6fa;--surface:#fff;--surface2:#f5f6fa;--border:#e5e7eb;--border2:#f1f3f7;
+  --text:#0d0f14;--text2:#374151;--text3:#6b7280;--text4:#9ca3af;
+  --accent:#3b6ef8;--accent-l:#4c7df9;--accent-bg:#eef2fd;--accent-bd:#c4d3f9;
+  --r:10px;--r-sm:7px;--r-lg:14px;
+  --font:'Inter',system-ui,sans-serif;
+  --sh-sm:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --sh:0 4px 16px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.04);
+}
+
+.rep-wrap{
+  display:flex;flex-direction:column;height:100%;min-height:0;
+  font-family:var(--font);color:var(--text);
+}
+
+/* ── PAGE NAV (matches sourcing pattern) ── */
+.rep-page-nav{
+  display:flex;align-items:center;gap:2px;padding:0 0 16px;
+  border-bottom:1px solid var(--border);margin-bottom:0;flex-shrink:0;
+}
+.rep-page-tab{
+  display:flex;align-items:center;gap:6px;padding:7px 14px;
+  border-radius:var(--r-sm);font-size:13px;font-weight:500;
+  color:var(--text3);cursor:pointer;border:1px solid transparent;
+  transition:all .15s ease;user-select:none;white-space:nowrap;
+}
+.rep-page-tab:hover{background:var(--surface);border-color:var(--border);color:var(--text2);}
+.rep-page-tab.active{
+  background:var(--accent-bg);border-color:var(--accent-bd);
+  color:var(--accent);font-weight:600;
+}
+.rep-page-tab svg{width:14px;height:14px;flex-shrink:0;}
+
+/* ── CONTENT AREA ── */
+.rep-body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── PANEL ── */
+.rep-panel{display:none;flex:1;min-height:0;flex-direction:column;}
+.rep-panel.active{display:flex;}
+
+/* ── IFRAME CONTAINER ── */
+.iframe-shell{
+  flex:1;min-height:0;display:flex;flex-direction:column;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--sh-sm);
+  position:relative;
+}
+.iframe-shell iframe{
+  width:100%;height:100%;border:0;display:block;flex:1;
+}
+.iframe-loading{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:12px;
+  background:var(--surface);z-index:2;transition:opacity .3s ease;
+}
+.iframe-loading.hidden{opacity:0;pointer-events:none;}
+.iframe-loader-ring{
+  width:32px;height:32px;border:2.5px solid var(--border);
+  border-top-color:var(--accent);border-radius:50%;animation:ifrSpin .7s linear infinite;
+}
+@keyframes ifrSpin{to{transform:rotate(360deg)}}
+.iframe-loading-text{font-size:12px;color:var(--text4);font-weight:500;}
+
+/* ── HEADER ROW ── */
+.rep-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 0 12px;flex-shrink:0;gap:12px;
+}
+.rep-header-left{display:flex;flex-direction:column;gap:2px;}
+.rep-panel-title{font-size:13px;font-weight:600;color:var(--text2);}
+.rep-panel-sub{font-size:11.5px;color:var(--text4);}
+.rep-header-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.rep-action-btn{
+  display:flex;align-items:center;gap:5px;padding:6px 12px;
+  border-radius:var(--r-sm);border:1px solid var(--border);
+  background:var(--surface);color:var(--text2);font-size:12px;
+  font-weight:500;font-family:var(--font);cursor:pointer;transition:all .15s;
+  text-decoration:none;
+}
+.rep-action-btn:hover{border-color:#d1d5db;background:var(--bg);color:var(--text);}
+.rep-action-btn svg{width:13px;height:13px;flex-shrink:0;}
+.rep-action-btn.primary{
+  background:var(--accent);border-color:var(--accent);color:#fff;
+}
+.rep-action-btn.primary:hover{background:var(--accent-l);border-color:var(--accent-l);}
+
+/* ── COMING SOON ── */
+.coming-soon{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;padding:60px 20px;text-align:center;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);
+}
+.coming-soon-icon{
+  width:48px;height:48px;border-radius:12px;
+  background:var(--accent-bg);border:1px solid var(--accent-bd);
+  display:flex;align-items:center;justify-content:center;color:var(--accent);
+}
+.coming-soon-icon svg{width:22px;height:22px;}
+.coming-soon-title{font-size:14px;font-weight:600;color:var(--text2);}
+.coming-soon-sub{font-size:12.5px;color:var(--text4);max-width:300px;line-height:1.6;}
+.coming-soon-badge{
+  display:inline-flex;align-items:center;gap:5px;padding:4px 10px;
+  background:var(--accent-bg);border:1px solid var(--accent-bd);
+  border-radius:20px;font-size:10.5px;font-weight:600;color:var(--accent);
+}
+</style>
+
+<div class="rep-wrap">
+
+  <!-- PAGE NAV -->
+  <div class="rep-page-nav">
+    <div class="rep-page-tab active" id="reptab-overview" onclick="repSetTab('overview')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Overview
+    </div>
+    <div class="rep-page-tab" id="reptab-sourcing" onclick="repSetTab('sourcing')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Sourcing
+    </div>
+    <div class="rep-page-tab" id="reptab-replenishments" onclick="repSetTab('replenishments')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Replenishments
+    </div>
+    <div class="rep-page-tab" id="reptab-warehouse" onclick="repSetTab('warehouse')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Warehouse
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div class="rep-body">
+
+    <!-- OVERVIEW PANEL -->
+    <div class="rep-panel active" id="reppanel-overview">
+      <div class="rep-header">
+        <div class="rep-header-left">
+          <div class="rep-panel-title">Business Overview</div>
+          <div class="rep-panel-sub">Live Looker Studio dashboard — updates automatically</div>
+        </div>
+        <div class="rep-header-right">
+          <a class="rep-action-btn" href="https://datastudio.google.com/reporting/e0a1e302-c2a1-404f-aab7-75964554c914/page/40roF" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Open in Looker Studio
+          </a>
+        </div>
+      </div>
+      <div class="iframe-shell" id="overviewShell">
+        <div class="iframe-loading" id="overviewLoader">
+          <div class="iframe-loader-ring"></div>
+          <div class="iframe-loading-text">Loading dashboard…</div>
+        </div>
+        <iframe
+          id="overviewFrame"
+          src="https://datastudio.google.com/embed/reporting/e0a1e302-c2a1-404f-aab7-75964554c914/page/40roF"
+          allowfullscreen
+          sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+          onload="repFrameLoaded('overviewLoader')"
+        ></iframe>
+      </div>
+    </div>
+
+    <!-- SOURCING PANEL -->
+    <div class="rep-panel" id="reppanel-sourcing">
+      <div class="rep-header">
+        <div class="rep-header-left">
+          <div class="rep-panel-title">Sourcing Analytics</div>
+          <div class="rep-panel-sub">Supplier performance, spend, and lead conversion</div>
+        </div>
+      </div>
+      <div class="coming-soon">
+        <div class="coming-soon-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <div class="coming-soon-title">Sourcing report coming soon</div>
+        <div class="coming-soon-sub">Supplier visit frequency, spend per agent, lead approval rates, and catalog performance — all in one view.</div>
+        <div class="coming-soon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          In progress
+        </div>
+      </div>
+    </div>
+
+    <!-- REPLENISHMENTS PANEL -->
+    <div class="rep-panel" id="reppanel-replenishments">
+      <div class="rep-header">
+        <div class="rep-header-left">
+          <div class="rep-panel-title">Replenishments Analytics</div>
+          <div class="rep-panel-sub">Stock coverage, order quantities, and spend by SKU</div>
+        </div>
+      </div>
+      <div class="coming-soon">
+        <div class="coming-soon-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </div>
+        <div class="coming-soon-title">Replenishments report coming soon</div>
+        <div class="coming-soon-sub">Weekly order summaries, critical SKU trends, estimated spend vs actuals, and coverage gap tracking.</div>
+        <div class="coming-soon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          In progress
+        </div>
+      </div>
+    </div>
+
+    <!-- WAREHOUSE PANEL -->
+    <div class="rep-panel" id="reppanel-warehouse">
+      <div class="rep-header">
+        <div class="rep-header-left">
+          <div class="rep-panel-title">Warehouse Analytics</div>
+          <div class="rep-panel-sub">FBA throughput, delivery checks, and fault rates</div>
+        </div>
+      </div>
+      <div class="coming-soon">
+        <div class="coming-soon-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <div class="coming-soon-title">Warehouse report coming soon</div>
+        <div class="coming-soon-sub">Units processed per day, packaging fault rates, delivery check outcomes, and FBA shipment timelines.</div>
+        <div class="coming-soon-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          In progress
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  var _activeTab = 'overview';
+
+  window.repSetTab = function(key) {
+    if (_activeTab === key) return;
+    _activeTab = key;
+
+    // tabs
+    document.querySelectorAll('.rep-page-tab').forEach(function(el) {
+      el.classList.toggle('active', el.id === 'reptab-' + key);
+    });
+
+    // panels
+    document.querySelectorAll('.rep-panel').forEach(function(el) {
+      el.classList.toggle('active', el.id === 'reppanel-' + key);
+    });
+  };
+
+  window.repFrameLoaded = function(loaderId) {
+    var el = document.getElementById(loaderId);
+    if (el) el.classList.add('hidden');
+  };
+})();
+</script>
