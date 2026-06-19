@@ -1935,13 +1935,16 @@ async function saveWeeklySummary() {
   const noPricePur = purItems.filter(x => !x.cogs).length;
   const coverageGap = pendItems.reduce((s,x) => s + x.q, 0);
 
-  // Get Monday of current week
+// Get Monday of current week (ISO week: Mon=1 … Sun=7)
   const now = new Date();
-  const day = now.getDay() || 7;
   const monday = new Date(now);
-  monday.setDate(now.getDate() - day + 1);
   monday.setHours(0,0,0,0);
-  const weekStart = monday.toISOString().split('T')[0];
+  const dow = monday.getDay(); // 0=Sun,1=Mon…6=Sat
+  const diff = dow === 0 ? -6 : 1 - dow; // shift to Monday
+  monday.setDate(monday.getDate() + diff);
+  const weekStart = monday.getFullYear() + '-'
+    + String(monday.getMonth()+1).padStart(2,'0') + '-'
+    + String(monday.getDate()).padStart(2,'0');
 
   const snapshot = {
     totalSkus:    ALL.length,
