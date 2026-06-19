@@ -1823,17 +1823,22 @@ async function restoreFromDB() {
         + riSummaryCard('Not Available', naRows.length, critNA > 0 ? critNA + ' critical' : 'none critical', naRows.length > 0 ? 'amber' : '')
         + '</div>';
 
-      // Action breakdown
+// Action breakdown — pie chart
       html += '<div class="ri-card">';
       html += '<div class="ri-sec-lbl">Action Breakdown</div>';
-      html += actionBars.map(function(b) {
-        var pct = b.max > 0 ? (b.count / b.max * 100) : 0;
-        return '<div class="ri-action-row-bar">'
-          + '<div class="ri-action-name">' + b.label + '</div>'
-          + '<div class="ri-action-bar-wrap"><div class="ri-action-bar-fill" style="width:' + pct.toFixed(1) + '%;background:' + b.color + '"></div></div>'
-          + '<div class="ri-action-count">' + b.count + '</div>'
+      html += '<div style="display:flex;align-items:center;gap:24px;">';
+      html += '<canvas id="riPieChart" width="160" height="160" style="flex-shrink:0;"></canvas>';
+      html += '<div style="display:flex;flex-direction:column;gap:8px;flex:1;">';
+      actionBars.forEach(function(b) {
+        var pct = totalSkus > 0 ? (b.count / totalSkus * 100).toFixed(1) : '0.0';
+        html += '<div style="display:flex;align-items:center;gap:8px;">'
+          + '<div style="width:10px;height:10px;border-radius:2px;background:' + b.color + ';flex-shrink:0;"></div>'
+          + '<div style="font-size:12px;font-weight:600;color:var(--text2);flex:1;">' + b.label + '</div>'
+          + '<div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text);">' + b.count + '</div>'
+          + '<div style="font-family:var(--mono);font-size:11px;color:var(--text4);min-width:36px;text-align:right;">' + pct + '%</div>'
           + '</div>';
-      }).join('');
+      });
+      html += '</div></div>';
       html += '</div>';
 
       // Alerts
@@ -1888,6 +1893,54 @@ async function restoreFromDB() {
         + '</div>';
 
       body.innerHTML = html;
+
+      // Draw pie chart
+      (function() {
+        var canvas = document.getElementById('riPieChart');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        var w = canvas.width, h = canvas.height;
+        var cx = w / 2, cy = h / 2, r = 66, inner = 38;
+        var slices = actionBars.filter(function(b) { return b.count > 0; });
+        var total = slices.reduce(function(s, b) { return s + b.count; }, 0);
+        if (!total) return;
+
+        // Resolve CSS color vars to real colors
+        var colorMap = {
+          'var(--green)':  '#0c7a42',
+          'var(--amber)':  '#92400e',
+          'var(--red)':    '#b91c1c',
+          'var(--text4)':  '#98a7bc',
+        };
+
+        var start = -Math.PI / 2;
+        slices.forEach(function(b) {
+          var sweep = (b.count / total) * 2 * Math.PI;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.arc(cx, cy, r, start, start + sweep);
+          ctx.closePath();
+          ctx.fillStyle = colorMap[b.color] || b.color;
+          ctx.fill();
+          start += sweep;
+        });
+
+        // Donut hole
+        ctx.beginPath();
+        ctx.arc(cx, cy, inner, 0, 2 * Math.PI);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+
+        // Center label
+        ctx.fillStyle = '#0c1526';
+        ctx.font = 'bold 18px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(totalSkus, cx, cy - 7);
+        ctx.font = '600 10px Plus Jakarta Sans, sans-serif';
+        ctx.fillStyle = '#98a7bc';
+        ctx.fillText('SKUs', cx, cy + 10);
+      })();
 
     } catch(e) {
       body.innerHTML = '<div class="ri-empty"><div class="ri-empty-title">Failed to load</div><div class="ri-empty-sub">' + riEsc(e.message) + '</div></div>';
