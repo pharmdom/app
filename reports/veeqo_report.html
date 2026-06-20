@@ -422,54 +422,35 @@ window.setRange = function(r) {
   loadData();
 };
 
-/* ── DATE BOUNDS ──
-   Uses UK timezone (Europe/London = BST in summer, GMT in winter).
-   "Today" = midnight to now in UK local time.
-   Data is stored as UTC in Supabase so we convert correctly.        */
 function getUKMidnight() {
-  /* Get today's date string in UK timezone */
+  /* Reliable method: use Intl to get today's date in UK timezone,
+     then find what UTC time corresponds to midnight on that date in London. */
   var now = new Date();
-  var ukDateStr = now.toLocaleDateString('en-GB', {
+  /* Get the date parts in UK timezone */
+  var fmt = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Europe/London',
-    year: 'numeric', month: '2-digit', day: '2-digit'
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
   });
-  /* ukDateStr is DD/MM/YYYY */
-  var parts = ukDateStr.split('/');
-  var day = parseInt(parts[0]), month = parseInt(parts[1])-1, year = parseInt(parts[2]);
-  /* Build midnight UK time as UTC */
-  var midnight = new Date(Date.UTC(year, month, day));
-  /* Adjust for UK offset: BST = UTC+1, GMT = UTC+0 */
-  var ukOffset = getUKOffset(midnight);
-  midnight = new Date(midnight.getTime() - ukOffset * 60000);
-  return midnight;
-}
-function getUKOffset(d) {
-  /* Returns UK offset in minutes (60 for BST, 0 for GMT) */
-  var jan = new Date(d.getFullYear(), 0, 1);
-  var jul = new Date(d.getFullYear(), 6, 1);
-  var stdOffset = Math.max(
-    -jan.getTimezoneOffset(),
-    -jul.getTimezoneOffset()
-  );
-  /* If current date is in DST, offset is stdOffset */
-  var janOff = -jan.getTimezoneOffset();
-  var julOff = -jul.getTimezoneOffset();
-  /* UK: GMT in winter (0), BST in summer (+60) */
-  /* Detect by checking if the date falls in BST period */
-  var lastSundayMarch = getLastSunday(d.getFullYear(), 2); /* March */
-  var lastSundayOctober = getLastSunday(d.getFullYear(), 9); /* October */
-  var ts = d.getTime();
-  if (ts >= lastSundayMarch.getTime() && ts < lastSundayOctober.getTime()) {
-    return 60; /* BST: UTC+1, so midnight UK = 23:00 prev day UTC */
-  }
-  return 0; /* GMT: midnight UK = midnight UTC */
-}
-function getLastSunday(year, month) {
-  /* Last Sunday of given month at 01:00 UTC (when clocks change in UK) */
-  var d = new Date(Date.UTC(year, month+1, 0)); /* last day of month */
-  d.setUTCDate(d.getUTCDate() - d.getUTCDay()); /* go back to Sunday */
-  d.setUTCHours(1, 0, 0, 0);
-  return d;
+  var parts = fmt.formatToParts(now);
+  var p = {};
+  parts.forEach(function(x){ p[x.type] = x.value; });
+  /* Construct midnight UK time and find its UTC equivalent */
+  var ukMidnightStr = p.year+'-'+p.month+'-'+p.day+'T00:00:00';
+  /* Parse as if it were UTC, then adjust by the actual UK offset */
+  var naiveUTC = new Date(ukMidnightStr + 'Z');
+  /* Find the real offset: UK midnight in UTC = naive + offset correction */
+  /* We do this by checking what time London thinks naiveUTC is */
+  var testFmt = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    hour: '2-digit', minute: '2-digit', hour12: false
+  });
+  var testParts = testFmt.formatToParts(naiveUTC);
+  var tp = {};
+  testParts.forEach(function(x){ tp[x.type]=x.value; });
+  var offsetHours = parseInt(tp.hour);   /* how many hours off midnight we are */
+  var offsetMs = offsetHours * 3600000;  /* BST=1h off, GMT=0h off */
+  return new Date(naiveUTC.getTime() - offsetMs);
 }
 
 function getRangeBounds() {
