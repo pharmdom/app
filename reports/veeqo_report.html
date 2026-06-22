@@ -359,18 +359,23 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 (function(){
 'use strict';
 
-/* ── DB INIT ──
-   Uses window.sb if the portal shell injected it,
-   otherwise creates a client directly.              */
+/* ── DB INIT ── */
 var SB_URL = 'https://mbmgcqknbajwndiveewf.supabase.co';
 var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ibWdjcWtuYmFqd25kaXZlZXdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MjM5NDYsImV4cCI6MjA5NTI5OTk0Nn0.PtMnPnh8FjfS9Qla-D17Jfk-0ArgtKLTRrE52edAVdU';
-var sb = window.sb || null;
-if (!sb) {
+var sb = null;
+
+function initSB() {
+  /* Always create a fresh anon client directly — never rely on window.sb
+     from the shell, because the iframe races against the shell's init.   */
+  if (sb) return sb;
   try {
     if (window.supabase && window.supabase.createClient) {
-      sb = window.supabase.createClient(SB_URL, SB_KEY);
+      sb = window.supabase.createClient(SB_URL, SB_KEY, {
+        auth: { persistSession: false }  /* anon read — no session needed */
+      });
     }
-  } catch(e) { console.warn('Supabase init error:', e); }
+  } catch(e) { console.warn('SB init error:', e); }
+  return sb;
 }
 
 /* ── STATE ── */
@@ -471,10 +476,12 @@ function getRangeBounds() {
 
 /* ── LOAD DATA ── */
 async function loadData() {
-  if (!sb) {
-    showError('Database not connected. Check your portal configuration.');
-    return;
-  }
+sb = initSB();
+if (!sb) {
+  /* CDN not loaded yet — retry in 500ms */
+  setTimeout(loadData, 500);
+  return;
+}
   pStart();
   try {
     var b = getRangeBounds();
