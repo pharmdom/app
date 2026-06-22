@@ -493,9 +493,13 @@ body{overflow:hidden}
 
 <div class="toasts" id="toasts"></div>
 <div class="modal-overlay" id="confirmOverlay">
-  <div class="modal-box">
+<div class="modal-box">
     <h3 id="confirmTitle">Confirm</h3>
     <p id="confirmMsg">Are you sure?</p>
+    <label id="resetRejectedWrap" style="display:none;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer;font-size:12.5px;color:var(--text3);">
+      <input type="checkbox" id="resetIncludeRejected" style="accent-color:var(--red);width:14px;height:14px;cursor:pointer;">
+      Also delete all rejected SKUs
+    </label>
     <div class="modal-actions">
       <button class="btn btn-secondary btn-sm" onclick="closeConfirm()">Cancel</button>
       <button class="btn btn-sm" id="confirmOkBtn" style="background:var(--red);border-color:var(--red);color:#fff;" onclick="doConfirm()">Confirm</button>
@@ -1627,20 +1631,37 @@ function confirmReset() {
     'All actions and notes for the current list will be cleared. The uploaded data stays.',
     async () => {
       closeConfirm();
-      await clearNonRejectedFromDB();
-      acts = {}; notes = {}; actsOrder = [];
+      const includeRejected = document.getElementById('resetIncludeRejected')?.checked;
+      if (includeRejected) {
+        await sb.from('replenishment_skus').delete().neq('sku', '__never__');
+        acts = {}; notes = {}; actsOrder = [];
+      } else {
+        await clearNonRejectedFromDB();
+        /* Keep rejected in acts so they survive the reset */
+        Object.keys(acts).forEach(sku => {
+          if (acts[sku] !== 'rej') { delete acts[sku]; delete notes[sku]; }
+        });
+        actsOrder = actsOrder.filter(s => acts[s] === 'rej');
+      }
       persist();
       render();
-      toast('Week data deleted', 'info');
-    }
+      toast(includeRejected ? 'All data deleted including rejected SKUs' : 'Week data deleted', 'info');
+    },
+    true 
   );
 }
 
 // ── CONFIRM ──
-function openConfirm(title, msg, fn) {
+function openConfirm(title, msg, fn, showRejectedToggle) {
   document.getElementById('confirmTitle').textContent = title;
   document.getElementById('confirmMsg').textContent = msg;
   confirmFn = fn;
+  const wrap = document.getElementById('resetRejectedWrap');
+  if (wrap) {
+    wrap.style.display = showRejectedToggle ? 'flex' : 'none';
+    const cb = document.getElementById('resetIncludeRejected');
+    if (cb) cb.checked = false;
+  }
   document.getElementById('confirmOverlay').classList.add('open');
 }
 function closeConfirm() { document.getElementById('confirmOverlay').classList.remove('open'); confirmFn = null; }
