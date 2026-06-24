@@ -479,15 +479,27 @@ const fmtDateShort=s=>{if(!s)return'—';const d=new Date(s);return d.toLocaleDa
 const initials=n=>{const p=(n||'?').trim().split(/\s+/);return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():(n||'?').slice(0,2).toUpperCase();};
 
 function ukMidnight(){
-  const now=new Date();
-  // 'sv' locale reliably gives YYYY-MM-DD in every browser
-  const ukDate=now.toLocaleDateString('sv',{timeZone:'Europe/London'});
-  // utcMidnight = 00:00 UTC on the UK calendar date
-  const utcMidnight=new Date(ukDate+'T00:00:00Z');
-  // How many hours is London ahead of UTC right now? (0 in GMT, 1 in BST)
-  const offsetHours=(utcMidnight.getTime()-new Date(ukDate+'T00:00:00').getTime())/3600000;
-  // Shift back to get the actual UTC instant when London clocks hit midnight
-  return new Date(utcMidnight.getTime()-offsetHours*3600000);
+  var now=new Date();
+  var fmt=new Intl.DateTimeFormat('en-GB',{
+    timeZone:'Europe/London',
+    year:'numeric',month:'2-digit',day:'2-digit',
+    hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false
+  });
+  var parts=fmt.formatToParts(now);
+  var p={};
+  parts.forEach(function(x){p[x.type]=x.value;});
+  var ukMidnightStr=p.year+'-'+p.month+'-'+p.day+'T00:00:00';
+  var naiveUTC=new Date(ukMidnightStr+'Z');
+  var testFmt=new Intl.DateTimeFormat('en-GB',{
+    timeZone:'Europe/London',
+    hour:'2-digit',minute:'2-digit',hour12:false
+  });
+  var testParts=testFmt.formatToParts(naiveUTC);
+  var tp={};
+  testParts.forEach(function(x){tp[x.type]=x.value;});
+  var offsetHours=parseInt(tp.hour);
+  var offsetMs=offsetHours*3600000;
+  return new Date(naiveUTC.getTime()-offsetMs);
 }
 
   
@@ -535,7 +547,10 @@ async function init(){
 async function loadVeeqo(){
   const midnight=ukMidnight();
   const ago30=new Date(midnight);ago30.setUTCDate(ago30.getUTCDate()-29);
-  console.log('[Veeqo] today from:',midnight.toISOString(),'30d from:',ago30.toISOString());
+  if(r1.error)console.error('[Veeqo today error]',r1.error);
+  if(r2.error)console.error('[Veeqo 30d error]',r2.error);
+  console.log('[Veeqo] today rows:',r1.data?.length,'30d rows:',r2.data?.length);
+  
   const[r1,r2]=await Promise.all([
     sb.from('veeqo_orders').select('order_id,order_number,status,total_price,is_amazon_prime,created_at,shipped_at,channel,deliver_to_name').gte('created_at',midnight.toISOString()).order('created_at',{ascending:false}).limit(1000),
     sb.from('veeqo_orders').select('order_id,total_price,created_at,status,channel').gte('created_at',ago30.toISOString()).order('created_at',{ascending:false}).limit(5000),
@@ -574,12 +589,15 @@ async function loadFBA(){
 }
 
 async function loadFaults(){
-  const ago30=new Date();ago30.setDate(ago30.getDate()-30);
-  const ago30Str=`${ago30.getFullYear()}-${String(ago30.getMonth()+1).padStart(2,'0')}-${String(ago30.getDate()).padStart(2,'0')}`;
-  const{data,error}=await sb.from('packaging_faults').select('id,fault,resolved,order_value,order_date,person').gte('order_date',ago30Str).order('order_date',{ascending:false}).limit(300);
+  const{data,error}=await sb.from('packaging_faults').select('id,fault,resolved,order_value,order_date,person').order('order_date',{ascending:false}).limit(500);
   if(error)console.error('[Faults error]',error);
-  console.log('[Faults] rows:',data?.length,'filter from:',ago30Str);
-  D.faults=data||[];
+  console.log('[Faults] rows:',data?.length);
+  // Filter to last 30 days client-side
+  const ago30=new Date();ago30.setDate(ago30.getDate()-30);ago30.setHours(0,0,0,0);
+  D.faults=(data||[]).filter(f=>{
+    if(!f.order_date)return false;
+    return new Date(f.order_date)>=ago30;
+  });
 }
 
 async function loadRota(){
