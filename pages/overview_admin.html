@@ -547,17 +547,10 @@ async function init(){
 async function loadVeeqo(){
   const midnight=ukMidnight();
   const ago30=new Date(midnight);ago30.setUTCDate(ago30.getUTCDate()-29);
-  if(r1.error)console.error('[Veeqo today error]',r1.error);
-  if(r2.error)console.error('[Veeqo 30d error]',r2.error);
-  console.log('[Veeqo] today rows:',r1.data?.length,'30d rows:',r2.data?.length);
-  
   const[r1,r2]=await Promise.all([
     sb.from('veeqo_orders').select('order_id,order_number,status,total_price,is_amazon_prime,created_at,shipped_at,channel,deliver_to_name').gte('created_at',midnight.toISOString()).order('created_at',{ascending:false}).limit(1000),
     sb.from('veeqo_orders').select('order_id,total_price,created_at,status,channel').gte('created_at',ago30.toISOString()).order('created_at',{ascending:false}).limit(5000),
   ]);
-  if(r1.error)console.error('[Veeqo today error]',r1.error);
-  if(r2.error)console.error('[Veeqo 30d error]',r2.error);
-  console.log('[Veeqo] today rows:',r1.data?.length,'30d rows:',r2.data?.length);
   D.veeqoToday=r1.data||[];
   D.veeqo30=r2.data||[];
 }
