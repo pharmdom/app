@@ -560,8 +560,8 @@ async function loadReplenishments(){
 
 async function loadFBA(){
   const[{data:prods},{data:work}]=await Promise.all([
-    sb.from('fba_products').select('product_id,product_name').limit(200),
-    sb.from('fba_work').select('fba_product_id,stage,completed').limit(500),
+    sb.from('fba_products').select('id,brand,product_line,units_required,units_completed,ups_collected,collection_booked').limit(200),
+    sb.from('fba_work').select('id,brand,product_line,units_required,units_completed,ups_collected,collection_booked').limit(500),
   ]);
   D.fbaProds=prods||[];D.fbaWork=work||[];
 }
@@ -574,8 +574,8 @@ async function loadFaults(){
 
 async function loadRota(){
   const[{data:sched},{data:users}]=await Promise.all([
-    sb.from('rota_schedule').select('id,employee_id,date,start_time,end_time').limit(1000),
-    sb.from('users').select('user_id,first_name,last_name,role').eq('status','Active'),
+    sb.from('rota_schedule').select('id,employee_id,date,start_time,end_time,notes,type').limit(1000),
+    sb.from('users').select('user_id,first_name,last_name,role,status').eq('status','Active'),
   ]);
   D.rotaSched=sched||[];D.rotaUsers=users||[];
 }
@@ -804,15 +804,25 @@ function renderCatalogKpis(){
 
 /* ── FBA STAGES ── */
 function renderFBAStages(){
+  const prods=D.fbaProds||[];
   const work=D.fbaWork||[];
-  const counts={Warehouse:0,'Digital Ops':0,Completed:0};
-  work.forEach(w=>{if(w.completed)counts.Completed++;else if((w.stage||'').toLowerCase().includes('digital'))counts['Digital Ops']++;else counts.Warehouse++;});
-  const total=Object.values(counts).reduce((a,b)=>a+b,0)||1;
-  const colors={Warehouse:'var(--amber)','Digital Ops':'var(--purple)',Completed:'var(--green)'};
-  document.getElementById('ovFBAStages').innerHTML=Object.entries(counts).map(([s,n])=>`
+  // fba_products = items in pipeline; fba_work = completed/processed work entries
+  // Use units_completed vs units_required to determine stage
+  const notStarted=prods.filter(p=>!p.units_completed||p.units_completed===0).length;
+  const inProgress=prods.filter(p=>p.units_completed>0&&p.units_completed<(p.units_required||1)).length;
+  const completed=prods.filter(p=>p.units_completed>0&&p.units_completed>=(p.units_required||1)).length;
+  const awaitingCollection=prods.filter(p=>p.collection_booked==='Yes'&&p.ups_collected!=='Yes').length;
+  const total=prods.length||1;
+  const rows=[
+    {lbl:'Not Started',n:notStarted,color:'var(--text4)'},
+    {lbl:'In Progress',n:inProgress,color:'var(--amber)'},
+    {lbl:'Completed',n:completed,color:'var(--green)'},
+    {lbl:'Awaiting UPS',n:awaitingCollection,color:'var(--purple)'},
+  ];
+  document.getElementById('ovFBAStages').innerHTML=rows.map(r=>`
     <div class="stage-bar">
-      <div class="stage-bar-hdr"><span class="stage-bar-lbl">${esc(s)}</span><span class="stage-bar-n">${n}</span></div>
-      <div class="stage-track"><div class="stage-fill" style="width:${(n/total*100).toFixed(1)}%;background:${colors[s]}"></div></div>
+      <div class="stage-bar-hdr"><span class="stage-bar-lbl">${esc(r.lbl)}</span><span class="stage-bar-n">${r.n}</span></div>
+      <div class="stage-track"><div class="stage-fill" style="width:${(r.n/total*100).toFixed(1)}%;background:${r.color}"></div></div>
     </div>`).join('');
 }
 
@@ -821,13 +831,14 @@ function renderRota(){
   const sched=D.rotaSched||[];
   const users=D.rotaUsers||[];
   const today=new Date();
-  const todayStr=today.toISOString().split('T')[0];
-  const dow=today.getDay();const off=dow===0?-6:1-dow;
-  const weekStart=new Date(today);weekStart.setDate(today.getDate()+off);weekStart.setHours(0,0,0,0);
+  const todayStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const dow=today.getDay();
+  const off=dow===0?-6:1-dow;
+  const weekStart=new Date(today);weekStart.setDate(today.getDate()+off);weekStart.setHours(12,0,0,0);
   const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const dayCounts=days.map((_,i)=>{
     const d=new Date(weekStart);d.setDate(weekStart.getDate()+i);
-    const ds=d.toISOString().split('T')[0];
+    const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const count=new Set(sched.filter(s=>s.date===ds).map(s=>s.employee_id)).size;
     return{lbl:days[i],ds,count,isToday:ds===todayStr};
   });
@@ -963,18 +974,30 @@ function ovOpenFaultsDrawer(){
 }
 
 function ovOpenFBADrawer(){
-  const prods=D.fbaProds||[];const work=D.fbaWork||[];
-  const rows=prods.slice(0,10).map(p=>{
-    const pw=work.filter(w=>w.fba_product_id===p.product_id);
-    const done=pw.filter(w=>w.completed).length;const tot=pw.length;
-    return`<div class="drw-card"><div class="drw-card-t">${esc(p.product_name||'—')}</div>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:5px">
-        <div style="flex:1;height:4px;background:var(--surface3);border-radius:99px;overflow:hidden"><div style="height:100%;width:${tot?done/tot*100:0}%;background:var(--green);border-radius:99px"></div></div>
-        <span style="font-size:10.5px;font-weight:700;color:var(--text3)">${done}/${tot}</span>
-      </div></div>`;
+  const prods=D.fbaProds||[];
+  const rows=prods.slice(0,12).map(p=>{
+    const req=p.units_required||0;
+    const done=p.units_completed||0;
+    const pct=req>0?Math.min(done/req*100,100):0;
+    const label=`${p.brand||'—'}${p.product_line?' — '+p.product_line:''}`;
+    const stage=done===0?'Not started':done>=req?'Completed':'In progress';
+    const stageCol=done===0?'var(--text4)':done>=req?'var(--green)':'var(--amber)';
+    return`<div class="drw-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="drw-card-t">${esc(label)}</div>
+        <span style="font-size:10px;font-weight:700;color:${stageCol}">${esc(stage)}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+        <div style="flex:1;height:4px;background:var(--surface3);border-radius:99px;overflow:hidden">
+          <div style="height:100%;width:${pct.toFixed(1)}%;background:${stageCol};border-radius:99px;transition:width .5s"></div>
+        </div>
+        <span style="font-size:10.5px;font-weight:700;color:var(--text3);white-space:nowrap">${done}/${req} units</span>
+      </div>
+      ${p.collection_booked==='Yes'?`<div style="margin-top:4px;font-size:10px;color:var(--purple);font-weight:600">📦 Collection booked${p.ups_collected==='Yes'?' · ✓ Collected':''}</div>`:''}
+    </div>`;
   }).join('');
   ovOpenDrawer('FBA Prep','Pipeline',`${prods.length} products in pipeline`,`
-    <div class="drw-sec-lbl">Products in Progress</div>
+    <div class="drw-sec-lbl">All Products (${prods.length})</div>
     ${rows||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No FBA products in pipeline</div>'}
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('fba')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
