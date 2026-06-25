@@ -476,6 +476,7 @@ const fmtGBP=v=>'£'+(parseFloat(v)||0).toLocaleString('en-GB',{minimumFractionD
 const fmtDateShort=s=>{if(!s)return'—';const d=new Date(s);return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});};
 const initials=n=>{const p=(n||'?').trim().split(/\s+/);return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():(n||'?').slice(0,2).toUpperCase();};
 
+
 function ukMidnight(){
   var now=new Date();
   var fmt=new Intl.DateTimeFormat('en-GB',{
@@ -528,6 +529,42 @@ function updateClock(){
 setInterval(updateClock,1000);updateClock();
 
 /* ── INIT ── */
+async function loadSourcing(){
+  const{data,error}=await sb.from('sourcing').select('opportunity_id,product_name,supplier_name,approved,purchased,created_at,sourcing_approvals(status)').order('created_at',{ascending:false}).limit(500);
+  if(error)console.error('[Sourcing error]',error);
+  console.log('[Sourcing] rows:',data?.length);
+  D.sourcing=data||[];
+}
+
+async function loadFBA(){
+  const[r1,r2]=await Promise.all([
+    sb.from('fba_products').select('id,brand,product_line,units_required,units_completed,ups_collected,collection_booked').limit(200),
+    sb.from('fba_work').select('id,brand,product_line,units_required,units_completed,ups_collected,collection_booked').limit(500),
+  ]);
+  if(r1.error)console.error('[FBA products error]',r1.error);
+  if(r2.error)console.error('[FBA work error]',r2.error);
+  console.log('[FBA] prods:',r1.data?.length,'work:',r2.data?.length);
+  D.fbaProds=r1.data||[];D.fbaWork=r2.data||[];
+}
+
+
+
+async function loadRota(){
+  const[r1,r2]=await Promise.all([
+    sb.from('rota_schedule').select('id,employee_id,date,start_time,end_time,notes,type').limit(1000),
+    sb.from('users').select('user_id,first_name,last_name,role,status').eq('status','Active'),
+  ]);
+  if(r1.error)console.error('[Rota schedule error]',r1.error);
+  if(r2.error)console.error('[Rota users error]',r2.error);
+  console.log('[Rota] sched:',r1.data?.length,'users:',r2.data?.length);
+  D.rotaSched=r1.data||[];D.rotaUsers=r2.data||[];
+}
+
+
+
+
+
+  
 async function init(){
   if(!sb)return;
   pStart();
