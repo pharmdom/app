@@ -460,11 +460,16 @@ const SB_URL='https://mbmgcqknbajwndiveewf.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ibWdjcWtuYmFqd25kaXZlZXdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MjM5NDYsImV4cCI6MjA5NTI5OTk0Nn0.PtMnPnh8FjfS9Qla-D17Jfk-0ArgtKLTRrE52edAVdU';
 const PAYCHECK_URL='https://script.google.com/macros/s/AKfycbzCkuKZM3fseUWhmx6fMF2kImY2f0owG35Q_ctttdwj7siAoT0-FYChbesTzf9RQ5rQ0w/exec';
 
-let sb=window.sb||null;
-if(!sb){
+let sb=null;
+// Always create own fresh anon client — never inherit window.sb from the shell
+// which may have an authenticated session that interferes with anon queries
+if(window.supabase&&window.supabase.createClient){
+  sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:false,storageKey:'ov_admin_'+Math.random()}});
+  init();
+}else{
   const s=document.createElement('script');
   s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-  s.onload=()=>{sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:false}});init();};
+  s.onload=()=>{sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:false,storageKey:'ov_admin_'+Math.random()}});init();};
   document.head.appendChild(s);
 }
 
