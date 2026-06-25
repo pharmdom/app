@@ -273,6 +273,8 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sb-blue{background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-bd);}
 .sb-neutral{background:var(--surface2);color:var(--text3);border:1px solid var(--border);}
 
+.ov-sc.no-anim{animation:none;}
+
 /* ── RESPONSIVE ── */
 @media(max-width:1200px){.ov-hero{grid-template-columns:repeat(3,1fr);}.bottom-grid{grid-template-columns:1fr 1fr;}}
 @media(max-width:960px){.ov-grid{grid-template-columns:1fr;}.ov-hero{grid-template-columns:repeat(2,1fr);}.bottom-grid{grid-template-columns:1fr;}}
@@ -542,8 +544,8 @@ async function loadVeeqo(){
     sb.from('veeqo_orders').select('order_id,order_number,status,total_price,is_amazon_prime,created_at,shipped_at,channel,deliver_to_name').gte('created_at',midnight.toISOString()).order('created_at',{ascending:false}).limit(1000),
     sb.from('veeqo_orders').select('order_id,total_price,created_at,status,channel').gte('created_at',ago30.toISOString()).order('created_at',{ascending:false}).limit(5000),
   ]);
-  D.veeqoToday=r1.data||[];
-  D.veeqo30=r2.data||[];
+  if(r1.data!==null)D.veeqoToday=r1.data||[];
+  if(r2.data!==null)D.veeqo30=r2.data||[];
 }
 
 async function loadSourcing(){
@@ -582,11 +584,9 @@ async function loadFaults(){
   if(error)console.error('[Faults error]',error);
   console.log('[Faults] rows:',data?.length);
   // Filter to last 30 days client-side
-  const ago30=new Date();ago30.setDate(ago30.getDate()-30);ago30.setHours(0,0,0,0);
-  D.faults=(data||[]).filter(f=>{
-    if(!f.order_date)return false;
-    return new Date(f.order_date)>=ago30;
-  });
+const now=new Date();
+const ago30Str=new Date(now.getFullYear(),now.getMonth(),now.getDate()-30).toISOString().split('T')[0];
+D.faults=(data||[]).filter(f=>f.order_date&&f.order_date>=ago30Str);
 }
 
 async function loadRota(){
@@ -641,8 +641,11 @@ function renderHero(){
   const ready=t.filter(o=>o.status==='awaiting_fulfillment').length;
   const blocked=t.filter(o=>['awaiting_payment','payment_pending'].includes((o.status||'').toLowerCase())).length;
   const prime=t.filter(o=>o.is_amazon_prime).length;
-  const needsApproval=(D.sourcing||[]).filter(p=>!p.approved&&!((p.sourcing_approvals||[]).some(a=>a.status==='rejected'))).length;
+  const needsApproval=(D.sourcing||[]).filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected')).length;
   const openFaults=(D.faults||[]).filter(f=>!f.resolved).length;
+
+  const hero=document.getElementById('ovHero');
+  const isRerender=hero.dataset.rendered==='1';
 
   const cards=[
     {cls:'sc-green',label:'Shipped Today',val:shipped,
@@ -654,7 +657,7 @@ function renderHero(){
     {cls:'sc-amber',label:'Ready to Ship',val:ready,
       badge:ready>5?{cls:'bg-warn',txt:'Backlog building'}:ready>0?{cls:'bg-warn',txt:'Action needed'}:{cls:'bg-good',txt:'Clear'},
       icon:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',onclick:'ovOpenVeeqoDrawer()'},
-    {cls:'sc-red',label:'Awaiting Payment',val:blocked,
+    {cls:'sc-red',label:'Awaiting Pay',val:blocked,
       badge:blocked>0?{cls:'bg-crit',txt:'⚠ Needs action'}:{cls:'bg-good',txt:'All clear'},
       icon:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',onclick:'ovOpenVeeqoDrawer()'},
     {cls:'sc-amber',label:'Leads Approvals',val:needsApproval,
@@ -665,13 +668,26 @@ function renderHero(){
       icon:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',onclick:'ovOpenFaultsDrawer()'},
   ];
 
-  document.getElementById('ovHero').innerHTML=cards.map((c,i)=>`
+  if(isRerender){
+    // update values in-place, no DOM rebuild, no animation
+    const existing=hero.querySelectorAll('.ov-sc');
+    cards.forEach((c,i)=>{
+      if(!existing[i])return;
+      existing[i].querySelector('.ov-sc-val').textContent=typeof c.val==='number'?c.val.toLocaleString():String(c.val);
+      existing[i].querySelector('.ov-sc-badge').textContent=c.badge.txt;
+      existing[i].querySelector('.ov-sc-badge').className='ov-sc-badge '+c.badge.cls;
+    });
+    return;
+  }
+
+  hero.dataset.rendered='1';
+  hero.innerHTML=cards.map((c,i)=>`
   <div class="ov-sc ${c.cls}" style="animation-delay:${i*.05}s" onclick="${c.onclick}">
     <div class="ov-sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${c.icon}</svg></div>
     <div class="ov-sc-lbl">${esc(c.label)}</div>
     <div class="ov-sc-val in">${typeof c.val==='number'?c.val.toLocaleString():esc(String(c.val))}</div>
     <div class="ov-sc-footer">
-      <div class="ov-sc-sub">${esc(c.sub)}</div>
+      <div class="ov-sc-sub">${esc(c.sub||'')}</div>
       <div class="ov-sc-badge ${c.badge.cls}">${esc(c.badge.txt)}</div>
     </div>
   </div>`).join('');
@@ -685,7 +701,7 @@ function buildAttnItems(){
   const replen=D.replen||[];
   const today=D.veeqoToday||[];
 
-  const needApproval=sourcing.filter(p=>!p.approved&&!((p.sourcing_approvals||[]).some(a=>a.status==='rejected')));
+  const needApproval=sourcing.filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected'));
   if(needApproval.length) items.push({sev:'warn',t:`${needApproval.length} sourcing product${needApproval.length!==1?'s':''} need your approval`,s:'Agents have submitted products awaiting your decision',meta:'Sourcing',tag:{cls:'bg-warn',txt:'Sourcing'},fn:'ovOpenSourcingDrawer()'});
 
   const blocked=today.filter(o=>['awaiting_payment','payment_pending'].includes((o.status||'').toLowerCase()));
@@ -779,7 +795,8 @@ function drawSparkline(id,vals,keys,color){
   let grid='';
   [0,0.5,1].forEach(f=>{
     const y=pT+cH-(cH*f);
-    const label=maxV<1000?'£'+(maxV*f).toFixed(0):'£'+(maxV*f/1000).toFixed(maxV*f/1000<10?1:0)+'k';
+    const rawVal=maxV*f;
+    const label=maxV>=10000?'£'+(rawVal/1000).toFixed(rawVal/1000<10?1:0)+'k':maxV>=1000?'£'+(rawVal/1000).toFixed(1)+'k':'£'+rawVal.toFixed(0);
     grid+=`<line x1="${pL}" y1="${y.toFixed(1)}" x2="${(pL+cW).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border2)" stroke-width="1" stroke-dasharray="3,3"/>`;
     grid+=`<text x="${(pL-5).toFixed(1)}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--text4)" font-family="var(--mono)">${label}</text>`;
   });
@@ -808,21 +825,29 @@ function drawSparkline(id,vals,keys,color){
 function renderFunnel(){
   const s=D.sourcing||[];
   const total=s.length,approved=s.filter(p=>p.approved).length,purchased=s.filter(p=>p.purchased).length;
- const rejected=s.filter(p=>(p.sourcing_approvals||[]).some(a=>a.status==='rejected')&&!p.approved).length;
-const pending=Math.max(0,total-approved-rejected);
+  const rejected=s.filter(p=>(p.sourcing_approvals||[]).some(a=>a.status==='rejected')&&!p.approved).length;
+  const pending=Math.max(0,total-approved-rejected);
   const rows=[
     {lbl:'Submitted',n:total,color:'var(--accent)',pct:100},
     {lbl:'Pending',n:pending,color:'var(--amber)',pct:total?pending/total*100:0},
     {lbl:'Approved',n:approved,color:'var(--cyan)',pct:total?approved/total*100:0},
     {lbl:'Purchased',n:purchased,color:'var(--green)',pct:total?purchased/total*100:0},
   ];
-  document.getElementById('ovFunnel').innerHTML=rows.map(r=>`
+  const el=document.getElementById('ovFunnel');
+  // If already rendered, just update fill widths and numbers in-place
+  const fills=el.querySelectorAll('.funnel-fill');
+  const nums=el.querySelectorAll('.funnel-n');
+  if(fills.length===rows.length){
+    rows.forEach((r,i)=>{fills[i].style.width=r.pct.toFixed(1)+'%';nums[i].textContent=r.n;});
+    return;
+  }
+  el.innerHTML=rows.map(r=>`
     <div class="funnel-row">
       <div class="funnel-lbl">${esc(r.lbl)}</div>
       <div class="funnel-track"><div class="funnel-fill" style="width:0%;background:${r.color}" data-pct="${r.pct.toFixed(1)}"></div></div>
       <div class="funnel-n">${r.n}</div>
     </div>`).join('');
-  requestAnimationFrame(()=>document.querySelectorAll('.funnel-fill').forEach(el=>el.style.width=el.dataset.pct+'%'));
+  requestAnimationFrame(()=>el.querySelectorAll('.funnel-fill').forEach(f=>f.style.width=f.dataset.pct+'%'));
 }
 
 /* ── REPLENISHMENTS DONUT ── */
@@ -1032,7 +1057,7 @@ function ovOpenVeeqoDrawer(){
 
 function ovOpenSourcingDrawer(){
   const s=D.sourcing||[];
-  const needApproval=s.filter(p=>!p.approved&&!((p.sourcing_approvals||[]).some(a=>a.status==='rejected')));
+  const needsApproval=(D.sourcing||[]).filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected')).length;
   const awaitPurchase=s.filter(p=>p.approved&&!p.purchased);
   const purchased=s.filter(p=>p.purchased);
   const list=(items,empty)=>items.length?items.slice(0,8).map(p=>`<div class="drw-card"><div class="drw-card-t">${esc(p.product_name||'—')}</div><div class="drw-card-s">${esc(p.supplier_name||'—')} · ${fmtDateShort(p.created_at)}</div></div>`).join(''):`<div style="padding:8px 0;font-size:12px;color:var(--text4)">${empty}</div>`;
