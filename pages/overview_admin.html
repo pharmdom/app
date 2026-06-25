@@ -414,6 +414,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
               <div class="mkpi"><div class="mkpi-lbl">Total SKUs</div><div class="mkpi-val" id="ovCatTotal">—</div></div>
               <div class="mkpi"><div class="mkpi-lbl">Approved</div><div class="mkpi-val green" id="ovCatApproved">—</div></div>
             </div>
+            <div id="ovCatSuppliers"></div>
           </div>
           <div class="pulse-card" onclick="ovOpenFBADrawer()">
             <div class="pulse-hdr">
@@ -533,56 +534,6 @@ function updateClock(){
 }
 setInterval(updateClock,1000);updateClock();
 
-/* ── INIT ── */
-async function loadSourcing(){
-  const{data,error}=await sb.from('sourcing').select('opportunity_id,product_name,supplier_name,approved,purchased,created_at,sourcing_approvals(status)').order('created_at',{ascending:false}).limit(500);
-  if(error)console.error('[Sourcing error]',error);
-  console.log('[Sourcing] rows:',data?.length);
-  D.sourcing=data||[];
-}
-
-async function loadFBA(){
-  const[r1,r2]=await Promise.all([
-    sb.from('fba_products').select('id,brand,product_line,units_required,units_completed,ups_collected,collection_booked').limit(200),
-    sb.from('fba_work').select('id,brand,product_line,units_required,units_completed,ups_collected,collection_booked').limit(500),
-  ]);
-  if(r1.error)console.error('[FBA products error]',r1.error);
-  if(r2.error)console.error('[FBA work error]',r2.error);
-  console.log('[FBA] prods:',r1.data?.length,'work:',r2.data?.length);
-  D.fbaProds=r1.data||[];D.fbaWork=r2.data||[];
-}
-
-
-
-async function loadRota(){
-  const[r1,r2]=await Promise.all([
-    sb.from('rota_schedule').select('id,employee_id,date,start_time,end_time,notes,type').limit(1000),
-    sb.from('users').select('user_id,first_name,last_name,role,status').eq('status','Active'),
-  ]);
-  if(r1.error)console.error('[Rota schedule error]',r1.error);
-  if(r2.error)console.error('[Rota users error]',r2.error);
-  console.log('[Rota] sched:',r1.data?.length,'users:',r2.data?.length);
-  D.rotaSched=r1.data||[];D.rotaUsers=r2.data||[];
-}
-
-
-
-
-
-  
-async function init(){
-  if(!sb)return;
-  pStart();
-  try{
-    await Promise.all([
-      loadVeeqo(),loadSourcing(),loadCatalog(),loadReplenishments(),
-      loadFBA(),loadFaults(),loadRota(),loadPaycheck(),
-    ]);
-    renderAll();
-  }catch(e){console.error('Overview init error:',e);toast('Some data failed to load','error');}
-  pDone();
-}
-
 /* ── LOADERS ── */
 async function loadVeeqo(){
   const midnight=ukMidnight();
@@ -653,6 +604,21 @@ async function loadPaycheck(){
     D.paycheck=(d.rows||[]).map(r=>({date:String(r[0]||''),empId:String(r[1]||''),name:String(r[2]||''),hours:parseFloat(r[3])||0,rate:parseFloat(r[4])||0,pay:parseFloat(r[5])||0,paid:String(r[6]||'No').trim()}));
   }catch(e){D.paycheck=[];}
 }
+  
+async function init(){
+  if(!sb)return;
+  pStart();
+  try{
+    await Promise.all([
+      loadVeeqo(),loadSourcing(),loadCatalog(),loadReplenishments(),
+      loadFBA(),loadFaults(),loadRota(),loadPaycheck(),
+    ]);
+    renderAll();
+  }catch(e){console.error('Overview init error:',e);toast('Some data failed to load','error');}
+  pDone();
+}
+
+
 
 /* ── RENDER ALL ── */
 function renderAll(){
