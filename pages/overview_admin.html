@@ -384,7 +384,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
             <div class="mkpi"><div class="mkpi-lbl">Orders</div><div class="mkpi-val" id="ovRevOrders">—</div></div>
             <div class="mkpi"><div class="mkpi-lbl">Shipped</div><div class="mkpi-val green" id="ovRevShipped">—</div></div>
           </div>
-          <div class="spark-wrap"><svg id="ovSparkline" style="width:100%;height:44px;display:block;"></svg></div>
+          <div class="spark-wrap"><svg id="ovSparkline" style="width:100%;height:100%;display:block;"></svg></div>
         </div>
 
         <!-- Row: Sourcing + Replenishments -->
@@ -542,7 +542,7 @@ async function loadVeeqo(){
   const ago30=new Date(midnight);ago30.setUTCDate(ago30.getUTCDate()-29);
   const[r1,r2]=await Promise.all([
     sb.from('veeqo_orders').select('order_id,order_number,status,total_price,is_amazon_prime,created_at,shipped_at,channel,deliver_to_name').gte('created_at',midnight.toISOString()).order('created_at',{ascending:false}).limit(1000),
-    sb.from('veeqo_orders').select('order_id,total_price,created_at,status,channel').gte('created_at',ago30.toISOString()).order('created_at',{ascending:false}).limit(5000),
+    sb.from('veeqo_orders').select('order_id,total_price,created_at,status,channel').gte('created_at',ago30.toISOString()).order('created_at',{ascending:false}).limit(10000),
   ]);
   if(r1.data!==null)D.veeqoToday=r1.data||[];
   if(r2.data!==null)D.veeqo30=r2.data||[];
@@ -582,7 +582,6 @@ async function loadFBA(){
 async function loadFaults(){
   const{data,error}=await sb.from('packaging_faults').select('id,fault,resolved,order_value,order_date,person').order('order_date',{ascending:false}).limit(500);
   if(error)console.error('[Faults error]',error);
-  console.log('[Faults] rows:',data?.length);
   // Filter to last 30 days client-side
 const now=new Date();
 const ago30Str=new Date(now.getFullYear(),now.getMonth(),now.getDate()-30).toISOString().split('T')[0];
@@ -779,12 +778,12 @@ function renderRevenue(){
   const buckets={};
   for(let i=29;i>=0;i--){const d=new Date(midnight);d.setUTCDate(d.getUTCDate()-i);buckets[d.toISOString().split('T')[0]]=0;}
   orders.forEach(o=>{if(!o.created_at)return;const k=new Date(o.created_at).toISOString().split('T')[0];if(k in buckets)buckets[k]+=parseFloat(o.total_price||0);});
-  drawSparkline('ovSparkline',Object.values(buckets),Object.keys(buckets),'var(--green)');
+  requestAnimationFrame(()=>drawSparkline('ovSparkline',Object.values(buckets),Object.keys(buckets),'var(--green)'));
 }
 
 function drawSparkline(id,vals,keys,color){
   const svg=document.getElementById(id);if(!svg)return;
-  const W=svg.parentElement.offsetWidth||400,H=90,pL=36,pR=8,pT=8,pB=20;
+  const W=svg.parentElement.getBoundingClientRect().width||svg.parentElement.offsetWidth||500,H=90,pL=36,pR=8,pT=8,pB=20;
   const cW=W-pL-pR,cH=H-pT-pB,n=vals.length;
   const maxV=Math.max(...vals,1);
   const pts=vals.map((v,i)=>[pL+(n>1?i*cW/(n-1):0),pT+cH-(v/maxV*cH)]);
@@ -980,9 +979,9 @@ function renderFaults(){
   const totalVal=faults.filter(f=>!f.resolved).reduce((s,f)=>s+parseFloat(f.order_value||0),0);
   const bars=[];
   for(let i=6;i>=0;i--){
-    const d=new Date();d.setDate(d.getDate()-i);
-    const ds=d.toISOString().split('T')[0];
-    bars.push({lbl:['S','M','T','W','T','F','S'][d.getDay()],n:faults.filter(f=>f.order_date&&f.order_date.startsWith(ds)).length});
+  const d=new Date();d.setDate(d.getDate()-i);
+  const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  bars.push({lbl:['S','M','T','W','T','F','S'][d.getDay()],n:faults.filter(f=>f.order_date&&f.order_date.startsWith(ds)).length});
   }
   const maxB=Math.max(...bars.map(b=>b.n),1);
   document.getElementById('ovFaultsWidget').innerHTML=`
