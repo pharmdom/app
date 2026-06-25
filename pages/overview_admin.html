@@ -70,7 +70,12 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .ov-sc-val.in{animation:ovNumIn .4s cubic-bezier(.34,1.56,.64,1) both;}
 @keyframes ovNumIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 .ov-sc-sub{font-size:10.5px;color:var(--text3);}
-.ov-sc-badge{display:inline-flex;align-items:center;gap:3px;margin-top:5px;padding:2px 7px;border-radius:20px;font-size:9.5px;font-weight:700;}
+.ov-sc-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:9.5px;font-weight:700;}
+
+.ov-sc-footer{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px;}
+.ov-sc-footer .ov-sc-sub{margin:0;flex:1;}
+.ov-sc-footer .ov-sc-badge{margin:0;flex-shrink:0;}
+  
 .bg-good{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);}
 .bg-warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd);}
 .bg-crit{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd);}
@@ -134,7 +139,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .mkpi-val.red{color:var(--red);}
 
 /* Sparkline */
-.spark-wrap{height:44px;margin-top:8px;}
+.spark-wrap{height:90px;margin-top:10px;}
 
 /* Funnel */
 .funnel{display:flex;flex-direction:column;gap:6px;}
@@ -596,11 +601,16 @@ async function loadSourcing(){
 }
 
 async function loadCatalog(){
-  const[{count:total},{count:approved}]=await Promise.all([
+  const[r1,r2,r3]=await Promise.all([
     sb.from('catalog').select('*',{count:'exact',head:true}),
     sb.from('catalog').select('*',{count:'exact',head:true}).eq('status','Approved'),
+    sb.from('suppliers').select('id,status').limit(500),
   ]);
-  D.catTotal=total||0;D.catApproved=approved||0;
+  D.catTotal=r1.count||0;
+  D.catApproved=r2.count||0;
+  const sup=r3.data||[];
+  D.suppTotal=sup.length;
+  D.suppActive=sup.filter(s=>(s.status||'').toLowerCase()==='active').length;
 }
 
 async function loadReplenishments(){
@@ -690,13 +700,15 @@ function renderHero(){
   ];
 
   document.getElementById('ovHero').innerHTML=cards.map((c,i)=>`
-    <div class="ov-sc ${c.cls}" style="animation-delay:${i*.05}s" onclick="${c.onclick}">
-      <div class="ov-sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${c.icon}</svg></div>
-      <div class="ov-sc-lbl">${esc(c.label)}</div>
-      <div class="ov-sc-val in">${typeof c.val==='number'?c.val.toLocaleString():esc(String(c.val))}</div>
+  <div class="ov-sc ${c.cls}" style="animation-delay:${i*.05}s" onclick="${c.onclick}">
+    <div class="ov-sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${c.icon}</svg></div>
+    <div class="ov-sc-lbl">${esc(c.label)}</div>
+    <div class="ov-sc-val in">${typeof c.val==='number'?c.val.toLocaleString():esc(String(c.val))}</div>
+    <div class="ov-sc-footer">
       <div class="ov-sc-sub">${esc(c.sub)}</div>
       <div class="ov-sc-badge ${c.badge.cls}">${esc(c.badge.txt)}</div>
-    </div>`).join('');
+    </div>
+  </div>`).join('');
 }
 
 /* ── ATTENTION FEED ── */
@@ -785,22 +797,45 @@ function renderRevenue(){
   const buckets={};
   for(let i=29;i>=0;i--){const d=new Date(midnight);d.setUTCDate(d.getUTCDate()-i);buckets[d.toISOString().split('T')[0]]=0;}
   orders.forEach(o=>{if(!o.created_at)return;const k=new Date(o.created_at).toISOString().split('T')[0];if(k in buckets)buckets[k]+=parseFloat(o.total_price||0);});
-  drawSparkline('ovSparkline',Object.values(buckets),'var(--green)');
+  drawSparkline('ovSparkline',Object.values(buckets),Object.keys(buckets),'var(--green)');
 }
 
-function drawSparkline(id,vals,color){
+function drawSparkline(id,vals,keys,color){
   const svg=document.getElementById(id);if(!svg)return;
-  const W=svg.parentElement.offsetWidth||400,H=44,pL=0,pR=0,pT=4,pB=4;
+  const W=svg.parentElement.offsetWidth||400,H=90,pL=36,pR=8,pT=8,pB=20;
   const cW=W-pL-pR,cH=H-pT-pB,n=vals.length;
-  const maxV=Math.max(...vals)||1;
+  const maxV=Math.max(...vals,1);
   const pts=vals.map((v,i)=>[pL+(n>1?i*cW/(n-1):0),pT+cH-(v/maxV*cH)]);
-  const pathD='M '+pts.map(p=>p[0]+','+p[1]).join(' L ');
-  const areaD=pathD+` L ${pL+cW},${pT+cH} L ${pL},${pT+cH} Z`;
+  const pathD='M '+pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' L ');
+  const areaD=pathD+` L ${(pL+cW).toFixed(1)},${pT+cH} L ${pL},${pT+cH} Z`;
   const gid='sg'+Math.random().toString(36).slice(2);
+  // Y axis gridlines + labels
+  let grid='';
+  [0,0.5,1].forEach(f=>{
+    const y=pT+cH-(cH*f);
+    const label=maxV<1000?'£'+(maxV*f).toFixed(0):'£'+(maxV*f/1000).toFixed(maxV*f/1000<10?1:0)+'k';
+    grid+=`<line x1="${pL}" y1="${y.toFixed(1)}" x2="${(pL+cW).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border2)" stroke-width="1" stroke-dasharray="3,3"/>`;
+    grid+=`<text x="${(pL-5).toFixed(1)}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--text4)" font-family="var(--mono)">${label}</text>`;
+  });
+  // X axis labels — show ~6 evenly spaced dates
+  let xLabels='';
+  const step=Math.max(1,Math.floor(n/5));
+  (keys||[]).forEach((k,i)=>{
+    if(i%step!==0&&i!==n-1)return;
+    const x=pL+(n>1?i*cW/(n-1):0);
+    const parts=k.split('-');
+    const label=parts[2]+'/'+parts[1]; // DD/MM
+    xLabels+=`<text x="${x.toFixed(1)}" y="${H-4}" text-anchor="middle" font-size="9" fill="var(--text4)" font-family="var(--mono)">${label}</text>`;
+  });
   svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-  svg.innerHTML=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity=".2"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
-    <path d="${areaD}" fill="url(#${gid})"/>
-    <path d="${pathD}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+  svg.innerHTML=`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="${color}" stop-opacity=".18"/>
+    <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+  </linearGradient></defs>
+  ${grid}
+  <path d="${areaD}" fill="url(#${gid})"/>
+  <path d="${pathD}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  ${xLabels}`;
 }
 
 /* ── SOURCING FUNNEL ── */
@@ -856,7 +891,14 @@ function renderDonut(){
 function renderCatalogKpis(){
   document.getElementById('ovCatTotal').textContent=(D.catTotal||0).toLocaleString();
   document.getElementById('ovCatApproved').textContent=(D.catApproved||0).toLocaleString();
+  const suppEl=document.getElementById('ovCatSuppliers');
+  if(suppEl)suppEl.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border2);margin-top:6px">
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4)">Suppliers</span>
+      <span style="font-size:11px;font-weight:700;color:var(--text2)">${(D.suppActive||0)} active <span style="color:var(--text4);font-weight:500">/ ${(D.suppTotal||0)} total</span></span>
+    </div>`;
 }
+  
 
 /* ── FBA STAGES ── */
 function renderFBAStages(){
@@ -977,6 +1019,30 @@ function ovCloseDrawer(){
   document.getElementById('ovDrawer').classList.remove('open');
 }
 
+/* ── SILENT REFRESH (no shimmer, in-place update) ── */
+async function silentRefresh(){
+  if(!sb)return;
+  try{
+    await Promise.all([
+      loadVeeqo(),loadSourcing(),loadCatalog(),loadReplenishments(),
+      loadFBA(),loadFaults(),loadRota(),loadPaycheck(),
+    ]);
+    // Update only the values, not the structure
+    renderHero();
+    renderAttention();
+    renderRevenue();
+    renderFunnel();
+    renderDonut();
+    renderCatalogKpis();
+    renderFBAStages();
+    renderPaycheck();
+    renderFaults();
+    // Rota only re-renders if day changed
+    renderRota();
+  }catch(e){console.error('Silent refresh error:',e);}
+}
+
+  
 /* ── DRAWERS ── */
 function ovOpenVeeqoDrawer(){
   const t=D.veeqoToday||[];
@@ -1230,7 +1296,7 @@ window.ovCloseModal=ovCloseModal;
 window.ovRefresh=ovRefresh;
 
 /* ── AUTO REFRESH every 60s ── */
-_refreshTimer=setInterval(()=>init(),60000);
+_refreshTimer=setInterval(()=>silentRefresh(),60000);
 
 /* ── KICK OFF ── */
 
