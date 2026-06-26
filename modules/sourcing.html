@@ -924,7 +924,12 @@ function renderDrawer(row) {
       <div class="drawer-kpi-row">
         ${kpiCard('Amt. ROI',   !isNaN(amtROI)    ? '£'+amtROI.toFixed(2)    : '—', amtROI >= 0    ? 'positive' : 'negative', 'amtroi')}
         ${kpiCard('After Pack', !isNaN(afterPack) ? '£'+afterPack.toFixed(2) : '—', afterPack >= 0 ? 'positive' : 'negative', 'pack')}
-        ${kpiCard('Cost',       !isNaN(cost)      ? '£'+cost.toFixed(2)      : '—', '', 'cost')}
+        ${(()=>{
+          const codeVal=row.code||'';
+          const pairs=codeVal.split(',').map(s=>s.trim()).filter(Boolean);
+          const hasMulti=pairs.length>1&&pairs.some(p=>p.includes(':'));
+          return kpiCard('Cost', hasMulti?'—':(!isNaN(cost)?'£'+cost.toFixed(2):'—'), '', 'cost');
+        })()}
         ${kpiCard('ROI',        !isNaN(roi)       ? (roi*100).toFixed(1)+'%' : '—', roi >= 0       ? 'positive' : 'negative', 'roi')}
       </div>
     </div>
@@ -964,13 +969,27 @@ function renderDrawer(row) {
   const codeVal=row.code||'';
   const pairs=codeVal.split(',').map(s=>s.trim()).filter(Boolean);
   const hasMulti=pairs.length>1&&pairs.some(p=>p.includes(':'));
+  const qty=parseFloat(row.unit_quantity)||0;
   if(!hasMulti) return editCard(id,'cost_of_unit',row.cost_of_unit||'','number','Cost of Unit');
-  return `<div class="info-card full-width"><label>EAN Costs</label>
-    ${pairs.map(p=>{
-      const [ean,cost]=p.split(':').map(s=>s.trim());
-      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:13px">
-        <span style="font-family:monospace;color:#475569">${escHtml(ean)}</span>
-        <span style="font-weight:600;color:#15803d">£${parseFloat(cost||0).toFixed(2)}</span>
+  return `<div class="info-card full-width" id="eanCostCard_${escAttr(id)}"><label>EAN Costs</label>
+    <div style="display:grid;grid-template-columns:1fr 100px 100px;gap:6px;padding:4px 0 6px;border-bottom:1px solid #e2e8f0;margin-bottom:4px">
+      <span style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">EAN</span>
+      <span style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;text-align:right">Cost</span>
+      <span style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;text-align:right">Total (×${qty})</span>
+    </div>
+    ${pairs.map((p,pi)=>{
+      const [ean,costStr]=p.split(':').map(s=>s.trim());
+      const costVal=parseFloat(costStr||0);
+      const total=(costVal*qty).toFixed(2);
+      return `<div style="display:grid;grid-template-columns:1fr 100px 100px;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid #f1f5f9">
+        <span style="font-family:monospace;font-size:12.5px;color:#475569">${escHtml(ean||'—')}</span>
+        <div style="display:flex;justify-content:flex-end">
+          <input type="number" step="0.01" class="edit-input" style="width:90px;text-align:right;padding:4px 6px"
+            value="${costVal||''}"
+            placeholder="0.00"
+            onblur="updateMultiEanCost('${escAttr(id)}',${pi},this.value)">
+        </div>
+        <span id="eanTotal_${escAttr(id)}_${pi}" style="font-weight:600;color:#15803d;font-size:13px;text-align:right">£${total}</span>
       </div>`;
     }).join('')}
   </div>`;
@@ -1733,6 +1752,34 @@ function cancelMinimizedModal() {
 }
 
 
+async function updateMultiEanCost(id, pairIdx, newCostStr) {
+  const row = allData.find(p => p.opportunity_id === id);
+  if (!row) return;
+  const pairs = (row.code || '').split(',').map(s => s.trim()).filter(Boolean);
+  const newCost = parseFloat(newCostStr) || 0;
+  const parts = (pairs[pairIdx] || '').split(':');
+  const ean = parts[0].trim();
+  pairs[pairIdx] = `${ean}:${newCost}`;
+  const newCode = pairs.join(', ');
+
+  // Update total cell immediately
+  const qty = parseFloat(row.unit_quantity) || 0;
+  const totalEl = document.getElementById(`eanTotal_${id}_${pairIdx}`);
+  if (totalEl) totalEl.textContent = '£' + (newCost * qty).toFixed(2);
+
+  // Save new code string and update first cost as cost_of_unit
+  const firstCost = parseFloat((pairs[0] || '').split(':')[1]) || 0;
+  const toastId = showToast('Saving…', 'loading', 0);
+  const { error } = await sb.from('sourcing')
+    .update({ code: newCode, cost_of_unit: firstCost, last_updated: new Date().toISOString() })
+    .eq('opportunity_id', id);
+  removeToast(toastId);
+  if (error) { showToast('Failed to save', 'error'); return; }
+  const idx = allData.findIndex(p => p.opportunity_id === id);
+  if (idx > -1) { allData[idx].code = newCode; allData[idx].cost_of_unit = firstCost; }
+  showToast('Saved', 'success');
+}
+window.updateMultiEanCost = updateMultiEanCost;
 
     
 /* ══ EXPOSE GLOBALS ══ */
