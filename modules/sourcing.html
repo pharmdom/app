@@ -960,7 +960,21 @@ function renderDrawer(row) {
   if (activeTab === 'financials') {
     body = section('Input Values',
       `<div class="info-grid">
-        ${editCard(id,'cost_of_unit',row.cost_of_unit||'','number','Cost of Unit')}
+        ${(()=>{
+  const codeVal=row.code||'';
+  const pairs=codeVal.split(',').map(s=>s.trim()).filter(Boolean);
+  const hasMulti=pairs.length>1&&pairs.some(p=>p.includes(':'));
+  if(!hasMulti) return editCard(id,'cost_of_unit',row.cost_of_unit||'','number','Cost of Unit');
+  return `<div class="info-card full-width"><label>EAN Costs</label>
+    ${pairs.map(p=>{
+      const [ean,cost]=p.split(':').map(s=>s.trim());
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:13px">
+        <span style="font-family:monospace;color:#475569">${escHtml(ean)}</span>
+        <span style="font-weight:600;color:#15803d">£${parseFloat(cost||0).toFixed(2)}</span>
+      </div>`;
+    }).join('')}
+  </div>`;
+})()}
         ${editCard(id,'cost_of_sale',row.cost_of_sale||'','number','Cost of Sale')}
         ${editCard(id,'net_profit',row.net_profit||'','number','Net Profit')}
         ${editCard(id,'unit_quantity',row.unit_quantity||'','number','Sale Quantity (Recommended)')}
