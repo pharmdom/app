@@ -551,15 +551,14 @@ async function loadVeeqo(){
 }
 
 async function loadSourcing(){
-  const[{data},{count},{count:rejectedCount}]=await Promise.all([
+  const[{data},{count},{count:unapprovedCount}]=await Promise.all([
     sb.from('sourcing').select('opportunity_id,product_name,supplier_name,approved,purchased,created_at,sourcing_approvals(status)').order('created_at',{ascending:false}).limit(500),
     sb.from('sourcing').select('*',{count:'exact',head:true}),
-    sb.from('sourcing_approvals').select('*',{count:'exact',head:true}).eq('status','rejected'),
+    sb.from('sourcing').select('*',{count:'exact',head:true}).eq('approved',false).is('approved_by',null),
   ]);
-  const{count:unapprovedCount}=await sb.from('sourcing').select('*',{count:'exact',head:true}).eq('approved',false);
   D.sourcing=data||[];
   D.sourcingTotal=count||0;
-  D.sourcingNeedApproval=Math.max(0,(unapprovedCount||0)-(rejectedCount||0));
+  D.sourcingNeedApproval=unapprovedCount||0;
 }
 
 async function loadCatalog(){
