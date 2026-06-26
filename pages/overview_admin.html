@@ -551,12 +551,15 @@ async function loadVeeqo(){
 }
 
 async function loadSourcing(){
-  const[{data},{count}]=await Promise.all([
+  const[{data},{count},{count:rejectedCount}]=await Promise.all([
     sb.from('sourcing').select('opportunity_id,product_name,supplier_name,approved,purchased,created_at,sourcing_approvals(status)').order('created_at',{ascending:false}).limit(500),
     sb.from('sourcing').select('*',{count:'exact',head:true}),
+    sb.from('sourcing_approvals').select('*',{count:'exact',head:true}).eq('status','rejected'),
   ]);
+  const{count:unapprovedCount}=await sb.from('sourcing').select('*',{count:'exact',head:true}).eq('approved',false);
   D.sourcing=data||[];
   D.sourcingTotal=count||0;
+  D.sourcingNeedApproval=Math.max(0,(unapprovedCount||0)-(rejectedCount||0));
 }
 
 async function loadCatalog(){
@@ -651,7 +654,7 @@ function renderHero(){
   const ready=t.filter(o=>o.status==='awaiting_fulfillment').length;
   const blocked=t.filter(o=>['awaiting_payment','payment_pending'].includes((o.status||'').toLowerCase())).length;
   const prime=t.filter(o=>o.is_amazon_prime).length;
-  const needsApproval=(D.sourcing||[]).filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected')).length;
+  const needsApproval=D.sourcingNeedApproval??((D.sourcing||[]).filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected')).length);
 
   const hero=document.getElementById('ovHero');
   const isRerender=hero.dataset.rendered==='1';
@@ -707,10 +710,12 @@ function buildAttnItems(){
   const replen=D.replen||[];
   const today=D.veeqoToday||[];
 
-  const needApproval=sourcing.filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected'));
-  if(needApproval.length) items.push({sev:'warn',t:`${needApproval.length} sourcing product${needApproval.length!==1?'s':''} need your approval`,s:'Agents have submitted products awaiting your decision',meta:'Sourcing',tag:{cls:'bg-warn',txt:'Sourcing'},fn:'ovOpenSourcingDrawer()'});
+const needApproval=sourcing.filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected'));
+const needApprovalCount=D.sourcingNeedApproval??needApproval.length;
+if(needApprovalCount>0) items.push({sev:'warn',t:`${needApprovalCount} sourcing product${needApprovalCount!==1?'s':''} need your approval`,s:'Agents have submitted products awaiting your decision',meta:'Sourcing',tag:{cls:'bg-warn',txt:'Sourcing'},fn:'ovOpenSourcingDrawer()'});
 
   const blocked=today.filter(o=>['awaiting_payment','payment_pending'].includes((o.status||'').toLowerCase()));
+  
   if(blocked.length) items.push({sev:'crit',t:`${blocked.length} order${blocked.length!==1?'s':''} blocked — payment required`,s:'These orders cannot be fulfilled until payment clears',meta:'Today',tag:{cls:'bg-crit',txt:'Critical'},fn:'ovOpenVeeqoDrawer()'});
 
   const openFaults=faults.filter(f=>!f.resolved);
@@ -833,9 +838,12 @@ function drawSparkline(id,vals,keys,color){
 /* ── SOURCING FUNNEL ── */
 function renderFunnel(){
   const s=D.sourcing||[];
-  const total=s.length,approved=s.filter(p=>p.approved).length,purchased=s.filter(p=>p.purchased).length;
-  const rejected=s.filter(p=>(p.sourcing_approvals||[]).some(a=>a.status==='rejected')&&!p.approved).length;
-  const pending=Math.max(0,total-approved-rejected);
+  const isRej=p=>(p.sourcing_approvals||[]).some(a=>a.status==='rejected');
+  const total=s.length;
+  const rejected=s.filter(p=>isRej(p)).length;
+  const approved=s.filter(p=>p.approved&&!isRej(p)).length;
+  const purchased=s.filter(p=>p.purchased).length;
+  const pending=s.filter(p=>!p.approved&&!isRej(p)).length;
   const rows=[
     {lbl:'Submitted',n:total,color:'var(--accent)',pct:100},
     {lbl:'Pending',n:pending,color:'var(--amber)',pct:total?pending/total*100:0},
