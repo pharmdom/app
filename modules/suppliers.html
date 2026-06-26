@@ -1307,6 +1307,14 @@ function getFiltered(){
   const cf=catalogViewFilter;
   if(cf){console.log('[Filter debug] cf=',cf,'statuses in data=',[...new Set(catalogData.map(r=>r.status))]);}
   return catalogData.filter(r=>{
+    if(q){const s=(String(r.ean||'')+' '+String(r.product_name||'')+' '+String(r.code||'')).toLowerCase();if(!s.includes(q))return false;}
+    if(cat&&(r.category||'')!==cat)return false;
+    if(cf==='price_change'&&r.status!=='New price')return false;
+    if(cf==='new_items'&&r.status!=='New')return false;
+    if(cf==='both'&&r.status!=='New price'&&r.status!=='New')return false;
+    return true;
+  });
+}
 
 function renderCatalog(){
   const data=getFiltered();
