@@ -1684,7 +1684,25 @@ async function openSourcingModal(offer){
       <div class="src-section-title">Supplier</div>
       <div class="src-grid2">
         <div class="src-group"><label class="src-lbl">Supplier</label><div class="src-prefill">${esc(offer.supplier_name||'—')}</div><input type="hidden" id="src_supplier" value="${esc(offer.supplier_name||'')}"></div>
-        <div class="src-group"><label class="src-lbl">EAN</label><input class="src-inp" id="src_ean" value="${esc(offer.ean||'')}"></div>
+        <div class="src-group">
+  <label class="src-lbl" style="display:flex;align-items:center;gap:6px">
+    EAN
+    <button type="button" id="srcMultiEanBtn" onclick="toggleSrcMultiEan()" title="Add multiple EANs with costs" style="width:16px;height:16px;border-radius:4px;border:1.5px solid #c4d3f9;background:#eef2fd;color:#1847d4;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  </label>
+  <div id="srcEanSingle"><input class="src-inp" id="src_ean" value="${esc(offer.ean||'')}"></div>
+  <div id="srcEanMulti" style="display:none;flex-direction:column;gap:5px">
+    <div style="display:grid;grid-template-columns:1fr 90px 20px;gap:5px;align-items:center">
+      <input class="src-inp src-multi-ean" placeholder="EAN" style="font-size:12px">
+      <input class="src-inp src-multi-cost" type="number" step="0.01" placeholder="Cost" style="font-size:12px">
+      <span></span>
+    </div>
+    <button type="button" onclick="addSrcMultiEanRow()" style="display:flex;align-items:center;justify-content:center;gap:4px;padding:5px 8px;border:1.5px dashed #c4d3f9;border-radius:8px;background:#eef2fd;color:#1847d4;font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add EAN
+    </button>
+  </div>
+</div>
         <div class="src-group"><label class="src-lbl">Supplier Stock *</label><select class="src-inp" id="src_supplierStock"><option value="">Select…</option><option>Low</option><option>Medium</option><option>High</option></select></div>
         <div class="src-group"><label class="src-lbl">Supplier Cheapest? *</label><select class="src-inp" id="src_supplierCheapest"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
       </div>
@@ -1692,7 +1710,7 @@ async function openSourcingModal(offer){
     <div class="src-form-section">
       <div class="src-section-title">Financials</div>
       <div class="src-grid2">
-        <div class="src-group"><label class="src-lbl">Cost of Unit (£) *</label><input class="src-inp" type="number" step="0.01" id="src_costOfUnit" value="${esc(String(offer.cost_of_unit||''))}"></div>
+        <div class="src-group" id="srcCostOfUnitWrap"><label class="src-lbl">Cost of Unit (£) *</label><input class="src-inp" type="number" step="0.01" id="src_costOfUnit" value="${esc(String(offer.cost_of_unit||''))}"></div>
         <div class="src-group"><label class="src-lbl">Cost of Sale (£) *</label><input class="src-inp" type="number" step="0.01" id="src_costOfSale"></div>
         <div class="src-group"><label class="src-lbl">Net Profit (£) *</label><input class="src-inp" type="number" step="0.01" id="src_netProfit"></div>
         <div class="src-group"><label class="src-lbl">Sale Quantity *</label><input class="src-inp" type="number" id="src_unitQuantity"></div>
@@ -1725,7 +1743,8 @@ function closeSourcingModal(){
 }
 
 async function saveSourcingFromOffer(){
-  const required=['src_productName','src_agent','src_fulfillment','src_keepa','src_supplier','src_ean','src_supplierStock','src_supplierCheapest','src_costOfUnit','src_costOfSale','src_netProfit','src_unitQuantity','src_packing','src_seasonality','src_competition'];
+  const isMultiMode=document.getElementById('srcEanMulti')?.style.display==='flex';
+const required=['src_productName','src_agent','src_fulfillment','src_keepa','src_supplier','src_supplierStock','src_supplierCheapest','src_costOfSale','src_netProfit','src_unitQuantity','src_packing','src_seasonality','src_competition',...(isMultiMode?[]:['src_ean','src_costOfUnit'])];
   let firstErr=null;
   required.forEach(id=>{
     const el=document.getElementById(id);
@@ -1753,10 +1772,21 @@ async function saveSourcingFromOffer(){
     opportunity_id:opportunityId,
     agent:agentName,
     supplier_name:document.getElementById('src_supplier').value,
-    code:document.getElementById('src_ean').value,
+    code:(()=>{
+      const isMulti=document.getElementById('srcEanMulti')?.style.display==='flex';
+      if(!isMulti) return document.getElementById('src_ean').value;
+      const eans=[...document.querySelectorAll('.src-multi-ean')];
+      const costs=[...document.querySelectorAll('.src-multi-cost')];
+      return eans.map((inp,i)=>{const e=inp.value.trim();const c=(costs[i]?.value||'').trim();return e?(c?`${e}:${c}`:e):'';}).filter(Boolean).join(', ');
+    })(),
     product_name:document.getElementById('src_productName').value.trim(),
     asins:getSrcAsins(),
-    cost_of_unit:parseFloat(document.getElementById('src_costOfUnit').value)||0,
+    cost_of_unit:(()=>{
+      const isMulti=document.getElementById('srcEanMulti')?.style.display==='flex';
+      if(!isMulti) return parseFloat(document.getElementById('src_costOfUnit').value)||0;
+      const firstCost=document.querySelector('.src-multi-cost');
+      return firstCost?parseFloat(firstCost.value)||0:0;
+    })(),
     cost_of_sale:parseFloat(document.getElementById('src_costOfSale').value)||0,
     net_profit:parseFloat(document.getElementById('src_netProfit').value)||0,
     unit_quantity:parseInt(document.getElementById('src_unitQuantity').value)||0,
@@ -1840,6 +1870,36 @@ function updateSrcAsinBtns(){
     if(b){b.style.opacity=rows.length<=1?'.3':'1';b.style.pointerEvents=rows.length<=1?'none':'';}
   });
 }
+
+
+function toggleSrcMultiEan(){
+  const single=document.getElementById('srcEanSingle');
+  const multi=document.getElementById('srcEanMulti');
+  const costWrap=document.getElementById('srcCostOfUnitWrap');
+  const btn=document.getElementById('srcMultiEanBtn');
+  const isMulti=multi.style.display==='flex';
+  if(isMulti){
+    single.style.display='';multi.style.display='none';
+    costWrap.style.display='';
+    btn.style.background='#eef2fd';btn.style.color='#1847d4';
+  }else{
+    single.style.display='none';multi.style.display='flex';
+    costWrap.style.display='none';
+    btn.style.background='#1847d4';btn.style.color='#fff';
+  }
+}
+function addSrcMultiEanRow(){
+  const multi=document.getElementById('srcEanMulti');
+  const addBtn=multi.querySelector('button');
+  const row=document.createElement('div');
+  row.style.cssText='display:grid;grid-template-columns:1fr 90px 20px;gap:5px;align-items:center';
+  row.innerHTML=`<input class="src-inp src-multi-ean" placeholder="EAN" style="font-size:12px"><input class="src-inp src-multi-cost" type="number" step="0.01" placeholder="Cost" style="font-size:12px"><span onclick="this.closest('div').remove()" style="cursor:pointer;color:#94a3b8;font-size:14px;font-weight:700;text-align:center;line-height:1" onmouseenter="this.style.color='#c0192c'" onmouseleave="this.style.color='#94a3b8'">✕</span>`;
+  multi.insertBefore(row,addBtn);
+  row.querySelector('.src-multi-ean').focus();
+}
+window.toggleSrcMultiEan=toggleSrcMultiEan;
+window.addSrcMultiEanRow=addSrcMultiEanRow;
+
   
 /* ── GLOBALS ── */
 window.openSourcingModal=openSourcingModal;
