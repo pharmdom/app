@@ -1663,10 +1663,14 @@ let resolvedCost=0;
 if(isMultiMode){
   const eanInputs=[...document.querySelectorAll('.catsrc-multi-ean')];
   const costInputs=[...document.querySelectorAll('.catsrc-multi-cost')];
-  resolvedEan=eanInputs.map(i=>i.value.trim()).filter(Boolean).join(', ');
-  // Use first cost with a value, fallback to 0
-  const firstCost=costInputs.find(i=>i.value.trim());
-  resolvedCost=firstCost?parseFloat(firstCost.value)||0:0;
+  const pairs=eanInputs.map((inp,idx)=>{
+  const e=inp.value.trim();
+  const c=(costInputs[idx]?.value||'').trim();
+  return e?(c?`${e}:${c}`:e):'';
+}).filter(Boolean);
+resolvedEan=pairs.join(', ');
+const firstCost=costInputs.find(i=>i.value.trim());
+resolvedCost=firstCost?parseFloat(firstCost.value)||0:0;
 }else{
   resolvedEan=document.getElementById('catsrc_ean').value;
   resolvedCost=parseFloat(document.getElementById('catsrc_costOfUnit').value)||0;
