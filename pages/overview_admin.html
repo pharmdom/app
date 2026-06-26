@@ -563,13 +563,13 @@ async function loadCatalog(){
   const[r1,r2,r3]=await Promise.all([
     sb.from('catalog').select('*',{count:'exact',head:true}),
     sb.from('catalog').select('*',{count:'exact',head:true}).eq('status','Approved'),
-    sb.from('suppliers').select('supplier_id,status').limit(5000),
+    sb.from('suppliers').select('supplier_id').limit(5000),
   ]);
   D.catTotal=r1.count||0;
   D.catApproved=r2.count||0;
   const sup=r3.data||[];
   D.suppTotal=sup.length;
-  D.suppActive=sup.filter(s=>(s.status||'').toLowerCase()==='active').length;
+  D.suppActive=sup.filter(s=>!!s.supplier_id).length;
 }
 
 async function loadReplenishments(){
