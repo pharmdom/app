@@ -1370,11 +1370,28 @@ function buildAddForm() {
       </div>`)
     + formSection('Supplier',
       `<div class="form-group"><label>Supplier *</label><select class="form-control" id="f_supplierName" onchange="fillSupplierCode()"><option value="">Select…</option>${supOpts}</select></div>
-      <div class="form-group"><label>EAN</label><input class="form-control" id="f_code" type="text"></div>
+      <div class="form-group">
+  <label style="display:flex;align-items:center;gap:6px">EAN
+    <button type="button" id="fMultiEanBtn" onclick="toggleFModalMultiEan()" style="width:16px;height:16px;border-radius:4px;border:1.5px solid #bfdbfe;background:#eff6ff;color:#2563eb;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  </label>
+  <div id="fEanSingle"><input class="form-control" id="f_code" type="text"></div>
+  <div id="fEanMulti" style="display:none;flex-direction:column;gap:5px">
+    <div style="display:grid;grid-template-columns:1fr 90px 20px;gap:5px;align-items:center">
+      <input class="form-control f-multi-ean" placeholder="EAN" style="font-size:12px">
+      <input class="form-control f-multi-cost" type="number" step="0.01" placeholder="Cost" style="font-size:12px">
+      <span></span>
+    </div>
+    <button type="button" onclick="addFModalMultiEanRow()" style="display:flex;align-items:center;justify-content:center;gap:4px;padding:5px 8px;border:1.5px dashed #bfdbfe;border-radius:8px;background:#eff6ff;color:#2563eb;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add EAN
+    </button>
+  </div>
+</div>
       <div class="form-group"><label>Supplier Stock</label><select class="form-control" id="f_supplierStock"><option value="">Select…</option><option>Low</option><option>Medium</option><option>High</option></select></div>
       <div class="form-group"><label>Supplier Cheapest?</label><select class="form-control" id="f_supplierCheapest" onchange="applyYNColors()"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>`)
     + formSection('Financials',
-      `<div class="form-group"><label>Cost of Unit (£)</label><input class="form-control" id="f_costOfUnit" type="number" step="0.01" placeholder="0.00"></div>
+      `<div class="form-group" id="fCostOfUnitWrap"><label>Cost of Unit (£)</label><input class="form-control" id="f_costOfUnit" type="number" step="0.01" placeholder="0.00"></div>
       <div class="form-group"><label>Cost of Sale (£)</label><input class="form-control" id="f_costOfSale" type="number" step="0.01" placeholder="0.00"></div>
       <div class="form-group"><label>Net Profit (£)</label><input class="form-control" id="f_netProfit" type="number" step="0.01" placeholder="0.00"></div>
       <div class="form-group"><label>Sale Quantity (Recommended)</label><input class="form-control" id="f_unitQuantity" type="number" placeholder="0"></div>`)
@@ -1426,7 +1443,8 @@ function getModalAsins() {
 }
 
 async function saveProduct() {
-  const requiredFields = ['f_productName','f_agent','f_primaryFulfillment','f_keepa','f_supplierName','f_code','f_supplierStock','f_supplierCheapest','f_costOfUnit','f_costOfSale','f_netProfit','f_unitQuantity','f_packing','f_seasonality','f_competition'];
+  const isMultiMode = document.getElementById('fEanMulti')?.style.display === 'flex';
+const requiredFields = ['f_productName','f_agent','f_primaryFulfillment','f_keepa','f_supplierName','f_supplierStock','f_supplierCheapest','f_costOfSale','f_netProfit','f_unitQuantity','f_packing','f_seasonality','f_competition',...(isMultiMode?[]:['f_code','f_costOfUnit'])];
   let firstError = null;
   requiredFields.forEach(id => {
     const el = document.getElementById(id);
@@ -1462,10 +1480,21 @@ const opportunityId = 'SRC-' + String(lastNum + 1).padStart(6, '0');
     opportunity_id:       opportunityId,
     agent:                agentName,
     supplier_name:        document.getElementById('f_supplierName').value,
-    code:                 document.getElementById('f_code').value,
+    code: (()=>{
+      const isMulti = document.getElementById('fEanMulti')?.style.display === 'flex';
+      if (!isMulti) return document.getElementById('f_code').value;
+      const eans = [...document.querySelectorAll('.f-multi-ean')];
+      const costs = [...document.querySelectorAll('.f-multi-cost')];
+      return eans.map((inp,i) => { const e=inp.value.trim(); const c=(costs[i]?.value||'').trim(); return e?(c?`${e}:${c}`:e):''; }).filter(Boolean).join(', ');
+    })(),
     product_name:         productName,
     asins:                getModalAsins(),
-    cost_of_unit:         parseFloat(document.getElementById('f_costOfUnit').value) || 0,
+    cost_of_unit: (()=>{
+      const isMulti = document.getElementById('fEanMulti')?.style.display === 'flex';
+      if (!isMulti) return parseFloat(document.getElementById('f_costOfUnit').value) || 0;
+      const first = document.querySelector('.f-multi-cost');
+      return first ? parseFloat(first.value) || 0 : 0;
+    })(),
     cost_of_sale:         parseFloat(document.getElementById('f_costOfSale').value) || 0,
     net_profit:           parseFloat(document.getElementById('f_netProfit').value) || 0,
     unit_quantity:        parseInt(document.getElementById('f_unitQuantity').value) || 0,
@@ -1781,6 +1810,34 @@ async function updateMultiEanCost(id, pairIdx, newCostStr) {
 }
 window.updateMultiEanCost = updateMultiEanCost;
 
+
+function toggleFModalMultiEan() {
+  const single = document.getElementById('fEanSingle');
+  const multi  = document.getElementById('fEanMulti');
+  const wrap   = document.getElementById('fCostOfUnitWrap');
+  const btn    = document.getElementById('fMultiEanBtn');
+  const isMulti = multi.style.display === 'flex';
+  if (isMulti) {
+    single.style.display = ''; multi.style.display = 'none';
+    wrap.style.display = '';
+    btn.style.background = '#eff6ff'; btn.style.color = '#2563eb';
+  } else {
+    single.style.display = 'none'; multi.style.display = 'flex';
+    wrap.style.display = 'none';
+    btn.style.background = '#2563eb'; btn.style.color = '#fff';
+  }
+}
+function addFModalMultiEanRow() {
+  const multi = document.getElementById('fEanMulti');
+  const addBtn = multi.querySelector('button');
+  const row = document.createElement('div');
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 90px 20px;gap:5px;align-items:center';
+  row.innerHTML = `<input class="form-control f-multi-ean" placeholder="EAN" style="font-size:12px"><input class="form-control f-multi-cost" type="number" step="0.01" placeholder="Cost" style="font-size:12px"><span onclick="this.closest('div').remove()" style="cursor:pointer;color:#94a3b8;font-size:14px;font-weight:700;text-align:center;line-height:1" onmouseenter="this.style.color='#dc2626'" onmouseleave="this.style.color='#94a3b8'">✕</span>`;
+  multi.insertBefore(row, addBtn);
+  row.querySelector('.f-multi-ean').focus();
+}
+window.toggleFModalMultiEan = toggleFModalMultiEan;
+window.addFModalMultiEanRow = addFModalMultiEanRow;
     
 /* ══ EXPOSE GLOBALS ══ */
 window.minimizeModal = minimizeModal;
