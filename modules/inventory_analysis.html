@@ -57,14 +57,6 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .chip.c-offload{background:var(--offload-bg);border-color:var(--offload-bd);color:var(--offload);}
 .chip.c-total{background:var(--accent-bg);border-color:var(--accent-bd);color:var(--accent);}
 
-/* Period toggle */
-.period-toggle{display:flex;background:var(--surface2);border:1px solid var(--border);
-  border-radius:var(--r-sm);overflow:hidden;padding:3px;gap:3px;}
-.period-btn{padding:4px 12px;border-radius:5px;font-size:11.5px;font-weight:700;
-  font-family:var(--font);border:none;background:transparent;color:var(--text4);
-  cursor:pointer;transition:all .18s;white-space:nowrap;}
-.period-btn.active{background:var(--accent);color:#fff;box-shadow:0 1px 4px rgba(24,71,212,.3);}
-
 /* Buttons */
 .nav-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;
   border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);
@@ -399,11 +391,6 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
         <span>0 Offload</span>
       </div>
 
-      <!-- Period toggle -->
-      <div class="period-toggle">
-        <button class="period-btn" id="p7" onclick="setPeriod(7)">7 Days</button>
-        <button class="period-btn active" id="p30" onclick="setPeriod(30)">30 Days</button>
-      </div>
     </div>
 
     <div class="tnav-right">
@@ -517,7 +504,6 @@ let ALL = [];
 let acts = {};
 let notes = {};
 let actsOrder = [];
-let period = 30;
 let queueIdx = 0;
 let bucketTab = 'all';
 let bucketSort = 'recent';
@@ -540,8 +526,7 @@ async function loadSyncUrl() {
 
 /* ── SELL-THROUGH CALCULATION ── */
 function calcSellThrough(item) {
-  // sold = units sold in period; available = current stock
-  const sold = period === 7 ? (item.sold_7d || 0) : (item.sold_30d || 0);
+  const sold = item.total_qty_sold || 0;
   const available = item.available || 0;
   const totalHandled = sold + available;
   if (totalHandled === 0) return 0;
@@ -594,8 +579,7 @@ async function restoreFromDB() {
       price:       parseFloat(r.price) || 0,
       cost_price:  parseFloat(r.cost_price) || 0,
       available:   parseInt(r.available) || 0,
-      sold_7d:     parseInt(r.sold_7d) || 0,
-      sold_30d:    parseInt(r.sold_30d) || 0,
+      total_qty_sold: parseInt(r.total_qty_sold) || 0,
       img:         r.image_url || '',
     }));
 
@@ -677,14 +661,6 @@ function hideBanner() {
   }, 600);
 }
 
-/* ── PERIOD ── */
-function setPeriod(p) {
-  period = p;
-  document.getElementById('p7').classList.toggle('active', p === 7);
-  document.getElementById('p30').classList.toggle('active', p === 30);
-  render();
-}
-
 /* ── SHOW/HIDE ── */
 function showContent() {
   document.getElementById('emptyState').style.display = 'none';
@@ -749,7 +725,7 @@ function render() {
         <div class="done-hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
         <div>
           <div class="done-hero-title">Review complete</div>
-          <div class="done-hero-sub">${ALL.length} SKUs · ${period}-day sell-through</div>
+          <div class="done-hero-sub">${ALL.length} SKUs · all-time sell-through</div>
         </div>
       </div>
       <div class="done-sec-lbl">Summary</div>
@@ -821,8 +797,8 @@ function render() {
 function buildFocusCard(x) {
   const a = acts[x.variant_id];
   const rec = getRec(x.status);
-  const sold = period === 7 ? x.sold_7d : x.sold_30d;
-  const dailyRate = sold / period;
+  const sold = x.total_qty_sold || 0;
+  const dailyRate = sold > 0 ? (sold / 365).toFixed(1) : 0;
 
   // Image
   const initials = x.name.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
@@ -851,7 +827,7 @@ function buildFocusCard(x) {
 
     <div class="st-bar-wrap">
       <div class="st-bar-row">
-        <span class="st-bar-lbl">${period}-Day Sell-Through</span>
+        <span class="st-bar-lbl">Sell-Through Rate</span>
         <span class="st-bar-pct" style="color:var(--${x.status === 'strong' ? 'strong' : x.status === 'moderate' ? 'moderate' : x.status === 'slow' ? 'slow' : 'offload'})">${x.pct}%</span>
       </div>
       <div class="st-bar-track">
@@ -866,9 +842,9 @@ function buildFocusCard(x) {
         <div class="fc-stat-sub">units in stock</div>
       </div>
       <div class="fc-stat">
-        <div class="fc-stat-lbl">Sold (${period}d)</div>
+        <div class="fc-stat-lbl">Total Sold</div>
         <div class="fc-stat-val blue">${sold.toLocaleString()}</div>
-        <div class="fc-stat-sub">${dailyRate.toFixed(1)}/day</div>
+        <div class="fc-stat-sub">all time</div>
       </div>
       <div class="fc-stat">
         <div class="fc-stat-lbl">Cost Price</div>
@@ -1035,7 +1011,6 @@ document.addEventListener('keydown', e => {
 });
 
 /* ── GLOBALS ── */
-window.setPeriod = setPeriod;
 window.triggerSync = triggerSync;
 window.actAndAdvance = actAndAdvance;
 window.undoAct = undoAct;
