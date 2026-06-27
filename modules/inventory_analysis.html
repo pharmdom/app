@@ -590,6 +590,25 @@ async function restoreFromDB() {
       if (r.note)    notes[r.variant_id] = r.note;
     });
 
+
+    // Auto-mark 28%+ as No Action and persist
+const autoIds = [];
+data.forEach(r => {
+  if (!acts[r.variant_id]) {
+    const sold = parseInt(r.total_qty_sold) || 0;
+    const available = parseInt(r.available) || 0;
+    const total = sold + available;
+    const pct = total === 0 ? 0 : Math.round((sold / total) * 100);
+    if (pct >= 28) { acts[r.variant_id] = 'ok'; autoIds.push(r.variant_id); }
+  }
+});
+if (autoIds.length) {
+  sb.from('inventory_skus')
+    .update({ action: 'ok', actioned_at: new Date().toISOString() })
+    .in('variant_id', autoIds)
+    .then(() => {});
+}
+
     showContent();
     render();
   } catch(e) { console.warn('restoreFromDB error', e); }
@@ -638,6 +657,25 @@ async function pollUntilDone(btn) {
           if (r.action) acts[r.variant_id] = r.action;
           if (r.note)   notes[r.variant_id] = r.note;
         });
+
+
+        // Auto-mark 28%+ as No Action and persist
+const autoIds = [];
+data.forEach(r => {
+  if (!acts[r.variant_id]) {
+    const sold = parseInt(r.total_qty_sold) || 0;
+    const available = parseInt(r.available) || 0;
+    const total = sold + available;
+    const pct = total === 0 ? 0 : Math.round((sold / total) * 100);
+    if (pct >= 28) { acts[r.variant_id] = 'ok'; autoIds.push(r.variant_id); }
+  }
+});
+if (autoIds.length) {
+  sb.from('inventory_skus')
+    .update({ action: 'ok', actioned_at: new Date().toISOString() })
+    .in('variant_id', autoIds)
+    .then(() => {});
+}
         showContent();
         render();
       }
