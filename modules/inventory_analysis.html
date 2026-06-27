@@ -595,6 +595,72 @@ async function restoreFromDB() {
   } catch(e) { console.warn('restoreFromDB error', e); }
 }
 
+
+
+async function pollUntilDone(btn) {
+  const POLL_INTERVAL = 4000;  // check every 4 seconds
+  const MAX_POLLS = 40;         // stop after ~2.5 minutes regardless
+  let lastCount = -1;
+  let stableRounds = 0;
+  let polls = 0;
+
+  showBanner('Fetching from Veeqo — loading as data arrives…', 12);
+
+  while (polls < MAX_POLLS) {
+    polls++;
+    await new Promise(r => setTimeout(r, POLL_INTERVAL));
+
+    try {
+      const { data, error } = await sb.from('inventory_skus')
+        .select('variant_id,product_id,product_title,sku,price,cost_price,available,total_qty_sold,image_url,action,note', { count: 'exact' })
+        .order('variant_id', { ascending: true });
+
+      if (error) continue;
+
+      const count = data?.length || 0;
+      const pct = Math.min(12 + Math.round((polls / MAX_POLLS) * 80), 90);
+      showBanner(`Loading… ${count} SKUs synced so far`, pct);
+
+      // Render whatever we have immediately
+      if (count > 0) {
+        ALL = data.map(r => ({
+          variant_id:     r.variant_id,
+          product_id:     r.product_id,
+          name:           r.product_title || r.sku || '—',
+          sku:            r.sku || '',
+          price:          parseFloat(r.price) || 0,
+          cost_price:     parseFloat(r.cost_price) || 0,
+          available:      parseInt(r.available) || 0,
+          total_qty_sold: parseInt(r.total_qty_sold) || 0,
+          img:            r.image_url || '',
+        }));
+        data.forEach(r => {
+          if (r.action) acts[r.variant_id] = r.action;
+          if (r.note)   notes[r.variant_id] = r.note;
+        });
+        showContent();
+        render();
+      }
+
+      // Stable = count hasn't changed for 2 consecutive polls
+      if (count === lastCount && count > 0) {
+        stableRounds++;
+        if (stableRounds >= 3) break;
+      } else {
+        stableRounds = 0;
+      }
+      lastCount = count;
+
+    } catch(e) { console.warn('Poll error', e); }
+  }
+
+  hideBanner();
+  toast(`Sync complete — ${ALL.length} Main Line SKUs loaded`, 'success');
+  btn.classList.remove('syncing');
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Fetch Inventory';
+}
+
+  
 async function saveActionToDB(id, action, note) {
   if (!sb) return;
   try {
@@ -618,30 +684,23 @@ async function triggerSync() {
   btn.innerHTML = '<span style="display:inline-block;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;width:12px;height:12px;flex-shrink:0;"></span> Fetching…';
 
   showBanner('Triggering Veeqo sync…', 5);
+try {
+    showBanner('Connecting to Veeqo…', 8);
 
-  try {
-    showBanner('Fetching Main Line products from Veeqo…', 20);
-    const res = await fetch(_syncUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'syncInventory' }),
-    });
+    // Fire and forget — don't await
+    fetch(_syncUrl, { method: 'GET', redirect: 'follow' })
+      .then(async res => {
+        const json = await res.json().catch(() => ({}));
+        if (!json.ok) console.warn('Sync warning:', json.error);
+      })
+      .catch(e => console.warn('Sync fetch error:', e));
 
-    showBanner('Writing to database…', 65);
+    // Start polling immediately
+    await pollUntilDone(btn);
 
-    if (!res.ok) throw new Error('Sync returned ' + res.status);
-    const json = await res.json();
-
-    showBanner('Loading updated inventory…', 85);
-    await restoreFromDB();
-
-    hideBanner();
-    const count = json.count || ALL.length;
-    toast(`Synced ${count} Main Line SKUs successfully`, 'success');
   } catch(e) {
     hideBanner();
     toast('Sync failed: ' + e.message, 'error');
-  } finally {
     btn.classList.remove('syncing');
     btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Fetch Inventory';
   }
