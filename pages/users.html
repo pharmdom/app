@@ -587,13 +587,13 @@ async function smDeleteStaff() {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON}` },
-    body: JSON.stringify({ userId: smCurrentStaff.userId, email: smCurrentStaff.email }),
+    body: JSON.stringify({ userId: smCurrentStaff.userId, email: smCurrentStaff.email, firstName: smCurrentStaff.firstName, lastName: smCurrentStaff.lastName }),
   });
   const data = await res.json();
 
   if (data.success) {
     smCloseDrawer();
-    smShowToast('Staff member removed successfully', 'success');
+    const emailOk = data.emailSent; smShowToast(emailOk ? 'Staff member removed & offboarding email sent' : 'Staff member removed (email failed to send)', emailOk ? 'success' : 'warning');
     loadStaff();
   } else {
     smShowToast(data.message || 'Failed to remove staff member', 'error');
