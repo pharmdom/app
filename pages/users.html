@@ -27,7 +27,7 @@
   </div>
 
   <div id="smLoading" style="display:none;text-align:center;padding:60px 20px;color:#94a3b8;font-size:13px;">
-    <div class="pd-spinner pd-spinner-dark" style="display:inline-block;margin-right:8px;vertical-align:middle;"></div>
+    <div class="pd-spinner" style="display:inline-block;margin-right:8px;vertical-align:middle;"></div>
     Loading staff...
   </div>
 
@@ -70,7 +70,7 @@
 
   <!-- MODAL -->
   <div id="smModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);backdrop-filter:blur(4px);z-index:1002;align-items:center;justify-content:center;padding:16px;">
-    <div style="background:#fff;border-radius:18px;width:100%;max-width:580px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,0.15);overflow:hidden;">
+    <div style="background:#fff;border-radius:18px;width:100%;max-width:600px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,0.15);overflow:hidden;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #f1f5f9;background:linear-gradient(to right,#f8fafc,#fff);flex-shrink:0;">
         <div style="display:flex;align-items:center;gap:12px;">
           <div style="width:36px;height:36px;border-radius:10px;background:#eff6ff;display:flex;align-items:center;justify-content:center;color:#2563eb;">
@@ -78,13 +78,14 @@
           </div>
           <div>
             <div id="smModalTitle" style="font-size:14px;font-weight:700;color:#0f172a;">Add New Staff</div>
-            <div id="smModalSub" style="font-size:11px;color:#94a3b8;margin-top:1px;">A welcome email will be sent with login credentials</div>
+            <div id="smModalSub" style="font-size:11px;color:#94a3b8;margin-top:1px;">Only @pharmdomestic.com emails are accepted</div>
           </div>
         </div>
         <button onclick="smCloseModal()" style="width:28px;height:28px;border-radius:8px;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#94a3b8;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
+
       <div style="flex:1;overflow-y:auto;padding:20px;">
         <input type="hidden" id="smEditId">
         <input type="hidden" id="smEditEmail">
@@ -102,7 +103,13 @@
         <div class="sm-form-section">
           <div class="sm-section-label">Login Credentials</div>
           <div style="display:grid;gap:12px;">
-            <div><label class="sm-label">Email *</label><input id="smEmail" class="pd-input" type="email" placeholder="john@pharmdomestic.com"></div>
+            <div>
+              <label class="sm-label">Email *</label>
+              <div style="position:relative;">
+                <input id="smEmail" class="pd-input" type="email" placeholder="john@pharmdomestic.com" oninput="smValidateEmailDomain(this)">
+                <div id="smEmailHint" style="font-size:11px;margin-top:4px;display:none;"></div>
+              </div>
+            </div>
             <div><label id="smPwdLabel" class="sm-label">Password *</label><input id="smPwd" class="pd-input" type="password" placeholder="••••••••"></div>
           </div>
         </div>
@@ -133,10 +140,11 @@
         </div>
 
         <div class="sm-form-section">
-          <div class="sm-section-label">Module Access</div>
+          <div class="sm-section-label" style="margin-bottom:14px;">Module Access</div>
           <div id="smModuleGroups"></div>
         </div>
       </div>
+
       <div style="padding:12px 20px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:8px;background:#fafafa;flex-shrink:0;">
         <button class="pd-btn pd-btn-ghost pd-btn-sm" onclick="smCloseModal()">Cancel</button>
         <button id="smSaveBtn" class="pd-btn pd-btn-primary pd-btn-sm" onclick="smSaveStaff()">
@@ -168,47 +176,84 @@
 .sm-role-badge.dops { background:#ede9fe; color:#6d28d9; }
 .sm-role-badge.warehouse { background:#fef3c7; color:#b45309; }
 .sm-perm-pill { padding:2px 8px; border-radius:100px; font-size:10px; font-weight:500; background:#f1f5f9; color:#64748b; text-transform:capitalize; }
+
 .sm-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:100px; font-size:12px; font-weight:600; border:1.5px solid; cursor:pointer; transition:all .15s; font-family:inherit; }
 .sm-chip:hover { transform:translateY(-1px); }
+.sm-chip.active { box-shadow:0 0 0 3px rgba(255,255,255,0.8),0 0 0 5px currentColor; }
 .sm-chip.gray { background:#f8fafc; color:#475569; border-color:#e2e8f0; }
 .sm-chip.blue { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
 .sm-chip.purple { background:#f5f3ff; color:#6d28d9; border-color:#ddd6fe; }
 .sm-chip.amber { background:#fffbeb; color:#b45309; border-color:#fde68a; }
 .sm-chip.red { background:#fef2f2; color:#dc2626; border-color:#fecaca; }
+
 .sm-detail-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#94a3b8; margin-bottom:10px; display:flex; align-items:center; gap:8px; }
 .sm-detail-label::after { content:''; flex:1; height:1px; background:#f1f5f9; }
 .sm-detail-card { background:#f8fafc; border:1px solid #f1f5f9; border-radius:10px; padding:10px 13px; }
 .sm-field-label { font-size:10px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
 .sm-field-value { font-size:13px; color:#1e293b; font-weight:500; }
-.sm-mod-on { padding:4px 10px; border-radius:100px; font-size:11px; font-weight:600; background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; text-transform:capitalize; }
+.sm-mod-on { padding:4px 10px; border-radius:100px; font-size:11px; font-weight:600; background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; text-transform:capitalize; display:inline-flex; align-items:center; gap:4px; }
 .sm-mod-off { padding:4px 10px; border-radius:100px; font-size:11px; font-weight:600; background:#f1f5f9; color:#94a3b8; border:1px solid #e2e8f0; text-decoration:line-through; text-transform:capitalize; }
+
 .sm-drawer-role.admin { background:rgba(59,130,246,.1); color:#93c5fd; border:1px solid rgba(59,130,246,.2); border-radius:8px; padding:4px 10px; font-size:11px; }
 .sm-drawer-role.dops { background:rgba(139,92,246,.1); color:#c4b5fd; border:1px solid rgba(139,92,246,.2); border-radius:8px; padding:4px 10px; font-size:11px; }
 .sm-drawer-role.warehouse { background:rgba(245,158,11,.1); color:#fcd34d; border:1px solid rgba(245,158,11,.2); border-radius:8px; padding:4px 10px; font-size:11px; }
 .sm-status-badge-active { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;background:rgba(34,197,94,.15);color:#86efac;border:1px solid rgba(34,197,94,.25); }
 .sm-status-badge-suspended { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.25); }
-
-/* Grouped module toggles */
-.sm-mod-group { margin-bottom:14px; }
-.sm-mod-group-header { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; cursor:pointer; user-select:none; }
-.sm-mod-group-header:hover { color:#334155; }
-.sm-mod-group-chevron { transition:transform .2s; font-size:10px; color:#94a3b8; }
-.sm-mod-group-chevron.open { transform:rotate(90deg); }
-.sm-mod-group-children { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
-.sm-mod-group-children.collapsed { display:none; }
-.sm-mod-toggle { padding:8px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:12px; font-weight:600; font-family:inherit; color:#94a3b8; background:#f8fafc; cursor:pointer; transition:all .15s; text-transform:capitalize; text-align:center; }
-.sm-mod-toggle:hover { border-color:#94a3b8; }
-.sm-mod-toggle.active { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
-.sm-select-all { font-size:10px; font-weight:600; color:#2563eb; cursor:pointer; margin-left:auto; padding:2px 6px; border-radius:4px; }
-.sm-select-all:hover { background:#eff6ff; }
-
-.sm-form-section { margin-bottom:18px; }
-.sm-section-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#94a3b8; margin-bottom:10px; }
-.sm-label { display:block; font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; }
 .sm-tenure-new { background:rgba(34,197,94,.15); color:#86efac; border:1px solid rgba(34,197,94,.25); padding:4px 10px; border-radius:8px; font-size:11px; }
 .sm-tenure-mid { background:rgba(59,130,246,.12); color:#93c5fd; border:1px solid rgba(59,130,246,.2); padding:4px 10px; border-radius:8px; font-size:11px; }
 .sm-tenure-senior { background:rgba(245,158,11,.12); color:#fcd34d; border:1px solid rgba(245,158,11,.2); padding:4px 10px; border-radius:8px; font-size:11px; }
 .sm-card-tenure { font-size:10px; color:#94a3b8; margin-top:6px; display:flex; align-items:center; gap:4px; }
+
+/* ── Module groups ── */
+.sm-mod-group { border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; margin-bottom:8px; }
+.sm-mod-group-header {
+  display:flex; align-items:center; gap:10px; padding:10px 14px;
+  background:#f8fafc; cursor:pointer; user-select:none;
+  border-bottom:1px solid transparent; transition:background .15s;
+}
+.sm-mod-group-header:hover { background:#f1f5f9; }
+.sm-mod-group-header.open { border-bottom-color:#e2e8f0; background:#f1f5f9; }
+.sm-mod-group-icon { width:28px; height:28px; border-radius:7px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sm-mod-group-info { flex:1; min-width:0; }
+.sm-mod-group-title { font-size:12px; font-weight:700; color:#334155; }
+.sm-mod-group-count { font-size:10px; color:#94a3b8; margin-top:1px; }
+.sm-mod-group-chevron { width:16px; height:16px; color:#94a3b8; transition:transform .2s; flex-shrink:0; }
+.sm-mod-group-chevron.open { transform:rotate(90deg); }
+.sm-mod-group-actions { display:flex; align-items:center; gap:6px; }
+.sm-select-all-btn { font-size:10px; font-weight:600; color:#2563eb; cursor:pointer; padding:3px 8px; border-radius:5px; border:1px solid #bfdbfe; background:#eff6ff; transition:all .15s; }
+.sm-select-all-btn:hover { background:#dbeafe; }
+.sm-mod-group-body { padding:12px; display:none; background:#fff; }
+.sm-mod-group-body.open { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.sm-mod-toggle {
+  padding:8px 10px; border:1.5px solid #e2e8f0; border-radius:8px;
+  font-size:11px; font-weight:600; font-family:inherit; color:#64748b;
+  background:#fff; cursor:pointer; transition:all .15s; text-align:center;
+  text-transform:capitalize; line-height:1.3;
+}
+.sm-mod-toggle:hover { border-color:#94a3b8; color:#334155; background:#f8fafc; }
+.sm-mod-toggle.active { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+
+/* Group colour accents */
+.sm-mod-group[data-group="bizanalysis"] .sm-mod-group-icon { background:#dbeafe; color:#1d4ed8; }
+.sm-mod-group[data-group="products"] .sm-mod-group-icon { background:#ede9fe; color:#6d28d9; }
+.sm-mod-group[data-group="procurement"] .sm-mod-group-icon { background:#fef3c7; color:#b45309; }
+.sm-mod-group[data-group="warehouse"] .sm-mod-group-icon { background:#dcfce7; color:#15803d; }
+.sm-mod-group[data-group="others"] .sm-mod-group-icon { background:#f1f5f9; color:#475569; }
+
+.sm-mod-group[data-group="bizanalysis"] .sm-mod-toggle.active { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+.sm-mod-group[data-group="products"] .sm-mod-toggle.active { background:#f5f3ff; color:#6d28d9; border-color:#ddd6fe; }
+.sm-mod-group[data-group="procurement"] .sm-mod-toggle.active { background:#fffbeb; color:#b45309; border-color:#fde68a; }
+.sm-mod-group[data-group="warehouse"] .sm-mod-toggle.active { background:#f0fdf4; color:#15803d; border-color:#bbf7d0; }
+.sm-mod-group[data-group="others"] .sm-mod-toggle.active { background:#f8fafc; color:#334155; border-color:#94a3b8; }
+
+/* Drawer module group display */
+.sm-drawer-mod-group { margin-bottom:14px; }
+.sm-drawer-mod-group-label { font-size:10px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+.sm-drawer-mod-pills { display:flex; gap:5px; flex-wrap:wrap; }
+
+.sm-form-section { margin-bottom:18px; }
+.sm-section-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#94a3b8; margin-bottom:10px; }
+.sm-label { display:block; font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; }
 
 .pd-btn { display:inline-flex; align-items:center; gap:6px; font-family:inherit; font-weight:600; border-radius:8px; border:none; cursor:pointer; transition:all .15s; }
 .pd-btn:disabled { opacity:.6; cursor:not-allowed; }
@@ -221,15 +266,18 @@
 .pd-btn-outline { background:#fff; color:#334155; border:1px solid #e2e8f0; }
 .pd-btn-outline:hover:not(:disabled) { border-color:#94a3b8; background:#f8fafc; }
 .pd-btn-sm { padding:6px 12px; font-size:12px; }
+
 .pd-input { width:100%; padding:8px 11px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; font-family:inherit; color:#0f172a; outline:none; background:#fff; transition:border-color .15s; box-sizing:border-box; }
 .pd-input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
 .pd-input.error { border-color:#ef4444; background:#fef2f2; }
+.pd-input.warn { border-color:#f59e0b; background:#fffbeb; }
 .pd-select { appearance:none; cursor:pointer; }
-.pd-spinner { width:14px; height:14px; border:2px solid rgba(0,0,0,0.1); border-top-color:#2563eb; border-radius:50%; animation:smSpin .6s linear infinite; display:inline-block; vertical-align:middle; }
+.pd-spinner { width:14px; height:14px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:smSpin .6s linear infinite; display:inline-block; vertical-align:middle; }
+.pd-spinner-dark { border:2px solid rgba(0,0,0,0.1); border-top-color:#2563eb; }
 
 @keyframes smSpin { to { transform:rotate(360deg); } }
 @keyframes smCardIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-@media (max-width:640px) { #smGrid { grid-template-columns:1fr !important; } .sm-mod-group-children { grid-template-columns:repeat(2,1fr) !important; } }
+@media (max-width:640px) { #smGrid { grid-template-columns:1fr !important; } .sm-mod-group-body.open { grid-template-columns:repeat(2,1fr) !important; } }
 </style>
 
 <script>
@@ -238,65 +286,98 @@
 const sb = window.sb;
 const SUPABASE_URL = 'https://mbmgcqknbajwndiveewf.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ibWdjcWtuYmFqd25kaXZlZXdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MjM5NDYsImV4cCI6MjA5NTI5OTk0Nn0.PtMnPnh8FjfS9Qla-D17Jfk-0ArgtKLTRrE52edAVdU';
+const ALLOWED_DOMAIN = 'pharmdomestic.com';
 
-// Grouped modules matching the shell
 const SM_MODULE_GROUPS = [
   {
     id: 'bizanalysis', label: 'Business Analysis',
-    modules: ['cashflow', 'operations']
-  },
-  {
-    id: 'payroll', label: 'Payroll',
-    modules: ['payroll']
+    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>',
+    modules: [
+      { key:'cashflow',   label:'Cashflow' },
+      { key:'operations', label:'Operations' },
+    ]
   },
   {
     id: 'products', label: 'Products',
-    modules: ['sourcing', 'listing', 'fbaopportunities', 'calendar']
+    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
+    modules: [
+      { key:'sourcing',         label:'Sourcing' },
+      { key:'listing',          label:'Listing' },
+      { key:'fbaopportunities', label:'FBA Opportunities' },
+      { key:'calendar',         label:'Calendar (Sourcing)' },
+    ]
   },
   {
     id: 'procurement', label: 'Procurement',
-    modules: ['suppliers', 'offers', 'replenishments']
+    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
+    modules: [
+      { key:'suppliers',      label:'Suppliers' },
+      { key:'offers',         label:'Offers' },
+      { key:'replenishments', label:'Replenishments' },
+    ]
   },
   {
     id: 'warehouse', label: 'Warehouse',
-    modules: ['fba', 'inventory', 'deliverychecks', 'packagingfault']
+    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+    modules: [
+      { key:'fba',            label:'FBA' },
+      { key:'inventory',      label:'Inventory Analysis' },
+      { key:'deliverychecks', label:'Delivery Checks' },
+      { key:'packagingfault', label:'Packaging Faults' },
+    ]
   },
   {
-    id: 'invoices', label: 'Invoices',
-    modules: ['invoices']
-  },
-  {
-    id: 'rota', label: 'Rota',
-    modules: ['rota', 'paycheck', 'intelligence']
-  },
-  {
-    id: 'tracker', label: 'Tracker',
-    modules: ['packaging']
-  },
-  {
-    id: 'admin', label: 'Admin',
-    modules: ['users', 'reports']
+    id: 'others', label: 'Others',
+    icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="12" y1="8" x2="12" y2="16"/></svg>',
+    modules: [
+      { key:'invoices',      label:'Invoices' },
+      { key:'rota',          label:'Rota' },
+      { key:'paycheck',      label:'Paycheck' },
+      { key:'intelligence',  label:'Intelligence' },
+      { key:'packaging',     label:'Packaging' },
+      { key:'payroll',       label:'Payroll' },
+      { key:'reports',       label:'Reports' },
+      { key:'users',         label:'Team Management' },
+    ]
   },
 ];
 
-const ALL_MODULES = SM_MODULE_GROUPS.flatMap(g => g.modules);
+const ALL_MODULES = SM_MODULE_GROUPS.flatMap(g => g.modules.map(m => m.key));
 
 let smAllStaff = [];
 let smFilter = 'all';
 let smCurrentStaff = null;
 
-// ── INIT ──
 loadStaff();
 smBuildModuleGroups();
 
-// ── LOAD FROM SUPABASE ──
+// ── DOMAIN VALIDATION ──
+function smValidateEmailDomain(input) {
+  const val = input.value.trim();
+  const hint = document.getElementById('smEmailHint');
+  if (!val || !val.includes('@')) { hint.style.display='none'; input.classList.remove('error','warn'); return; }
+  const domain = val.split('@')[1] || '';
+  if (domain && domain !== ALLOWED_DOMAIN) {
+    input.classList.add('error'); input.classList.remove('warn');
+    hint.style.display='block'; hint.style.color='#dc2626';
+    hint.textContent = 'Only @' + ALLOWED_DOMAIN + ' emails are allowed.';
+  } else if (domain === ALLOWED_DOMAIN) {
+    input.classList.remove('error','warn');
+    hint.style.display='block'; hint.style.color='#15803d';
+    hint.textContent = '✓ Valid domain';
+  } else {
+    hint.style.display='none'; input.classList.remove('error','warn');
+  }
+}
+window.smValidateEmailDomain = smValidateEmailDomain;
+
+// ── LOAD ──
 async function loadStaff() {
   document.getElementById('smLoading').style.display = 'block';
   document.getElementById('smGrid').style.display = 'none';
   document.getElementById('smEmpty').style.display = 'none';
 
   const { data, error } = await sb.from('users').select('*').order('created_at', { ascending: true });
-
   document.getElementById('smLoading').style.display = 'none';
 
   if (error) { smShowToast('Failed to load staff: ' + error.message, 'error'); return; }
@@ -334,11 +415,11 @@ function smTenure(dateStr) {
 // ── CHIPS ──
 function smRenderChips() {
   const chips = [
-    { key:'all',         label:'All Staff',  count:smAllStaff.length,                                    cls:'gray'   },
-    { key:'Admin',       label:'Admin',       count:smAllStaff.filter(s=>s.role==='Admin').length,        cls:'blue'   },
+    { key:'all',         label:'All Staff',  count:smAllStaff.length, cls:'gray' },
+    { key:'Admin',       label:'Admin',       count:smAllStaff.filter(s=>s.role==='Admin').length, cls:'blue' },
     { key:'Digital Ops', label:'Digital Ops', count:smAllStaff.filter(s=>s.role==='Digital Ops').length, cls:'purple' },
-    { key:'Warehouse',   label:'Warehouse',   count:smAllStaff.filter(s=>s.role==='Warehouse').length,   cls:'amber'  },
-    { key:'Suspended',   label:'Suspended',   count:smAllStaff.filter(s=>s.status==='Suspended').length, cls:'red'    },
+    { key:'Warehouse',   label:'Warehouse',   count:smAllStaff.filter(s=>s.role==='Warehouse').length, cls:'amber' },
+    { key:'Suspended',   label:'Suspended',   count:smAllStaff.filter(s=>s.status==='Suspended').length, cls:'red' },
   ];
   document.getElementById('smStatChips').innerHTML = chips.map(c => `
     <button class="sm-chip ${c.cls}${smFilter===c.key?' active':''}" onclick="smSetFilter('${c.key}')">
@@ -375,7 +456,7 @@ function smRenderCards() {
     const perms = (s.permissions||[]).slice(0,3).map(p=>`<span class="sm-perm-pill">${p}</span>`).join('');
     const extra = (s.permissions||[]).length > 3 ? `<span style="font-size:10px;color:#94a3b8;font-weight:500;">+${s.permissions.length-3}</span>` : '';
     const tenure = smTenure(s.createdAt);
-    const tenureHtml = tenure ? `<div class="sm-card-tenure"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${tenure.label} with the team</div>` : '';
+    const tenureHtml = tenure ? `<div class="sm-card-tenure"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${tenure.label} with the team</div>` : '';
     return `<div class="sm-card" style="animation-delay:${i*0.04}s;" onclick='smOpenDrawer(${JSON.stringify(s).replace(/'/g,"&apos;")})'>
       <div style="display:flex;align-items:flex-start;gap:12px;">
         <div class="sm-avatar ${rKey}">${initials.toUpperCase()}</div>
@@ -406,8 +487,8 @@ function smOpenDrawer(staff) {
 
   const isActive = staff.status === 'Active';
   document.getElementById('smDrawerStatus').innerHTML = isActive
-    ? `<span class="sm-status-badge-active"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Active</span>`
-    : `<span class="sm-status-badge-suspended"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Suspended</span>`;
+    ? `<span class="sm-status-badge-active"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Active</span>`
+    : `<span class="sm-status-badge-suspended"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>Suspended</span>`;
 
   document.getElementById('smDrawerName').textContent = staff.firstName + ' ' + staff.lastName;
   document.getElementById('smDrawerEmail').textContent = staff.email;
@@ -421,14 +502,24 @@ function smOpenDrawer(staff) {
   if (tenure) {
     dt.className = tenure.cls;
     dt.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:3px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${tenure.label} tenure`;
-  } else {
-    dt.className = 'sm-tenure-new'; dt.textContent = 'New';
-  }
+  } else { dt.className = 'sm-tenure-new'; dt.textContent = 'New'; }
 
   const perms = staff.permissions || [];
-  const modsHtml = ALL_MODULES.map(m => `<span class="${perms.includes(m)?'sm-mod-on':'sm-mod-off'}">${perms.includes(m)?'✓ ':''}${m}</span>`).join('');
   const statusStyle = isActive ? 'background:#f0fdf4;border:1px solid #bbf7d0;' : 'background:#fef2f2;border:1px solid #fecaca;';
   const statusColor = isActive ? 'color:#15803d;' : 'color:#dc2626;';
+
+  // Build module access grouped by group
+  const modGroupsHtml = SM_MODULE_GROUPS.map(g => {
+    const groupMods = g.modules.map(m => {
+      const on = perms.includes(m.key);
+      return `<span class="${on?'sm-mod-on':'sm-mod-off'}">${on?'<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}${m.label}</span>`;
+    }).join('');
+    const activeCount = g.modules.filter(m => perms.includes(m.key)).length;
+    return `<div class="sm-drawer-mod-group">
+      <div class="sm-drawer-mod-group-label">${g.label} <span style="color:#cbd5e1;font-weight:400;">${activeCount}/${g.modules.length}</span></div>
+      <div class="sm-drawer-mod-pills">${groupMods}</div>
+    </div>`;
+  }).join('');
 
   document.getElementById('smDrawerBody').innerHTML = `
     <div class="sm-detail-label">Staff Details</div>
@@ -441,8 +532,8 @@ function smOpenDrawer(staff) {
       <div class="sm-detail-card" style="${statusStyle}border-radius:10px;padding:10px 13px;"><div class="sm-field-label">Status</div><div class="sm-field-value" style="${statusColor}font-weight:700;">${staff.status}</div></div>
       ${tenure ? `<div class="sm-detail-card"><div class="sm-field-label">Time with Team</div><div class="sm-field-value">${tenure.label}</div></div>` : ''}
     </div>
-    <div class="sm-detail-label">Module Access (${perms.length})</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;">${modsHtml}</div>`;
+    <div class="sm-detail-label">Module Access <span style="color:#cbd5e1;font-size:9px;font-weight:400;">${perms.length} active</span></div>
+    ${modGroupsHtml}`;
 
   smResetDrawerFooter();
   const overlay = document.getElementById('smDrawerOverlay');
@@ -478,19 +569,20 @@ function smStartEdit() {
 }
 
 function smConfirmDelete() {
+  const name = smCurrentStaff ? smCurrentStaff.firstName + ' ' + smCurrentStaff.lastName : 'this staff member';
   document.getElementById('smDrawerFooter').innerHTML = `
-    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#dc2626;font-weight:600;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      Confirm removal?
+    <div style="flex:1;">
+      <div style="font-size:12px;font-weight:700;color:#dc2626;margin-bottom:2px;">Remove ${name}?</div>
+      <div style="font-size:11px;color:#94a3b8;">This deletes their account and login access permanently.</div>
     </div>
-    <button class="pd-btn pd-btn-danger pd-btn-sm" id="smDeleteConfirmBtn" onclick="smDeleteStaff()" style="margin-left:auto;">Yes, Remove</button>
-    <button class="pd-btn pd-btn-ghost pd-btn-sm" onclick="smResetDrawerFooter()">Cancel</button>`;
+    <button class="pd-btn pd-btn-ghost pd-btn-sm" onclick="smResetDrawerFooter()">Cancel</button>
+    <button class="pd-btn pd-btn-danger pd-btn-sm" id="smDeleteConfirmBtn" onclick="smDeleteStaff()">Yes, Remove</button>`;
 }
 
 async function smDeleteStaff() {
   if (!smCurrentStaff) return;
   const btn = document.getElementById('smDeleteConfirmBtn');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="pd-spinner" style="border:2px solid rgba(220,38,38,0.2);border-top-color:#dc2626;"></span> Removing...'; }
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="pd-spinner" style="border:2px solid rgba(220,38,38,0.2);border-top-color:#dc2626;width:12px;height:12px;"></span> Removing...'; }
 
   const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
     method: 'POST',
@@ -501,7 +593,7 @@ async function smDeleteStaff() {
 
   if (data.success) {
     smCloseDrawer();
-    smShowToast('Staff member removed', 'success');
+    smShowToast('Staff member removed successfully', 'success');
     loadStaff();
   } else {
     smShowToast(data.message || 'Failed to remove staff member', 'error');
@@ -509,43 +601,74 @@ async function smDeleteStaff() {
   }
 }
 
-// ── MODULE GROUPS ──
+// ── MODULE GROUPS UI ──
 function smBuildModuleGroups() {
   const container = document.getElementById('smModuleGroups');
-  container.innerHTML = SM_MODULE_GROUPS.map(g => {
-    const isSingle = g.modules.length === 1;
-    return `<div class="sm-mod-group">
+  container.innerHTML = SM_MODULE_GROUPS.map(g => `
+    <div class="sm-mod-group" data-group="${g.id}">
       <div class="sm-mod-group-header" onclick="smToggleGroup('${g.id}')">
-        <span class="sm-mod-group-chevron open" id="chevron-${g.id}">&#9654;</span>
-        ${g.label}
-        <span class="sm-select-all" onclick="event.stopPropagation();smGroupSelectAll('${g.id}')">Select all</span>
+        <div class="sm-mod-group-icon">${g.icon}</div>
+        <div class="sm-mod-group-info">
+          <div class="sm-mod-group-title">${g.label}</div>
+          <div class="sm-mod-group-count" id="count-${g.id}">${g.modules.length} module${g.modules.length!==1?'s':''}</div>
+        </div>
+        <div class="sm-mod-group-actions">
+          <span class="sm-select-all-btn" onclick="event.stopPropagation();smGroupSelectAll('${g.id}')">Select all</span>
+          <svg class="sm-mod-group-chevron" id="chevron-${g.id}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
       </div>
-      <div class="sm-mod-group-children" id="group-${g.id}">
-        ${g.modules.map(m => `<button type="button" class="sm-mod-toggle" data-mod="${m}" onclick="this.classList.toggle('active')">${m}</button>`).join('')}
+      <div class="sm-mod-group-body" id="group-${g.id}">
+        ${g.modules.map(m => `<button type="button" class="sm-mod-toggle" data-mod="${m.key}" onclick="smToggleMod(this,'${g.id}')">${m.label}</button>`).join('')}
       </div>
-    </div>`;
-  }).join('');
+    </div>`).join('');
+}
+
+function smToggleMod(btn, groupId) {
+  btn.classList.toggle('active');
+  smUpdateGroupCount(groupId);
+}
+
+function smUpdateGroupCount(groupId) {
+  const group = SM_MODULE_GROUPS.find(g => g.id === groupId);
+  if (!group) return;
+  const active = group.modules.filter(m => {
+    const btn = document.querySelector(`[data-mod="${m.key}"]`);
+    return btn && btn.classList.contains('active');
+  }).length;
+  const el = document.getElementById('count-' + groupId);
+  if (el) el.textContent = active > 0 ? `${active}/${group.modules.length} selected` : `${group.modules.length} module${group.modules.length!==1?'s':''}`;
 }
 
 function smToggleGroup(id) {
-  const children = document.getElementById('group-' + id);
+  const body = document.getElementById('group-' + id);
   const chevron = document.getElementById('chevron-' + id);
-  const collapsed = children.classList.toggle('collapsed');
-  chevron.classList.toggle('open', !collapsed);
+  const header = body.previousElementSibling;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  chevron.classList.toggle('open', !isOpen);
+  header.classList.toggle('open', !isOpen);
 }
 
 function smGroupSelectAll(id) {
   const group = SM_MODULE_GROUPS.find(g => g.id === id);
   if (!group) return;
-  const btns = group.modules.map(m => document.querySelector(`[data-mod="${m}"]`)).filter(Boolean);
+  const btns = group.modules.map(m => document.querySelector(`[data-mod="${m.key}"]`)).filter(Boolean);
   const allActive = btns.every(b => b.classList.contains('active'));
   btns.forEach(b => b.classList.toggle('active', !allActive));
+  smUpdateGroupCount(id);
+  // Open the group if selecting
+  if (!allActive) {
+    const body = document.getElementById('group-' + id);
+    const chevron = document.getElementById('chevron-' + id);
+    const header = body.previousElementSibling;
+    body.classList.add('open'); chevron.classList.add('open'); header.classList.add('open');
+  }
 }
 
 // ── MODAL ──
 function smOpenAddModal() {
   document.getElementById('smModalTitle').textContent = 'Add New Staff';
-  document.getElementById('smModalSub').textContent = 'A welcome email will be sent with login credentials';
+  document.getElementById('smModalSub').textContent = 'Only @pharmdomestic.com emails are accepted';
   document.getElementById('smSaveLbl').textContent = 'Add Staff Member';
   document.getElementById('smEditId').value = '';
   document.getElementById('smEditEmail').value = '';
@@ -559,8 +682,10 @@ function smOpenAddModal() {
   document.getElementById('smRole').value = 'Digital Ops';
   document.getElementById('smStatus').value = 'Active';
   document.getElementById('smHourlyRate').value = '';
+  document.getElementById('smEmailHint').style.display = 'none';
   document.querySelectorAll('.sm-mod-toggle').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.pd-input').forEach(i => i.classList.remove('error'));
+  document.querySelectorAll('.pd-input').forEach(i => i.classList.remove('error','warn'));
+  SM_MODULE_GROUPS.forEach(g => smUpdateGroupCount(g.id));
   document.getElementById('smModal').style.display = 'flex';
 }
 
@@ -580,9 +705,11 @@ function smOpenEditModal(staff) {
   document.getElementById('smRole').value = staff.role;
   document.getElementById('smStatus').value = staff.status;
   document.getElementById('smHourlyRate').value = staff.hourlyRate || '';
+  document.getElementById('smEmailHint').style.display = 'none';
   const perms = staff.permissions || [];
   document.querySelectorAll('.sm-mod-toggle').forEach(b => b.classList.toggle('active', perms.includes(b.dataset.mod)));
-  document.querySelectorAll('.pd-input').forEach(i => i.classList.remove('error'));
+  document.querySelectorAll('.pd-input').forEach(i => i.classList.remove('error','warn'));
+  SM_MODULE_GROUPS.forEach(g => smUpdateGroupCount(g.id));
   document.getElementById('smModal').style.display = 'flex';
 }
 
@@ -599,11 +726,28 @@ async function smSaveStaff() {
   const hourlyRate = document.getElementById('smHourlyRate').value.trim();
   const permissions = Array.from(document.querySelectorAll('.sm-mod-toggle.active')).map(b => b.dataset.mod);
 
+  // Validate
   let valid = true;
-  [['smFN',firstName],['smLN',lastName],['smEmail',email]].forEach(([id,val]) => {
+  [['smFN',firstName],['smLN',lastName]].forEach(([id,val]) => {
     if (!val) { document.getElementById(id).classList.add('error'); valid = false; }
     else document.getElementById(id).classList.remove('error');
   });
+
+  // Domain check
+  const emailEl = document.getElementById('smEmail');
+  const emailHint = document.getElementById('smEmailHint');
+  if (!email) {
+    emailEl.classList.add('error'); valid = false;
+    emailHint.style.display = 'block'; emailHint.style.color = '#dc2626';
+    emailHint.textContent = 'Email is required.';
+  } else if (!email.endsWith('@' + ALLOWED_DOMAIN)) {
+    emailEl.classList.add('error'); valid = false;
+    emailHint.style.display = 'block'; emailHint.style.color = '#dc2626';
+    emailHint.textContent = 'Only @' + ALLOWED_DOMAIN + ' emails are allowed.';
+  } else {
+    emailEl.classList.remove('error');
+  }
+
   if (!isEdit && !password) { document.getElementById('smPwd').classList.add('error'); valid = false; }
   else document.getElementById('smPwd').classList.remove('error');
   if (!valid) return;
@@ -621,7 +765,6 @@ async function smSaveStaff() {
     const oldEmail = document.getElementById('smEditEmail').value;
     const oldRole = document.getElementById('smEditRole').value;
     const oldStatus = document.getElementById('smEditStatus').value;
-
     res = await fetch(`${SUPABASE_URL}/functions/v1/update-user`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON}` },
@@ -641,7 +784,12 @@ async function smSaveStaff() {
 
   if (data.success) {
     smCloseModal();
-    smShowToast(isEdit ? 'Staff member updated' : 'Staff member added & welcome email sent', 'success');
+    if (!isEdit) {
+      const emailOk = data.emailSent;
+      smShowToast(emailOk ? 'Staff member added & welcome email sent' : 'Staff member added (email failed to send)', emailOk ? 'success' : 'warning');
+    } else {
+      smShowToast('Staff member updated', 'success');
+    }
     loadStaff();
   } else {
     smShowToast(data.message || 'Error saving staff member', 'error');
@@ -661,16 +809,17 @@ function smShowToast(msg, type) {
   const colors = {
     success: { bg:'#f0fdf4', color:'#15803d', border:'#bbf7d0', icon:'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>' },
     error:   { bg:'#fef2f2', color:'#dc2626', border:'#fecaca', icon:'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>' },
+    warning: { bg:'#fffbeb', color:'#b45309', border:'#fde68a', icon:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
   };
   const c = colors[type] || colors.success;
   const t = document.createElement('div');
   t.style.cssText = `display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:500;font-family:'Inter',system-ui,sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.12);background:${c.bg};color:${c.color};border:1px solid ${c.border};pointer-events:auto;`;
   t.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${c.icon}</svg> ${msg}`;
   tc.appendChild(t);
-  setTimeout(() => { t.style.transition='opacity .3s'; t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 3500);
+  setTimeout(() => { t.style.transition='opacity .3s'; t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 4000);
 }
 
-// ── EXPOSE GLOBALS ──
+// ── EXPOSE ──
 window.loadStaff = loadStaff;
 window.smSetFilter = smSetFilter;
 window.smRenderCards = smRenderCards;
@@ -686,6 +835,7 @@ window.smCloseModal = smCloseModal;
 window.smSaveStaff = smSaveStaff;
 window.smToggleGroup = smToggleGroup;
 window.smGroupSelectAll = smGroupSelectAll;
+window.smToggleMod = smToggleMod;
 
 })();
 </script>
