@@ -618,7 +618,7 @@ async function loadSalesFromOrders() {
     const skuToIds = {};
     ALL.forEach(item => {
       if (!item.sku) return;
-      item.sku.split(',').map(s => s.trim()).filter(Boolean).forEach(sku => {
+      item.sku.split(',').map(s => s.trim().toUpperCase()).filter(Boolean).forEach(sku => {
         if (!skuToIds[sku]) skuToIds[sku] = [];
         skuToIds[sku].push(item.variant_id);
       });
@@ -642,7 +642,7 @@ async function loadSalesFromOrders() {
         const { data: page, error: pageErr } = await sb
           .from('veeqo_order_line_items')
           .select('sku, quantity, cost_price, created_at')
-          .in('sku', batchSkus)
+          .in('sku', [...batchSkus, ...batchSkus.map(s => s.toLowerCase())])
           .range(from, from + PAGE - 1);
         if (pageErr) { errAll = pageErr; break; }
         if (!page || page.length === 0) break;
@@ -654,7 +654,7 @@ async function loadSalesFromOrders() {
       if (!errAll && dataAll) {
         dataAll.forEach(row => {
           const qty    = parseInt(row.quantity) || 0;
-          const ids    = skuToIds[row.sku] || [];
+          const ids = skuToIds[(row.sku || '').trim().toUpperCase()] || [];
           const date   = new Date(row.created_at);
           const isIn30d = date >= new Date(d30);
           const isIn7d  = date >= new Date(d7);
