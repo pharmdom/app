@@ -579,7 +579,7 @@ async function restoreFromDB() {
       price:       parseFloat(r.price) || 0,
       cost_price:  parseFloat(r.cost_price) || 0,
       available:   parseInt(r.available) || 0,
-      total_qty_sold: parseInt(r.total_qty_sold) || 0,
+      total_qty_sold: parseInt(r.combined_qty_sold ?? r.total_qty_sold) || 0,
       img:         r.image_url || '',
     }));
 
@@ -631,7 +631,7 @@ async function pollUntilDone(btn) {
 
     try {
       const { data, error } = await sb.from('inventory_skus')
-        .select('variant_id,product_id,product_title,sku,price,cost_price,available,total_qty_sold,image_url,action,note', { count: 'exact' })
+        .select('variant_id,product_id,product_title,sku,price,cost_price,available,total_qty_sold,combined_qty_sold,image_url,action,note', { count: 'exact' })
         .order('variant_id', { ascending: true });
 
       if (error) continue;
@@ -650,7 +650,7 @@ async function pollUntilDone(btn) {
           price:          parseFloat(r.price) || 0,
           cost_price:     parseFloat(r.cost_price) || 0,
           available:      parseInt(r.available) || 0,
-          total_qty_sold: parseInt(r.total_qty_sold) || 0,
+          total_qty_sold: parseInt(r.combined_qty_sold ?? r.total_qty_sold) || 0,
           img:            r.image_url || '',
         }));
         data.forEach(r => {
