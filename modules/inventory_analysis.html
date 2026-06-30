@@ -395,6 +395,11 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 
     <div class="tnav-right">
       <!-- Sort by status filter -->
+      <div style="display:inline-flex;border:1.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden;background:var(--surface2);">
+        <button id="sv-7d"  onclick="setSalesView('7d')"  style="padding:5px 10px;border:none;background:none;font-size:11.5px;font-weight:600;font-family:var(--font);cursor:pointer;color:var(--text3);transition:all .12s;">7d</button>
+        <button id="sv-30d" onclick="setSalesView('30d')" style="padding:5px 10px;border:none;background:var(--accent);font-size:11.5px;font-weight:600;font-family:var(--font);cursor:pointer;color:#fff;transition:all .12s;">30d</button>
+        <button id="sv-all" onclick="setSalesView('all')" style="padding:5px 10px;border:none;background:none;font-size:11.5px;font-weight:600;font-family:var(--font);cursor:pointer;color:var(--text3);transition:all .12s;">All</button>
+      </div>
       <select id="statusFilter" onchange="render()" style="padding:5px 9px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:var(--font);background:var(--surface2);color:var(--text2);outline:none;cursor:pointer;">
         <option value="">Status</option>
         <option value="offload">Offload</option>
@@ -509,11 +514,13 @@ let bucketTab = 'all';
 let bucketSort = 'recent';
 let confirmFn = null;
 let _syncUrl = null;
+let salesView = '30d'; // '7d' | '30d' | 'all'
 
 /* ── INIT ── */
 async function init() {
   await loadSyncUrl();
   await restoreFromDB();
+  await loadSalesFromOrders();
 }
 
 async function loadSyncUrl() {
@@ -526,7 +533,9 @@ async function loadSyncUrl() {
 
 /* ── SELL-THROUGH CALCULATION ── */
 function calcSellThrough(item) {
-  const sold = item.total_qty_sold || 0;
+  const sold = salesView === '7d'  ? (item.sold7d  || 0)
+             : salesView === 'all' ? (item.soldAll || item.total_qty_sold || 0)
+             : (item.sold30d > 0   ? item.sold30d  : (item.total_qty_sold || 0));
   const available = item.available || 0;
   const totalHandled = sold + available;
   if (totalHandled === 0) return 0;
@@ -572,16 +581,19 @@ async function restoreFromDB() {
     if (error || !data || !data.length) return;
 
     ALL = data.map(r => ({
-      variant_id:  r.variant_id,
-      product_id:  r.product_id,
-      name:        r.product_title || r.sku || '—',
-      sku:         r.sku || '',
-      price:       parseFloat(r.price) || 0,
-      cost_price:  parseFloat(r.cost_price) || 0,
-      available:   parseInt(r.available) || 0,
-      total_qty_sold: parseInt(r.combined_qty_sold ?? r.total_qty_sold) || 0,
-      img:         r.image_url || '',
-    }));
+  variant_id:  r.variant_id,
+  product_id:  r.product_id,
+  name:        r.product_title || r.sku || '—',
+  sku:         r.sku || '',
+  price:       parseFloat(r.price) || 0,
+  cost_price:  parseFloat(r.cost_price) || 0,
+  available:   parseInt(r.available) || 0,
+  total_qty_sold: parseInt(r.combined_qty_sold ?? r.total_qty_sold) || 0,
+  img:         r.image_url || '',
+  sold7d:      0,
+  sold30d:     0,
+  soldAll:     0,
+}));
 
     acts = {};
     notes = {};
@@ -590,31 +602,90 @@ async function restoreFromDB() {
       if (r.note)    notes[r.variant_id] = r.note;
     });
 
-
-    // Auto-mark 28%+ as No Action and persist
-const autoIds = [];
-data.forEach(r => {
-  if (!acts[r.variant_id]) {
-    const sold = parseInt(r.total_qty_sold) || 0;
-    const available = parseInt(r.available) || 0;
-    const total = sold + available;
-    const pct = total === 0 ? 0 : Math.round((sold / total) * 100);
-    if (pct >= 28) { acts[r.variant_id] = 'ok'; autoIds.push(r.variant_id); }
-  }
-});
-if (autoIds.length) {
-  sb.from('inventory_skus')
-    .update({ action: 'ok', actioned_at: new Date().toISOString() })
-    .in('variant_id', autoIds)
-    .then(() => {});
-}
-
     showContent();
     render();
   } catch(e) { console.warn('restoreFromDB error', e); }
 }
 
 
+async function loadSalesFromOrders() {
+  if (!sb || !ALL.length) return;
+  try {
+    const now = new Date();
+    const d7  = new Date(now - 7  * 86400000).toISOString();
+    const d30 = new Date(now - 30 * 86400000).toISOString();
+
+    const skuToIds = {};
+    ALL.forEach(item => {
+      if (!item.sku) return;
+      item.sku.split(',').map(s => s.trim()).filter(Boolean).forEach(sku => {
+        if (!skuToIds[sku]) skuToIds[sku] = [];
+        skuToIds[sku].push(item.variant_id);
+      });
+    });
+
+    const allSkus = Object.keys(skuToIds);
+    if (!allSkus.length) return;
+
+    ALL.forEach(item => { item.sold7d = 0; item.sold30d = 0; item.soldAll = 0; item.cost_price_live = null; });
+
+    const BATCH = 100;
+    for (let i = 0; i < allSkus.length; i += BATCH) {
+      const batchSkus = allSkus.slice(i, i + BATCH);
+
+      // All-time fetch (no date filter)
+      const { data: dataAll, error: errAll } = await sb
+        .from('veeqo_order_line_items')
+        .select('sku, quantity, cost_price, created_at')
+        .in('sku', batchSkus);
+
+      if (!errAll && dataAll) {
+        dataAll.forEach(row => {
+          const qty    = parseInt(row.quantity) || 0;
+          const ids    = skuToIds[row.sku] || [];
+          const date   = new Date(row.created_at);
+          const isIn30d = date >= new Date(d30);
+          const isIn7d  = date >= new Date(d7);
+
+          ids.forEach(vid => {
+            const item = ALL.find(x => x.variant_id === vid);
+            if (!item) return;
+            item.soldAll += qty;
+            if (isIn30d) item.sold30d += qty;
+            if (isIn7d)  item.sold7d  += qty;
+            if (row.cost_price && !item.cost_price_live) {
+              item.cost_price_live = parseFloat(row.cost_price) || null;
+            }
+          });
+        });
+      }
+    }
+
+    ALL.forEach(item => {
+      if (item.cost_price_live) item.cost_price = item.cost_price_live;
+    });
+
+
+    // Auto-mark using live 30d sales
+    const autoIds = [];
+    ALL.forEach(item => {
+      if (!acts[item.variant_id]) {
+        const sold = item.sold30d > 0 ? item.sold30d : (item.total_qty_sold || 0);
+        const total = sold + (item.available || 0);
+        const pct = total === 0 ? 0 : Math.round((sold / total) * 100);
+        if (pct >= 28) { acts[item.variant_id] = 'ok'; autoIds.push(item.variant_id); }
+      }
+    });
+    if (autoIds.length) {
+      sb.from('inventory_skus')
+        .update({ action: 'ok', actioned_at: new Date().toISOString() })
+        .in('variant_id', autoIds)
+        .then(() => {});
+    }
+    
+    render();
+  } catch(e) { console.warn('loadSalesFromOrders error', e); }
+}
 
 async function pollUntilDone(btn) {
   const POLL_INTERVAL = 4000;  // check every 4 seconds
@@ -652,6 +723,9 @@ async function pollUntilDone(btn) {
           available:      parseInt(r.available) || 0,
           total_qty_sold: parseInt(r.combined_qty_sold ?? r.total_qty_sold) || 0,
           img:            r.image_url || '',
+          sold7d:      0,
+          sold30d:     0,
+          soldAll:     0,
         }));
         data.forEach(r => {
           if (r.action) acts[r.variant_id] = r.action;
@@ -659,23 +733,6 @@ async function pollUntilDone(btn) {
         });
 
 
-        // Auto-mark 28%+ as No Action and persist
-const autoIds = [];
-data.forEach(r => {
-  if (!acts[r.variant_id]) {
-    const sold = parseInt(r.total_qty_sold) || 0;
-    const available = parseInt(r.available) || 0;
-    const total = sold + available;
-    const pct = total === 0 ? 0 : Math.round((sold / total) * 100);
-    if (pct >= 28) { acts[r.variant_id] = 'ok'; autoIds.push(r.variant_id); }
-  }
-});
-if (autoIds.length) {
-  sb.from('inventory_skus')
-    .update({ action: 'ok', actioned_at: new Date().toISOString() })
-    .in('variant_id', autoIds)
-    .then(() => {});
-}
         showContent();
         render();
       }
@@ -710,6 +767,18 @@ async function saveActionToDB(id, action, note) {
   } catch(e) {}
 }
 
+
+function setSalesView(v) {
+  salesView = v;
+  ['7d','30d','all'].forEach(k => {
+    const el = document.getElementById('sv-' + k);
+    if (!el) return;
+    el.style.background = k === v ? 'var(--accent)' : 'none';
+    el.style.color      = k === v ? '#fff' : 'var(--text3)';
+  });
+  render();
+}
+  
 /* ── SYNC ── */
 async function triggerSync() {
   if (!_syncUrl) {
@@ -735,6 +804,7 @@ try {
 
     // Start polling immediately
     await pollUntilDone(btn);
+    await loadSalesFromOrders();
 
   } catch(e) {
     hideBanner();
@@ -932,21 +1002,21 @@ function buildFocusCard(x) {
       </div>
     </div>
 
-    <div class="fc-stats">
-        <div class="fc-stat">
+<div class="fc-stats">
+      <div class="fc-stat">
         <div class="fc-stat-lbl">Available</div>
         <div class="fc-stat-val ${x.available === 0 ? 'red' : ''}" style="font-size:15px;white-space:nowrap;">${x.available.toLocaleString()} <span style="color:var(--text3);font-weight:600;font-size:15px;">/ £${fmt(x.available * x.cost_price)}</span></div>
         <div class="fc-stat-sub">units in stock</div>
       </div>
-      <div class="fc-stat">
-        <div class="fc-stat-lbl">Total Sold</div>
-        <div class="fc-stat-val blue">${sold.toLocaleString()}</div>
-        <div class="fc-stat-sub">all time</div>
+      <div class="fc-stat" style="${salesView==='7d'?'border-color:var(--accent-bd);background:var(--accent-bg);':''}">
+        <div class="fc-stat-lbl" style="${salesView==='7d'?'color:var(--accent);':''}">Sold (7d)</div>
+        <div class="fc-stat-val ${salesView==='7d'?'blue':''}">${(x.sold7d || 0).toLocaleString()}</div>
+        <div class="fc-stat-sub">${salesView==='7d'?'<span style="color:var(--accent);font-weight:700;">'+x.pct+'% sell-through</span>':'last 7 days'}</div>
       </div>
-      <div class="fc-stat">
-        <div class="fc-stat-lbl">Cost Price</div>
-        <div class="fc-stat-val">${x.cost_price ? '£' + x.cost_price.toFixed(2) : '—'}</div>
-        <div class="fc-stat-sub">per unit</div>
+      <div class="fc-stat" style="${salesView==='30d'?'border-color:var(--accent-bd);background:var(--accent-bg);':salesView==='all'?'border-color:var(--accent-bd);background:var(--accent-bg);':''}">
+        <div class="fc-stat-lbl" style="${salesView!=='7d'?'color:var(--accent);':''}">Sold (${salesView==='all'?'All':'30d'})</div>
+        <div class="fc-stat-val ${salesView!=='7d'?'blue':''}">${(salesView==='all'?(x.soldAll||0):(x.sold30d||0)).toLocaleString()}</div>
+        <div class="fc-stat-sub">${salesView!=='7d'?'<span style="color:var(--accent);font-weight:700;">'+x.pct+'% sell-through</span>':'last 30 days / all time'}</div>
       </div>
     </div>
 
