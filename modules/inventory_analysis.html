@@ -346,6 +346,9 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
   padding:15px;display:flex;flex-direction:column;gap:10px;}
 .skel-row{display:flex;gap:10px;align-items:flex-start;}
 .skel-box{border-radius:var(--r-sm);}
+
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 </style>
 
 <!-- TOASTS -->
@@ -395,11 +398,6 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 
     <div class="tnav-right">
       <!-- Sort by status filter -->
-      <div style="display:inline-flex;border:1.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden;background:var(--surface2);">
-        <button id="sv-7d"  onclick="setSalesView('7d')"  style="padding:5px 10px;border:none;background:none;font-size:11.5px;font-weight:600;font-family:var(--font);cursor:pointer;color:var(--text3);transition:all .12s;">7d</button>
-        <button id="sv-30d" onclick="setSalesView('30d')" style="padding:5px 10px;border:none;background:var(--accent);font-size:11.5px;font-weight:600;font-family:var(--font);cursor:pointer;color:#fff;transition:all .12s;">30d</button>
-        <button id="sv-all" onclick="setSalesView('all')" style="padding:5px 10px;border:none;background:none;font-size:11.5px;font-weight:600;font-family:var(--font);cursor:pointer;color:var(--text3);transition:all .12s;">All</button>
-      </div>
       <select id="statusFilter" onchange="render()" style="padding:5px 9px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:var(--font);background:var(--surface2);color:var(--text2);outline:none;cursor:pointer;">
         <option value="">Status</option>
         <option value="offload">Offload</option>
@@ -514,7 +512,7 @@ let bucketTab = 'all';
 let bucketSort = 'recent';
 let confirmFn = null;
 let _syncUrl = null;
-let salesView = '30d'; // '7d' | '30d' | 'all'
+let salesView = '7d'; // '7d' | 'all'
 
 /* ── INIT ── */
 async function init() {
@@ -628,6 +626,8 @@ async function loadSalesFromOrders() {
     if (!allSkus.length) return;
 
     ALL.forEach(item => { item.sold7d = 0; item.sold30d = 0; item.soldAll = 0; item.cost_price_live = null; });
+    ALL.forEach(item => { item._salesLoading = true; });
+    render();
 
     const BATCH = 100;
     for (let i = 0; i < allSkus.length; i += BATCH) {
@@ -694,6 +694,8 @@ async function loadSalesFromOrders() {
         .in('variant_id', autoIds)
         .then(() => {});
     }
+
+    ALL.forEach(item => { item._salesLoading = false; });
     
     render();
   } catch(e) { console.warn('loadSalesFromOrders error', e); }
@@ -782,13 +784,7 @@ async function saveActionToDB(id, action, note) {
 
 function setSalesView(v) {
   salesView = v;
-  ['7d','30d','all'].forEach(k => {
-    const el = document.getElementById('sv-' + k);
-    if (!el) return;
-    el.style.background = k === v ? 'var(--accent)' : 'none';
-    el.style.color      = k === v ? '#fff' : 'var(--text3)';
-  });
-  render();
+  render(); // toggle is rebuilt inside buildFocusCard on each render
 }
   
 /* ── SYNC ── */
@@ -994,6 +990,7 @@ function buildFocusCard(x) {
         ${imgHtml}
         <div class="fc-thumb-init">${esc(initials)}</div>
       </div>
+
       <div class="fc-body">
         <div class="fc-name">${esc(x.name)}</div>
         <div class="fc-meta">
@@ -1004,10 +1001,16 @@ function buildFocusCard(x) {
       </div>
     </div>
 
+    <div style="display:inline-flex;border:1.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden;background:var(--surface2);margin-bottom:10px;">
+      <button onclick="setSalesView('7d')"  style="padding:4px 12px;border:none;background:${salesView==='7d'?'var(--accent)':'none'};font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer;color:${salesView==='7d'?'#fff':'var(--text3)'};transition:all .12s;">Last 7 days</button>
+      <button onclick="setSalesView('all')" style="padding:4px 12px;border:none;background:${salesView==='all'?'var(--accent)':'none'};font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer;color:${salesView==='all'?'#fff':'var(--text3)'};transition:all .12s;">All time</button>
+    </div>
+
     <div class="st-bar-wrap">
+    
       <div class="st-bar-row">
         <span class="st-bar-lbl">Sell-Through Rate</span>
-        <span class="st-bar-pct" style="color:var(--${x.status === 'strong' ? 'strong' : x.status === 'moderate' ? 'moderate' : x.status === 'slow' ? 'slow' : 'offload'})">${x.pct}%</span>
+        <span class="st-bar-pct" style="color:var(--${x.status === 'strong' ? 'strong' : x.status === 'moderate' ? 'moderate' : x.status === 'slow' ? 'slow' : 'offload'})">${x._salesLoading ? '<span style="color:var(--text4);font-size:11px;font-weight:600;animation:pulse 1s infinite;">Calculating…</span>' : x.pct + '%'}</span>
       </div>
       <div class="st-bar-track">
         <div class="st-bar-fill ${barCls}" style="width:${Math.min(x.pct,100)}%"></div>
@@ -1026,9 +1029,9 @@ function buildFocusCard(x) {
         <div class="fc-stat-sub">${salesView==='7d'?'<span style="color:var(--accent);font-weight:700;">'+x.pct+'% sell-through</span>':'last 7 days'}</div>
       </div>
       <div class="fc-stat" style="${salesView==='30d'?'border-color:var(--accent-bd);background:var(--accent-bg);':salesView==='all'?'border-color:var(--accent-bd);background:var(--accent-bg);':''}">
-        <div class="fc-stat-lbl" style="${salesView!=='7d'?'color:var(--accent);':''}">Sold (${salesView==='all'?'All':'30d'})</div>
-        <div class="fc-stat-val ${salesView!=='7d'?'blue':''}">${(salesView==='all'?(x.soldAll||0):(x.sold30d||0)).toLocaleString()}</div>
-        <div class="fc-stat-sub">${salesView!=='7d'?'<span style="color:var(--accent);font-weight:700;">'+x.pct+'% sell-through</span>':'last 30 days / all time'}</div>
+        <div class="fc-stat-lbl" style="${salesView==='all'?'color:var(--accent);':''}">Sold (All time)</div>
+        <div class="fc-stat-val ${salesView==='all'?'blue':''}">${(x.soldAll||0).toLocaleString()}</div>
+        <div class="fc-stat-sub">${salesView==='all'?'<span style="color:var(--accent);font-weight:700;">'+x.pct+'% sell-through</span>':'all time'}</div>
       </div>
     </div>
 
