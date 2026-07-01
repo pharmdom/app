@@ -700,7 +700,7 @@ const [shiftsRes, usersRes] = await Promise.all([
           .select('id, employee_id, date, start_time, end_time, type, paid, hourly_rate')
           .order('date', { ascending: true }),
         sb.from('users')
-          .select('user_id, first_name, last_name')
+          .select('user_id, first_name, last_name, role')
       ]);
 
       if (shiftsRes.error) throw shiftsRes.error;
@@ -709,8 +709,9 @@ const [shiftsRes, usersRes] = await Promise.all([
       // Build user lookup map
      const userMap = {};
       (usersRes.data || []).forEach(u => {
-        userMap[String(u.user_id)] = {
-          name: ((u.first_name || '') + ' ' + (u.last_name || '')).trim()
+      userMap[String(u.user_id)] = {
+          name: ((u.first_name || '') + ' ' + (u.last_name || '')).trim(),
+          role: u.role || ''
         };
       });
 
@@ -726,6 +727,7 @@ const [shiftsRes, usersRes] = await Promise.all([
             date:         String(r.date),
             employeeId:   String(r.employee_id),
             employeeName: user.name || 'Unknown',
+            employeeRole: user.role || '',
             totalHours:   parseFloat(hours.toFixed(4)),
             hourlyRate:   rate,
             totalPay:     parseFloat((hours * rate).toFixed(2)),
@@ -763,9 +765,11 @@ const [shiftsRes, usersRes] = await Promise.all([
   /* ══════════════════════════════════════════
      EMPLOYEE VIEW
   ══════════════════════════════════════════ */
-  function showEmployeeUI() {
+function showEmployeeUI() {
     document.getElementById('adminOnlyControls').style.display = 'none';
     document.getElementById('summaryBanner').style.display = 'none';
+    const navWrap = document.querySelector('.nav-dropdown-wrap');
+    if (navWrap) navWrap.style.display = 'none';
     document.getElementById('statPaid').onclick    = null;
     document.getElementById('statPending').onclick = null;
     document.getElementById('statHours').onclick   = null;
@@ -820,8 +824,8 @@ const [shiftsRes, usersRes] = await Promise.all([
     document.getElementById('statPendingText').textContent = chipPending.length + ' Week' + (chipPending.length !== 1 ? 's' : '') + ' Pending';
     document.getElementById('statHoursText').textContent   = chipHours.toFixed(1) + 'h Total';
 
-    const totalEarned  = myRecords.reduce((s,r) => s + r.totalPay, 0);
-    const totalPaid    = paidRecs.reduce((s,r) => s + r.totalPay, 0);
+    const totalEarned  = chipRecs.reduce((s,r) => s + r.totalPay, 0);
+    const totalPaid    = chipRecs.filter(r => r.paid === 'Yes').reduce((s,r) => s + r.totalPay, 0);
     const totalPending = totalEarned - totalPaid;
     const area = document.getElementById('cardsArea');
 
@@ -881,22 +885,25 @@ const [shiftsRes, usersRes] = await Promise.all([
         if (!monthMap[mk]) monthMap[mk] = ml;
       });
       const monthOpts = Object.entries(monthMap).map(([k,v]) => `<option value="month:${k}">${v}</option>`).join('');
-      html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span style="font-size:12px;font-weight:700;color:#0f172a;">Download Payslip</span>
-          <span style="font-size:11px;color:#94a3b8;">Hold Ctrl / Cmd to select multiple</span>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;">
-          <select id="payslipDropdown" multiple size="5" style="flex:1;min-width:220px;padding:4px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:12px;font-family:inherit;color:#0f172a;background:#fff;outline:none;cursor:pointer;line-height:1.8;">
-            <optgroup label="By Week">
-              ${weeks.map(w => `<option value="week:${escHtml(w.weekKey)}">${escHtml(w.weekLabel)}</option>`).join('')}
-            </optgroup>
-            <optgroup label="By Month">
-              ${Object.entries(monthMap).map(([k,v]) => `<option value="month:${k}">${v}</option>`).join('')}
-            </optgroup>
-          </select>
-          <button onclick="downloadSelectedPayslip()" style="padding:8px 16px;border-radius:9px;border:none;background:#0f172a;color:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;white-space:nowrap;align-self:flex-end;">Download PDF</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <div id="payslipDropWrap" style="position:relative;flex:1;min-width:200px;">
+            <button id="payslipDropBtn" onclick="togglePayslipDrop(event)" style="width:100%;padding:8px 36px 8px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:12px;font-family:inherit;color:#64748b;background:#fff;text-align:left;cursor:pointer;position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              — Select a period —
+              <svg style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div id="payslipDropMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid #e2e8f0;border-radius:11px;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:300;max-height:260px;overflow-y:auto;padding:5px;">
+              <div style="padding:4px 10px 3px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;">By Week</div>
+              ${weeks.map(w => `<div class="pslip-opt" data-value="week:${escHtml(w.weekKey)}" onclick="selectPayslipOpt(this)" style="padding:7px 10px;border-radius:7px;font-size:12px;font-weight:500;color:#0f172a;cursor:pointer;transition:background .12s;">${escHtml(w.weekLabel)}</div>`).join('')}
+              <div style="padding:4px 10px 3px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-top:4px;border-top:1px solid #f1f5f9;padding-top:7px;">By Month</div>
+              ${Object.entries(monthMap).map(([k,v]) => `<div class="pslip-opt" data-value="month:${k}" onclick="selectPayslipOpt(this)" style="padding:7px 10px;border-radius:7px;font-size:12px;font-weight:500;color:#0f172a;cursor:pointer;transition:background .12s;">${v}</div>`).join('')}
+            </div>
+          </div>
+          <button onclick="downloadSelectedPayslip()" style="padding:8px 16px;border-radius:9px;border:none;background:#0f172a;color:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;white-space:nowrap;flex-shrink:0;">Download</button>
         </div>
       </div>`;
       html += sectionHeader('Payment History', weeks.length, 'paid', tot);
@@ -924,45 +931,70 @@ const [shiftsRes, usersRes] = await Promise.all([
   window.setMyViewFilter = setMyViewFilter;
 
 /* ── PAYSLIP ── */
-  function onPayslipDropdownChange() { /* no-op */ }
-  window.onPayslipDropdownChange = onPayslipDropdownChange;
+  let _payslipValue = '';
+
+  function togglePayslipDrop(e) {
+    e.stopPropagation();
+    const menu = document.getElementById('payslipDropMenu');
+    if (!menu) return;
+    const isOpen = menu.style.display === 'block';
+    menu.style.display = isOpen ? 'none' : 'block';
+  }
+  window.togglePayslipDrop = togglePayslipDrop;
+
+  function selectPayslipOpt(el) {
+    _payslipValue = el.dataset.value;
+    const btn  = document.getElementById('payslipDropBtn');
+    const menu = document.getElementById('payslipDropMenu');
+    if (btn) {
+      btn.style.color = '#0f172a';
+      // strip just the text, not the SVG
+      btn.childNodes[0].textContent = el.textContent.trim() + ' ';
+    }
+    // highlight selected
+    document.querySelectorAll('.pslip-opt').forEach(o => {
+      o.style.background = o === el ? '#f1f5f9' : '';
+      o.style.fontWeight = o === el ? '700' : '500';
+    });
+    if (menu) menu.style.display = 'none';
+  }
+  window.selectPayslipOpt = selectPayslipOpt;
+
+  // Close dropdown on outside click
+  document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('payslipDropWrap');
+    if (wrap && !wrap.contains(e.target)) {
+      const menu = document.getElementById('payslipDropMenu');
+      if (menu) menu.style.display = 'none';
+    }
+  });
 
   function downloadSelectedPayslip() {
-    const sel = document.getElementById('payslipDropdown');
-    if (!sel) return;
-    const selected = [...sel.selectedOptions].map(o => o.value).filter(Boolean);
-    if (!selected.length) { showToast('Select at least one period', 'error'); return; }
+    if (!_payslipValue) { showToast('Select a period first', 'error'); return; }
 
+    const val          = _payslipValue;
     const paidRecs     = myRecords.filter(r => r.paid === 'Yes');
     const allPaidWeeks = groupByWeek(paidRecs);
 
-    const weekKeys   = selected.filter(v => v.startsWith('week:')).map(v => v.replace('week:', ''));
-    const monthKeys  = selected.filter(v => v.startsWith('month:')).map(v => v.replace('month:', ''));
+    if (val.startsWith('week:')) {
+      const weekKey = val.replace('week:', '');
+      const week    = allPaidWeeks.find(w => w.weekKey === weekKey);
+      if (!week) { showToast('No paid records for this week', 'error'); return; }
+      generatePayslipPDF({ mode: 'week', weeks: [week], allRecs: paidRecs });
 
-    // Can't mix weeks and months in one PDF — weeks take priority if both selected
-    if (weekKeys.length && monthKeys.length) {
-      showToast('Select either weeks or months, not both', 'error'); return;
-    }
-
-    if (weekKeys.length) {
-      const selectedWeeks = weekKeys
-        .map(k => allPaidWeeks.find(w => w.weekKey === k))
-        .filter(Boolean)
-        .sort((a,b) => a.weekKey.localeCompare(b.weekKey));
-      if (!selectedWeeks.length) { showToast('No paid records in selected weeks', 'error'); return; }
-      generatePayslipPDF({ mode: 'week', weeks: selectedWeeks, allRecs: paidRecs });
-
-    } else {
-      const sortedMonthKeys = [...monthKeys].sort();
-      const monthGroups = sortedMonthKeys.map(mk => {
-        const mWeeks = allPaidWeeks.filter(w => {
-          const d = new Date(w.weekKey);
-          return (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')) === mk;
-        });
-        return { mk, label: new Date(mk+'-01').toLocaleDateString('en-GB', {month:'long', year:'numeric'}), weeks: mWeeks };
-      }).filter(g => g.weeks.length);
-      if (!monthGroups.length) { showToast('No paid records in selected months', 'error'); return; }
-      generatePayslipPDF({ mode: 'month', monthGroups, allRecs: paidRecs });
+    } else if (val.startsWith('month:')) {
+      const mk     = val.replace('month:', '');
+      const mWeeks = allPaidWeeks.filter(w => {
+        const d = new Date(w.weekKey);
+        return (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')) === mk;
+      });
+      if (!mWeeks.length) { showToast('No paid records for this month', 'error'); return; }
+      const monthLabel = new Date(mk + '-01').toLocaleDateString('en-GB', { month:'long', year:'numeric' });
+      generatePayslipPDF({
+        mode: 'month',
+        monthGroups: [{ mk, label: monthLabel, weeks: mWeeks }],
+        allRecs: paidRecs
+      });
     }
   }
   window.downloadSelectedPayslip = downloadSelectedPayslip;
@@ -1018,6 +1050,9 @@ const [shiftsRes, usersRes] = await Promise.all([
     const empId = mode === 'week'
       ? (weeks[0]?.employeeId || '')
       : (monthGroups[0]?.weeks[0]?.employeeId || '');
+    const empRole = mode === 'week'
+      ? (weeks[0]?.records?.[0]?.employeeRole || '')
+      : (monthGroups[0]?.weeks[0]?.records?.[0]?.employeeRole || '');
 
     const totalHours = mode === 'week'
       ? weeks.reduce((s,w) => s+w.totalHours, 0)
@@ -1090,9 +1125,11 @@ const [shiftsRes, usersRes] = await Promise.all([
     const col2x = ml + cw / 2;
     const pairs = [
       ['Full Name', empName],
+      ['Role', empRole || '—'],
       ['Employee ID', empId || '—'],
       ['Pay Period', periodLabel],
       ['Status', 'Paid ✓'],
+      ['Issued', generatedDate],
     ];
     pairs.forEach((pair, i) => {
       const x = i % 2 === 0 ? ml : col2x;
