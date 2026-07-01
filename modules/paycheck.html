@@ -23,7 +23,7 @@
 
     
     /* ── NAV DROPDOWN ── */
-.nav-dropdown-wrap { display: inline-block;   position: relative;  right: 0;  top: 0; margin-right: auto; margin-left: 50px;   z-index: 500; }
+.nav-dropdown-wrap { display: inline-block; position: relative; z-index: 500; }
 .nav-dropdown-btn {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 7px 12px; border: 1.5px solid #94a3b8; border-radius: 9px;
@@ -78,12 +78,13 @@
     .page-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
 
     /* ── HEADER ROW ── */
-    .page-header {
+.page-header {
       display: flex;
       align-items: center;
       flex-wrap: wrap;
       gap: 10px;
       margin-bottom: 14px;
+      justify-content: space-between;
     }
 
     .page-titl {
@@ -513,6 +514,25 @@
   background: rgba(255,255,255,.2); color: inherit;
 }
 .emp-tab-active .emp-tab-badge { background: rgba(255,255,255,.25); }
+
+
+/* ── SUMMARY BANNER: 4-col with rate pill ── */
+    .summary-banner.has-rate {
+      grid-template-columns: repeat(4, 1fr);
+    }
+    .emp-rate-kpi {
+      border-left: 1px solid rgba(255,255,255,.08);
+    }
+
+    @media (max-width: 600px) {
+      .summary-banner.has-rate {
+        grid-template-columns: 1fr;
+      }
+      .emp-rate-kpi {
+        border-left: none;
+        border-top: 1px solid rgba(255,255,255,.08);
+      }
+    }
   </style>
 
 
@@ -791,13 +811,15 @@ function showEmployeeUI() {
     if (existing) existing.remove();
     const pill = document.createElement('div');
     pill.id = 'empRatePill';
-    pill.style.cssText = 'padding:6px 14px;position:relative;z-index:1;border-left:1px solid rgba(255,255,255,.08);';
+        pill.style.cssText = 'padding:6px 14px;position:relative;z-index:1;border-left:1px solid rgba(255,255,255,.08);';
+    pill.className = 'summary-kpi emp-rate-kpi';
     pill.innerHTML = `
       <div style="font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.45);margin-bottom:3px;">Your Rate</div>
       <div style="font-size:20px;font-weight:700;color:#fff;">£${fmt(rate)}<span style="font-size:12px;font-weight:500;color:rgba(255,255,255,.45)">/hr</span></div>
     `;
     banner.appendChild(pill);
-    banner.style.gridTemplateColumns = 'repeat(4, 1fr)';
+    banner.style.gridTemplateColumns = '';
+    banner.classList.add('has-rate');
   }
 
   function renderEmployeeView() {
@@ -886,24 +908,30 @@ function showEmployeeUI() {
       });
       const monthOpts = Object.entries(monthMap).map(([k,v]) => `<option value="month:${k}">${v}</option>`).join('');
 html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span style="font-size:12px;font-weight:700;color:#0f172a;">Download Payslip</span>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <button id="payslipTabWeek" onclick="switchPayslipTab('week')" style="padding:5px 14px;border-radius:100px;border:1.5px solid #0f172a;background:#0f172a;color:#fff;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;">By Week</button>
+          <button id="payslipTabMonth" onclick="switchPayslipTab('month')" style="padding:5px 14px;border-radius:100px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;">By Month</button>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <div id="payslipDropWrap" style="position:relative;flex:1;min-width:200px;">
             <button id="payslipDropBtn" onclick="togglePayslipDrop(event)" style="width:100%;padding:8px 36px 8px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:12px;font-family:inherit;color:#64748b;background:#fff;text-align:left;cursor:pointer;position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-              — Select a period —
+              — Select a week —
               <svg style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
-            <div id="payslipDropMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid #e2e8f0;border-radius:11px;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:300;max-height:260px;overflow-y:auto;padding:5px;">
-              <div style="padding:4px 10px 3px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;">By Week</div>
-              ${weeks.map(w => `<div class="pslip-opt" data-value="week:${escHtml(w.weekKey)}" onclick="selectPayslipOpt(this)" style="padding:7px 10px;border-radius:7px;font-size:12px;font-weight:500;color:#0f172a;cursor:pointer;transition:background .12s;">${escHtml(w.weekLabel)}</div>`).join('')}
-              <div style="padding:4px 10px 3px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-top:4px;border-top:1px solid #f1f5f9;padding-top:7px;">By Month</div>
-              ${Object.entries(monthMap).map(([k,v]) => `<div class="pslip-opt" data-value="month:${k}" onclick="selectPayslipOpt(this)" style="padding:7px 10px;border-radius:7px;font-size:12px;font-weight:500;color:#0f172a;cursor:pointer;transition:background .12s;">${v}</div>`).join('')}
+            <div id="payslipDropMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1.5px solid #e2e8f0;border-radius:11px;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:300;max-height:240px;overflow-y:auto;padding:5px;">
+              <div id="payslipWeekOpts">
+                ${weeks.map(w => `<div class="pslip-opt" data-value="week:${escHtml(w.weekKey)}" onclick="selectPayslipOpt(this)" style="padding:7px 10px;border-radius:7px;font-size:12px;font-weight:500;color:#0f172a;cursor:pointer;transition:background .12s;">${escHtml(w.weekLabel)}</div>`).join('')}
+              </div>
+              <div id="payslipMonthOpts" style="display:none;">
+                ${Object.entries(monthMap).map(([k,v]) => `<div class="pslip-opt" data-value="month:${k}" onclick="selectPayslipOpt(this)" style="padding:7px 10px;border-radius:7px;font-size:12px;font-weight:500;color:#0f172a;cursor:pointer;transition:background .12s;">${v}</div>`).join('')}
+              </div>
             </div>
           </div>
-          <button onclick="downloadSelectedPayslip()" style="padding:8px 16px;border-radius:9px;border:none;background:#0f172a;color:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;white-space:nowrap;flex-shrink:0;">Download</button>
+          <button onclick="downloadSelectedPayslip()" style="padding:8px 16px;border-radius:9px;border:none;background:#0f172a;color:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;white-space:nowrap;flex-shrink:0;">Download PDF</button>
         </div>
       </div>`;
       html += sectionHeader('Payment History', weeks.length, 'paid', tot);
@@ -930,15 +958,50 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
   function setMyViewFilter(f) { myViewFilter = f; renderEmployeeView(); }
   window.setMyViewFilter = setMyViewFilter;
 
+
 /* ── PAYSLIP ── */
   let _payslipValue = '';
+  let _payslipTab   = 'week';
+
+  function switchPayslipTab(tab) {
+    _payslipTab   = tab;
+    _payslipValue = '';
+
+    const weekBtn  = document.getElementById('payslipTabWeek');
+    const monthBtn = document.getElementById('payslipTabMonth');
+    const weekOpts  = document.getElementById('payslipWeekOpts');
+    const monthOpts = document.getElementById('payslipMonthOpts');
+    const btn       = document.getElementById('payslipDropBtn');
+    const menu      = document.getElementById('payslipDropMenu');
+
+    const activeStyle   = 'padding:5px 14px;border-radius:100px;border:1.5px solid #0f172a;background:#0f172a;color:#fff;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;';
+    const inactiveStyle = 'padding:5px 14px;border-radius:100px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;';
+
+    if (weekBtn)  weekBtn.style.cssText  = tab === 'week'  ? activeStyle : inactiveStyle;
+    if (monthBtn) monthBtn.style.cssText = tab === 'month' ? activeStyle : inactiveStyle;
+    if (weekOpts)  weekOpts.style.display  = tab === 'week'  ? 'block' : 'none';
+    if (monthOpts) monthOpts.style.display = tab === 'month' ? 'block' : 'none';
+
+    // Reset dropdown button label
+    if (btn) {
+      btn.style.color = '#64748b';
+      btn.childNodes[0].textContent = tab === 'week' ? '— Select a week — ' : '— Select a month — ';
+    }
+    if (menu) menu.style.display = 'none';
+
+    // Clear highlights
+    document.querySelectorAll('.pslip-opt').forEach(o => {
+      o.style.background = '';
+      o.style.fontWeight = '500';
+    });
+  }
+  window.switchPayslipTab = switchPayslipTab;
 
   function togglePayslipDrop(e) {
     e.stopPropagation();
     const menu = document.getElementById('payslipDropMenu');
     if (!menu) return;
-    const isOpen = menu.style.display === 'block';
-    menu.style.display = isOpen ? 'none' : 'block';
+    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
   }
   window.togglePayslipDrop = togglePayslipDrop;
 
@@ -948,10 +1011,8 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
     const menu = document.getElementById('payslipDropMenu');
     if (btn) {
       btn.style.color = '#0f172a';
-      // strip just the text, not the SVG
       btn.childNodes[0].textContent = el.textContent.trim() + ' ';
     }
-    // highlight selected
     document.querySelectorAll('.pslip-opt').forEach(o => {
       o.style.background = o === el ? '#f1f5f9' : '';
       o.style.fontWeight = o === el ? '700' : '500';
@@ -960,7 +1021,6 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
   }
   window.selectPayslipOpt = selectPayslipOpt;
 
-  // Close dropdown on outside click
   document.addEventListener('click', function(e) {
     const wrap = document.getElementById('payslipDropWrap');
     if (wrap && !wrap.contains(e.target)) {
@@ -998,6 +1058,7 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
     }
   }
   window.downloadSelectedPayslip = downloadSelectedPayslip;
+    
 
   function generatePayslipPDF({ mode, weeks, monthGroups, allRecs }) {
     // Load jsPDF dynamically then generate
