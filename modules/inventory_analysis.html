@@ -512,7 +512,6 @@ let bucketTab = 'all';
 let bucketSort = 'recent';
 let confirmFn = null;
 let _syncUrl = null;
-let salesView = '7d'; // '7d' | 'all'
 
 /* ── INIT ── */
 async function init() {
@@ -531,9 +530,7 @@ async function loadSyncUrl() {
 
 /* ── SELL-THROUGH CALCULATION ── */
 function calcSellThrough(item) {
-  const sold = salesView === '7d'  ? (item.sold7d  || 0)
-             : salesView === 'all' ? (item.soldAll || 0)
-             : (item.sold30d || 0);
+  const sold = item.soldAll || 0;
   const available = item.available || 0;
   const totalHandled = sold + available;
   if (totalHandled === 0) return 0;
@@ -781,11 +778,6 @@ async function saveActionToDB(id, action, note) {
   } catch(e) {}
 }
 
-
-function setSalesView(v) {
-  salesView = v;
-  render(); // toggle is rebuilt inside buildFocusCard on each render
-}
   
 /* ── SYNC ── */
 async function triggerSync() {
@@ -1001,15 +993,10 @@ function buildFocusCard(x) {
       </div>
     </div>
 
-    <div style="display:inline-flex;border:1.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden;background:var(--surface2);margin-bottom:10px;">
-      <button onclick="setSalesView('7d')"  style="padding:4px 12px;border:none;background:${salesView==='7d'?'var(--accent)':'none'};font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer;color:${salesView==='7d'?'#fff':'var(--text3)'};transition:all .12s;">Last 7 days</button>
-      <button onclick="setSalesView('all')" style="padding:4px 12px;border:none;background:${salesView==='all'?'var(--accent)':'none'};font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer;color:${salesView==='all'?'#fff':'var(--text3)'};transition:all .12s;">All time</button>
-    </div>
-
     <div class="st-bar-wrap">
     
       <div class="st-bar-row">
-        <span class="st-bar-lbl">Sell-Through Rate</span>
+        <span class="st-bar-lbl">Sell-Through Rate <span style="color:var(--text4);font-weight:500;">(All time)</span></span>
         <span class="st-bar-pct" style="color:var(--${x.status === 'strong' ? 'strong' : x.status === 'moderate' ? 'moderate' : x.status === 'slow' ? 'slow' : 'offload'})">${x._salesLoading ? '<span style="color:var(--text4);font-size:11px;font-weight:600;animation:pulse 1s infinite;">Calculating…</span>' : x.pct + '%'}</span>
       </div>
       <div class="st-bar-track">
@@ -1023,15 +1010,15 @@ function buildFocusCard(x) {
         <div class="fc-stat-val ${x.available === 0 ? 'red' : ''}" style="font-size:15px;white-space:nowrap;">${x.available.toLocaleString()} <span style="color:var(--text3);font-weight:600;font-size:15px;">/ £${fmt(x.available * x.cost_price)}</span></div>
         <div class="fc-stat-sub">units in stock</div>
       </div>
-      <div class="fc-stat" style="${salesView==='7d'?'border-color:var(--accent-bd);background:var(--accent-bg);':''}">
-        <div class="fc-stat-lbl" style="${salesView==='7d'?'color:var(--accent);':''}">Sold (7d)</div>
-        <div class="fc-stat-val ${salesView==='7d'?'blue':''}">${(x.sold7d || 0).toLocaleString()}</div>
-        <div class="fc-stat-sub">${salesView==='7d'?'<span style="color:var(--accent);font-weight:700;">'+x.pct+'% sell-through</span>':'last 7 days'}</div>
+      <div class="fc-stat">
+        <div class="fc-stat-lbl">Sold (7d)</div>
+        <div class="fc-stat-val blue">${(x.sold7d || 0).toLocaleString()}</div>
+        <div class="fc-stat-sub"><span style="color:var(--accent);font-weight:700;">${x._salesLoading ? '…' : Math.round((x.sold7d||0)/((x.sold7d||0)+(x.available||0)||1)*100) + '% sell-through'}</span></div>
       </div>
-      <div class="fc-stat" style="${salesView==='30d'?'border-color:var(--accent-bd);background:var(--accent-bg);':salesView==='all'?'border-color:var(--accent-bd);background:var(--accent-bg);':''}">
-        <div class="fc-stat-lbl" style="${salesView==='all'?'color:var(--accent);':''}">Sold (All time)</div>
-        <div class="fc-stat-val ${salesView==='all'?'blue':''}">${(x.soldAll||0).toLocaleString()}</div>
-        <div class="fc-stat-sub">${salesView==='all'?'<span style="color:var(--accent);font-weight:700;">'+x.pct+'% sell-through</span>':'all time'}</div>
+      <div class="fc-stat" style="border-color:var(--accent-bd);background:var(--accent-bg);">
+        <div class="fc-stat-lbl" style="color:var(--accent);">Sold (All time)</div>
+        <div class="fc-stat-val blue">${(x.soldAll||0).toLocaleString()}</div>
+        <div class="fc-stat-sub"><span style="color:var(--accent);font-weight:700;">${x._salesLoading ? '…' : x.pct + '% sell-through'}</span></div>
       </div>
     </div>
 
@@ -1212,7 +1199,6 @@ window.closeConfirm = closeConfirm;
 window.doConfirm = doConfirm;
 window.resetQueueIdx = () => { queueIdx = 0; };
 window.render = render;
-window.setSalesView = setSalesView;
 
 init();
 })();
