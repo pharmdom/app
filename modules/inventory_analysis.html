@@ -164,7 +164,12 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .st-offload{color:var(--offload);background:var(--offload-bg);border-color:var(--offload-bd);}
 
 .pill-sku{font-family:var(--mono);font-size:10px;color:var(--text3);background:var(--surface2);
-  padding:2px 7px;border-radius:4px;border:1px solid var(--border);white-space:normal;word-break:break-all;}
+  padding:2px 7px;border-radius:4px;border:1px solid var(--border);white-space:normal;word-break:break-all;display:flex;flex-wrap:wrap;gap:4px;}
+.pill-sku-item{font-family:var(--mono);font-size:10px;color:var(--text2);background:#e8edf7;
+  padding:2px 7px;border-radius:4px;border:1px solid var(--border2);cursor:pointer;
+  transition:background .12s,color .12s,border-color .12s;white-space:nowrap;}
+.pill-sku-item:hover{background:var(--accent-bg);border-color:var(--accent-bd);color:var(--accent);}
+.pill-sku-item.copied{background:var(--strong-bg);border-color:var(--strong-bd);color:var(--strong);}
 
 /* Sell-through bar */
 .st-bar-wrap{margin:11px 0;display:flex;flex-direction:column;gap:4px;}
@@ -970,6 +975,25 @@ function render() {
   document.getElementById('bucketProgress').textContent = pct + '% complete · ' + pend + ' remaining';
 }
 
+
+/* ── SKU PILLS ── */
+function buildSkuPills(skuStr) {
+  if (!skuStr) return '<span class="pill-sku-item">—</span>';
+  return skuStr.split(',').map(s => s.trim()).filter(Boolean).map(sku =>
+    `<span class="pill-sku-item" onclick="copySku(this,'${esc(sku)}')">${esc(sku)}</span>`
+  ).join('');
+}
+
+function copySku(el, sku) {
+  navigator.clipboard.writeText(sku).then(() => {
+    el.classList.add('copied');
+    const orig = el.textContent;
+    el.textContent = '✓ copied';
+    setTimeout(() => { el.classList.remove('copied'); el.textContent = orig; }, 1400);
+  });
+}
+window.copySku = copySku;
+  
 /* ── FOCUS CARD ── */
 function buildFocusCard(x) {
   const a = acts[x.variant_id];
@@ -996,7 +1020,7 @@ function buildFocusCard(x) {
       <div class="fc-body">
         <div class="fc-name">${esc(x.name)}</div>
         <div class="fc-meta">
-          <span class="pill-sku">${esc(x.sku || '—')}</span>
+          <div class="pill-sku">${buildSkuPills(x.sku)}</div>
           <span class="st-badge ${getStatusBadgeCls(x.status)}">${getStatusLabel(x.status)}</span>
           ${x.price ? `<span style="font-family:var(--mono);font-size:11px;color:var(--text3);">£${x.price.toFixed(2)}</span>` : ''}
         </div>
@@ -1085,7 +1109,7 @@ function buildBucketCard(x) {
       <div class="bc-name" title="${esc(x.name)}">${esc(x.name)}</div>
       <div class="bc-meta">
         <span class="sp ${pill.cls}">${pill.txt}</span>
-        <span class="pill-sku">${esc(x.sku || '—')}</span>
+        <div class="pill-sku">${buildSkuPills(x.sku)}</div>
         <span class="bc-pct" style="color:${pctColor}">${x.pct}%</span>
         <span style="font-size:10px;color:var(--text4);">· ${x.available} units / £${fmt(x.available * x.cost_price)}</span>
       </div>
