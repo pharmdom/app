@@ -881,15 +881,26 @@ const [shiftsRes, usersRes] = await Promise.all([
         if (!monthMap[mk]) monthMap[mk] = ml;
       });
       const monthOpts = Object.entries(monthMap).map(([k,v]) => `<option value="month:${k}">${v}</option>`).join('');
-      html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        <span style="font-size:12px;font-weight:600;color:#64748b;white-space:nowrap;">Download Payslip</span>
-        <select id="payslipRangeSelect" style="flex:1;min-width:160px;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;color:#0f172a;background:#fff;outline:none;">
-          <option value="">— Select week or month —</option>
-          <optgroup label="By Week">${weekOpts}</optgroup>
-          <optgroup label="By Month">${monthOpts}</optgroup>
-        </select>
-        <button onclick="downloadSelectedPayslip()" style="padding:6px 14px;border-radius:8px;border:none;background:#0f172a;color:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">Download</button>
+html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span style="font-size:12px;font-weight:700;color:#0f172a;">Download Payslip</span>
+          <span style="font-size:11px;color:#94a3b8;margin-left:2px;">Select one or more periods</span>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <button onclick="setPayslipMode('week')" id="payslipModeWeek" style="padding:5px 12px;border-radius:100px;border:1.5px solid #0f172a;background:#0f172a;color:#fff;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;">By Week</button>
+          <button onclick="setPayslipMode('month')" id="payslipModeMonth" style="padding:5px 12px;border-radius:100px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;">By Month</button>
+        </div>
+        <div id="payslipWeekPills" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">
+          ${weeks.map(w => `<button onclick="togglePayslipSelection('week:${escHtml(w.weekKey)}')" id="psel_week_${escHtml(w.weekKey)}" style="padding:5px 11px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#475569;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .12s;">${escHtml(w.weekLabel)}</button>`).join('')}
+        </div>
+        <div id="payslipMonthPills" style="display:none;flex-wrap:wrap;gap:5px;margin-bottom:10px;">
+          ${Object.entries(monthMap).map(([k,v]) => `<button onclick="togglePayslipSelection('month:${k}')" id="psel_month_${k}" style="padding:5px 11px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#475569;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .12s;">${v}</button>`).join('')}
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <span id="payslipSelCount" style="font-size:11px;color:#94a3b8;">Nothing selected</span>
+          <button onclick="downloadSelectedPayslip()" style="padding:6px 16px;border-radius:8px;border:none;background:#0f172a;color:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">Download PDF</button>
+        </div>
       </div>`;
       html += sectionHeader('Payment History', weeks.length, 'paid', tot);
       html += '<div class="payment-rows">' + weeks.map(w => employeeWeekRow(w)).join('') + '</div>';
@@ -915,46 +926,334 @@ const [shiftsRes, usersRes] = await Promise.all([
   function setMyViewFilter(f) { myViewFilter = f; renderEmployeeView(); }
   window.setMyViewFilter = setMyViewFilter;
 
-  /* ── PAYSLIP ── */
-  function downloadPayslipWeek(week, e) {
-    e && e.stopPropagation();
-    const companyName = 'Pharm & Dom';
-    const logoUrl = 'https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png';
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Payslip – ${escHtml(week.weekLabel)}</title><style>* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #0f172a; font-size: 13px; } .page { width: 680px; margin: 40px auto; padding: 40px; border: 1px solid #e2e8f0; border-radius: 12px; } .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid #f1f5f9; } .logo { display: flex; align-items: center; gap: 12px; } .logo img { width: 44px; height: 44px; border-radius: 10px; object-fit: contain; } .logo-name { font-size: 18px; font-weight: 700; } .logo-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; } .payslip-label { text-align: right; } .payslip-label h1 { font-size: 22px; font-weight: 700; color: #1847d4; } .payslip-label p { font-size: 12px; color: #64748b; margin-top: 4px; } .section { margin-bottom: 24px; } .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 12px; } .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .info-item label { font-size: 10.5px; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 3px; } .info-item span { font-size: 14px; font-weight: 600; } .earnings-table { width: 100%; border-collapse: collapse; } .earnings-table th { text-align: left; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; padding: 0 0 8px; border-bottom: 1px solid #f1f5f9; } .earnings-table td { padding: 10px 0; border-bottom: 1px solid #f8fafc; font-size: 13.5px; } .earnings-table .amount { font-weight: 700; text-align: right; } .total-row { background: #f8fafc; border-radius: 8px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; margin-top: 16px; } .total-row .label { font-size: 13px; font-weight: 600; color: #475569; } .total-row .amount { font-size: 20px; font-weight: 700; color: #15803d; } .paid-badge { display: inline-flex; align-items: center; gap: 6px; background: #dcfce7; color: #15803d; padding: 6px 14px; border-radius: 100px; font-size: 12px; font-weight: 700; margin-top: 20px; } .footer { margin-top: 32px; padding-top: 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; } .footer p { font-size: 11px; color: #cbd5e1; } @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }</style></head><body><div class="page"><div class="header"><div class="logo"><img src="${logoUrl}" alt="Logo"><div><div class="logo-name">${companyName}</div><div class="logo-sub">Official Payslip</div></div></div><div class="payslip-label"><h1>PAYSLIP</h1><p>Week: ${escHtml(week.weekLabel)}</p></div></div><div class="section"><div class="section-title">Employee Details</div><div class="info-grid"><div class="info-item"><label>Full Name</label><span>${escHtml(week.employeeName)}</span></div><div class="info-item"><label>Employee ID</label><span>${escHtml(week.employeeId)}</span></div><div class="info-item"><label>Pay Period</label><span>${escHtml(week.weekLabel)}</span></div><div class="info-item"><label>Status</label><span style="color:#15803d">Paid</span></div></div></div><div class="section"><div class="section-title">Earnings</div><table class="earnings-table"><tr><th>Description</th><th>Hours</th><th>Rate</th><th class="amount">Amount</th></tr><tr><td>Regular Hours</td><td>${week.totalHours.toFixed(1)} hrs</td><td>£${fmt(week.hourlyRate)}/hr</td><td class="amount">£${fmt(week.totalPay)}</td></tr></table><div class="total-row"><span class="label">Net Pay</span><span class="amount">£${fmt(week.totalPay)}</span></div><div class="paid-badge">✓ Payment Confirmed</div></div><div class="footer"><p>${companyName} — Confidential</p><p>Generated ${new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}</p></div></div><script>window.onload=function(){window.print();}<\/script></body></html>`;
-    const win = window.open('', '_blank', 'width=780,height=900');
-    if (win) { win.document.write(html); win.document.close(); }
+/* ── PAYSLIP ── */
+  let _payslipMode = 'week';
+  let _payslipSelected = new Set();
+
+  function setPayslipMode(mode) {
+    _payslipMode = mode;
+    _payslipSelected.clear();
+    document.getElementById('payslipModeWeek').style.cssText  = mode==='week'  ? 'padding:5px 12px;border-radius:100px;border:1.5px solid #0f172a;background:#0f172a;color:#fff;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;' : 'padding:5px 12px;border-radius:100px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;';
+    document.getElementById('payslipModeMonth').style.cssText = mode==='month' ? 'padding:5px 12px;border-radius:100px;border:1.5px solid #0f172a;background:#0f172a;color:#fff;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;' : 'padding:5px 12px;border-radius:100px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;';
+    document.getElementById('payslipWeekPills').style.display  = mode==='week'  ? 'flex' : 'none';
+    document.getElementById('payslipMonthPills').style.display = mode==='month' ? 'flex' : 'none';
+    updatePayslipCount();
   }
-  window.downloadPayslipWeek = downloadPayslipWeek;
+  window.setPayslipMode = setPayslipMode;
+
+  function togglePayslipSelection(key) {
+    if (_payslipSelected.has(key)) {
+      _payslipSelected.delete(key);
+    } else {
+      _payslipSelected.add(key);
+    }
+    // Update pill visual
+    const [type, val] = key.split(/:(.+)/);
+    const btnId = type === 'week' ? `psel_week_${val}` : `psel_month_${val}`;
+    const btn = document.getElementById(btnId);
+    if (btn) {
+      const sel = _payslipSelected.has(key);
+      btn.style.background    = sel ? '#0f172a' : '#fff';
+      btn.style.color         = sel ? '#fff'    : '#475569';
+      btn.style.borderColor   = sel ? '#0f172a' : '#e2e8f0';
+    }
+    updatePayslipCount();
+  }
+  window.togglePayslipSelection = togglePayslipSelection;
+
+  function updatePayslipCount() {
+    const el = document.getElementById('payslipSelCount');
+    if (!el) return;
+    const n = _payslipSelected.size;
+    el.textContent = n === 0 ? 'Nothing selected' : `${n} ${_payslipMode === 'week' ? 'week' : 'month'}${n !== 1 ? 's' : ''} selected`;
+  }
 
   function downloadSelectedPayslip() {
-    const sel = document.getElementById('payslipRangeSelect');
-    if (!sel || !sel.value) { showToast('Please select a week or month', 'error'); return; }
-    const val = sel.value;
-    const paidRecs = myRecords.filter(r => r.paid === 'Yes');
+    if (!_payslipSelected.size) { showToast('Select at least one period first', 'error'); return; }
+    const paidRecs     = myRecords.filter(r => r.paid === 'Yes');
     const allPaidWeeks = groupByWeek(paidRecs);
-    if (val.startsWith('month:')) {
-      const mk = val.replace('month:', '');
-      const mWeeks = allPaidWeeks.filter(w => {
-        const d = new Date(w.weekKey);
-        return (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')) === mk;
-      });
-      if (!mWeeks.length) { showToast('No paid records for this month', 'error'); return; }
-      const monthLabel = new Date(mk + '-01').toLocaleDateString('en-GB', { month:'long', year:'numeric' });
-      downloadPayslipWeek({
-        weekLabel: monthLabel, weekKey: mk,
-        employeeId: mWeeks[0].employeeId, employeeName: mWeeks[0].employeeName,
-        hourlyRate: mWeeks[0].hourlyRate,
-        totalHours: mWeeks.reduce((s,w) => s+w.totalHours, 0),
-        totalPay:   mWeeks.reduce((s,w) => s+w.totalPay, 0),
-        paid: 'Yes'
-      }, null);
+
+    if (_payslipMode === 'week') {
+      const selectedWeeks = [..._payslipSelected]
+        .map(k => allPaidWeeks.find(w => w.weekKey === k.replace('week:', '')))
+        .filter(Boolean)
+        .sort((a,b) => a.weekKey.localeCompare(b.weekKey));
+      if (!selectedWeeks.length) { showToast('No paid records in selected weeks', 'error'); return; }
+      generatePayslipPDF({ mode: 'week', weeks: selectedWeeks, allRecs: paidRecs });
     } else {
-      const week = allPaidWeeks.find(w => w.weekKey === val);
-      if (!week) { showToast('Week not found', 'error'); return; }
-      downloadPayslipWeek(week, null);
+      const selectedMonthKeys = [..._payslipSelected].map(k => k.replace('month:', '')).sort();
+      if (!selectedMonthKeys.length) { showToast('No months selected', 'error'); return; }
+      const monthGroups = selectedMonthKeys.map(mk => {
+        const weeks = allPaidWeeks.filter(w => {
+          const d = new Date(w.weekKey);
+          return (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')) === mk;
+        });
+        return { mk, label: new Date(mk+'-01').toLocaleDateString('en-GB', {month:'long', year:'numeric'}), weeks };
+      }).filter(g => g.weeks.length);
+      if (!monthGroups.length) { showToast('No paid records in selected months', 'error'); return; }
+      generatePayslipPDF({ mode: 'month', monthGroups, allRecs: paidRecs });
     }
   }
   window.downloadSelectedPayslip = downloadSelectedPayslip;
+
+  function generatePayslipPDF({ mode, weeks, monthGroups, allRecs }) {
+    // Load jsPDF dynamically then generate
+    if (!window.jspdf) {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      script.onload = () => _buildPDF({ mode, weeks, monthGroups, allRecs });
+      script.onerror = () => showToast('Failed to load PDF library', 'error');
+      document.head.appendChild(script);
+    } else {
+      _buildPDF({ mode, weeks, monthGroups, allRecs });
+    }
+  }
+
+  function _buildPDF({ mode, weeks, monthGroups, allRecs }) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pw = 210, ph = 297;
+    const ml = 18, mr = 18, mt = 18;
+    const cw = pw - ml - mr;
+
+    // Brand colours
+    const DARK   = [15, 23, 42];
+    const MID    = [30, 41, 59];
+    const ACCENT = [37, 99, 235];
+    const GREEN  = [21, 128, 61];
+    const LIGHT  = [248, 250, 252];
+    const BORDER = [226, 232, 240];
+    const MUTED  = [100, 116, 139];
+
+    const empName = mode === 'week'
+      ? (weeks[0]?.employeeName || 'Employee')
+      : (monthGroups[0]?.weeks[0]?.employeeName || 'Employee');
+    const empId = mode === 'week'
+      ? (weeks[0]?.employeeId || '')
+      : (monthGroups[0]?.weeks[0]?.employeeId || '');
+
+    const totalHours = mode === 'week'
+      ? weeks.reduce((s,w) => s+w.totalHours, 0)
+      : monthGroups.reduce((s,g) => s+g.weeks.reduce((ss,w) => ss+w.totalHours, 0), 0);
+    const totalPay = mode === 'week'
+      ? weeks.reduce((s,w) => s+w.totalPay, 0)
+      : monthGroups.reduce((s,g) => s+g.weeks.reduce((ss,w) => ss+w.totalPay, 0), 0);
+
+    const periodLabel = mode === 'week'
+      ? (weeks.length === 1 ? `Week: ${weeks[0].weekLabel}` : `${weeks.length} Weeks`)
+      : (monthGroups.length === 1 ? monthGroups[0].label : `${monthGroups.length} Months`);
+
+    const generatedDate = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+
+    let y = mt;
+
+    // ── HEADER BAND ──
+    doc.setFillColor(...DARK);
+    doc.rect(0, 0, pw, 46, 'F');
+
+    // Company name
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text('Pharm & Dom', ml, 20);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text('Official Payslip', ml, 27);
+
+    // PAYSLIP label right-aligned
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(...ACCENT);
+    doc.text('PAYSLIP', pw - mr, 22, { align: 'right' });
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text(periodLabel, pw - mr, 29, { align: 'right' });
+    doc.text(`Generated ${generatedDate}`, pw - mr, 34, { align: 'right' });
+
+    y = 56;
+
+    // ── EMPLOYEE DETAILS ──
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...MUTED);
+    doc.text('EMPLOYEE DETAILS', ml, y);
+    y += 4;
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.3);
+    doc.line(ml, y, pw - mr, y);
+    y += 6;
+
+    const col2x = ml + cw / 2;
+    const pairs = [
+      ['Full Name', empName],
+      ['Employee ID', empId || '—'],
+      ['Pay Period', periodLabel],
+      ['Status', 'Paid ✓'],
+    ];
+    pairs.forEach((pair, i) => {
+      const x = i % 2 === 0 ? ml : col2x;
+      if (i % 2 === 0 && i > 0) y += 10;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(...MUTED);
+      doc.text(pair[0], x, y);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(...DARK);
+      doc.text(pair[1], x, y + 4);
+    });
+    y += 16;
+
+    // ── EARNINGS BREAKDOWN ──
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...MUTED);
+    doc.text('EARNINGS BREAKDOWN', ml, y);
+    y += 4;
+    doc.setDrawColor(...BORDER);
+    doc.line(ml, y, pw - mr, y);
+    y += 5;
+
+    // Table header
+    const cols = { date: ml, desc: ml + 40, hours: ml + 110, rate: ml + 135, amount: pw - mr };
+    doc.setFillColor(...LIGHT);
+    doc.rect(ml, y, cw, 7, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...MUTED);
+    doc.text('DATE / PERIOD', cols.date + 2, y + 4.5);
+    doc.text('DESCRIPTION', cols.desc, y + 4.5);
+    doc.text('HOURS', cols.hours, y + 4.5);
+    doc.text('RATE', cols.rate, y + 4.5);
+    doc.text('AMOUNT', cols.amount, y + 4.5, { align: 'right' });
+    y += 9;
+
+    // Rows
+    const drawRow = (dateLabel, desc, hours, rate, amount, isSubtotal = false) => {
+      if (y > ph - 50) {
+        doc.addPage();
+        y = mt;
+      }
+      const rowH = 7;
+      if (isSubtotal) {
+        doc.setFillColor(240, 253, 244);
+        doc.rect(ml, y, cw, rowH, 'F');
+      }
+      doc.setFont('helvetica', isSubtotal ? 'bold' : 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...(isSubtotal ? GREEN : DARK));
+      doc.text(dateLabel, cols.date + 2, y + 4.5);
+      doc.text(desc, cols.desc, y + 4.5);
+      doc.setTextColor(...MUTED);
+      doc.text(hours > 0 ? hours.toFixed(1) + 'h' : '', cols.hours, y + 4.5);
+      doc.text(rate > 0 ? `£${fmt(rate)}/hr` : '', cols.rate, y + 4.5);
+      doc.setFont('helvetica', isSubtotal ? 'bold' : 'normal');
+      doc.setTextColor(...(isSubtotal ? GREEN : DARK));
+      doc.text(`£${fmt(amount)}`, cols.amount, y + 4.5, { align: 'right' });
+      doc.setDrawColor(...BORDER);
+      doc.setLineWidth(0.2);
+      doc.line(ml, y + rowH, pw - mr, y + rowH);
+      y += rowH;
+    };
+
+    if (mode === 'week') {
+      // Daily breakdown per week
+      weeks.sort((a,b) => a.weekKey.localeCompare(b.weekKey)).forEach(week => {
+        // Week header row
+        if (weeks.length > 1) {
+          doc.setFillColor(...MID);
+          doc.rect(ml, y, cw, 6, 'F');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7);
+          doc.setTextColor(255,255,255);
+          doc.text(`Week: ${week.weekLabel}`, ml + 2, y + 4);
+          y += 6;
+        }
+        // Daily records for this week
+        const weekDayRecs = allRecs
+          .filter(r => getWeekKey(r.date).key === week.weekKey)
+          .sort((a,b) => a.date.localeCompare(b.date));
+        weekDayRecs.forEach(r => {
+          const d = new Date(r.date);
+          const dayLabel = d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
+          drawRow(dayLabel, 'Regular Hours', r.totalHours, r.hourlyRate, r.totalPay);
+        });
+        // Week subtotal
+        drawRow(week.weekLabel, 'WEEK SUBTOTAL', week.totalHours, week.hourlyRate, week.totalPay, true);
+        y += 2;
+      });
+    } else {
+      // Monthly breakdown with weekly rows
+      monthGroups.forEach(group => {
+        // Month header
+        doc.setFillColor(...MID);
+        doc.rect(ml, y, cw, 6, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(255, 255, 255);
+        doc.text(group.label, ml + 2, y + 4);
+        y += 6;
+
+        group.weeks.sort((a,b) => a.weekKey.localeCompare(b.weekKey)).forEach(week => {
+          drawRow(week.weekLabel, 'Regular Hours', week.totalHours, week.hourlyRate, week.totalPay);
+        });
+
+        // Month subtotal
+        const mHours = group.weeks.reduce((s,w) => s+w.totalHours, 0);
+        const mPay   = group.weeks.reduce((s,w) => s+w.totalPay, 0);
+        const mRate  = mHours > 0 ? mPay / mHours : 0;
+        drawRow(group.label, 'MONTH SUBTOTAL', mHours, mRate, mPay, true);
+        y += 2;
+      });
+    }
+
+    y += 4;
+
+    // ── NET PAY TOTAL BOX ──
+    doc.setFillColor(...DARK);
+    doc.roundedRect(ml, y, cw, 16, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text('NET PAY', ml + 6, y + 10);
+    doc.setFontSize(14);
+    doc.setTextColor(74, 222, 128);
+    doc.text(`£${fmt(totalPay)}`, pw - mr - 6, y + 10, { align: 'right' });
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`${totalHours.toFixed(1)} total hours`, pw - mr - 6, y + 14, { align: 'right' });
+    y += 22;
+
+    // ── PAID CONFIRMATION ──
+    doc.setFillColor(220, 252, 231);
+    doc.roundedRect(ml, y, cw, 10, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...GREEN);
+    doc.text('✓  Payment Confirmed', ml + cw / 2, y + 6.5, { align: 'center' });
+    y += 16;
+
+    // ── FOOTER ──
+    const footerY = ph - 14;
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.3);
+    doc.line(ml, footerY - 3, pw - mr, footerY - 3);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...MUTED);
+    doc.text('Pharm & Dom — Confidential', ml, footerY + 2);
+    doc.text(`Generated ${generatedDate}`, pw - mr, footerY + 2, { align: 'right' });
+
+    // Save
+    const safeName = empName.replace(/\s+/g, '_');
+    const safePeriod = periodLabel.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    doc.save(`Payslip_${safeName}_${safePeriod}.pdf`);
+    showToast('Payslip downloaded ✓', 'success');
+  }
 
   /* ══════════════════════════════════════════
      ADMIN VIEW
