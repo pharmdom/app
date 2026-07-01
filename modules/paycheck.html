@@ -496,6 +496,23 @@
       .drawer-kpi-row { grid-template-columns: 1fr; }
       .stat-chips { gap: 4px; }
     }
+
+
+    /* ── EMPLOYEE TAB BUTTONS ── */
+.emp-tab-btn {
+  padding: 7px 14px; border-radius: 100px; border: 1.5px solid #e2e8f0;
+  font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
+  background: #fff; color: #64748b; transition: all .15s; display: inline-flex;
+  align-items: center; gap: 6px;
+}
+.emp-tab-btn:hover { border-color: #94a3b8; color: #334155; }
+.emp-tab-active { background: #0f172a; color: #fff !important; border-color: #0f172a !important; }
+.emp-tab-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%; font-size: 10px; font-weight: 700;
+  background: rgba(255,255,255,.2); color: inherit;
+}
+.emp-tab-active .emp-tab-badge { background: rgba(255,255,255,.25); }
   </style>
 
 
@@ -553,6 +570,9 @@
       </div>
     </div>
 
+<!-- Admin-only controls (hidden for employees) -->
+    <div id="adminOnlyControls">
+
     <!-- Date Filter -->
     <div class="date-filter-bar">
       <button class="date-chip active" data-range="all" onclick="setDateFilter('all', this)">All Time</button>
@@ -574,7 +594,11 @@
       <button class="custom-clear-btn" onclick="clearCustomDate()">Clear</button>
     </div>
 
-    <!-- Summary Banner -->
+
+</div><!-- /adminOnlyControls -->
+
+
+<!-- Summary Banner -->
     <div class="summary-banner" id="summaryBanner" style="display:none">
       <div class="summary-kpi">
         <div class="summary-kpi-label">Total Payroll</div>
@@ -616,32 +640,35 @@
 
 <div class="toast-container" id="toastContainer"></div>
 
+
+
 <script>
 (function () {
 
   const API_URL = 'https://script.google.com/macros/s/AKfycbzCkuKZM3fseUWhmx6fMF2kImY2f0owG35Q_ctttdwj7siAoT0-FYChbesTzf9RQ5rQ0w/exec';
+  const currentUser = window.currentUser || JSON.parse(sessionStorage.getItem('user') || '{}');
+  const isAdmin = currentUser.role === 'Admin';
+  const myName  = ((currentUser.firstName || '') + ' ' + (currentUser.lastName || '')).trim();
 
-  const AVATAR_COLOR = '#334155'; // single clean colour for all avatars
-
-  let allData = [];
-  let employees = {};        // all records, keyed by employeeId
-  let uniqueEmployees = [];  // deduplicated employee list (id + name only)
-  let filteredEmps = [];
-  let drawerEmpId = null;
-  let drawerFilter = 'all';
-
-  // Filter state
-  let activeDateRange = 'all';
+  let allData       = [];
+  let employees     = {};
+  let uniqueEmployees = [];
+  let filteredEmps  = [];
+  let drawerEmpId   = null;
+  let drawerFilter  = 'all';
+  let activeDateRange   = 'all';
   let activeStatusFilter = 'all';
   let customFrom = null;
-  let customTo = null;
+  let customTo   = null;
 
-  /* ══ INIT ══ */
+  // ── EMPLOYEE VIEW STATE ──
+  let myRecords     = [];
+  let myViewFilter  = 'all'; // 'all' | 'week' | 'month' | 'history'
+
   async function init() {
     await loadData();
   }
 
-  /* ══ LOAD DATA ══ */
   async function loadData() {
     showPageLoading();
     try {
@@ -664,7 +691,18 @@
       }));
 
       buildEmployeeMap();
-      applyFilters();
+
+      if (isAdmin) {
+        // Show full admin UI
+        showAdminUI();
+        applyFilters();
+      } else {
+        // Filter to only this employee's records by name match
+        myRecords = allData.filter(r =>
+          r.employeeName.toLowerCase().trim() === myName.toLowerCase().trim()
+        );
+        showEmployeeUI();
+      }
     } catch (e) {
       document.getElementById('cardsArea').innerHTML =
         '<div class="empty-state">' +
@@ -680,36 +718,305 @@
       '<div class="spinner"></div><span style="font-size:13.5px">Loading paycheck data…</span></div>';
   }
 
+  /* ══════════════════════════════════════════
+     EMPLOYEE VIEW
+  ══════════════════════════════════════════ */
 
-  
-  
-function toggleNavDrop(e) {
-  e.stopPropagation();
-  const btn = document.getElementById('navDropBtn');
-  const menu = document.getElementById('navDropMenu');
-  const open = menu.classList.toggle('open');
-  btn.classList.toggle('open', open);
-}
-document.addEventListener('click', function() {
-  document.getElementById('navDropMenu')?.classList.remove('open');
-  document.getElementById('navDropBtn')?.classList.remove('open');
-});
+  function showEmployeeUI() {
+    // Hide admin-only elements
+    document.getElementById('adminOnlyControls').style.display = 'none';
+    document.getElementById('summaryBanner').style.display = 'none';
 
+    // Replace page title area with employee greeting
+    document.querySelector('.page-titl').textContent = 'My Pay';
+    document.querySelector('.pskl').textContent = 'Your personal pay records';
+
+    renderEmployeeView();
+  }
+
+  function renderEmployeeView() {
+    const now   = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Week bounds (Mon–Sun)
+    const dayOfWeek = today.getDay();
+    const diffToMon = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const weekStart = new Date(today); weekStart.setDate(today.getDate() - diffToMon);
+    const weekEnd   = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+
+    // Month bounds
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthEnd   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    const weekRecs  = myRecords.filter(r => { const d = new Date(r.date); return d >= weekStart && d <= weekEnd; });
+    const monthRecs = myRecords.filter(r => { const d = new Date(r.date); return d >= monthStart && d <= monthEnd; });
+    const paidRecs  = myRecords.filter(r => r.paid === 'Yes');
+    const pendRecs  = myRecords.filter(r => r.paid !== 'Yes');
+
+    const totalEarned  = myRecords.reduce((s,r) => s + r.totalPay, 0);
+    const totalPaid    = paidRecs.reduce((s,r) => s + r.totalPay, 0);
+    const totalPending = totalEarned - totalPaid;
+
+    const area = document.getElementById('cardsArea');
+
+    if (!myRecords.length) {
+      area.innerHTML = '<div class="empty-state"><p>No pay records found for your account.</p><p class="empty-state-hint">Contact your manager if this seems wrong.</p></div>';
+      return;
+    }
+
+    // Summary banner
+    document.getElementById('summaryBanner').style.display = 'grid';
+    document.getElementById('bannerTotal').textContent   = '£' + fmt(totalEarned);
+    document.getElementById('bannerPaid').textContent    = '£' + fmt(totalPaid);
+    document.getElementById('bannerPending').textContent = '£' + fmt(totalPending);
+
+    // Build employee view tabs
+    area.innerHTML = `
+      <div id="empViewTabs" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
+        <button class="emp-tab-btn ${myViewFilter==='all'?'emp-tab-active':''}" onclick="setMyViewFilter('all')">All Records</button>
+        <button class="emp-tab-btn ${myViewFilter==='week'?'emp-tab-active':''}" onclick="setMyViewFilter('week')">
+          This Week ${weekRecs.length ? '<span class="emp-tab-badge">'+weekRecs.length+'</span>' : ''}
+        </button>
+        <button class="emp-tab-btn ${myViewFilter==='month'?'emp-tab-active':''}" onclick="setMyViewFilter('month')">
+          This Month ${monthRecs.length ? '<span class="emp-tab-badge">'+monthRecs.length+'</span>' : ''}
+        </button>
+        <button class="emp-tab-btn ${myViewFilter==='history'?'emp-tab-active':''}" onclick="setMyViewFilter('history')">
+          Payment History
+        </button>
+      </div>
+      <div id="empViewContent"></div>
+    `;
+
+    renderEmployeeTab(weekRecs, monthRecs, paidRecs, pendRecs);
+  }
+
+  function renderEmployeeTab(weekRecs, monthRecs, paidRecs, pendRecs) {
+    const content = document.getElementById('empViewContent');
+    if (!content) return;
+
+    let recs = [];
+    let label = '';
+
+    if (myViewFilter === 'week')    { recs = weekRecs;  label = 'This Week'; }
+    else if (myViewFilter === 'month') { recs = monthRecs; label = 'This Month'; }
+    else if (myViewFilter === 'history') { recs = paidRecs.sort((a,b) => b.date.localeCompare(a.date)); label = 'Payment History'; }
+    else { recs = [...myRecords].sort((a,b) => b.date.localeCompare(a.date)); label = 'All Records'; }
+
+    if (!recs.length) {
+      content.innerHTML = '<div class="empty-state" style="margin-top:0"><p>No records for this period.</p></div>';
+      return;
+    }
+
+    // Group paid vs pending for 'all' and 'week'/'month'
+    const showGroups = myViewFilter !== 'history';
+    const paid   = recs.filter(r => r.paid === 'Yes');
+    const unpaid = recs.filter(r => r.paid !== 'Yes');
+
+    let html = '';
+
+    if (showGroups && unpaid.length) {
+      const tot = unpaid.reduce((s,r) => s + r.totalPay, 0);
+      html += sectionHeader('Pending Payment', unpaid.length, 'pending', tot);
+      html += '<div class="payment-rows">' + unpaid.map(r => employeePayRow(r)).join('') + '</div>';
+    }
+
+    if (showGroups && paid.length) {
+      const tot = paid.reduce((s,r) => s + r.totalPay, 0);
+      html += sectionHeader('Paid', paid.length, 'paid', tot);
+      html += '<div class="payment-rows">' + paid.map(r => employeePayRow(r)).join('') + '</div>';
+    }
+
+    if (!showGroups) {
+      // History: all paid, simple list
+      const tot = recs.reduce((s,r) => s + r.totalPay, 0);
+      html += sectionHeader('Payment History', recs.length, 'paid', tot);
+      html += '<div class="payment-rows">' + recs.map(r => employeePayRow(r)).join('') + '</div>';
+    }
+
+    content.innerHTML = html;
+  }
+
+  function sectionHeader(title, count, cls, total) {
+    return '<div class="section-header" style="margin-bottom:10px;">' +
+      '<span class="section-title">' + escHtml(title) + '</span>' +
+      '<span class="section-count ' + cls + '">' + count + '</span>' +
+      '<span class="section-line"></span>' +
+      '<span style="font-size:11px;font-weight:700;color:' + (cls==='paid'?'#15803d':'#b45309') + '">£' + fmt(total) + '</span>' +
+    '</div>';
+  }
+
+  function employeePayRow(r) {
+    const isPaid    = r.paid === 'Yes';
+    const dateParts = parseDate(r.date);
+
+    // Payslip download button — only for paid records
+    const payslipBtn = isPaid
+      ? `<button class="mark-paid-btn do-pay" onclick="downloadPayslip(${JSON.stringify(r).replace(/"/g,'&quot;')},event)" style="gap:5px;">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+           Payslip
+         </button>`
+      : `<span style="font-size:11px;font-weight:600;color:#f59e0b;background:#fef3c7;padding:3px 9px;border-radius:6px;border:1px solid #fde68a;">Awaiting payment</span>`;
+
+    return '<div class="payment-row ' + (isPaid ? 'paid-row' : 'pending-row') + '">' +
+      '<div class="payment-date-box">' +
+        '<div class="payment-date-day">' + dateParts.day + '</div>' +
+        '<div class="payment-date-month">' + dateParts.month + '</div>' +
+      '</div>' +
+      '<div class="payment-info">' +
+        '<div class="payment-hours-row">' +
+          '<span class="payment-hours">' + r.totalHours.toFixed(1) + 'h</span>' +
+          '<span class="payment-rate">@ £' + fmt(r.hourlyRate) + '/hr</span>' +
+        '</div>' +
+        '<div class="payment-amount ' + (isPaid ? 'paid' : 'pending') + '">£' + fmt(r.totalPay) + '</div>' +
+      '</div>' +
+      '<div class="payment-actions">' + payslipBtn + '</div>' +
+    '</div>';
+  }
+
+  function setMyViewFilter(f) {
+    myViewFilter = f;
+    renderEmployeeView();
+  }
+  window.setMyViewFilter = setMyViewFilter;
+
+  /* ══════════════════════════════════════════
+     PAYSLIP GENERATOR
+  ══════════════════════════════════════════ */
+  function downloadPayslip(r, e) {
+    e && e.stopPropagation();
+    const dateParts = parseDate(r.date);
+    const companyName = 'Pharm & Dom';
+    const logoUrl = 'https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png';
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Payslip – ${escHtml(r.date)}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #0f172a; font-size: 13px; }
+  .page { width: 680px; margin: 40px auto; padding: 40px; border: 1px solid #e2e8f0; border-radius: 12px; }
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid #f1f5f9; }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo img { width: 44px; height: 44px; border-radius: 10px; object-fit: contain; }
+  .logo-name { font-size: 18px; font-weight: 700; color: #0f172a; }
+  .logo-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .payslip-label { text-align: right; }
+  .payslip-label h1 { font-size: 22px; font-weight: 700; color: #1847d4; }
+  .payslip-label p { font-size: 12px; color: #64748b; margin-top: 4px; }
+  .section { margin-bottom: 24px; }
+  .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 12px; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .info-item label { font-size: 10.5px; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 3px; }
+  .info-item span { font-size: 14px; font-weight: 600; color: #0f172a; }
+  .earnings-table { width: 100%; border-collapse: collapse; }
+  .earnings-table th { text-align: left; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; padding: 0 0 8px; border-bottom: 1px solid #f1f5f9; }
+  .earnings-table td { padding: 10px 0; border-bottom: 1px solid #f8fafc; font-size: 13.5px; color: #1e293b; }
+  .earnings-table .amount { font-weight: 700; text-align: right; }
+  .total-row { background: #f8fafc; border-radius: 8px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
+  .total-row .label { font-size: 13px; font-weight: 600; color: #475569; }
+  .total-row .amount { font-size: 20px; font-weight: 700; color: #15803d; }
+  .paid-badge { display: inline-flex; align-items: center; gap: 6px; background: #dcfce7; color: #15803d; padding: 6px 14px; border-radius: 100px; font-size: 12px; font-weight: 700; margin-top: 20px; }
+  .footer { margin-top: 32px; padding-top: 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+  .footer p { font-size: 11px; color: #cbd5e1; }
   
-  /* ══ BUILD EMPLOYEE MAP ══
-     employees[id] = { id, name, records[] }
-     uniqueEmployees = deduplicated list (one entry per id)
-  */
+  
+@media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="logo">
+      <img src="${logoUrl}" alt="Logo">
+      <div>
+        <div class="logo-name">${companyName}</div>
+        <div class="logo-sub">Official Payslip</div>
+      </div>
+    </div>
+    <div class="payslip-label">
+      <h1>PAYSLIP</h1>
+      <p>Period: ${escHtml(r.date)}</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Employee Details</div>
+    <div class="info-grid">
+      <div class="info-item"><label>Full Name</label><span>${escHtml(r.employeeName)}</span></div>
+      <div class="info-item"><label>Employee ID</label><span>${escHtml(r.employeeId)}</span></div>
+      <div class="info-item"><label>Pay Date</label><span>${dateParts.day} ${dateParts.month} ${new Date(r.date).getFullYear()}</span></div>
+      <div class="info-item"><label>Status</label><span style="color:#15803d">Paid</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Earnings</div>
+    <table class="earnings-table">
+      <tr>
+        <th>Description</th>
+        <th>Hours</th>
+        <th>Rate</th>
+        <th class="amount">Amount</th>
+      </tr>
+      <tr>
+        <td>Regular Hours</td>
+        <td>${r.totalHours.toFixed(1)} hrs</td>
+        <td>£${fmt(r.hourlyRate)}/hr</td>
+        <td class="amount">£${fmt(r.totalPay)}</td>
+      </tr>
+    </table>
+    <div class="total-row">
+      <span class="label">Net Pay</span>
+      <span class="amount">£${fmt(r.totalPay)}</span>
+    </div>
+    <div class="paid-badge">
+      ✓ Payment Confirmed
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>${companyName} — Confidential</p>
+    <p>Generated ${new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}</p>
+  </div>
+</div>
+<script>window.onload = function() { window.print(); }<\/script>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=780,height:900');
+    if (win) { win.document.write(html); win.document.close(); }
+  }
+  window.downloadPayslip = downloadPayslip;
+
+  /* ══════════════════════════════════════════
+     ADMIN VIEW (unchanged logic)
+  ══════════════════════════════════════════ */
+
+  function showAdminUI() {
+    document.getElementById('adminOnlyControls').style.display = '';
+  }
+
+  function toggleNavDrop(e) {
+    e.stopPropagation();
+    const btn  = document.getElementById('navDropBtn');
+    const menu = document.getElementById('navDropMenu');
+    const open = menu.classList.toggle('open');
+    btn.classList.toggle('open', open);
+  }
+  document.addEventListener('click', function() {
+    document.getElementById('navDropMenu')?.classList.remove('open');
+    document.getElementById('navDropBtn')?.classList.remove('open');
+  });
+
   function buildEmployeeMap() {
     employees = {};
     const seen = new Set();
     uniqueEmployees = [];
-
     allData.forEach(r => {
       if (!r.employeeId) return;
-      if (!employees[r.employeeId]) {
-        employees[r.employeeId] = { id: r.employeeId, name: r.employeeName, records: [] };
-      }
+      if (!employees[r.employeeId]) employees[r.employeeId] = { id: r.employeeId, name: r.employeeName, records: [] };
       employees[r.employeeId].records.push(r);
       if (!seen.has(r.employeeId)) {
         seen.add(r.employeeId);
@@ -718,33 +1025,19 @@ document.addEventListener('click', function() {
     });
   }
 
-  /* ══ DATE FILTER ══ */
   function getDateRange(range) {
-    const now = new Date();
+    const now   = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
     if (range === 'this_week') {
-      const day = today.getDay();
+      const day  = today.getDay();
       const diff = day === 0 ? 6 : day - 1;
-      const start = new Date(today);
-      start.setDate(today.getDate() - diff);
+      const start = new Date(today); start.setDate(today.getDate() - diff);
       return { from: start, to: today };
     }
-    if (range === 'this_month') {
-      return { from: new Date(today.getFullYear(), today.getMonth(), 1), to: today };
-    }
-    if (range === 'last_month') {
-      return {
-        from: new Date(today.getFullYear(), today.getMonth() - 1, 1),
-        to:   new Date(today.getFullYear(), today.getMonth(), 0)
-      };
-    }
-    if (range === 'last_3_months') {
-      return { from: new Date(today.getFullYear(), today.getMonth() - 3, 1), to: today };
-    }
-    if (range === 'custom' && customFrom && customTo) {
-      return { from: new Date(customFrom), to: new Date(customTo) };
-    }
+    if (range === 'this_month')   return { from: new Date(today.getFullYear(), today.getMonth(), 1), to: today };
+    if (range === 'last_month')   return { from: new Date(today.getFullYear(), today.getMonth() - 1, 1), to: new Date(today.getFullYear(), today.getMonth(), 0) };
+    if (range === 'last_3_months') return { from: new Date(today.getFullYear(), today.getMonth() - 3, 1), to: today };
+    if (range === 'custom' && customFrom && customTo) return { from: new Date(customFrom), to: new Date(customTo) };
     return null;
   }
 
@@ -752,15 +1045,13 @@ document.addEventListener('click', function() {
     activeDateRange = range;
     document.querySelectorAll('.date-chip').forEach(c => c.classList.remove('active'));
     if (el) el.classList.add('active');
-
     const customRow = document.getElementById('customDateRow');
     if (range === 'custom') {
       customRow.classList.add('visible');
       if (!customFrom || !customTo) return;
     } else {
       customRow.classList.remove('visible');
-      customFrom = null;
-      customTo = null;
+      customFrom = null; customTo = null;
     }
     applyFilters();
   }
@@ -769,10 +1060,9 @@ document.addEventListener('click', function() {
   function applyCustomDate() {
     const from = document.getElementById('dateFrom').value;
     const to   = document.getElementById('dateTo').value;
-    if (!from || !to) { showToast('Please select both dates', 'error'); return; }
-    if (from > to)    { showToast('From date must be before To date', 'error'); return; }
-    customFrom = from;
-    customTo   = to;
+    if (!from || !to)  { showToast('Please select both dates', 'error'); return; }
+    if (from > to)     { showToast('From date must be before To date', 'error'); return; }
+    customFrom = from; customTo = to;
     applyFilters();
   }
   window.applyCustomDate = applyCustomDate;
@@ -785,14 +1075,11 @@ document.addEventListener('click', function() {
   }
   window.clearCustomDate = clearCustomDate;
 
-  /* ══ STATUS FILTER ── chip clicks ══ */
   function setStatusFilter(status, el) {
-    // Toggle off if same chip clicked again
     if (activeStatusFilter === status && status !== 'all') {
       activeStatusFilter = 'all';
       document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active-filter'));
-      applyFilters();
-      return;
+      applyFilters(); return;
     }
     activeStatusFilter = status;
     document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active-filter'));
@@ -801,43 +1088,31 @@ document.addEventListener('click', function() {
   }
   window.setStatusFilter = setStatusFilter;
 
-  /* ══ FILTERS ══ */
   function applyFilters() {
     const dateRange = getDateRange(activeDateRange);
-
-    // Build filtered records per employee
     filteredEmps = uniqueEmployees.map(u => {
       const emp = employees[u.id];
-      let recs = emp.records;
-      if (dateRange) {
-        recs = recs.filter(r => {
-          const d = new Date(r.date);
-          return d >= dateRange.from && d <= dateRange.to;
-        });
-      }
+      let recs  = emp.records;
+      if (dateRange) recs = recs.filter(r => { const d = new Date(r.date); return d >= dateRange.from && d <= dateRange.to; });
       return { ...u, filteredRecords: recs };
     }).filter(emp => {
-      if (emp.filteredRecords.length === 0) return false;
+      if (!emp.filteredRecords.length) return false;
       const hasPending = emp.filteredRecords.some(r => r.paid !== 'Yes');
       const allPaid    = emp.filteredRecords.every(r => r.paid === 'Yes');
       if (activeStatusFilter === 'has_pending' && !hasPending) return false;
       if (activeStatusFilter === 'all_paid'    && !allPaid)    return false;
       return true;
     });
-
     updateHeaderStats();
     updateBanner();
     renderList();
   }
 
-  /* ══ HEADER STAT CHIPS ══ */
   function updateHeaderStats() {
-    // Use ALL records (not filtered by date) for the header counters so they always reflect reality
-    const allEmps = uniqueEmployees.map(u => employees[u.id]).filter(Boolean);
+    const allEmps    = uniqueEmployees.map(u => employees[u.id]).filter(Boolean);
     const fullyPaid  = allEmps.filter(e => e.records.every(r => r.paid === 'Yes')).length;
     const hasPending = allEmps.filter(e => e.records.some(r => r.paid !== 'Yes')).length;
     const totalHours = allData.reduce((s, r) => s + r.totalHours, 0);
-
     document.getElementById('statPaidText').textContent    = fullyPaid  + ' Fully Paid';
     document.getElementById('statPendingText').textContent = hasPending + ' Has Pending';
     document.getElementById('statHoursText').textContent   = totalHours.toFixed(1) + 'h Total';
@@ -848,33 +1123,24 @@ document.addEventListener('click', function() {
     const totalPay    = allFiltered.reduce((s, r) => s + r.totalPay, 0);
     const paidTotal   = allFiltered.filter(r => r.paid === 'Yes').reduce((s, r) => s + r.totalPay, 0);
     const pendTotal   = totalPay - paidTotal;
-
     document.getElementById('bannerTotal').textContent   = '£' + fmt(totalPay);
     document.getElementById('bannerPaid').textContent    = '£' + fmt(paidTotal);
     document.getElementById('bannerPending').textContent = '£' + fmt(pendTotal);
     document.getElementById('summaryBanner').style.display = allFiltered.length ? 'grid' : 'none';
   }
 
-  /* ══ RENDER EMPLOYEE LIST ══ */
   function renderList() {
     const area = document.getElementById('cardsArea');
-
     if (!filteredEmps.length) {
-      area.innerHTML =
-        '<div class="empty-state">' +
-        '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
-        '<p>No employees found</p><p class="empty-state-hint">Try adjusting your filters</p></div>';
+      area.innerHTML = '<div class="empty-state"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><p>No employees found</p><p class="empty-state-hint">Try adjusting your filters</p></div>';
       return;
     }
-
-    // Sort: pending first, then by name
     const sorted = [...filteredEmps].sort((a, b) => {
       const aPend = a.filteredRecords.some(r => r.paid !== 'Yes') ? 0 : 1;
       const bPend = b.filteredRecords.some(r => r.paid !== 'Yes') ? 0 : 1;
       if (aPend !== bPend) return aPend - bPend;
       return a.name.localeCompare(b.name);
     });
-
     area.innerHTML = '<div class="emp-list">' + sorted.map(emp => empRow(emp)).join('') + '</div>';
   }
 
@@ -884,26 +1150,18 @@ document.addEventListener('click', function() {
     const hasPending = recs.some(r => r.paid !== 'Yes');
     const pendCount  = recs.filter(r => r.paid !== 'Yes').length;
     const initials   = getInitials(emp.name);
-
-    const statusTag = hasPending
+    const statusTag  = hasPending
       ? '<span class="emp-status-tag pending">' + pendCount + ' pending</span>'
       : '<span class="emp-status-tag allpaid">All paid</span>';
-
     return '<div class="emp-row" onclick="openDrawer(\'' + escAttr(emp.id) + '\')">' +
       '<div class="emp-avatar">' + initials + '</div>' +
-      '<div class="emp-info">' +
-        '<div class="emp-name">' + escHtml(emp.name) + '</div>' +
-        '<div class="emp-meta">' + recs.length + ' record' + (recs.length !== 1 ? 's' : '') + ' · ' + escHtml(emp.id) + '</div>' +
-      '</div>' +
-      '<div class="emp-right">' +
-        '<div class="emp-amount">£' + fmt(totalPay) + '</div>' +
-        statusTag +
-      '</div>' +
+      '<div class="emp-info"><div class="emp-name">' + escHtml(emp.name) + '</div>' +
+      '<div class="emp-meta">' + recs.length + ' record' + (recs.length !== 1 ? 's' : '') + ' · ' + escHtml(emp.id) + '</div></div>' +
+      '<div class="emp-right"><div class="emp-amount">£' + fmt(totalPay) + '</div>' + statusTag + '</div>' +
       '<svg class="emp-row-chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>' +
     '</div>';
   }
 
-  /* ══ DRAWER ══ */
   function openDrawer(empId) {
     drawerEmpId  = empId;
     drawerFilter = 'all';
@@ -918,249 +1176,120 @@ document.addEventListener('click', function() {
     document.getElementById('empDrawer').classList.remove('open');
     document.getElementById('drawerOverlay').classList.remove('visible');
     document.body.style.overflow = '';
-    drawerEmpId  = null;
-    drawerFilter = 'all';
+    drawerEmpId = null; drawerFilter = 'all';
   }
   window.closeDrawer = closeDrawer;
 
-  function setDrawerFilter(f) {
-    drawerFilter = f;
-    renderDrawer();
-  }
+  function setDrawerFilter(f) { drawerFilter = f; renderDrawer(); }
   window.setDrawerFilter = setDrawerFilter;
 
   function renderDrawer() {
     const emp = employees[drawerEmpId];
     if (!emp) return;
+    const initials  = getInitials(emp.name);
+    const totalPay  = emp.records.reduce((s, r) => s + r.totalPay, 0);
+    const totalPaid = emp.records.filter(r => r.paid === 'Yes').reduce((s, r) => s + r.totalPay, 0);
+    const totalPend = totalPay - totalPaid;
+    const pendCount = emp.records.filter(r => r.paid !== 'Yes').length;
+    const paidCount = emp.records.filter(r => r.paid === 'Yes').length;
 
-    const initials   = getInitials(emp.name);
-    const totalPay   = emp.records.reduce((s, r) => s + r.totalPay, 0);
-    const totalPaid  = emp.records.filter(r => r.paid === 'Yes').reduce((s, r) => s + r.totalPay, 0);
-    const totalPend  = totalPay - totalPaid;
-    const pendCount  = emp.records.filter(r => r.paid !== 'Yes').length;
-    const paidCount  = emp.records.filter(r => r.paid === 'Yes').length;
-
-    // Hero
     document.getElementById('drawerHero').innerHTML =
       '<div class="drawer-hero">' +
-        '<button class="drawer-close-btn" onclick="closeDrawer()">' +
-          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
-        '</button>' +
-        '<div class="drawer-hero-top">' +
-          '<div class="drawer-avatar">' + initials + '</div>' +
-          '<div>' +
-            '<div class="drawer-emp-name">' + escHtml(emp.name) + '</div>' +
-            '<div class="drawer-emp-id">' + escHtml(emp.id) + '</div>' +
-          '</div>' +
-        '</div>' +
+        '<button class="drawer-close-btn" onclick="closeDrawer()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' +
+        '<div class="drawer-hero-top"><div class="drawer-avatar">' + initials + '</div><div><div class="drawer-emp-name">' + escHtml(emp.name) + '</div><div class="drawer-emp-id">' + escHtml(emp.id) + '</div></div></div>' +
         '<div class="drawer-kpi-row">' +
-          '<div class="drawer-kpi">' +
-            '<div class="drawer-kpi-top">' +
-              '<div class="drawer-kpi-icon total">' +
-                '<svg viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' +
-              '</div>' +
-              '<span class="drawer-kpi-label">Total Pay</span>' +
-            '</div>' +
-            '<div class="drawer-kpi-value">£' + fmt(totalPay) + '</div>' +
-          '</div>' +
-          '<div class="drawer-kpi">' +
-            '<div class="drawer-kpi-top">' +
-              '<div class="drawer-kpi-icon paid">' +
-                '<svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' +
-              '</div>' +
-              '<span class="drawer-kpi-label">Paid</span>' +
-            '</div>' +
-            '<div class="drawer-kpi-value green">£' + fmt(totalPaid) + '</div>' +
-          '</div>' +
-          '<div class="drawer-kpi">' +
-            '<div class="drawer-kpi-top">' +
-              '<div class="drawer-kpi-icon due">' +
-                '<svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
-              '</div>' +
-              '<span class="drawer-kpi-label">Balance Due</span>' +
-            '</div>' +
-            '<div class="drawer-kpi-value ' + (totalPend > 0 ? 'yellow' : 'green') + '">£' + fmt(totalPend) + '</div>' +
-          '</div>' +
+          kpiCard('total','rgba(99,102,241,.22)','#818cf8','M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6','Total Pay','£'+fmt(totalPay),'') +
+          kpiCard('paid','rgba(34,197,94,.2)','#4ade80','M22 11.08V12a10 10 0 1 1-5.93-9.14 M22 4L12 14.01l-3-3','Paid','£'+fmt(totalPaid),'green') +
+          kpiCard('due','rgba(245,158,11,.2)','#fbbf24','M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6','Balance Due','£'+fmt(totalPend), totalPend > 0 ? 'yellow' : 'green') +
         '</div>' +
       '</div>';
 
-    // Filter bar
     document.getElementById('drawerFilterBar').innerHTML =
       '<span class="drawer-filter-label">Show</span>' +
-      '<button class="drawer-tab-btn ' + (drawerFilter === 'all' ? 'active' : '') + '" onclick="setDrawerFilter(\'all\')">All (' + emp.records.length + ')</button>' +
-      '<button class="drawer-tab-btn yellow ' + (drawerFilter === 'pending' ? 'active' : '') + '" onclick="setDrawerFilter(\'pending\')">Pending (' + pendCount + ')</button>' +
-      '<button class="drawer-tab-btn green ' + (drawerFilter === 'paid' ? 'active' : '') + '" onclick="setDrawerFilter(\'paid\')">Paid (' + paidCount + ')</button>';
+      '<button class="drawer-tab-btn '+(drawerFilter==='all'?'active':'')+'" onclick="setDrawerFilter(\'all\')">All ('+emp.records.length+')</button>' +
+      '<button class="drawer-tab-btn yellow '+(drawerFilter==='pending'?'active':'')+'" onclick="setDrawerFilter(\'pending\')">Pending ('+pendCount+')</button>' +
+      '<button class="drawer-tab-btn green '+(drawerFilter==='paid'?'active':'')+'" onclick="setDrawerFilter(\'paid\')">Paid ('+paidCount+')</button>';
 
-    // Body records — always use all employee records (not date-filtered) in drawer
     const records = emp.records
-      .filter(r => {
-        if (drawerFilter === 'pending') return r.paid !== 'Yes';
-        if (drawerFilter === 'paid')    return r.paid === 'Yes';
-        return true;
-      })
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .filter(r => { if (drawerFilter==='pending') return r.paid!=='Yes'; if (drawerFilter==='paid') return r.paid==='Yes'; return true; })
+      .sort((a,b) => b.date.localeCompare(a.date));
 
     if (drawerFilter === 'all') {
-      const pendingRecs = records.filter(r => r.paid !== 'Yes');
-      const paidRecs    = records.filter(r => r.paid === 'Yes');
+      const pendRecs = records.filter(r => r.paid !== 'Yes');
+      const paidRecs = records.filter(r => r.paid === 'Yes');
       let html = '';
-
-      if (pendingRecs.length) {
-        html +=
-          '<div class="section-header">' +
-            '<span class="section-title">Pending</span>' +
-            '<span class="section-count pending">' + pendingRecs.length + '</span>' +
-            '<span class="section-line"></span>' +
-            '<span style="font-size:11px;font-weight:700;color:#b45309">£' + fmt(pendingRecs.reduce((s,r)=>s+r.totalPay,0)) + '</span>' +
-          '</div>' +
-          '<div class="payment-rows">' + pendingRecs.map(r => paymentRow(r, emp.id)).join('') + '</div>';
-      }
-      if (paidRecs.length) {
-        html +=
-          '<div class="section-header" style="margin-top:' + (pendingRecs.length ? '8px' : '0') + '">' +
-            '<span class="section-title">Paid</span>' +
-            '<span class="section-count paid">' + paidRecs.length + '</span>' +
-            '<span class="section-line"></span>' +
-            '<span style="font-size:11px;font-weight:700;color:#15803d">£' + fmt(paidRecs.reduce((s,r)=>s+r.totalPay,0)) + '</span>' +
-          '</div>' +
-          '<div class="payment-rows">' + paidRecs.map(r => paymentRow(r, emp.id)).join('') + '</div>';
-      }
+      if (pendRecs.length) html += '<div class="section-header"><span class="section-title">Pending</span><span class="section-count pending">'+pendRecs.length+'</span><span class="section-line"></span><span style="font-size:11px;font-weight:700;color:#b45309">£'+fmt(pendRecs.reduce((s,r)=>s+r.totalPay,0))+'</span></div><div class="payment-rows">'+pendRecs.map(r=>paymentRow(r,emp.id)).join('')+'</div>';
+      if (paidRecs.length) html += '<div class="section-header" style="margin-top:'+(pendRecs.length?'8px':'0')+'"><span class="section-title">Paid</span><span class="section-count paid">'+paidRecs.length+'</span><span class="section-line"></span><span style="font-size:11px;font-weight:700;color:#15803d">£'+fmt(paidRecs.reduce((s,r)=>s+r.totalPay,0))+'</span></div><div class="payment-rows">'+paidRecs.map(r=>paymentRow(r,emp.id)).join('')+'</div>';
       if (!html) html = '<p style="font-size:13px;color:#94a3b8;text-align:center;padding:30px 0">No records</p>';
       document.getElementById('drawerBody').innerHTML = html;
     } else {
-      const label      = drawerFilter === 'pending' ? 'Pending' : 'Paid';
-      const countClass = drawerFilter === 'pending' ? 'pending' : 'paid';
-      const totalAmt   = records.reduce((s, r) => s + r.totalPay, 0);
-      let html =
-        '<div class="section-header">' +
-          '<span class="section-title">' + label + '</span>' +
-          '<span class="section-count ' + countClass + '">' + records.length + '</span>' +
-          '<span class="section-line"></span>' +
-          '<span style="font-size:11px;font-weight:700;color:' + (drawerFilter === 'pending' ? '#b45309' : '#15803d') + '">£' + fmt(totalAmt) + '</span>' +
-        '</div>';
-      if (records.length) {
-        html += '<div class="payment-rows">' + records.map(r => paymentRow(r, emp.id)).join('') + '</div>';
-      } else {
-        html += '<p style="font-size:13px;color:#94a3b8;text-align:center;padding:30px 0">No ' + label.toLowerCase() + ' records</p>';
-      }
+      const label = drawerFilter==='pending'?'Pending':'Paid';
+      const cls   = drawerFilter==='pending'?'pending':'paid';
+      const tot   = records.reduce((s,r)=>s+r.totalPay,0);
+      let html = '<div class="section-header"><span class="section-title">'+label+'</span><span class="section-count '+cls+'">'+records.length+'</span><span class="section-line"></span><span style="font-size:11px;font-weight:700;color:'+(drawerFilter==='pending'?'#b45309':'#15803d')+'">£'+fmt(tot)+'</span></div>';
+      html += records.length ? '<div class="payment-rows">'+records.map(r=>paymentRow(r,emp.id)).join('')+'</div>' : '<p style="font-size:13px;color:#94a3b8;text-align:center;padding:30px 0">No '+label.toLowerCase()+' records</p>';
       document.getElementById('drawerBody').innerHTML = html;
     }
+  }
+
+  function kpiCard(type, iconBg, iconColor, iconPath, label, value, valCls) {
+    return '<div class="drawer-kpi"><div class="drawer-kpi-top"><div class="drawer-kpi-icon '+type+'" style="background:'+iconBg+'"><svg viewBox="0 0 24 24" fill="none" stroke="'+iconColor+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+iconPath+'"/></svg></div><span class="drawer-kpi-label">'+label+'</span></div><div class="drawer-kpi-value '+(valCls||'')+'">'+value+'</div></div>';
   }
 
   function paymentRow(r, empId) {
     const isPaid   = r.paid === 'Yes';
     const rowKey   = escAttr(empId + '_' + r.date);
     const dateParts = parseDate(r.date);
-
     const actionBtn = isPaid
-      ? '<button class="mark-paid-btn undo-pay" id="btn_' + rowKey + '" onclick="event.stopPropagation();togglePaid(\'' + escAttr(empId) + '\',\'' + escAttr(r.date) + '\',\'No\')">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Undo' +
-        '</button>'
-      : '<button class="mark-paid-btn do-pay" id="btn_' + rowKey + '" onclick="event.stopPropagation();togglePaid(\'' + escAttr(empId) + '\',\'' + escAttr(r.date) + '\',\'Yes\')">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Mark Paid' +
-        '</button>';
-
-    return '<div class="payment-row ' + (isPaid ? 'paid-row' : 'pending-row') + '" id="row_' + rowKey + '">' +
-      '<div class="row-saving" id="saving_' + rowKey + '"><div class="spinner"></div></div>' +
-      '<div class="payment-date-box">' +
-        '<div class="payment-date-day">' + dateParts.day + '</div>' +
-        '<div class="payment-date-month">' + dateParts.month + '</div>' +
-      '</div>' +
-      '<div class="payment-info">' +
-        '<div class="payment-hours-row">' +
-          '<span class="payment-hours">' + r.totalHours.toFixed(1) + 'h</span>' +
-          '<span class="payment-rate">@ £' + fmt(r.hourlyRate) + '/hr</span>' +
-        '</div>' +
-        '<div class="payment-amount ' + (isPaid ? 'paid' : 'pending') + '">£' + fmt(r.totalPay) + '</div>' +
-      '</div>' +
-      '<div class="payment-actions">' + actionBtn + '</div>' +
-    '</div>';
+      ? '<button class="mark-paid-btn undo-pay" id="btn_'+rowKey+'" onclick="event.stopPropagation();togglePaid(\''+escAttr(empId)+'\',\''+escAttr(r.date)+'\',\'No\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Undo</button>'
+      : '<button class="mark-paid-btn do-pay" id="btn_'+rowKey+'" onclick="event.stopPropagation();togglePaid(\''+escAttr(empId)+'\',\''+escAttr(r.date)+'\',\'Yes\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Mark Paid</button>';
+    return '<div class="payment-row '+(isPaid?'paid-row':'pending-row')+'" id="row_'+rowKey+'">' +
+      '<div class="row-saving" id="saving_'+rowKey+'"><div class="spinner"></div></div>' +
+      '<div class="payment-date-box"><div class="payment-date-day">'+dateParts.day+'</div><div class="payment-date-month">'+dateParts.month+'</div></div>' +
+      '<div class="payment-info"><div class="payment-hours-row"><span class="payment-hours">'+r.totalHours.toFixed(1)+'h</span><span class="payment-rate">@ £'+fmt(r.hourlyRate)+'/hr</span></div>' +
+      '<div class="payment-amount '+(isPaid?'paid':'pending')+'">£'+fmt(r.totalPay)+'</div></div>' +
+      '<div class="payment-actions">'+actionBtn+'</div></div>';
   }
 
-  /* ══ TOGGLE PAID ══ */
-async function togglePaid(empId, date, newValue) {
-  const rowKey = empId + '_' + date;
-  const saving = document.getElementById('saving_' + rowKey);
-  const btn    = document.getElementById('btn_' + rowKey);
-
-  if (saving) saving.classList.add('visible');
-  if (btn) btn.disabled = true;
-
-  // ✅ store previous value (IMPORTANT)
-  const record = allData.find(r => r.employeeId === empId && r.date === date);
-  const prevValue = record ? record.paid : null;
-
-  // ✅ optimistic update
-  if (record) record.paid = newValue;
-
-  // 🔥 instant UI refresh (this is what makes it feel fast)
-  buildEmployeeMap();
-  applyFilters();
-  if (drawerEmpId === empId) renderDrawer();
-
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'updatePaycheck',
-        employeeId: empId,
-        date,
-        value: newValue
-      }),
-      headers: { 'Content-Type': 'text/plain' }
-    });
-
-    const data = await res.json();
-    if (data.error) throw new Error(data.message || 'Error');
-
-    showToast(
-      newValue === 'Yes' ? 'Marked as Paid ✓' : 'Marked as Pending',
-      newValue === 'Yes' ? 'success' : ''
-    );
-
-  } catch (e) {
-
-    // ❌ revert UI if failed
-    if (record) record.paid = prevValue;
-
-    buildEmployeeMap();
-    applyFilters();
+  async function togglePaid(empId, date, newValue) {
+    const rowKey  = empId + '_' + date;
+    const saving  = document.getElementById('saving_' + rowKey);
+    const btn     = document.getElementById('btn_' + rowKey);
+    if (saving) saving.classList.add('visible');
+    if (btn)    btn.disabled = true;
+    const record    = allData.find(r => r.employeeId === empId && r.date === date);
+    const prevValue = record ? record.paid : null;
+    if (record) record.paid = newValue;
+    buildEmployeeMap(); applyFilters();
     if (drawerEmpId === empId) renderDrawer();
-
-    showToast('Failed to update: ' + e.message, 'error');
-
-  } finally {
-    if (saving) saving.classList.remove('visible');
-    if (btn) btn.disabled = false;
+    try {
+      const res  = await fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'updatePaycheck', employeeId:empId, date, value:newValue }), headers:{'Content-Type':'text/plain'} });
+      const data = await res.json();
+      if (data.error) throw new Error(data.message || 'Error');
+      showToast(newValue==='Yes'?'Marked as Paid ✓':'Marked as Pending', newValue==='Yes'?'success':'');
+    } catch (e) {
+      if (record) record.paid = prevValue;
+      buildEmployeeMap(); applyFilters();
+      if (drawerEmpId === empId) renderDrawer();
+      showToast('Failed to update: ' + e.message, 'error');
+    } finally {
+      if (saving) saving.classList.remove('visible');
+      if (btn)    btn.disabled = false;
+    }
   }
-}
-  
   window.togglePaid = togglePaid;
 
   /* ══ HELPERS ══ */
   function parseDate(d) {
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const parts  = String(d || '').split('-');
+    const months  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const parts   = String(d || '').split('-');
     if (parts.length !== 3) return { day: '?', month: '???' };
     return { day: parseInt(parts[2]), month: months[parseInt(parts[1]) - 1] || '???' };
   }
-
-  function fmt(n) {
-    const num = parseFloat(n) || 0;
-    return num % 1 === 0 ? num.toString() : num.toFixed(2);
-  }
-
-  function getInitials(name) {
-    return (name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-  }
-
-  function escHtml(str) {
-    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  function escAttr(str) {
-    return String(str || '').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-  }
+  function fmt(n) { const num = parseFloat(n)||0; return num%1===0 ? num.toString() : num.toFixed(2); }
+  function getInitials(name) { return (name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
+  function escHtml(str) { return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function escAttr(str) { return String(str||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
   let toastCounter = 0;
   function showToast(msg, type, duration) {
@@ -1172,15 +1301,13 @@ async function togglePaid(empId, date, newValue) {
     const icons = {
       success: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
       error:   '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
-      loading: '<div class="spinner" style="width:12px;height:12px;border-width:2px;border-color:rgba(255,255,255,.3);border-top-color:#fff"></div>',
     };
-    t.innerHTML = (icons[type] || '') + '<span>' + escHtml(msg) + '</span>';
+    t.innerHTML = (icons[type]||'') + '<span>' + escHtml(msg) + '</span>';
     c.appendChild(t);
-    if (duration !== 0) setTimeout(() => t.remove(), duration || 3000);
+    if (duration !== 0) setTimeout(()=>t.remove(), duration||3000);
     return id;
   }
 
   init();
-
 })();
 </script>
