@@ -751,7 +751,9 @@ const [shiftsRes, usersRes] = await Promise.all([
             totalHours:   parseFloat(hours.toFixed(4)),
             hourlyRate:   rate,
             totalPay:     parseFloat((hours * rate).toFixed(2)),
-            paid:         r.paid ? 'Yes' : 'No'
+            paid:         r.paid ? 'Yes' : 'No',
+            bonus:        parseFloat(r.bonus || 0),
+            bonusNote:    r.bonus_note || ''
           };
         });
 
@@ -942,19 +944,24 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
     content.innerHTML = html;
   }
 
-  function employeeWeekRow(week) {
-    const isPaid = week.paid === 'Yes';
-    const badge  = isPaid
+function employeeWeekRow(week) {
+    const isPaid   = week.paid === 'Yes';
+    const hasBonus = week.bonus > 0;
+    const badge = isPaid
       ? `<span style="font-size:11px;font-weight:600;color:#15803d;background:#dcfce7;padding:3px 9px;border-radius:6px;border:1px solid #bbf7d0;">Paid</span>`
       : `<span style="font-size:11px;font-weight:600;color:#f59e0b;background:#fef3c7;padding:3px 9px;border-radius:6px;border:1px solid #fde68a;">Unpaid</span>`;
-    return '<div class="payment-row ' + (isPaid ? 'paid-row' : 'pending-row') + '">' +
-      '<div class="payment-date-box" style="min-width:70px;"><div style="font-size:11px;font-weight:700;color:#0f172a;line-height:1.3;">' + escHtml(week.weekLabel) + '</div></div>' +
-      '<div class="payment-info">' +
-        '<div class="payment-hours-row"><span class="payment-hours">' + week.totalHours.toFixed(1) + 'h</span><span class="payment-rate">@ £' + fmt(week.hourlyRate) + '/hr</span></div>' +
-        '<div class="payment-amount ' + (isPaid ? 'paid' : 'pending') + '">£' + fmt(week.totalPay) + '</div>' +
-      '</div>' +
-      '<div class="payment-actions">' + badge + '</div>' +
-    '</div>';
+    const bonusLine = hasBonus
+      ? `<div style="font-size:11px;color:#7c3aed;font-weight:600;margin-top:2px;">+£${fmt(week.bonus)} bonus${week.bonusNote ? ' · <span style="font-weight:400;font-style:italic;color:#94a3b8;">' + escHtml(week.bonusNote) + '</span>' : ''}</div>`
+      : '';
+    return `<div class="payment-row ${isPaid?'paid-row':'pending-row'}">
+      <div class="payment-date-box" style="min-width:70px;"><div style="font-size:11px;font-weight:700;color:#0f172a;line-height:1.3;">${escHtml(week.weekLabel)}</div></div>
+      <div class="payment-info">
+        <div class="payment-hours-row"><span class="payment-hours">${week.totalHours.toFixed(1)}h</span><span class="payment-rate">@ £${fmt(week.hourlyRate)}/hr</span></div>
+        <div class="payment-amount ${isPaid?'paid':'pending'}">£${fmt(week.totalPay)}</div>
+        ${bonusLine}
+      </div>
+      <div class="payment-actions">${badge}</div>
+    </div>`;
   }
 
   function setMyViewFilter(f) { myViewFilter = f; renderEmployeeView(); }
@@ -1282,8 +1289,25 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
           const dayLabel = d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
           drawRow(dayLabel, 'Regular Hours', r.totalHours, r.hourlyRate, r.totalPay);
         });
-        // Week subtotal
-        drawRow(week.weekLabel, 'WEEK SUBTOTAL', week.totalHours, week.hourlyRate, week.totalPay, true);
+        // Week subtotal (base pay only)
+        const weekBasePay = week.records.reduce((s,r) => s+r.totalPay, 0);
+        drawRow(week.weekLabel, 'WEEK SUBTOTAL', week.totalHours, week.hourlyRate, weekBasePay, true);
+        // Bonus row
+        if (week.bonus > 0) {
+          drawRow('', week.bonusNote ? 'Bonus — ' + week.bonusNote : 'Bonus', 0, 0, week.bonus, false);
+          // Bonus total line
+          doc.setFillColor(245, 243, 255);
+          doc.rect(ml, y, cw, 7, 'F');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(124, 58, 237);
+          doc.text('TOTAL (incl. bonus)', cols.date + 2, y + 4.5);
+          doc.text(`£${fmt(weekBasePay + week.bonus)}`, cols.amount, y + 4.5, { align: 'right' });
+          doc.setDrawColor(...BORDER);
+          doc.setLineWidth(0.2);
+          doc.line(ml, y + 7, pw - mr, y + 7);
+          y += 7;
+        }
         y += 2;
       });
     } else {
@@ -1306,7 +1330,22 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
         const mHours = group.weeks.reduce((s,w) => s+w.totalHours, 0);
         const mPay   = group.weeks.reduce((s,w) => s+w.totalPay, 0);
         const mRate  = mHours > 0 ? mPay / mHours : 0;
+        const mBonus = group.weeks.reduce((s,w) => s + (w.bonus||0), 0);
         drawRow(group.label, 'MONTH SUBTOTAL', mHours, mRate, mPay, true);
+        if (mBonus > 0) {
+          drawRow('', 'Bonuses', 0, 0, mBonus, false);
+          doc.setFillColor(245, 243, 255);
+          doc.rect(ml, y, cw, 7, 'F');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(124, 58, 237);
+          doc.text('TOTAL (incl. bonuses)', cols.date + 2, y + 4.5);
+          doc.text(`£${fmt(mPay + mBonus)}`, cols.amount, y + 4.5, { align: 'right' });
+          doc.setDrawColor(...BORDER);
+          doc.setLineWidth(0.2);
+          doc.line(ml, y + 7, pw - mr, y + 7);
+          y += 7;
+        }
         y += 2;
       });
     }
@@ -1393,14 +1432,22 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
       weeks[key].records.push(r);
       if (r.paid !== 'Yes') weeks[key].paid = 'No';
     });
-    return Object.values(weeks).sort((a,b) => b.weekKey.localeCompare(a.weekKey)).map(w => ({
-      ...w,
-      totalHours:   w.records.reduce((s,r) => s+r.totalHours, 0),
-      totalPay:     w.records.reduce((s,r) => s+r.totalPay, 0),
-      hourlyRate:   w.records[0]?.hourlyRate || 0,
-      employeeId:   w.records[0]?.employeeId || '',
-      employeeName: w.records[0]?.employeeName || '',
-    }));
+return Object.values(weeks).sort((a,b) => b.weekKey.localeCompare(a.weekKey)).map(w => {
+      const bonus     = w.records.reduce((s,r) => s + r.bonus, 0);
+      const bonusNote = w.records.find(r => r.bonusNote)?.bonusNote || '';
+      const basePay   = w.records.reduce((s,r) => s+r.totalPay, 0);
+      return {
+        ...w,
+        totalHours:   w.records.reduce((s,r) => s+r.totalHours, 0),
+        basePay,
+        bonus,
+        bonusNote,
+        totalPay:     parseFloat((basePay + bonus).toFixed(2)),
+        hourlyRate:   w.records[0]?.hourlyRate || 0,
+        employeeId:   w.records[0]?.employeeId || '',
+        employeeName: w.records[0]?.employeeName || '',
+      };
+    });
   }
 
   function buildEmployeeMap() {
@@ -1630,18 +1677,31 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
     '</div>';
   }
 
-  function paymentRow(week, empId) {
+function paymentRow(week, empId) {
     const isPaid  = week.paid === 'Yes';
     const rowKey  = escAttr(empId + '_' + week.weekKey);
+    const hasBonus = week.bonus > 0;
+    const bonusTag = hasBonus
+      ? `<span style="font-size:10px;font-weight:600;color:#7c3aed;background:#f5f3ff;padding:2px 7px;border-radius:5px;border:1px solid #ddd6fe;margin-left:4px;">+£${fmt(week.bonus)} bonus</span>`
+      : '';
     const actionBtn = isPaid
-      ? '<button class="mark-paid-btn undo-pay" id="btn_'+rowKey+'" onclick="event.stopPropagation();toggleWeekPaid(\''+escAttr(empId)+'\',\''+escAttr(week.weekKey)+'\',\'No\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Undo</button>'
-      : '<button class="mark-paid-btn do-pay" id="btn_'+rowKey+'" onclick="event.stopPropagation();toggleWeekPaid(\''+escAttr(empId)+'\',\''+escAttr(week.weekKey)+'\',\'Yes\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Mark Paid</button>';
-    return '<div class="payment-row '+(isPaid?'paid-row':'pending-row')+'" id="row_'+rowKey+'">' +
-      '<div class="row-saving" id="saving_'+rowKey+'"><div class="spinner"></div></div>' +
-      '<div class="payment-date-box" style="min-width:70px;"><div style="font-size:11px;font-weight:700;color:#0f172a;line-height:1.3;">'+escHtml(week.weekLabel)+'</div></div>' +
-      '<div class="payment-info"><div class="payment-hours-row"><span class="payment-hours">'+week.totalHours.toFixed(1)+'h</span><span class="payment-rate">@ £'+fmt(week.hourlyRate)+'/hr</span></div>' +
-      '<div class="payment-amount '+(isPaid?'paid':'pending')+'">£'+fmt(week.totalPay)+'</div></div>' +
-      '<div class="payment-actions">'+actionBtn+'</div></div>';
+      ? `<button class="mark-paid-btn undo-pay" id="btn_${rowKey}" onclick="event.stopPropagation();toggleWeekPaid('${escAttr(empId)}','${escAttr(week.weekKey)}','No')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Undo</button>`
+      : `<button class="mark-paid-btn do-pay" id="btn_${rowKey}" onclick="event.stopPropagation();toggleWeekPaid('${escAttr(empId)}','${escAttr(week.weekKey)}','Yes')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Mark Paid</button>`;
+    const bonusBtn = !isPaid
+      ? `<button class="mark-paid-btn" style="background:#f5f3ff;color:#7c3aed;border:1.5px solid #ddd6fe;" onclick="event.stopPropagation();openBonusModal('${escAttr(empId)}','${escAttr(week.weekKey)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>${hasBonus ? 'Edit Bonus' : 'Add Bonus'}</button>`
+      : '';
+    return `<div class="payment-row ${isPaid?'paid-row':'pending-row'}" id="row_${rowKey}">
+      <div class="row-saving" id="saving_${rowKey}"><div class="spinner"></div></div>
+      <div class="payment-date-box" style="min-width:70px;"><div style="font-size:11px;font-weight:700;color:#0f172a;line-height:1.3;">${escHtml(week.weekLabel)}</div></div>
+      <div class="payment-info">
+        <div class="payment-hours-row"><span class="payment-hours">${week.totalHours.toFixed(1)}h</span><span class="payment-rate">@ £${fmt(week.hourlyRate)}/hr</span>${bonusTag}</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div class="payment-amount ${isPaid?'paid':'pending'}">£${fmt(week.totalPay)}</div>
+          ${hasBonus && week.bonusNote ? `<span style="font-size:10px;color:#94a3b8;font-style:italic;">${escHtml(week.bonusNote)}</span>` : ''}
+        </div>
+      </div>
+      <div class="payment-actions">${bonusBtn}${actionBtn}</div>
+    </div>`;
   }
 
   /* ── TOGGLE WEEK PAID — writes to Supabase ── */
@@ -1701,5 +1761,104 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
   }
 
   init();
+
+  /* ── BONUS MODAL ── */
+  function openBonusModal(empId, weekKey) {
+    const emp  = employees[empId];
+    if (!emp) return;
+    const week = groupByWeek(emp.records).find(w => w.weekKey === weekKey);
+    if (!week) return;
+
+    // Remove existing modal if any
+    document.getElementById('bonusModal')?.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'bonusModal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    modal.innerHTML = `
+      <div onclick="closeBonusModal()" style="position:absolute;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(3px);"></div>
+      <div style="position:relative;background:#fff;border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+        <div style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:4px;">Add Bonus</div>
+        <div style="font-size:12px;color:#94a3b8;margin-bottom:18px;">${escHtml(emp.name)} · ${escHtml(week.weekLabel)}</div>
+
+        <div style="margin-bottom:14px;">
+          <label style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;">Bonus Amount (£)</label>
+          <input id="bonusAmountInput" type="number" min="0" step="0.01" value="${week.bonus > 0 ? week.bonus : ''}" placeholder="0.00"
+            style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:inherit;color:#0f172a;outline:none;transition:border-color .15s;"
+            onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e2e8f0'">
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <label style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;">Note (optional)</label>
+          <input id="bonusNoteInput" type="text" value="${escHtml(week.bonusNote)}" placeholder="e.g. Performance bonus"
+            style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;font-family:inherit;color:#0f172a;outline:none;transition:border-color .15s;"
+            onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e2e8f0'">
+        </div>
+
+        <div style="display:flex;gap:8px;">
+          ${week.bonus > 0 ? `<button onclick="saveBonus('${escAttr(empId)}','${escAttr(weekKey)}', true)" style="padding:9px 14px;border-radius:9px;border:1.5px solid #fecaca;background:#fef2f2;color:#dc2626;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">Remove</button>` : ''}
+          <button onclick="closeBonusModal()" style="flex:1;padding:9px 14px;border-radius:9px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">Cancel</button>
+          <button onclick="saveBonus('${escAttr(empId)}','${escAttr(weekKey)}')" style="flex:1;padding:9px 14px;border-radius:9px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">Save Bonus</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    setTimeout(() => document.getElementById('bonusAmountInput')?.focus(), 50);
+  }
+  window.openBonusModal = openBonusModal;
+
+  function closeBonusModal() {
+    document.getElementById('bonusModal')?.remove();
+  }
+  window.closeBonusModal = closeBonusModal;
+
+  async function saveBonus(empId, weekKey, remove = false) {
+    const emp = employees[empId];
+    if (!emp) return;
+    const weekRecs = emp.records.filter(r => getWeekKey(r.date).key === weekKey);
+    if (!weekRecs.length) return;
+
+    const amount = remove ? 0 : parseFloat(document.getElementById('bonusAmountInput')?.value || 0);
+    const note   = remove ? '' : (document.getElementById('bonusNoteInput')?.value || '').trim();
+
+    if (!remove && isNaN(amount)) { showToast('Enter a valid amount', 'error'); return; }
+
+    closeBonusModal();
+
+    // Store bonus on the first shift of the week only; zero out the rest
+    const sorted = [...weekRecs].sort((a,b) => a.date.localeCompare(b.date));
+    const firstId = sorted[0].id;
+    const otherIds = sorted.slice(1).map(r => r.id);
+
+    try {
+      // Set bonus on first shift
+      const { error: e1 } = await sb.from('rota_schedule')
+        .update({ bonus: amount, bonus_note: note })
+        .eq('id', firstId);
+      if (e1) throw e1;
+
+      // Zero out bonus on other shifts of same week (in case of leftover data)
+      if (otherIds.length) {
+        const { error: e2 } = await sb.from('rota_schedule')
+          .update({ bonus: 0, bonus_note: '' })
+          .in('id', otherIds);
+        if (e2) throw e2;
+      }
+
+      // Update local data
+      weekRecs.forEach(r => { r.bonus = 0; r.bonusNote = ''; });
+      sorted[0].bonus     = amount;
+      sorted[0].bonusNote = note;
+
+      buildEmployeeMap();
+      applyFilters();
+      if (drawerEmpId === empId) renderDrawer();
+      showToast(remove ? 'Bonus removed' : `Bonus of £${fmt(amount)} saved ✓`, remove ? '' : 'success');
+    } catch(e) {
+      showToast('Failed to save bonus: ' + e.message, 'error');
+    }
+  }
+  window.saveBonus = saveBonus;
+  
 })();
 </script>
