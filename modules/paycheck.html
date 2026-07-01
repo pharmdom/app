@@ -695,23 +695,22 @@
     showPageLoading();
     try {
       // Two separate queries — no FK so no join
-      const [shiftsRes, usersRes] = await Promise.all([
+const [shiftsRes, usersRes] = await Promise.all([
         sb.from('rota_schedule')
-          .select('id, employee_id, date, start_time, end_time, type, paid')
+          .select('id, employee_id, date, start_time, end_time, type, paid, hourly_rate')
           .order('date', { ascending: true }),
         sb.from('users')
-          .select('user_id, first_name, last_name, hourly_rate')
+          .select('user_id, first_name, last_name')
       ]);
 
       if (shiftsRes.error) throw shiftsRes.error;
       if (usersRes.error) throw usersRes.error;
 
       // Build user lookup map
-      const userMap = {};
+     const userMap = {};
       (usersRes.data || []).forEach(u => {
         userMap[String(u.user_id)] = {
-          name:       ((u.first_name || '') + ' ' + (u.last_name || '')).trim(),
-          hourlyRate: parseFloat(u.hourly_rate || 0)
+          name: ((u.first_name || '') + ' ' + (u.last_name || '')).trim()
         };
       });
 
@@ -719,9 +718,9 @@
       allData = (shiftsRes.data || [])
         .filter(r => r.type !== 'break') // exclude breaks from pay
         .map(r => {
-          const user      = userMap[String(r.employee_id)] || {};
-          const hours     = Math.max(0, (timeToMins(r.end_time) - timeToMins(r.start_time)) / 60);
-          const rate      = user.hourlyRate || 0;
+          const user  = userMap[String(r.employee_id)] || {};
+          const hours = Math.max(0, (timeToMins(r.end_time) - timeToMins(r.start_time)) / 60);
+          const rate  = parseFloat(r.hourly_rate || 0); // snapshot from the shift row
           return {
             id:           String(r.id),
             date:         String(r.date),
