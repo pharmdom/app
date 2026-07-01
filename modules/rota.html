@@ -1258,6 +1258,10 @@ async function saveShift(replaceConflicts){
     });
   }
   try{
+// Snapshot the employee's current hourly rate at save time
+    const empUser = (await sb.from('users').select('hourly_rate').eq('user_id', payload.employeeId).single()).data;
+    const snapshotRate = parseFloat(empUser?.hourly_rate || 0);
+
     const sbPayload = {
       id:          payload.id,
       employee_id: payload.employeeId,
@@ -1266,7 +1270,8 @@ async function saveShift(replaceConflicts){
       start_time:  payload.start,
       end_time:    payload.end,
       notes:       payload.notes || '',
-      type:        payload.type
+      type:        payload.type,
+      hourly_rate: snapshotRate
     };
     const { error } = await sb.from('rota_schedule').upsert(sbPayload, { onConflict: 'id' });
     if(error) throw error;
@@ -1640,7 +1645,8 @@ async function confirmCopy() {
   let saved=0, failed=0;
   await Promise.all(toAdd.map(async s=>{
     try{
-const sbPayload = {
+const empUser = (await sb.from('users').select('hourly_rate').eq('user_id', s.employeeId).single()).data;
+      const sbPayload = {
         id:          s.id,
         employee_id: s.employeeId,
         task_id:     s.taskId || '',
@@ -1648,7 +1654,8 @@ const sbPayload = {
         start_time:  s.start,
         end_time:    s.end,
         notes:       s.notes || '',
-        type:        s.type
+        type:        s.type,
+        hourly_rate: parseFloat(empUser?.hourly_rate || 0)
       };
       const { error } = await sb.from('rota_schedule').upsert(sbPayload, { onConflict: 'id' });
       if(error) throw error;
