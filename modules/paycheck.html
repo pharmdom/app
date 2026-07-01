@@ -723,9 +723,24 @@
   ══════════════════════════════════════════ */
 
   function showEmployeeUI() {
-    // Hide admin-only elements
     document.getElementById('adminOnlyControls').style.display = 'none';
     document.getElementById('summaryBanner').style.display = 'none';
+
+    const myPaidWeeks    = groupByWeek(myRecords.filter(r => r.paid === 'Yes'));
+    const myPendingWeeks = groupByWeek(myRecords.filter(r => r.paid !== 'Yes'));
+    const myTotalHours   = myRecords.reduce((s, r) => s + r.totalHours, 0);
+
+    document.getElementById('statPaidText').textContent    = myPaidWeeks.length + ' Week' + (myPaidWeeks.length !== 1 ? 's' : '') + ' Paid';
+    document.getElementById('statPendingText').textContent = myPendingWeeks.length + ' Week' + (myPendingWeeks.length !== 1 ? 's' : '') + ' Pending';
+    document.getElementById('statHoursText').textContent   = myTotalHours.toFixed(1) + 'h Total';
+
+    // Remove click filters — employee chips are display only
+    document.getElementById('statPaid').onclick    = null;
+    document.getElementById('statPending').onclick = null;
+    document.getElementById('statHours').onclick   = null;
+    document.getElementById('statPaid').style.cursor    = 'default';
+    document.getElementById('statPending').style.cursor = 'default';
+    document.getElementById('statHours').style.cursor   = 'default';
 
     // Replace page title area with employee greeting
     document.querySelector('.page-titl').textContent = 'My Pay';
@@ -790,51 +805,69 @@
     renderEmployeeTab(weekRecs, monthRecs, paidRecs, pendRecs);
   }
 
+  
   function renderEmployeeTab(weekRecs, monthRecs, paidRecs, pendRecs) {
     const content = document.getElementById('empViewContent');
     if (!content) return;
 
     let recs = [];
-    let label = '';
-
-    if (myViewFilter === 'week')    { recs = weekRecs;  label = 'This Week'; }
-    else if (myViewFilter === 'month') { recs = monthRecs; label = 'This Month'; }
-    else if (myViewFilter === 'history') { recs = paidRecs.sort((a,b) => b.date.localeCompare(a.date)); label = 'Payment History'; }
-    else { recs = [...myRecords].sort((a,b) => b.date.localeCompare(a.date)); label = 'All Records'; }
+    if (myViewFilter === 'week')         recs = weekRecs;
+    else if (myViewFilter === 'month')   recs = monthRecs;
+    else if (myViewFilter === 'history') recs = paidRecs;
+    else                                  recs = [...myRecords];
 
     if (!recs.length) {
       content.innerHTML = '<div class="empty-state" style="margin-top:0"><p>No records for this period.</p></div>';
       return;
     }
 
-    // Group paid vs pending for 'all' and 'week'/'month'
+    const weeks     = groupByWeek(recs);
     const showGroups = myViewFilter !== 'history';
-    const paid   = recs.filter(r => r.paid === 'Yes');
-    const unpaid = recs.filter(r => r.paid !== 'Yes');
+    const paidWeeks  = weeks.filter(w => w.paid === 'Yes');
+    const unpaidWeeks = weeks.filter(w => w.paid !== 'Yes');
 
     let html = '';
 
-    if (showGroups && unpaid.length) {
-      const tot = unpaid.reduce((s,r) => s + r.totalPay, 0);
-      html += sectionHeader('Pending Payment', unpaid.length, 'pending', tot);
-      html += '<div class="payment-rows">' + unpaid.map(r => employeePayRow(r)).join('') + '</div>';
+    if (showGroups && unpaidWeeks.length) {
+      const tot = unpaidWeeks.reduce((s,w) => s + w.totalPay, 0);
+      html += sectionHeader('Pending Payment', unpaidWeeks.length, 'pending', tot);
+      html += '<div class="payment-rows">' + unpaidWeeks.map(w => employeeWeekRow(w)).join('') + '</div>';
     }
-
-    if (showGroups && paid.length) {
-      const tot = paid.reduce((s,r) => s + r.totalPay, 0);
-      html += sectionHeader('Paid', paid.length, 'paid', tot);
-      html += '<div class="payment-rows">' + paid.map(r => employeePayRow(r)).join('') + '</div>';
+    if (showGroups && paidWeeks.length) {
+      const tot = paidWeeks.reduce((s,w) => s + w.totalPay, 0);
+      html += sectionHeader('Paid', paidWeeks.length, 'paid', tot);
+      html += '<div class="payment-rows">' + paidWeeks.map(w => employeeWeekRow(w)).join('') + '</div>';
     }
-
     if (!showGroups) {
-      // History: all paid, simple list
-      const tot = recs.reduce((s,r) => s + r.totalPay, 0);
-      html += sectionHeader('Payment History', recs.length, 'paid', tot);
-      html += '<div class="payment-rows">' + recs.map(r => employeePayRow(r)).join('') + '</div>';
+      const tot = weeks.reduce((s,w) => s + w.totalPay, 0);
+      html += sectionHeader('Payment History', weeks.length, 'paid', tot);
+      html += '<div class="payment-rows">' + weeks.map(w => employeeWeekRow(w)).join('') + '</div>';
     }
 
     content.innerHTML = html;
   }
+
+
+  function downloadPayslipWeek(week, e) {
+    // Reuse downloadPayslip with week-level data
+    const r = {
+      date: week.weekKey,
+      employeeId: week.employeeId,
+      employeeName: week.employeeName,
+      totalHours: week.totalHours,
+      hourlyRate: week.hourlyRate,
+      totalPay: week.totalPay,
+      paid: week.paid,
+      weekLabel: week.weekLabel,
+    };
+    e && e.stopPropagation();
+    const companyName = 'Pharm & Dom';
+    const logoUrl = 'https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png';
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Payslip – ${escHtml(week.weekLabel)}</title><style>* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #0f172a; font-size: 13px; } .page { width: 680px; margin: 40px auto; padding: 40px; border: 1px solid #e2e8f0; border-radius: 12px; } .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid #f1f5f9; } .logo { display: flex; align-items: center; gap: 12px; } .logo img { width: 44px; height: 44px; border-radius: 10px; object-fit: contain; } .logo-name { font-size: 18px; font-weight: 700; } .logo-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; } .payslip-label { text-align: right; } .payslip-label h1 { font-size: 22px; font-weight: 700; color: #1847d4; } .payslip-label p { font-size: 12px; color: #64748b; margin-top: 4px; } .section { margin-bottom: 24px; } .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 12px; } .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .info-item label { font-size: 10.5px; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 3px; } .info-item span { font-size: 14px; font-weight: 600; } .earnings-table { width: 100%; border-collapse: collapse; } .earnings-table th { text-align: left; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; padding: 0 0 8px; border-bottom: 1px solid #f1f5f9; } .earnings-table td { padding: 10px 0; border-bottom: 1px solid #f8fafc; font-size: 13.5px; } .earnings-table .amount { font-weight: 700; text-align: right; } .total-row { background: #f8fafc; border-radius: 8px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; margin-top: 16px; } .total-row .label { font-size: 13px; font-weight: 600; color: #475569; } .total-row .amount { font-size: 20px; font-weight: 700; color: #15803d; } .paid-badge { display: inline-flex; align-items: center; gap: 6px; background: #dcfce7; color: #15803d; padding: 6px 14px; border-radius: 100px; font-size: 12px; font-weight: 700; margin-top: 20px; } .footer { margin-top: 32px; padding-top: 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; } .footer p { font-size: 11px; color: #cbd5e1; } @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }</style></head><body><div class="page"><div class="header"><div class="logo"><img src="${logoUrl}" alt="Logo"><div><div class="logo-name">${companyName}</div><div class="logo-sub">Official Payslip</div></div></div><div class="payslip-label"><h1>PAYSLIP</h1><p>Week: ${escHtml(week.weekLabel)}</p></div></div><div class="section"><div class="section-title">Employee Details</div><div class="info-grid"><div class="info-item"><label>Full Name</label><span>${escHtml(week.employeeName)}</span></div><div class="info-item"><label>Employee ID</label><span>${escHtml(week.employeeId)}</span></div><div class="info-item"><label>Pay Period</label><span>${escHtml(week.weekLabel)}</span></div><div class="info-item"><label>Status</label><span style="color:#15803d">Paid</span></div></div></div><div class="section"><div class="section-title">Earnings</div><table class="earnings-table"><tr><th>Description</th><th>Hours</th><th>Rate</th><th class="amount">Amount</th></tr><tr><td>Regular Hours</td><td>${week.totalHours.toFixed(1)} hrs</td><td>£${fmt(week.hourlyRate)}/hr</td><td class="amount">£${fmt(week.totalPay)}</td></tr></table><div class="total-row"><span class="label">Net Pay</span><span class="amount">£${fmt(week.totalPay)}</span></div><div class="paid-badge">✓ Payment Confirmed</div></div><div class="footer"><p>${companyName} — Confidential</p><p>Generated ${new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}</p></div></div><script>window.onload=function(){window.print();}<\/script></body></html>`;
+    const win = window.open('', '_blank', 'width=780,height=900');
+    if (win) { win.document.write(html); win.document.close(); }
+  }
+  window.downloadPayslipWeek = downloadPayslipWeek;
 
   function sectionHeader(title, count, cls, total) {
     return '<div class="section-header" style="margin-bottom:10px;">' +
@@ -845,29 +878,23 @@
     '</div>';
   }
 
-  function employeePayRow(r) {
-    const isPaid    = r.paid === 'Yes';
-    const dateParts = parseDate(r.date);
-
-    // Payslip download button — only for paid records
+function employeeWeekRow(week) {
+    const isPaid    = week.paid === 'Yes';
     const payslipBtn = isPaid
-      ? `<button class="mark-paid-btn do-pay" onclick="downloadPayslip(${JSON.stringify(r).replace(/"/g,'&quot;')},event)" style="gap:5px;">
+      ? `<button class="mark-paid-btn do-pay" onclick="downloadPayslipWeek(${JSON.stringify(week).replace(/"/g,'&quot;')},event)" style="gap:5px;">
            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
            Payslip
          </button>`
       : `<span style="font-size:11px;font-weight:600;color:#f59e0b;background:#fef3c7;padding:3px 9px;border-radius:6px;border:1px solid #fde68a;">Awaiting payment</span>`;
 
     return '<div class="payment-row ' + (isPaid ? 'paid-row' : 'pending-row') + '">' +
-      '<div class="payment-date-box">' +
-        '<div class="payment-date-day">' + dateParts.day + '</div>' +
-        '<div class="payment-date-month">' + dateParts.month + '</div>' +
-      '</div>' +
+      '<div class="payment-date-box" style="min-width:70px;"><div style="font-size:11px;font-weight:700;color:#0f172a;line-height:1.3;">' + escHtml(week.weekLabel) + '</div></div>' +
       '<div class="payment-info">' +
         '<div class="payment-hours-row">' +
-          '<span class="payment-hours">' + r.totalHours.toFixed(1) + 'h</span>' +
-          '<span class="payment-rate">@ £' + fmt(r.hourlyRate) + '/hr</span>' +
+          '<span class="payment-hours">' + week.totalHours.toFixed(1) + 'h</span>' +
+          '<span class="payment-rate">@ £' + fmt(week.hourlyRate) + '/hr</span>' +
         '</div>' +
-        '<div class="payment-amount ' + (isPaid ? 'paid' : 'pending') + '">£' + fmt(r.totalPay) + '</div>' +
+        '<div class="payment-amount ' + (isPaid ? 'paid' : 'pending') + '">£' + fmt(week.totalPay) + '</div>' +
       '</div>' +
       '<div class="payment-actions">' + payslipBtn + '</div>' +
     '</div>';
@@ -1010,6 +1037,36 @@
     document.getElementById('navDropBtn')?.classList.remove('open');
   });
 
+
+/* ── GROUP RECORDS BY WEEK (Mon–Sun) ── */
+  function getWeekKey(dateStr) {
+    const d = new Date(dateStr);
+    const day = d.getDay();
+    const diffToMon = day === 0 ? 6 : day - 1;
+    const mon = new Date(d); mon.setDate(d.getDate() - diffToMon);
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    const fmt2 = d => d.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+    return { key: mon.toISOString().slice(0,10), label: fmt2(mon) + ' – ' + fmt2(sun) };
+  }
+
+  function groupByWeek(records) {
+    const weeks = {};
+    records.forEach(r => {
+      const { key, label } = getWeekKey(r.date);
+      if (!weeks[key]) weeks[key] = { weekKey: key, weekLabel: label, records: [], paid: 'Yes' };
+      weeks[key].records.push(r);
+      if (r.paid !== 'Yes') weeks[key].paid = 'No';
+    });
+    return Object.values(weeks).sort((a,b) => b.weekKey.localeCompare(a.weekKey)).map(w => ({
+      ...w,
+      totalHours: w.records.reduce((s,r) => s + r.totalHours, 0),
+      totalPay:   w.records.reduce((s,r) => s + r.totalPay, 0),
+      hourlyRate: w.records[0]?.hourlyRate || 0,
+      employeeId: w.records[0]?.employeeId || '',
+      employeeName: w.records[0]?.employeeName || '',
+    }));
+  }
+  
   function buildEmployeeMap() {
     employees = {};
     const seen = new Set();
@@ -1190,8 +1247,9 @@
     const totalPay  = emp.records.reduce((s, r) => s + r.totalPay, 0);
     const totalPaid = emp.records.filter(r => r.paid === 'Yes').reduce((s, r) => s + r.totalPay, 0);
     const totalPend = totalPay - totalPaid;
-    const pendCount = emp.records.filter(r => r.paid !== 'Yes').length;
-    const paidCount = emp.records.filter(r => r.paid === 'Yes').length;
+    const empWeeks  = groupByWeek(emp.records);
+    const pendCount = empWeeks.filter(w => w.paid !== 'Yes').length;
+    const paidCount = empWeeks.filter(w => w.paid === 'Yes').length;
 
     document.getElementById('drawerHero').innerHTML =
       '<div class="drawer-hero">' +
@@ -1206,28 +1264,29 @@
 
     document.getElementById('drawerFilterBar').innerHTML =
       '<span class="drawer-filter-label">Show</span>' +
-      '<button class="drawer-tab-btn '+(drawerFilter==='all'?'active':'')+'" onclick="setDrawerFilter(\'all\')">All ('+emp.records.length+')</button>' +
+      '<button class="drawer-tab-btn '+(drawerFilter==='all'?'active':'')+'" onclick="setDrawerFilter(\'all\')">All ('+empWeeks.length+')</button>' +
       '<button class="drawer-tab-btn yellow '+(drawerFilter==='pending'?'active':'')+'" onclick="setDrawerFilter(\'pending\')">Pending ('+pendCount+')</button>' +
       '<button class="drawer-tab-btn green '+(drawerFilter==='paid'?'active':'')+'" onclick="setDrawerFilter(\'paid\')">Paid ('+paidCount+')</button>';
 
-    const records = emp.records
-      .filter(r => { if (drawerFilter==='pending') return r.paid!=='Yes'; if (drawerFilter==='paid') return r.paid==='Yes'; return true; })
-      .sort((a,b) => b.date.localeCompare(a.date));
+const allWeeks  = groupByWeek(emp.records);
+    const weeks = drawerFilter === 'all'    ? allWeeks
+                : drawerFilter === 'pending' ? allWeeks.filter(w => w.paid !== 'Yes')
+                : allWeeks.filter(w => w.paid === 'Yes');
 
     if (drawerFilter === 'all') {
-      const pendRecs = records.filter(r => r.paid !== 'Yes');
-      const paidRecs = records.filter(r => r.paid === 'Yes');
+      const pendWeeks = allWeeks.filter(w => w.paid !== 'Yes');
+      const paidWeeks = allWeeks.filter(w => w.paid === 'Yes');
       let html = '';
-      if (pendRecs.length) html += '<div class="section-header"><span class="section-title">Pending</span><span class="section-count pending">'+pendRecs.length+'</span><span class="section-line"></span><span style="font-size:11px;font-weight:700;color:#b45309">£'+fmt(pendRecs.reduce((s,r)=>s+r.totalPay,0))+'</span></div><div class="payment-rows">'+pendRecs.map(r=>paymentRow(r,emp.id)).join('')+'</div>';
-      if (paidRecs.length) html += '<div class="section-header" style="margin-top:'+(pendRecs.length?'8px':'0')+'"><span class="section-title">Paid</span><span class="section-count paid">'+paidRecs.length+'</span><span class="section-line"></span><span style="font-size:11px;font-weight:700;color:#15803d">£'+fmt(paidRecs.reduce((s,r)=>s+r.totalPay,0))+'</span></div><div class="payment-rows">'+paidRecs.map(r=>paymentRow(r,emp.id)).join('')+'</div>';
+      if (pendWeeks.length) html += '<div class="section-header"><span class="section-title">Pending</span><span class="section-count pending">'+pendWeeks.length+'</span><span class="section-line"></span><span style="font-size:11px;font-weight:700;color:#b45309">£'+fmt(pendWeeks.reduce((s,w)=>s+w.totalPay,0))+'</span></div><div class="payment-rows">'+pendWeeks.map(w=>paymentRow(w,emp.id)).join('')+'</div>';
+      if (paidWeeks.length) html += '<div class="section-header" style="margin-top:'+(pendWeeks.length?'8px':'0')+'"><span class="section-title">Paid</span><span class="section-count paid">'+paidWeeks.length+'</span><span class="section-line"></span><span style="font-size:11px;font-weight:700;color:#15803d">£'+fmt(paidWeeks.reduce((s,w)=>s+w.totalPay,0))+'</span></div><div class="payment-rows">'+paidWeeks.map(w=>paymentRow(w,emp.id)).join('')+'</div>';
       if (!html) html = '<p style="font-size:13px;color:#94a3b8;text-align:center;padding:30px 0">No records</p>';
       document.getElementById('drawerBody').innerHTML = html;
     } else {
       const label = drawerFilter==='pending'?'Pending':'Paid';
       const cls   = drawerFilter==='pending'?'pending':'paid';
-      const tot   = records.reduce((s,r)=>s+r.totalPay,0);
-      let html = '<div class="section-header"><span class="section-title">'+label+'</span><span class="section-count '+cls+'">'+records.length+'</span><span class="section-line"></span><span style="font-size:11px;font-weight:700;color:'+(drawerFilter==='pending'?'#b45309':'#15803d')+'">£'+fmt(tot)+'</span></div>';
-      html += records.length ? '<div class="payment-rows">'+records.map(r=>paymentRow(r,emp.id)).join('')+'</div>' : '<p style="font-size:13px;color:#94a3b8;text-align:center;padding:30px 0">No '+label.toLowerCase()+' records</p>';
+      const tot   = weeks.reduce((s,w)=>s+w.totalPay,0);
+      let html = '<div class="section-header"><span class="section-title">'+label+'</span><span class="section-count '+cls+'">'+weeks.length+'</span><span class="section-line"></span><span style="font-size:11px;font-weight:700;color:'+(drawerFilter==='pending'?'#b45309':'#15803d')+'">£'+fmt(tot)+'</span></div>';
+      html += weeks.length ? '<div class="payment-rows">'+weeks.map(w=>paymentRow(w,emp.id)).join('')+'</div>' : '<p style="font-size:13px;color:#94a3b8;text-align:center;padding:30px 0">No '+label.toLowerCase()+' weeks</p>';
       document.getElementById('drawerBody').innerHTML = html;
     }
   }
@@ -1236,18 +1295,18 @@
     return '<div class="drawer-kpi"><div class="drawer-kpi-top"><div class="drawer-kpi-icon '+type+'" style="background:'+iconBg+'"><svg viewBox="0 0 24 24" fill="none" stroke="'+iconColor+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+iconPath+'"/></svg></div><span class="drawer-kpi-label">'+label+'</span></div><div class="drawer-kpi-value '+(valCls||'')+'">'+value+'</div></div>';
   }
 
-  function paymentRow(r, empId) {
-    const isPaid   = r.paid === 'Yes';
-    const rowKey   = escAttr(empId + '_' + r.date);
-    const dateParts = parseDate(r.date);
+
+  function paymentRow(week, empId) {
+    const isPaid  = week.paid === 'Yes';
+    const rowKey  = escAttr(empId + '_' + week.weekKey);
     const actionBtn = isPaid
-      ? '<button class="mark-paid-btn undo-pay" id="btn_'+rowKey+'" onclick="event.stopPropagation();togglePaid(\''+escAttr(empId)+'\',\''+escAttr(r.date)+'\',\'No\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Undo</button>'
-      : '<button class="mark-paid-btn do-pay" id="btn_'+rowKey+'" onclick="event.stopPropagation();togglePaid(\''+escAttr(empId)+'\',\''+escAttr(r.date)+'\',\'Yes\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Mark Paid</button>';
+      ? '<button class="mark-paid-btn undo-pay" id="btn_'+rowKey+'" onclick="event.stopPropagation();toggleWeekPaid(\''+escAttr(empId)+'\',\''+escAttr(week.weekKey)+'\',\'No\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Undo</button>'
+      : '<button class="mark-paid-btn do-pay" id="btn_'+rowKey+'" onclick="event.stopPropagation();toggleWeekPaid(\''+escAttr(empId)+'\',\''+escAttr(week.weekKey)+'\',\'Yes\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Mark Paid</button>';
     return '<div class="payment-row '+(isPaid?'paid-row':'pending-row')+'" id="row_'+rowKey+'">' +
       '<div class="row-saving" id="saving_'+rowKey+'"><div class="spinner"></div></div>' +
-      '<div class="payment-date-box"><div class="payment-date-day">'+dateParts.day+'</div><div class="payment-date-month">'+dateParts.month+'</div></div>' +
-      '<div class="payment-info"><div class="payment-hours-row"><span class="payment-hours">'+r.totalHours.toFixed(1)+'h</span><span class="payment-rate">@ £'+fmt(r.hourlyRate)+'/hr</span></div>' +
-      '<div class="payment-amount '+(isPaid?'paid':'pending')+'">£'+fmt(r.totalPay)+'</div></div>' +
+      '<div class="payment-date-box" style="min-width:70px;"><div style="font-size:11px;font-weight:700;color:#0f172a;line-height:1.3;">'+escHtml(week.weekLabel)+'</div></div>' +
+      '<div class="payment-info"><div class="payment-hours-row"><span class="payment-hours">'+week.totalHours.toFixed(1)+'h</span><span class="payment-rate">@ £'+fmt(week.hourlyRate)+'/hr</span></div>' +
+      '<div class="payment-amount '+(isPaid?'paid':'pending')+'">£'+fmt(week.totalPay)+'</div></div>' +
       '<div class="payment-actions">'+actionBtn+'</div></div>';
   }
 
@@ -1279,6 +1338,44 @@
   }
   window.togglePaid = togglePaid;
 
+
+  async function toggleWeekPaid(empId, weekKey, newValue) {
+    const emp = employees[empId];
+    if (!emp) return;
+    const weekRecs = emp.records.filter(r => getWeekKey(r.date).key === weekKey);
+    if (!weekRecs.length) return;
+
+    const rowKey = empId + '_' + weekKey;
+    const saving = document.getElementById('saving_' + rowKey);
+    const btn    = document.getElementById('btn_' + rowKey);
+    if (saving) saving.classList.add('visible');
+    if (btn)    btn.disabled = true;
+
+    const prevValues = weekRecs.map(r => ({ r, prev: r.paid }));
+    weekRecs.forEach(r => { r.paid = newValue; });
+    buildEmployeeMap(); applyFilters();
+    if (drawerEmpId === empId) renderDrawer();
+
+    try {
+      await Promise.all(weekRecs.map(r =>
+        fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'updatePaycheck', employeeId:empId, date:r.date, value:newValue }), headers:{'Content-Type':'text/plain'} })
+          .then(res => res.json())
+          .then(data => { if (data.error) throw new Error(data.message); })
+      ));
+      showToast(newValue==='Yes'?'Week marked as Paid ✓':'Week marked as Pending', newValue==='Yes'?'success':'');
+    } catch(e) {
+      prevValues.forEach(({r, prev}) => { r.paid = prev; });
+      buildEmployeeMap(); applyFilters();
+      if (drawerEmpId === empId) renderDrawer();
+      showToast('Failed to update: ' + e.message, 'error');
+    } finally {
+      if (saving) saving.classList.remove('visible');
+      if (btn)    btn.disabled = false;
+    }
+  }
+  window.toggleWeekPaid = toggleWeekPaid;
+  
+
   /* ══ HELPERS ══ */
   function parseDate(d) {
     const months  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1286,7 +1383,11 @@
     if (parts.length !== 3) return { day: '?', month: '???' };
     return { day: parseInt(parts[2]), month: months[parseInt(parts[1]) - 1] || '???' };
   }
-  function fmt(n) { const num = parseFloat(n)||0; return num%1===0 ? num.toString() : num.toFixed(2); }
+  function fmt(n) {
+    const num = parseFloat(n) || 0;
+    const str = num % 1 === 0 ? num.toFixed(0) : num.toFixed(2);
+    return str.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
   function getInitials(name) { return (name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
   function escHtml(str) { return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function escAttr(str) { return String(str||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
