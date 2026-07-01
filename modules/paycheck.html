@@ -885,21 +885,18 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span style="font-size:12px;font-weight:700;color:#0f172a;">Download Payslip</span>
-          <span style="font-size:11px;color:#94a3b8;margin-left:2px;">Select one or more periods</span>
         </div>
-        <div style="display:flex;gap:6px;margin-bottom:10px;">
-          <button onclick="setPayslipMode('week')" id="payslipModeWeek" style="padding:5px 12px;border-radius:100px;border:1.5px solid #0f172a;background:#0f172a;color:#fff;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;">By Week</button>
-          <button onclick="setPayslipMode('month')" id="payslipModeMonth" style="padding:5px 12px;border-radius:100px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;">By Month</button>
-        </div>
-        <div id="payslipWeekPills" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">
-          ${weeks.map(w => `<button onclick="togglePayslipSelection('week:${escHtml(w.weekKey)}')" id="psel_week_${escHtml(w.weekKey)}" style="padding:5px 11px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#475569;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .12s;">${escHtml(w.weekLabel)}</button>`).join('')}
-        </div>
-        <div id="payslipMonthPills" style="display:none;flex-wrap:wrap;gap:5px;margin-bottom:10px;">
-          ${Object.entries(monthMap).map(([k,v]) => `<button onclick="togglePayslipSelection('month:${k}')" id="psel_month_${k}" style="padding:5px 11px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#475569;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .12s;">${v}</button>`).join('')}
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-          <span id="payslipSelCount" style="font-size:11px;color:#94a3b8;">Nothing selected</span>
-          <button onclick="downloadSelectedPayslip()" style="padding:6px 16px;border-radius:8px;border:none;background:#0f172a;color:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">Download PDF</button>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <select id="payslipDropdown" onchange="onPayslipDropdownChange()" style="flex:1;min-width:200px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:12px;font-family:inherit;color:#0f172a;background:#fff;outline:none;cursor:pointer;">
+            <option value="">— Select a period —</option>
+            <optgroup label="By Week">
+              ${weeks.map(w => `<option value="week:${escHtml(w.weekKey)}">${escHtml(w.weekLabel)}</option>`).join('')}
+            </optgroup>
+            <optgroup label="By Month">
+              ${Object.entries(monthMap).map(([k,v]) => `<option value="month:${k}">${v}</option>`).join('')}
+            </optgroup>
+          </select>
+          <button onclick="downloadSelectedPayslip()" style="padding:8px 16px;border-radius:9px;border:none;background:#0f172a;color:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;white-space:nowrap;">Download PDF</button>
         </div>
       </div>`;
       html += sectionHeader('Payment History', weeks.length, 'paid', tot);
@@ -927,71 +924,38 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
   window.setMyViewFilter = setMyViewFilter;
 
 /* ── PAYSLIP ── */
-  let _payslipMode = 'week';
-  let _payslipSelected = new Set();
-
-  function setPayslipMode(mode) {
-    _payslipMode = mode;
-    _payslipSelected.clear();
-    document.getElementById('payslipModeWeek').style.cssText  = mode==='week'  ? 'padding:5px 12px;border-radius:100px;border:1.5px solid #0f172a;background:#0f172a;color:#fff;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;' : 'padding:5px 12px;border-radius:100px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;';
-    document.getElementById('payslipModeMonth').style.cssText = mode==='month' ? 'padding:5px 12px;border-radius:100px;border:1.5px solid #0f172a;background:#0f172a;color:#fff;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;' : 'padding:5px 12px;border-radius:100px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;';
-    document.getElementById('payslipWeekPills').style.display  = mode==='week'  ? 'flex' : 'none';
-    document.getElementById('payslipMonthPills').style.display = mode==='month' ? 'flex' : 'none';
-    updatePayslipCount();
+  function onPayslipDropdownChange() {
+    // Nothing needed — value read directly on download
   }
-  window.setPayslipMode = setPayslipMode;
-
-  function togglePayslipSelection(key) {
-    if (_payslipSelected.has(key)) {
-      _payslipSelected.delete(key);
-    } else {
-      _payslipSelected.add(key);
-    }
-    // Update pill visual
-    const [type, val] = key.split(/:(.+)/);
-    const btnId = type === 'week' ? `psel_week_${val}` : `psel_month_${val}`;
-    const btn = document.getElementById(btnId);
-    if (btn) {
-      const sel = _payslipSelected.has(key);
-      btn.style.background    = sel ? '#0f172a' : '#fff';
-      btn.style.color         = sel ? '#fff'    : '#475569';
-      btn.style.borderColor   = sel ? '#0f172a' : '#e2e8f0';
-    }
-    updatePayslipCount();
-  }
-  window.togglePayslipSelection = togglePayslipSelection;
-
-  function updatePayslipCount() {
-    const el = document.getElementById('payslipSelCount');
-    if (!el) return;
-    const n = _payslipSelected.size;
-    el.textContent = n === 0 ? 'Nothing selected' : `${n} ${_payslipMode === 'week' ? 'week' : 'month'}${n !== 1 ? 's' : ''} selected`;
-  }
+  window.onPayslipDropdownChange = onPayslipDropdownChange;
 
   function downloadSelectedPayslip() {
-    if (!_payslipSelected.size) { showToast('Select at least one period first', 'error'); return; }
+    const sel = document.getElementById('payslipDropdown');
+    if (!sel || !sel.value) { showToast('Select a period first', 'error'); return; }
+
+    const val          = sel.value;
     const paidRecs     = myRecords.filter(r => r.paid === 'Yes');
     const allPaidWeeks = groupByWeek(paidRecs);
 
-    if (_payslipMode === 'week') {
-      const selectedWeeks = [..._payslipSelected]
-        .map(k => allPaidWeeks.find(w => w.weekKey === k.replace('week:', '')))
-        .filter(Boolean)
-        .sort((a,b) => a.weekKey.localeCompare(b.weekKey));
-      if (!selectedWeeks.length) { showToast('No paid records in selected weeks', 'error'); return; }
-      generatePayslipPDF({ mode: 'week', weeks: selectedWeeks, allRecs: paidRecs });
-    } else {
-      const selectedMonthKeys = [..._payslipSelected].map(k => k.replace('month:', '')).sort();
-      if (!selectedMonthKeys.length) { showToast('No months selected', 'error'); return; }
-      const monthGroups = selectedMonthKeys.map(mk => {
-        const weeks = allPaidWeeks.filter(w => {
-          const d = new Date(w.weekKey);
-          return (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')) === mk;
-        });
-        return { mk, label: new Date(mk+'-01').toLocaleDateString('en-GB', {month:'long', year:'numeric'}), weeks };
-      }).filter(g => g.weeks.length);
-      if (!monthGroups.length) { showToast('No paid records in selected months', 'error'); return; }
-      generatePayslipPDF({ mode: 'month', monthGroups, allRecs: paidRecs });
+    if (val.startsWith('week:')) {
+      const weekKey = val.replace('week:', '');
+      const week    = allPaidWeeks.find(w => w.weekKey === weekKey);
+      if (!week) { showToast('No paid records for this week', 'error'); return; }
+      generatePayslipPDF({ mode: 'week', weeks: [week], allRecs: paidRecs });
+
+    } else if (val.startsWith('month:')) {
+      const mk     = val.replace('month:', '');
+      const mWeeks = allPaidWeeks.filter(w => {
+        const d = new Date(w.weekKey);
+        return (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')) === mk;
+      });
+      if (!mWeeks.length) { showToast('No paid records for this month', 'error'); return; }
+      const monthLabel = new Date(mk + '-01').toLocaleDateString('en-GB', { month:'long', year:'numeric' });
+      generatePayslipPDF({
+        mode: 'month',
+        monthGroups: [{ mk, label: monthLabel, weeks: mWeeks }],
+        allRecs: paidRecs
+      });
     }
   }
   window.downloadSelectedPayslip = downloadSelectedPayslip;
