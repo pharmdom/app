@@ -779,7 +779,7 @@ const [shiftsRes, usersRes] = await Promise.all([
   }
 
   function fetchMyHourlyRate() {
-    const rate = myRecords.length ? myRecords[0].hourlyRate : 0;
+    const rate = myRecords.length ? myRecords[myRecords.length - 1].hourlyRate : 0;
     if (!rate) return;
     const banner = document.getElementById('summaryBanner');
     if (!banner) return;
@@ -881,14 +881,14 @@ const [shiftsRes, usersRes] = await Promise.all([
         if (!monthMap[mk]) monthMap[mk] = ml;
       });
       const monthOpts = Object.entries(monthMap).map(([k,v]) => `<option value="month:${k}">${v}</option>`).join('');
-html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span style="font-size:12px;font-weight:700;color:#0f172a;">Download Payslip</span>
+          <span style="font-size:11px;color:#94a3b8;">Hold Ctrl / Cmd to select multiple</span>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <select id="payslipDropdown" onchange="onPayslipDropdownChange()" style="flex:1;min-width:200px;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:12px;font-family:inherit;color:#0f172a;background:#fff;outline:none;cursor:pointer;">
-            <option value="">— Select a period —</option>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;">
+          <select id="payslipDropdown" multiple size="5" style="flex:1;min-width:220px;padding:4px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:12px;font-family:inherit;color:#0f172a;background:#fff;outline:none;cursor:pointer;line-height:1.8;">
             <optgroup label="By Week">
               ${weeks.map(w => `<option value="week:${escHtml(w.weekKey)}">${escHtml(w.weekLabel)}</option>`).join('')}
             </optgroup>
@@ -896,7 +896,7 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
               ${Object.entries(monthMap).map(([k,v]) => `<option value="month:${k}">${v}</option>`).join('')}
             </optgroup>
           </select>
-          <button onclick="downloadSelectedPayslip()" style="padding:8px 16px;border-radius:9px;border:none;background:#0f172a;color:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;white-space:nowrap;">Download PDF</button>
+          <button onclick="downloadSelectedPayslip()" style="padding:8px 16px;border-radius:9px;border:none;background:#0f172a;color:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;white-space:nowrap;align-self:flex-end;">Download PDF</button>
         </div>
       </div>`;
       html += sectionHeader('Payment History', weeks.length, 'paid', tot);
@@ -924,38 +924,45 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
   window.setMyViewFilter = setMyViewFilter;
 
 /* ── PAYSLIP ── */
-  function onPayslipDropdownChange() {
-    // Nothing needed — value read directly on download
-  }
+  function onPayslipDropdownChange() { /* no-op */ }
   window.onPayslipDropdownChange = onPayslipDropdownChange;
 
   function downloadSelectedPayslip() {
     const sel = document.getElementById('payslipDropdown');
-    if (!sel || !sel.value) { showToast('Select a period first', 'error'); return; }
+    if (!sel) return;
+    const selected = [...sel.selectedOptions].map(o => o.value).filter(Boolean);
+    if (!selected.length) { showToast('Select at least one period', 'error'); return; }
 
-    const val          = sel.value;
     const paidRecs     = myRecords.filter(r => r.paid === 'Yes');
     const allPaidWeeks = groupByWeek(paidRecs);
 
-    if (val.startsWith('week:')) {
-      const weekKey = val.replace('week:', '');
-      const week    = allPaidWeeks.find(w => w.weekKey === weekKey);
-      if (!week) { showToast('No paid records for this week', 'error'); return; }
-      generatePayslipPDF({ mode: 'week', weeks: [week], allRecs: paidRecs });
+    const weekKeys   = selected.filter(v => v.startsWith('week:')).map(v => v.replace('week:', ''));
+    const monthKeys  = selected.filter(v => v.startsWith('month:')).map(v => v.replace('month:', ''));
 
-    } else if (val.startsWith('month:')) {
-      const mk     = val.replace('month:', '');
-      const mWeeks = allPaidWeeks.filter(w => {
-        const d = new Date(w.weekKey);
-        return (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')) === mk;
-      });
-      if (!mWeeks.length) { showToast('No paid records for this month', 'error'); return; }
-      const monthLabel = new Date(mk + '-01').toLocaleDateString('en-GB', { month:'long', year:'numeric' });
-      generatePayslipPDF({
-        mode: 'month',
-        monthGroups: [{ mk, label: monthLabel, weeks: mWeeks }],
-        allRecs: paidRecs
-      });
+    // Can't mix weeks and months in one PDF — weeks take priority if both selected
+    if (weekKeys.length && monthKeys.length) {
+      showToast('Select either weeks or months, not both', 'error'); return;
+    }
+
+    if (weekKeys.length) {
+      const selectedWeeks = weekKeys
+        .map(k => allPaidWeeks.find(w => w.weekKey === k))
+        .filter(Boolean)
+        .sort((a,b) => a.weekKey.localeCompare(b.weekKey));
+      if (!selectedWeeks.length) { showToast('No paid records in selected weeks', 'error'); return; }
+      generatePayslipPDF({ mode: 'week', weeks: selectedWeeks, allRecs: paidRecs });
+
+    } else {
+      const sortedMonthKeys = [...monthKeys].sort();
+      const monthGroups = sortedMonthKeys.map(mk => {
+        const mWeeks = allPaidWeeks.filter(w => {
+          const d = new Date(w.weekKey);
+          return (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')) === mk;
+        });
+        return { mk, label: new Date(mk+'-01').toLocaleDateString('en-GB', {month:'long', year:'numeric'}), weeks: mWeeks };
+      }).filter(g => g.weeks.length);
+      if (!monthGroups.length) { showToast('No paid records in selected months', 'error'); return; }
+      generatePayslipPDF({ mode: 'month', monthGroups, allRecs: paidRecs });
     }
   }
   window.downloadSelectedPayslip = downloadSelectedPayslip;
