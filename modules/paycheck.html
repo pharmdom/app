@@ -643,67 +643,110 @@
 
 
 <script>
-(function () {
 
-  const API_URL = 'https://script.google.com/macros/s/AKfycbzCkuKZM3fseUWhmx6fMF2kImY2f0owG35Q_ctttdwj7siAoT0-FYChbesTzf9RQ5rQ0w/exec';
+  (function () {
+
+  const sb          = window.sb;
   const currentUser = window.currentUser || JSON.parse(sessionStorage.getItem('user') || '{}');
-  const isAdmin = currentUser.role === 'Admin';
-  const myName  = ((currentUser.firstName || '') + ' ' + (currentUser.lastName || '')).trim();
+  const isAdmin     = currentUser.role === 'Admin';
+  const myName      = ((currentUser.firstName || '') + ' ' + (currentUser.lastName || '')).trim();
 
-  let allData       = [];
-  let employees     = {};
+  let allData         = [];
+  let employees       = {};
   let uniqueEmployees = [];
-  let filteredEmps  = [];
-  let drawerEmpId   = null;
-  let drawerFilter  = 'all';
-  let activeDateRange   = 'all';
+  let filteredEmps    = [];
+  let drawerEmpId     = null;
+  let drawerFilter    = 'all';
+  let activeDateRange    = 'all';
   let activeStatusFilter = 'all';
   let customFrom = null;
   let customTo   = null;
 
-  // ── EMPLOYEE VIEW STATE ──
-  let myRecords     = [];
-  let myViewFilter  = 'month'; // 'all' | 'month' | 'history'
+  let myRecords    = [];
+  let myViewFilter = 'month';
 
   async function init() {
     await loadData();
   }
 
+  /* ── HELPERS ── */
+  function timeToMins(t) {
+    if (!t) return 0;
+    const [h, m] = String(t).slice(0, 5).split(':').map(Number);
+    return h * 60 + m;
+  }
+  function parseDate(d) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const parts  = String(d || '').split('-');
+    if (parts.length !== 3) return { day: '?', month: '???' };
+    return { day: parseInt(parts[2]), month: months[parseInt(parts[1]) - 1] || '???' };
+  }
+  function fmt(n) {
+    const num = parseFloat(n) || 0;
+    const str = num % 1 === 0 ? num.toFixed(0) : num.toFixed(2);
+    return str.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function getInitials(name) { return (name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
+  function escHtml(str) { return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function escAttr(str) { return String(str||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+  /* ── LOAD DATA ── */
   async function loadData() {
     showPageLoading();
     try {
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'getPaycheck' }),
-        headers: { 'Content-Type': 'text/plain' }
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.message || 'Server error');
+      // Two separate queries — no FK so no join
+      const [shiftsRes, usersRes] = await Promise.all([
+        sb.from('rota_schedule')
+          .select('id, employee_id, date, start_time, end_time, type, paid')
+          .order('date', { ascending: true }),
+        sb.from('users')
+          .select('user_id, first_name, last_name, hourly_rate')
+      ]);
 
-      allData = (data.rows || []).map(r => ({
-        date:         String(r[0] || '').trim(),
-        employeeId:   String(r[1] || '').trim(),
-        employeeName: String(r[2] || '').trim(),
-        totalHours:   parseFloat(r[3]) || 0,
-        hourlyRate:   parseFloat(r[4]) || 0,
-        totalPay:     parseFloat(r[5]) || 0,
-        paid:         String(r[6] || 'No').trim()
-      }));
+      if (shiftsRes.error) throw shiftsRes.error;
+      if (usersRes.error) throw usersRes.error;
+
+      // Build user lookup map
+      const userMap = {};
+      (usersRes.data || []).forEach(u => {
+        userMap[String(u.user_id)] = {
+          name:       ((u.first_name || '') + ' ' + (u.last_name || '')).trim(),
+          hourlyRate: parseFloat(u.hourly_rate || 0)
+        };
+      });
+
+      // Map shifts to paycheck records
+      allData = (shiftsRes.data || [])
+        .filter(r => r.type !== 'break') // exclude breaks from pay
+        .map(r => {
+          const user      = userMap[String(r.employee_id)] || {};
+          const hours     = Math.max(0, (timeToMins(r.end_time) - timeToMins(r.start_time)) / 60);
+          const rate      = user.hourlyRate || 0;
+          return {
+            id:           String(r.id),
+            date:         String(r.date),
+            employeeId:   String(r.employee_id),
+            employeeName: user.name || 'Unknown',
+            totalHours:   parseFloat(hours.toFixed(4)),
+            hourlyRate:   rate,
+            totalPay:     parseFloat((hours * rate).toFixed(2)),
+            paid:         r.paid ? 'Yes' : 'No'
+          };
+        });
 
       buildEmployeeMap();
 
       if (isAdmin) {
-        // Show full admin UI
         showAdminUI();
         applyFilters();
       } else {
-        // Filter to only this employee's records by name match
         myRecords = allData.filter(r =>
           r.employeeName.toLowerCase().trim() === myName.toLowerCase().trim()
         );
         showEmployeeUI();
       }
     } catch (e) {
+      console.error('Paycheck load error:', e);
       document.getElementById('cardsArea').innerHTML =
         '<div class="empty-state">' +
         '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
@@ -721,37 +764,46 @@
   /* ══════════════════════════════════════════
      EMPLOYEE VIEW
   ══════════════════════════════════════════ */
-
-function showEmployeeUI() {
+  function showEmployeeUI() {
     document.getElementById('adminOnlyControls').style.display = 'none';
     document.getElementById('summaryBanner').style.display = 'none';
-
-    // Chips are display-only for employees
     document.getElementById('statPaid').onclick    = null;
     document.getElementById('statPending').onclick = null;
     document.getElementById('statHours').onclick   = null;
     document.getElementById('statPaid').style.cursor    = 'default';
     document.getElementById('statPending').style.cursor = 'default';
     document.getElementById('statHours').style.cursor   = 'default';
-
     document.querySelector('.page-titl').textContent = 'My Pay';
     document.querySelector('.pskl').textContent = 'Your personal pay records';
-
     renderEmployeeView();
     fetchMyHourlyRate();
+  }
+
+  function fetchMyHourlyRate() {
+    const rate = myRecords.length ? myRecords[0].hourlyRate : 0;
+    if (!rate) return;
+    const banner = document.getElementById('summaryBanner');
+    if (!banner) return;
+    const existing = document.getElementById('empRatePill');
+    if (existing) existing.remove();
+    const pill = document.createElement('div');
+    pill.id = 'empRatePill';
+    pill.style.cssText = 'padding:6px 14px;position:relative;z-index:1;border-left:1px solid rgba(255,255,255,.08);';
+    pill.innerHTML = `
+      <div style="font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.45);margin-bottom:3px;">Your Rate</div>
+      <div style="font-size:20px;font-weight:700;color:#fff;">£${fmt(rate)}<span style="font-size:12px;font-weight:500;color:rgba(255,255,255,.45)">/hr</span></div>
+    `;
+    banner.appendChild(pill);
+    banner.style.gridTemplateColumns = 'repeat(4, 1fr)';
   }
 
   function renderEmployeeView() {
     const now   = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    // Week bounds (Mon–Sun)
     const dayOfWeek = today.getDay();
     const diffToMon = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     const weekStart = new Date(today); weekStart.setDate(today.getDate() - diffToMon);
     const weekEnd   = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
-
-    // Month bounds
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const monthEnd   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
@@ -760,10 +812,7 @@ function showEmployeeUI() {
     const paidRecs  = myRecords.filter(r => r.paid === 'Yes');
     const pendRecs  = myRecords.filter(r => r.paid !== 'Yes');
 
-    // Update stat chips to reflect the active tab's records
-    const chipRecs = myViewFilter === 'month'   ? monthRecs
-                   : myViewFilter === 'history' ? paidRecs
-                   : myRecords; // 'all'
+    const chipRecs    = myViewFilter === 'month' ? monthRecs : myViewFilter === 'history' ? paidRecs : myRecords;
     const chipWeeks   = groupByWeek(chipRecs);
     const chipPaid    = chipWeeks.filter(w => w.paid === 'Yes');
     const chipPending = chipWeeks.filter(w => w.paid !== 'Yes');
@@ -775,7 +824,6 @@ function showEmployeeUI() {
     const totalEarned  = myRecords.reduce((s,r) => s + r.totalPay, 0);
     const totalPaid    = paidRecs.reduce((s,r) => s + r.totalPay, 0);
     const totalPending = totalEarned - totalPaid;
-
     const area = document.getElementById('cardsArea');
 
     if (!myRecords.length) {
@@ -783,13 +831,11 @@ function showEmployeeUI() {
       return;
     }
 
-    // Summary banner
     document.getElementById('summaryBanner').style.display = 'grid';
     document.getElementById('bannerTotal').textContent   = '£' + fmt(totalEarned);
     document.getElementById('bannerPaid').textContent    = '£' + fmt(totalPaid);
     document.getElementById('bannerPending').textContent = '£' + fmt(totalPending);
 
-    // Build employee view tabs
     area.innerHTML = `
       <div id="empViewTabs" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
         <button class="emp-tab-btn ${myViewFilter==='all'?'emp-tab-active':''}" onclick="setMyViewFilter('all')">All Records</button>
@@ -802,82 +848,32 @@ function showEmployeeUI() {
       </div>
       <div id="empViewContent"></div>
     `;
-
     renderEmployeeTab(weekRecs, monthRecs, paidRecs, pendRecs);
   }
 
-  async function fetchMyHourlyRate() {
-    try {
-      const sb = window.sb;
-      if (!sb) return;
-      const { data, error } = await sb
-        .from('users')
-        .select('hourly_rate')
-        .eq('id', currentUser.id)
-        .single();
-      if (error || !data) return;
-      const rate = parseFloat(data.hourly_rate);
-      if (!rate) return;
-      // Inject rate display after the Balance Pending KPI
-      const banner = document.getElementById('summaryBanner');
-      if (!banner) return;
-      // Remove existing rate pill if any
-      const existing = document.getElementById('empRatePill');
-      if (existing) existing.remove();
-      const pill = document.createElement('div');
-      pill.id = 'empRatePill';
-      pill.style.cssText = 'padding:6px 14px;position:relative;z-index:1;border-left:1px solid rgba(255,255,255,.08);';
-      pill.innerHTML = `
-        <div style="font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.45);margin-bottom:3px;">Your Rate</div>
-        <div style="font-size:20px;font-weight:700;color:#fff;">£${fmt(rate)}<span style="font-size:12px;font-weight:500;color:rgba(255,255,255,.45)">/hr</span></div>
-      `;
-      banner.appendChild(pill);
-      // Expand banner to 4 columns
-      banner.style.gridTemplateColumns = 'repeat(4, 1fr)';
-    } catch(e) {
-      // Silently fail — rate display is non-critical
-    }
-  }
-  
   function renderEmployeeTab(weekRecs, monthRecs, paidRecs, pendRecs) {
     const content = document.getElementById('empViewContent');
     if (!content) return;
-
-    let recs = [];
-    if (myViewFilter === 'month')        recs = monthRecs;
-    else if (myViewFilter === 'history') recs = paidRecs;
-    else                                  recs = [...myRecords];
-
-    
-    if (!recs.length) {
-      content.innerHTML = '<div class="empty-state" style="margin-top:0"><p>No records for this period.</p></div>';
-      return;
-    }
+    let recs = myViewFilter === 'month' ? monthRecs : myViewFilter === 'history' ? paidRecs : [...myRecords];
+    if (!recs.length) { content.innerHTML = '<div class="empty-state" style="margin-top:0"><p>No records for this period.</p></div>'; return; }
 
     const weeks     = groupByWeek(recs);
     const showGroups = myViewFilter !== 'history';
     const paidWeeks  = weeks.filter(w => w.paid === 'Yes');
     const unpaidWeeks = weeks.filter(w => w.paid !== 'Yes');
-
     let html = '';
 
     if (showGroups && unpaidWeeks.length) {
-      const tot = unpaidWeeks.reduce((s,w) => s + w.totalPay, 0);
-      html += sectionHeader('Pending Payment', unpaidWeeks.length, 'pending', tot);
+      html += sectionHeader('Pending Payment', unpaidWeeks.length, 'pending', unpaidWeeks.reduce((s,w) => s+w.totalPay, 0));
       html += '<div class="payment-rows">' + unpaidWeeks.map(w => employeeWeekRow(w)).join('') + '</div>';
     }
     if (showGroups && paidWeeks.length) {
-      const tot = paidWeeks.reduce((s,w) => s + w.totalPay, 0);
-      html += sectionHeader('Paid', paidWeeks.length, 'paid', tot);
+      html += sectionHeader('Paid', paidWeeks.length, 'paid', paidWeeks.reduce((s,w) => s+w.totalPay, 0));
       html += '<div class="payment-rows">' + paidWeeks.map(w => employeeWeekRow(w)).join('') + '</div>';
     }
-if (!showGroups) {
-      const tot = weeks.reduce((s,w) => s + w.totalPay, 0);
-      // Build week options for the selector
-      const weekOpts = weeks.map(w =>
-        `<option value="${escHtml(w.weekKey)}">${escHtml(w.weekLabel)}</option>`
-      ).join('');
-      // Build month options (unique months from paid weeks)
+    if (!showGroups) {
+      const tot = weeks.reduce((s,w) => s+w.totalPay, 0);
+      const weekOpts = weeks.map(w => `<option value="${escHtml(w.weekKey)}">${escHtml(w.weekLabel)}</option>`).join('');
       const monthMap = {};
       weeks.forEach(w => {
         const d = new Date(w.weekKey);
@@ -885,42 +881,43 @@ if (!showGroups) {
         const ml = d.toLocaleDateString('en-GB', { month:'long', year:'numeric' });
         if (!monthMap[mk]) monthMap[mk] = ml;
       });
-      const monthOpts = Object.entries(monthMap).map(([k,v]) =>
-        `<option value="month:${k}">${v}</option>`
-      ).join('');
-
-      html += `
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          <span style="font-size:12px;font-weight:600;color:#64748b;white-space:nowrap;">Download Payslip</span>
-          <select id="payslipRangeSelect" style="flex:1;min-width:160px;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;color:#0f172a;background:#fff;outline:none;">
-            <option value="">— Select week or month —</option>
-            <optgroup label="By Week">${weekOpts}</optgroup>
-            <optgroup label="By Month">${monthOpts}</optgroup>
-          </select>
-          <button onclick="downloadSelectedPayslip()" style="padding:6px 14px;border-radius:8px;border:none;background:#0f172a;color:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">Download</button>
-        </div>
-      `;
+      const monthOpts = Object.entries(monthMap).map(([k,v]) => `<option value="month:${k}">${v}</option>`).join('');
+      html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span style="font-size:12px;font-weight:600;color:#64748b;white-space:nowrap;">Download Payslip</span>
+        <select id="payslipRangeSelect" style="flex:1;min-width:160px;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;color:#0f172a;background:#fff;outline:none;">
+          <option value="">— Select week or month —</option>
+          <optgroup label="By Week">${weekOpts}</optgroup>
+          <optgroup label="By Month">${monthOpts}</optgroup>
+        </select>
+        <button onclick="downloadSelectedPayslip()" style="padding:6px 14px;border-radius:8px;border:none;background:#0f172a;color:#fff;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;">Download</button>
+      </div>`;
       html += sectionHeader('Payment History', weeks.length, 'paid', tot);
       html += '<div class="payment-rows">' + weeks.map(w => employeeWeekRow(w)).join('') + '</div>';
     }
-
     content.innerHTML = html;
   }
 
+  function employeeWeekRow(week) {
+    const isPaid = week.paid === 'Yes';
+    const badge  = isPaid
+      ? `<span style="font-size:11px;font-weight:600;color:#15803d;background:#dcfce7;padding:3px 9px;border-radius:6px;border:1px solid #bbf7d0;">Paid</span>`
+      : `<span style="font-size:11px;font-weight:600;color:#f59e0b;background:#fef3c7;padding:3px 9px;border-radius:6px;border:1px solid #fde68a;">Awaiting payment</span>`;
+    return '<div class="payment-row ' + (isPaid ? 'paid-row' : 'pending-row') + '">' +
+      '<div class="payment-date-box" style="min-width:70px;"><div style="font-size:11px;font-weight:700;color:#0f172a;line-height:1.3;">' + escHtml(week.weekLabel) + '</div></div>' +
+      '<div class="payment-info">' +
+        '<div class="payment-hours-row"><span class="payment-hours">' + week.totalHours.toFixed(1) + 'h</span><span class="payment-rate">@ £' + fmt(week.hourlyRate) + '/hr</span></div>' +
+        '<div class="payment-amount ' + (isPaid ? 'paid' : 'pending') + '">£' + fmt(week.totalPay) + '</div>' +
+      '</div>' +
+      '<div class="payment-actions">' + badge + '</div>' +
+    '</div>';
+  }
 
+  function setMyViewFilter(f) { myViewFilter = f; renderEmployeeView(); }
+  window.setMyViewFilter = setMyViewFilter;
+
+  /* ── PAYSLIP ── */
   function downloadPayslipWeek(week, e) {
-    // Reuse downloadPayslip with week-level data
-    const r = {
-      date: week.weekKey,
-      employeeId: week.employeeId,
-      employeeName: week.employeeName,
-      totalHours: week.totalHours,
-      hourlyRate: week.hourlyRate,
-      totalPay: week.totalPay,
-      paid: week.paid,
-      weekLabel: week.weekLabel,
-    };
     e && e.stopPropagation();
     const companyName = 'Pharm & Dom';
     const logoUrl = 'https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png';
@@ -930,16 +927,13 @@ if (!showGroups) {
   }
   window.downloadPayslipWeek = downloadPayslipWeek;
 
-
   function downloadSelectedPayslip() {
     const sel = document.getElementById('payslipRangeSelect');
     if (!sel || !sel.value) { showToast('Please select a week or month', 'error'); return; }
     const val = sel.value;
     const paidRecs = myRecords.filter(r => r.paid === 'Yes');
     const allPaidWeeks = groupByWeek(paidRecs);
-
     if (val.startsWith('month:')) {
-      // Aggregate all weeks in that month
       const mk = val.replace('month:', '');
       const mWeeks = allPaidWeeks.filter(w => {
         const d = new Date(w.weekKey);
@@ -947,19 +941,15 @@ if (!showGroups) {
       });
       if (!mWeeks.length) { showToast('No paid records for this month', 'error'); return; }
       const monthLabel = new Date(mk + '-01').toLocaleDateString('en-GB', { month:'long', year:'numeric' });
-      const combined = {
-        weekLabel:    monthLabel,
-        weekKey:      mk,
-        employeeId:   mWeeks[0].employeeId,
-        employeeName: mWeeks[0].employeeName,
-        hourlyRate:   mWeeks[0].hourlyRate,
-        totalHours:   mWeeks.reduce((s,w) => s + w.totalHours, 0),
-        totalPay:     mWeeks.reduce((s,w) => s + w.totalPay, 0),
-        paid:         'Yes',
-      };
-      downloadPayslipWeek(combined, null);
+      downloadPayslipWeek({
+        weekLabel: monthLabel, weekKey: mk,
+        employeeId: mWeeks[0].employeeId, employeeName: mWeeks[0].employeeName,
+        hourlyRate: mWeeks[0].hourlyRate,
+        totalHours: mWeeks.reduce((s,w) => s+w.totalHours, 0),
+        totalPay:   mWeeks.reduce((s,w) => s+w.totalPay, 0),
+        paid: 'Yes'
+      }, null);
     } else {
-      // Single week
       const week = allPaidWeeks.find(w => w.weekKey === val);
       if (!week) { showToast('Week not found', 'error'); return; }
       downloadPayslipWeek(week, null);
@@ -967,155 +957,9 @@ if (!showGroups) {
   }
   window.downloadSelectedPayslip = downloadSelectedPayslip;
 
-  function sectionHeader(title, count, cls, total) {
-    return '<div class="section-header" style="margin-bottom:10px;">' +
-      '<span class="section-title">' + escHtml(title) + '</span>' +
-      '<span class="section-count ' + cls + '">' + count + '</span>' +
-      '<span class="section-line"></span>' +
-      '<span style="font-size:11px;font-weight:700;color:' + (cls==='paid'?'#15803d':'#b45309') + '">£' + fmt(total) + '</span>' +
-    '</div>';
-  }
-
-function employeeWeekRow(week) {
-    const isPaid = week.paid === 'Yes';
-    const badge  = isPaid
-      ? `<span style="font-size:11px;font-weight:600;color:#15803d;background:#dcfce7;padding:3px 9px;border-radius:6px;border:1px solid #bbf7d0;">Paid</span>`
-      : `<span style="font-size:11px;font-weight:600;color:#f59e0b;background:#fef3c7;padding:3px 9px;border-radius:6px;border:1px solid #fde68a;">Awaiting payment</span>`;
-
-    return '<div class="payment-row ' + (isPaid ? 'paid-row' : 'pending-row') + '">' +
-      '<div class="payment-date-box" style="min-width:70px;"><div style="font-size:11px;font-weight:700;color:#0f172a;line-height:1.3;">' + escHtml(week.weekLabel) + '</div></div>' +
-      '<div class="payment-info">' +
-        '<div class="payment-hours-row">' +
-          '<span class="payment-hours">' + week.totalHours.toFixed(1) + 'h</span>' +
-          '<span class="payment-rate">@ £' + fmt(week.hourlyRate) + '/hr</span>' +
-        '</div>' +
-        '<div class="payment-amount ' + (isPaid ? 'paid' : 'pending') + '">£' + fmt(week.totalPay) + '</div>' +
-      '</div>' +
-      '<div class="payment-actions">' + badge + '</div>' +
-    '</div>';
-  }
-
-  function setMyViewFilter(f) {
-    myViewFilter = f;
-    renderEmployeeView();
-  }
-  window.setMyViewFilter = setMyViewFilter;
-
   /* ══════════════════════════════════════════
-     PAYSLIP GENERATOR
+     ADMIN VIEW
   ══════════════════════════════════════════ */
-  function downloadPayslip(r, e) {
-    e && e.stopPropagation();
-    const dateParts = parseDate(r.date);
-    const companyName = 'Pharm & Dom';
-    const logoUrl = 'https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png';
-
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Payslip – ${escHtml(r.date)}</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter', Arial, sans-serif; background: #fff; color: #0f172a; font-size: 13px; }
-  .page { width: 680px; margin: 40px auto; padding: 40px; border: 1px solid #e2e8f0; border-radius: 12px; }
-  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid #f1f5f9; }
-  .logo { display: flex; align-items: center; gap: 12px; }
-  .logo img { width: 44px; height: 44px; border-radius: 10px; object-fit: contain; }
-  .logo-name { font-size: 18px; font-weight: 700; color: #0f172a; }
-  .logo-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
-  .payslip-label { text-align: right; }
-  .payslip-label h1 { font-size: 22px; font-weight: 700; color: #1847d4; }
-  .payslip-label p { font-size: 12px; color: #64748b; margin-top: 4px; }
-  .section { margin-bottom: 24px; }
-  .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 12px; }
-  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .info-item label { font-size: 10.5px; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 3px; }
-  .info-item span { font-size: 14px; font-weight: 600; color: #0f172a; }
-  .earnings-table { width: 100%; border-collapse: collapse; }
-  .earnings-table th { text-align: left; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; padding: 0 0 8px; border-bottom: 1px solid #f1f5f9; }
-  .earnings-table td { padding: 10px 0; border-bottom: 1px solid #f8fafc; font-size: 13.5px; color: #1e293b; }
-  .earnings-table .amount { font-weight: 700; text-align: right; }
-  .total-row { background: #f8fafc; border-radius: 8px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
-  .total-row .label { font-size: 13px; font-weight: 600; color: #475569; }
-  .total-row .amount { font-size: 20px; font-weight: 700; color: #15803d; }
-  .paid-badge { display: inline-flex; align-items: center; gap: 6px; background: #dcfce7; color: #15803d; padding: 6px 14px; border-radius: 100px; font-size: 12px; font-weight: 700; margin-top: 20px; }
-  .footer { margin-top: 32px; padding-top: 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
-  .footer p { font-size: 11px; color: #cbd5e1; }
-  
-  
-@media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-</style>
-</head>
-<body>
-<div class="page">
-  <div class="header">
-    <div class="logo">
-      <img src="${logoUrl}" alt="Logo">
-      <div>
-        <div class="logo-name">${companyName}</div>
-        <div class="logo-sub">Official Payslip</div>
-      </div>
-    </div>
-    <div class="payslip-label">
-      <h1>PAYSLIP</h1>
-      <p>Period: ${escHtml(r.date)}</p>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Employee Details</div>
-    <div class="info-grid">
-      <div class="info-item"><label>Full Name</label><span>${escHtml(r.employeeName)}</span></div>
-      <div class="info-item"><label>Employee ID</label><span>${escHtml(r.employeeId)}</span></div>
-      <div class="info-item"><label>Pay Date</label><span>${dateParts.day} ${dateParts.month} ${new Date(r.date).getFullYear()}</span></div>
-      <div class="info-item"><label>Status</label><span style="color:#15803d">Paid</span></div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Earnings</div>
-    <table class="earnings-table">
-      <tr>
-        <th>Description</th>
-        <th>Hours</th>
-        <th>Rate</th>
-        <th class="amount">Amount</th>
-      </tr>
-      <tr>
-        <td>Regular Hours</td>
-        <td>${r.totalHours.toFixed(1)} hrs</td>
-        <td>£${fmt(r.hourlyRate)}/hr</td>
-        <td class="amount">£${fmt(r.totalPay)}</td>
-      </tr>
-    </table>
-    <div class="total-row">
-      <span class="label">Net Pay</span>
-      <span class="amount">£${fmt(r.totalPay)}</span>
-    </div>
-    <div class="paid-badge">
-      ✓ Payment Confirmed
-    </div>
-  </div>
-
-  <div class="footer">
-    <p>${companyName} — Confidential</p>
-    <p>Generated ${new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}</p>
-  </div>
-</div>
-<script>window.onload = function() { window.print(); }<\/script>
-</body>
-</html>`;
-
-    const win = window.open('', '_blank', 'width=780,height:900');
-    if (win) { win.document.write(html); win.document.close(); }
-  }
-  window.downloadPayslip = downloadPayslip;
-
-  /* ══════════════════════════════════════════
-     ADMIN VIEW (unchanged logic)
-  ══════════════════════════════════════════ */
-
   function showAdminUI() {
     document.getElementById('adminOnlyControls').style.display = '';
   }
@@ -1132,8 +976,7 @@ function employeeWeekRow(week) {
     document.getElementById('navDropBtn')?.classList.remove('open');
   });
 
-
-/* ── GROUP RECORDS BY WEEK (Mon–Sun) ── */
+  /* ── WEEK GROUPING ── */
   function getWeekKey(dateStr) {
     const d = new Date(dateStr);
     const day = d.getDay();
@@ -1154,14 +997,14 @@ function employeeWeekRow(week) {
     });
     return Object.values(weeks).sort((a,b) => b.weekKey.localeCompare(a.weekKey)).map(w => ({
       ...w,
-      totalHours: w.records.reduce((s,r) => s + r.totalHours, 0),
-      totalPay:   w.records.reduce((s,r) => s + r.totalPay, 0),
-      hourlyRate: w.records[0]?.hourlyRate || 0,
-      employeeId: w.records[0]?.employeeId || '',
+      totalHours:   w.records.reduce((s,r) => s+r.totalHours, 0),
+      totalPay:     w.records.reduce((s,r) => s+r.totalPay, 0),
+      hourlyRate:   w.records[0]?.hourlyRate || 0,
+      employeeId:   w.records[0]?.employeeId || '',
       employeeName: w.records[0]?.employeeName || '',
     }));
   }
-  
+
   function buildEmployeeMap() {
     employees = {};
     const seen = new Set();
@@ -1177,18 +1020,18 @@ function employeeWeekRow(week) {
     });
   }
 
+  /* ── DATE FILTERS ── */
   function getDateRange(range) {
     const now   = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     if (range === 'this_week') {
-      const day  = today.getDay();
-      const diff = day === 0 ? 6 : day - 1;
+      const day = today.getDay(), diff = day === 0 ? 6 : day - 1;
       const start = new Date(today); start.setDate(today.getDate() - diff);
       return { from: start, to: today };
     }
-    if (range === 'this_month')   return { from: new Date(today.getFullYear(), today.getMonth(), 1), to: today };
-    if (range === 'last_month')   return { from: new Date(today.getFullYear(), today.getMonth() - 1, 1), to: new Date(today.getFullYear(), today.getMonth(), 0) };
-    if (range === 'last_3_months') return { from: new Date(today.getFullYear(), today.getMonth() - 3, 1), to: today };
+    if (range === 'this_month')    return { from: new Date(today.getFullYear(), today.getMonth(), 1), to: today };
+    if (range === 'last_month')    return { from: new Date(today.getFullYear(), today.getMonth()-1, 1), to: new Date(today.getFullYear(), today.getMonth(), 0) };
+    if (range === 'last_3_months') return { from: new Date(today.getFullYear(), today.getMonth()-3, 1), to: today };
     if (range === 'custom' && customFrom && customTo) return { from: new Date(customFrom), to: new Date(customTo) };
     return null;
   }
@@ -1198,13 +1041,8 @@ function employeeWeekRow(week) {
     document.querySelectorAll('.date-chip').forEach(c => c.classList.remove('active'));
     if (el) el.classList.add('active');
     const customRow = document.getElementById('customDateRow');
-    if (range === 'custom') {
-      customRow.classList.add('visible');
-      if (!customFrom || !customTo) return;
-    } else {
-      customRow.classList.remove('visible');
-      customFrom = null; customTo = null;
-    }
+    if (range === 'custom') { customRow.classList.add('visible'); if (!customFrom || !customTo) return; }
+    else { customRow.classList.remove('visible'); customFrom = null; customTo = null; }
     applyFilters();
   }
   window.setDateFilter = setDateFilter;
@@ -1212,10 +1050,9 @@ function employeeWeekRow(week) {
   function applyCustomDate() {
     const from = document.getElementById('dateFrom').value;
     const to   = document.getElementById('dateTo').value;
-    if (!from || !to)  { showToast('Please select both dates', 'error'); return; }
-    if (from > to)     { showToast('From date must be before To date', 'error'); return; }
-    customFrom = from; customTo = to;
-    applyFilters();
+    if (!from || !to) { showToast('Please select both dates', 'error'); return; }
+    if (from > to)    { showToast('From date must be before To date', 'error'); return; }
+    customFrom = from; customTo = to; applyFilters();
   }
   window.applyCustomDate = applyCustomDate;
 
@@ -1255,16 +1092,14 @@ function employeeWeekRow(week) {
       if (activeStatusFilter === 'all_paid'    && !allPaid)    return false;
       return true;
     });
-    updateHeaderStats();
-    updateBanner();
-    renderList();
+    updateHeaderStats(); updateBanner(); renderList();
   }
 
   function updateHeaderStats() {
     const allEmps    = uniqueEmployees.map(u => employees[u.id]).filter(Boolean);
     const fullyPaid  = allEmps.filter(e => e.records.every(r => r.paid === 'Yes')).length;
     const hasPending = allEmps.filter(e => e.records.some(r => r.paid !== 'Yes')).length;
-    const totalHours = allData.reduce((s, r) => s + r.totalHours, 0);
+    const totalHours = allData.reduce((s,r) => s+r.totalHours, 0);
     document.getElementById('statPaidText').textContent    = fullyPaid  + ' Fully Paid';
     document.getElementById('statPendingText').textContent = hasPending + ' Has Pending';
     document.getElementById('statHoursText').textContent   = totalHours.toFixed(1) + 'h Total';
@@ -1272,8 +1107,8 @@ function employeeWeekRow(week) {
 
   function updateBanner() {
     const allFiltered = filteredEmps.flatMap(e => e.filteredRecords);
-    const totalPay    = allFiltered.reduce((s, r) => s + r.totalPay, 0);
-    const paidTotal   = allFiltered.filter(r => r.paid === 'Yes').reduce((s, r) => s + r.totalPay, 0);
+    const totalPay    = allFiltered.reduce((s,r) => s+r.totalPay, 0);
+    const paidTotal   = allFiltered.filter(r => r.paid === 'Yes').reduce((s,r) => s+r.totalPay, 0);
     const pendTotal   = totalPay - paidTotal;
     document.getElementById('bannerTotal').textContent   = '£' + fmt(totalPay);
     document.getElementById('bannerPaid').textContent    = '£' + fmt(paidTotal);
@@ -1287,7 +1122,7 @@ function employeeWeekRow(week) {
       area.innerHTML = '<div class="empty-state"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><p>No employees found</p><p class="empty-state-hint">Try adjusting your filters</p></div>';
       return;
     }
-    const sorted = [...filteredEmps].sort((a, b) => {
+    const sorted = [...filteredEmps].sort((a,b) => {
       const aPend = a.filteredRecords.some(r => r.paid !== 'Yes') ? 0 : 1;
       const bPend = b.filteredRecords.some(r => r.paid !== 'Yes') ? 0 : 1;
       if (aPend !== bPend) return aPend - bPend;
@@ -1298,7 +1133,7 @@ function employeeWeekRow(week) {
 
   function empRow(emp) {
     const recs       = emp.filteredRecords;
-    const totalPay   = recs.reduce((s, r) => s + r.totalPay, 0);
+    const totalPay   = recs.reduce((s,r) => s+r.totalPay, 0);
     const hasPending = recs.some(r => r.paid !== 'Yes');
     const pendCount  = recs.filter(r => r.paid !== 'Yes').length;
     const initials   = getInitials(emp.name);
@@ -1308,15 +1143,15 @@ function employeeWeekRow(week) {
     return '<div class="emp-row" onclick="openDrawer(\'' + escAttr(emp.id) + '\')">' +
       '<div class="emp-avatar">' + initials + '</div>' +
       '<div class="emp-info"><div class="emp-name">' + escHtml(emp.name) + '</div>' +
-      '<div class="emp-meta">' + recs.length + ' record' + (recs.length !== 1 ? 's' : '') + ' · ' + escHtml(emp.id) + '</div></div>' +
+      '<div class="emp-meta">' + recs.length + ' shift' + (recs.length !== 1 ? 's' : '') + ' · ' + escHtml(emp.id) + '</div></div>' +
       '<div class="emp-right"><div class="emp-amount">£' + fmt(totalPay) + '</div>' + statusTag + '</div>' +
       '<svg class="emp-row-chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>' +
     '</div>';
   }
 
+  /* ── DRAWER ── */
   function openDrawer(empId) {
-    drawerEmpId  = empId;
-    drawerFilter = 'all';
+    drawerEmpId = empId; drawerFilter = 'all';
     renderDrawer();
     document.getElementById('empDrawer').classList.add('open');
     document.getElementById('drawerOverlay').classList.add('visible');
@@ -1339,8 +1174,8 @@ function employeeWeekRow(week) {
     const emp = employees[drawerEmpId];
     if (!emp) return;
     const initials  = getInitials(emp.name);
-    const totalPay  = emp.records.reduce((s, r) => s + r.totalPay, 0);
-    const totalPaid = emp.records.filter(r => r.paid === 'Yes').reduce((s, r) => s + r.totalPay, 0);
+    const totalPay  = emp.records.reduce((s,r) => s+r.totalPay, 0);
+    const totalPaid = emp.records.filter(r => r.paid === 'Yes').reduce((s,r) => s+r.totalPay, 0);
     const totalPend = totalPay - totalPaid;
     const empWeeks  = groupByWeek(emp.records);
     const pendCount = empWeeks.filter(w => w.paid !== 'Yes').length;
@@ -1363,10 +1198,8 @@ function employeeWeekRow(week) {
       '<button class="drawer-tab-btn yellow '+(drawerFilter==='pending'?'active':'')+'" onclick="setDrawerFilter(\'pending\')">Pending ('+pendCount+')</button>' +
       '<button class="drawer-tab-btn green '+(drawerFilter==='paid'?'active':'')+'" onclick="setDrawerFilter(\'paid\')">Paid ('+paidCount+')</button>';
 
-const allWeeks  = groupByWeek(emp.records);
-    const weeks = drawerFilter === 'all'    ? allWeeks
-                : drawerFilter === 'pending' ? allWeeks.filter(w => w.paid !== 'Yes')
-                : allWeeks.filter(w => w.paid === 'Yes');
+    const allWeeks = groupByWeek(emp.records);
+    const weeks    = drawerFilter === 'all' ? allWeeks : drawerFilter === 'pending' ? allWeeks.filter(w => w.paid !== 'Yes') : allWeeks.filter(w => w.paid === 'Yes');
 
     if (drawerFilter === 'all') {
       const pendWeeks = allWeeks.filter(w => w.paid !== 'Yes');
@@ -1390,6 +1223,14 @@ const allWeeks  = groupByWeek(emp.records);
     return '<div class="drawer-kpi"><div class="drawer-kpi-top"><div class="drawer-kpi-icon '+type+'" style="background:'+iconBg+'"><svg viewBox="0 0 24 24" fill="none" stroke="'+iconColor+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="'+iconPath+'"/></svg></div><span class="drawer-kpi-label">'+label+'</span></div><div class="drawer-kpi-value '+(valCls||'')+'">'+value+'</div></div>';
   }
 
+  function sectionHeader(title, count, cls, total) {
+    return '<div class="section-header" style="margin-bottom:10px;">' +
+      '<span class="section-title">' + escHtml(title) + '</span>' +
+      '<span class="section-count ' + cls + '">' + count + '</span>' +
+      '<span class="section-line"></span>' +
+      '<span style="font-size:11px;font-weight:700;color:' + (cls==='paid'?'#15803d':'#b45309') + '">£' + fmt(total) + '</span>' +
+    '</div>';
+  }
 
   function paymentRow(week, empId) {
     const isPaid  = week.paid === 'Yes';
@@ -1405,35 +1246,7 @@ const allWeeks  = groupByWeek(emp.records);
       '<div class="payment-actions">'+actionBtn+'</div></div>';
   }
 
-  async function togglePaid(empId, date, newValue) {
-    const rowKey  = empId + '_' + date;
-    const saving  = document.getElementById('saving_' + rowKey);
-    const btn     = document.getElementById('btn_' + rowKey);
-    if (saving) saving.classList.add('visible');
-    if (btn)    btn.disabled = true;
-    const record    = allData.find(r => r.employeeId === empId && r.date === date);
-    const prevValue = record ? record.paid : null;
-    if (record) record.paid = newValue;
-    buildEmployeeMap(); applyFilters();
-    if (drawerEmpId === empId) renderDrawer();
-    try {
-      const res  = await fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'updatePaycheck', employeeId:empId, date, value:newValue }), headers:{'Content-Type':'text/plain'} });
-      const data = await res.json();
-      if (data.error) throw new Error(data.message || 'Error');
-      showToast(newValue==='Yes'?'Marked as Paid ✓':'Marked as Pending', newValue==='Yes'?'success':'');
-    } catch (e) {
-      if (record) record.paid = prevValue;
-      buildEmployeeMap(); applyFilters();
-      if (drawerEmpId === empId) renderDrawer();
-      showToast('Failed to update: ' + e.message, 'error');
-    } finally {
-      if (saving) saving.classList.remove('visible');
-      if (btn)    btn.disabled = false;
-    }
-  }
-  window.togglePaid = togglePaid;
-
-
+  /* ── TOGGLE WEEK PAID — writes to Supabase ── */
   async function toggleWeekPaid(empId, weekKey, newValue) {
     const emp = employees[empId];
     if (!emp) return;
@@ -1452,12 +1265,13 @@ const allWeeks  = groupByWeek(emp.records);
     if (drawerEmpId === empId) renderDrawer();
 
     try {
-      await Promise.all(weekRecs.map(r =>
-        fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'updatePaycheck', employeeId:empId, date:r.date, value:newValue }), headers:{'Content-Type':'text/plain'} })
-          .then(res => res.json())
-          .then(data => { if (data.error) throw new Error(data.message); })
-      ));
-      showToast(newValue==='Yes'?'Week marked as Paid ✓':'Week marked as Pending', newValue==='Yes'?'success':'');
+      const ids = weekRecs.map(r => r.id);
+      const { error } = await sb
+        .from('rota_schedule')
+        .update({ paid: newValue === 'Yes' })
+        .in('id', ids);
+      if (error) throw error;
+      showToast(newValue === 'Yes' ? 'Week marked as Paid ✓' : 'Week marked as Pending', newValue === 'Yes' ? 'success' : '');
     } catch(e) {
       prevValues.forEach(({r, prev}) => { r.paid = prev; });
       buildEmployeeMap(); applyFilters();
@@ -1469,24 +1283,8 @@ const allWeeks  = groupByWeek(emp.records);
     }
   }
   window.toggleWeekPaid = toggleWeekPaid;
-  
 
-  /* ══ HELPERS ══ */
-  function parseDate(d) {
-    const months  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const parts   = String(d || '').split('-');
-    if (parts.length !== 3) return { day: '?', month: '???' };
-    return { day: parseInt(parts[2]), month: months[parseInt(parts[1]) - 1] || '???' };
-  }
-  function fmt(n) {
-    const num = parseFloat(n) || 0;
-    const str = num % 1 === 0 ? num.toFixed(0) : num.toFixed(2);
-    return str.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  }
-  function getInitials(name) { return (name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
-  function escHtml(str) { return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-  function escAttr(str) { return String(str||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-
+  /* ── TOAST ── */
   let toastCounter = 0;
   function showToast(msg, type, duration) {
     const c  = document.getElementById('toastContainer');
