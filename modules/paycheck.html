@@ -1001,15 +1001,31 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
     if (!window.jspdf) {
       const script = document.createElement('script');
       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-      script.onload = () => _buildPDF({ mode, weeks, monthGroups, allRecs });
+      script.onload = () => _buildPDF({ mode, weeks, monthGroups, allRecs }).catch(e => showToast('PDF error: ' + e.message, 'error'));
       script.onerror = () => showToast('Failed to load PDF library', 'error');
       document.head.appendChild(script);
-    } else {
-      _buildPDF({ mode, weeks, monthGroups, allRecs });
+   } else {
+      _buildPDF({ mode, weeks, monthGroups, allRecs }).catch(e => showToast('PDF error: ' + e.message, 'error'));
     }
   }
 
-  function _buildPDF({ mode, weeks, monthGroups, allRecs }) {
+  function _loadImageAsBase64(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width; canvas.height = img.height;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => reject(new Error('Logo load failed'));
+      img.src = url;
+    });
+  }
+
+    
+    async function _buildPDF({ mode, weeks, monthGroups, allRecs }) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pw = 210, ph = 297;
@@ -1048,19 +1064,32 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
     let y = mt;
 
     // ── HEADER BAND ──
-    doc.setFillColor(...DARK);
+    doc.setFillColor(248, 250, 252);
     doc.rect(0, 0, pw, 46, 'F');
 
-    // Company name
+// Logo + company name
+    const logoUrl = 'https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png';
+    try {
+      const logoB64 = await _loadImageAsBase64(logoUrl);
+      doc.addImage(logoB64, 'PNG', ml, 12, 14, 14);
+    } catch(e) {
+      // Logo failed silently — continue without it
+    }
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.setTextColor(255, 255, 255);
-    doc.text('Pharm & Dom', ml, 20);
+    doc.setTextColor(...DARK);
+    doc.text('Pharm & Dom', ml + 17, 20);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(148, 163, 184);
-    doc.text('Official Payslip', ml, 27);
+    doc.setTextColor(...MUTED);
+    doc.text('Official Payslip', ml + 17, 27);
+
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.4);
+    doc.line(0, 46, pw, 46);
+    y = 56;
 
     // PAYSLIP label right-aligned
     doc.setFont('helvetica', 'bold');
