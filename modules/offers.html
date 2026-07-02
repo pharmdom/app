@@ -465,10 +465,14 @@ body{overflow:hidden}
 
   <div class="toolbar">
     <div class="tb-left">
+        <button class="nav-btn" onclick="openImportOffersDrawer()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Add item
+      </button>
       <button class="nav-btn" onclick="openMergeModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M8 6H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/><path d="M16 6h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
         Merge
-      </button>
+      </button>      
       <div class="view-btns">
         <button class="vbtn active" id="vbtnKanban" onclick="setView('kanban')" title="Kanban">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>
@@ -581,6 +585,28 @@ body{overflow:hidden}
     </div>
   </div>
 </div>
+
+<!-- Import Offers Drawer -->
+  <div class="drawer-overlay" id="importOffersOverlay" onclick="closeImportOffersDrawer()" style="z-index:1400"></div>
+  <div class="drawer" id="importOffersDrawer" style="z-index:1500;width:560px">
+    <div style="display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="width:36px;height:36px;border-radius:10px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <div style="font-size:15px;font-weight:800;flex:1;color:var(--text)" id="importOffersTitle">Import Offers</div>
+      <button onclick="closeImportOffersDrawer()" style="width:28px;height:28px;border-radius:7px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:20px" id="importOffersBody"></div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;background:var(--surface2);flex-shrink:0" id="importOffersFoot">
+      <button class="btn btn-secondary btn-sm" onclick="closeImportOffersDrawer()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="importOffersBtn" onclick="doImportOffers()" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import Offers
+      </button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1626,6 +1652,7 @@ function doConfirm(){if(confirmFn)confirmFn();}
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     if(document.getElementById('lightbox').classList.contains('open')){closeLightbox();return;}
+    if(document.getElementById('importOffersDrawer').classList.contains('open')){closeImportOffersDrawer();return;}
     if(document.getElementById('confirmOverlay').classList.contains('open')){closeConfirm();return;}
     if(document.getElementById('rejectOverlay').classList.contains('open')){closeRejectModal();return;}
     if(document.getElementById('mergeOverlay').classList.contains('open')){closeMergeModal();return;}
@@ -1899,6 +1926,366 @@ function addSrcMultiEanRow(){
 }
 window.toggleSrcMultiEan=toggleSrcMultiEan;
 window.addSrcMultiEanRow=addSrcMultiEanRow;
+
+
+/* ── IMPORT OFFERS ── */
+let _importOffersRows = [];
+let _importOffersSuppliers = [];
+let _importOffersMapping = {};
+let _importOffersParsedLines = [];
+
+async function openImportOffersDrawer() {
+  _importOffersRows = [];
+  _importOffersParsedLines = [];
+  _importOffersMapping = {};
+  document.getElementById('importOffersTitle').textContent = 'Import Offers';
+  document.getElementById('importOffersBtn').disabled = true;
+
+  // Load suppliers
+  if (!_importOffersSuppliers.length) {
+    const { data } = await sb.from('suppliers').select('name').order('name');
+    _importOffersSuppliers = (data || []).map(s => s.name);
+  }
+
+  buildImportOffersUploadUI();
+  document.getElementById('importOffersOverlay').classList.add('open');
+  document.getElementById('importOffersDrawer').classList.add('open');
+}
+window.openImportOffersDrawer = openImportOffersDrawer;
+
+function closeImportOffersDrawer() {
+  document.getElementById('importOffersOverlay').classList.remove('open');
+  document.getElementById('importOffersDrawer').classList.remove('open');
+}
+window.closeImportOffersDrawer = closeImportOffersDrawer;
+
+function buildImportOffersUploadUI() {
+  document.getElementById('importOffersBody').innerHTML = `
+    <p style="font-size:12.5px;color:var(--text3);margin-bottom:16px;line-height:1.55">
+      Upload a CSV or XLSX file with offer data. You'll map columns to fields on the next step.
+    </p>
+    <div id="importOffersZone" onclick="document.getElementById('importOffersFileInput').click()"
+      ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+      ondragleave="this.style.borderColor=''"
+      ondrop="handleImportOffersDrop(event)"
+      style="border:2px dashed var(--border);border-radius:var(--r-lg);padding:36px 20px;text-align:center;cursor:pointer;background:var(--surface2);transition:all .2s">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32" style="color:var(--text4);margin:0 auto 10px;display:block"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <p style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:4px">Click to upload or drag & drop</p>
+      <span style="font-size:12px;color:var(--text4)">CSV or XLSX</span>
+      <input type="file" id="importOffersFileInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleImportOffersFile(this.files[0])">
+    </div>
+    <div id="importOffersResult"></div>`;
+}
+
+function handleImportOffersDrop(e) {
+  e.preventDefault();
+  document.getElementById('importOffersZone').style.borderColor = '';
+  const f = e.dataTransfer.files[0];
+  if (f) handleImportOffersFile(f);
+}
+window.handleImportOffersDrop = handleImportOffersDrop;
+
+function handleImportOffersFile(file) {
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'csv') {
+    const reader = new FileReader();
+    reader.onload = e => parseImportOffersCSV(e.target.result);
+    reader.readAsText(file, 'latin1');
+  } else if (ext === 'xlsx' || ext === 'xls') {
+    // Load XLSX lazily
+    if (!window.XLSX) {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = () => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const wb = XLSX.read(e.target.result, { type: 'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          parseImportOffersCSV(XLSX.utils.sheet_to_csv(ws));
+        };
+        reader.readAsArrayBuffer(file);
+      };
+      document.head.appendChild(s);
+    } else {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        parseImportOffersCSV(XLSX.utils.sheet_to_csv(ws));
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  } else {
+    document.getElementById('importOffersResult').innerHTML =
+      `<div style="margin-top:12px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r-sm);font-size:12px;color:var(--red);font-weight:600">Unsupported file type. Use CSV or XLSX.</div>`;
+  }
+}
+window.handleImportOffersFile = handleImportOffersFile;
+
+function splitImportOffersLine(line) {
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { if (inQ && line[i + 1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+    else if ((c === ',' || c === '\t') && !inQ) { result.push(cur); cur = ''; }
+    else cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+
+function parseImportOffersCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) {
+    document.getElementById('importOffersResult').innerHTML =
+      `<div style="margin-top:12px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r-sm);font-size:12px;color:var(--red);font-weight:600">File appears empty.</div>`;
+    return;
+  }
+  _importOffersParsedLines = lines;
+  showImportOffersHeaderPicker(lines);
+}
+
+function showImportOffersHeaderPicker(lines) {
+  const preview = lines.slice(0, 10);
+  document.getElementById('importOffersBtn').disabled = true;
+  let html = `
+    <div style="margin-top:16px;background:var(--accent-bg);border:1px solid var(--accent-bd);border-radius:var(--r);padding:10px 14px;font-size:12.5px;color:var(--accent);font-weight:600;margin-bottom:12px">
+      Click a row to use it as the header row
+    </div>
+    <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:11.5px;min-width:400px"><tbody>`;
+  preview.forEach((line, i) => {
+    const cells = splitImportOffersLine(line).map(v => v.trim().replace(/^"|"$/g, ''));
+    html += `<tr id="iohprow_${i}" onclick="selectImportOffersHeaderRow(${i})"
+      style="cursor:pointer;transition:background .1s"
+      onmouseenter="this.style.background='var(--accent-bg)'" onmouseleave="this.style.background=''">
+      <td style="padding:5px 9px;background:var(--surface2);font-size:9.5px;font-weight:700;color:var(--text4);white-space:nowrap;border-bottom:1px solid var(--border2);width:40px">Row ${i + 1}</td>
+      ${cells.slice(0, 7).map(c => `<td style="padding:5px 9px;border-bottom:1px solid var(--border2);border-left:1px solid var(--border2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${c ? 'var(--text2)' : 'var(--text4)'}">${esc(c || '—')}</td>`).join('')}
+      ${cells.length > 7 ? `<td style="padding:5px 9px;border-bottom:1px solid var(--border2);border-left:1px solid var(--border2);color:var(--text4);font-size:10px">+${cells.length - 7} more</td>` : ''}
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+  document.getElementById('importOffersResult').innerHTML = html;
+}
+
+function selectImportOffersHeaderRow(rowIdx) {
+  document.querySelectorAll('[id^="iohprow_"]').forEach(r => r.style.background = '');
+  const sel = document.getElementById('iohprow_' + rowIdx);
+  if (sel) sel.style.background = 'var(--accent-bg)';
+
+  const lines = _importOffersParsedLines;
+  const headers = splitImportOffersLine(lines[rowIdx]).map(h => h.trim().replace(/^"|"$/g, ''));
+
+  const rows = [];
+  lines.slice(rowIdx + 1).forEach(line => {
+    const vals = splitImportOffersLine(line);
+    const cells = vals.map(v => v.trim().replace(/^"|"$/g, ''));
+    if (!cells.some(Boolean)) return;
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = (vals[i] || '').trim().replace(/^"|"$/g, ''));
+    rows.push(obj);
+  });
+
+  if (!rows.length) {
+    document.getElementById('importOffersResult').innerHTML +=
+      `<div style="margin-top:10px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r-sm);font-size:12px;color:var(--red);font-weight:600">No data rows found after selected header.</div>`;
+    return;
+  }
+
+  _importOffersRows = rows;
+
+  // Auto-detect mapping
+  const aliases = {
+    product_name: ['product name', 'productname', 'name', 'title', 'description', 'product'],
+    ean: ['ean', 'barcode', 'gtin', 'ean13', 'ean/upc'],
+    cost: ['cost', 'price', 'unit cost', 'cost of unit', 'buy price', 'wholesale price'],
+  };
+  _importOffersMapping = { product_name: '', ean: '', cost: '' };
+  Object.entries(aliases).forEach(([field, aliasList]) => {
+    const found = headers.find(h => aliasList.includes(h.toLowerCase().trim()));
+    if (found) _importOffersMapping[field] = found;
+  });
+
+  showImportOffersMapping(headers, rows);
+}
+window.selectImportOffersHeaderRow = selectImportOffersHeaderRow;
+
+function showImportOffersMapping(headers, rows) {
+  const supOptions = _importOffersSuppliers.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  const colOptions = (field) => ['<option value="">— ignore —</option>',
+    ...headers.map(h => `<option value="${esc(h)}" ${_importOffersMapping[field] === h ? 'selected' : ''}>${esc(h)}</option>`)
+  ].join('');
+
+  const fields = [
+    { key: 'product_name', label: 'Product Name', required: true },
+    { key: 'ean', label: 'EAN', required: false },
+    { key: 'cost', label: 'Cost (£)', required: false },
+  ];
+
+  let html = `
+    <div style="margin-top:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);margin-bottom:12px">Map Columns</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${fields.map(f => `
+          <div style="display:flex;align-items:center;gap:10px">
+            <label style="font-size:11px;font-weight:700;color:${f.required ? 'var(--accent)' : 'var(--text3)'};width:110px;flex-shrink:0;text-transform:uppercase;letter-spacing:.4px">
+              ${f.label}${f.required ? ' *' : ''}
+            </label>
+            <select onchange="_importOffersMapping['${f.key}']=this.value"
+              style="flex:1;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none">
+              ${colOptions(f.key)}
+            </select>
+          </div>`).join('')}
+        <div style="display:flex;align-items:center;gap:10px">
+          <label style="font-size:11px;font-weight:700;color:var(--accent);width:110px;flex-shrink:0;text-transform:uppercase;letter-spacing:.4px">Supplier *</label>
+          <select id="importOffersSupplierSel"
+            style="flex:1;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none">
+            <option value="">— Select supplier —</option>
+            ${supOptions}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--border)">
+        <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Preview</span>
+        <span style="font-size:11px;font-weight:700;background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);padding:2px 8px;border-radius:100px">${rows.length} rows</span>
+      </div>
+      <div style="overflow-x:auto;max-height:180px;overflow-y:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:11.5px;min-width:300px">
+          <thead><tr>${headers.slice(0, 6).map(h => `<th style="padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--border);text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4)">${esc(h)}</th>`).join('')}</tr></thead>
+          <tbody>${rows.slice(0, 8).map(r => `<tr>${headers.slice(0, 6).map(h => `<td style="padding:5px 10px;border-bottom:1px solid var(--border2);color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r[h] || '')}</td>`).join('')}</tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  document.getElementById('importOffersResult').innerHTML = html;
+  document.getElementById('importOffersBtn').disabled = false;
+}
+
+async function doImportOffers() {
+  const supplierName = document.getElementById('importOffersSupplierSel')?.value?.trim();
+  if (!supplierName) { toast('Select a supplier first', 'error'); return; }
+  if (!_importOffersMapping.product_name) { toast('Map the Product Name column first', 'error'); return; }
+  if (!_importOffersRows.length) { toast('No rows to import', 'error'); return; }
+
+  const today = new Date().toISOString().split('T')[0];
+  const getVal = (row, field) => (_importOffersMapping[field] ? (row[_importOffersMapping[field]] || '').trim() : '');
+
+  // Build valid rows
+  const validRows = [];
+  let skipped = 0;
+  _importOffersRows.forEach(row => {
+    const productName = getVal(row, 'product_name');
+    if (!productName) { skipped++; return; }
+    const eanRaw = getVal(row, 'ean').replace(/\.0+$/, '').trim();
+    const ean = eanRaw || null;
+    const costRaw = getVal(row, 'cost').replace(/[£$,\s]/g, '');
+    const cost = costRaw !== '' ? parseFloat(costRaw) : null;
+    validRows.push({ product_name: productName, ean, cost_of_unit: (!isNaN(cost) && cost !== null) ? cost : null, supplier_name: supplierName, date: today });
+  });
+
+  if (!validRows.length) { toast('No valid rows found — check Product Name mapping', 'error'); return; }
+
+  // Deduplicate against existing offers (same EAN + supplier, non-rejected)
+  const existingOffers = offersData.filter(r => (r.approval || '').toLowerCase() !== 'rejected');
+  const existingKeys = new Set(existingOffers.map(r => `${String(r.ean || '').trim().toLowerCase()}|${String(r.supplier_name || '').trim().toLowerCase()}`));
+
+  const toInsert = [];
+  let duplicates = 0;
+  validRows.forEach(row => {
+    const key = `${String(row.ean || '').trim().toLowerCase()}|${String(row.supplier_name || '').trim().toLowerCase()}`;
+    // Only deduplicate when EAN is present — no EAN means we can't tell if it's a duplicate
+    if (row.ean && existingKeys.has(key)) { duplicates++; return; }
+    toInsert.push(row);
+  });
+
+  // Show summary before confirming
+  showImportOffersSummary(toInsert, duplicates, skipped, supplierName);
+}
+window.doImportOffers = doImportOffers;
+
+function showImportOffersSummary(toInsert, duplicates, skipped, supplierName) {
+  const foot = document.getElementById('importOffersFoot');
+  foot.innerHTML = `
+    <button class="btn btn-secondary btn-sm" onclick="closeImportOffersDrawer()">Cancel</button>
+    <button class="btn btn-primary btn-sm" onclick="confirmImportOffers()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>
+      Confirm Import
+    </button>`;
+
+  window._pendingImportOffers = toInsert;
+  window._pendingImportSupplier = supplierName;
+
+  const body = document.getElementById('importOffersBody');
+  body.innerHTML = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px">Import Summary — ${esc(supplierName)}</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+        <div style="background:var(--green-bg);border:1px solid var(--green-bd);border-radius:var(--r);padding:12px;text-align:center">
+          <div style="font-size:22px;font-weight:800;color:var(--green)">${toInsert.length}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-top:3px">To Add</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:12px;text-align:center">
+          <div style="font-size:22px;font-weight:800;color:var(--text3)">${duplicates}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.5px;margin-top:3px">Duplicates Skipped</div>
+        </div>
+        <div style="background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r);padding:12px;text-align:center">
+          <div style="font-size:22px;font-weight:800;color:var(--red)">${skipped}</div>
+          <div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-top:3px">Incomplete</div>
+        </div>
+      </div>
+      ${toInsert.length ? `
+      <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+        <div style="padding:8px 12px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4)">Preview — first 10 rows</div>
+        <div style="overflow-x:auto;max-height:240px;overflow-y:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+            <thead><tr>
+              <th style="padding:7px 10px;background:var(--surface);border-bottom:1px solid var(--border);text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4)">Product Name</th>
+              <th style="padding:7px 10px;background:var(--surface);border-bottom:1px solid var(--border);text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4)">EAN</th>
+              <th style="padding:7px 10px;background:var(--surface);border-bottom:1px solid var(--border);text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4)">Cost</th>
+            </tr></thead>
+            <tbody>${toInsert.slice(0, 10).map(r => `<tr>
+              <td style="padding:6px 10px;border-bottom:1px solid var(--border2);color:var(--text2);font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.product_name)}</td>
+              <td style="padding:6px 10px;border-bottom:1px solid var(--border2);color:var(--text3);font-family:var(--mono);font-size:11px">${esc(r.ean || '—')}</td>
+              <td style="padding:6px 10px;border-bottom:1px solid var(--border2);color:var(--green);font-weight:700">${r.cost_of_unit != null ? '£' + r.cost_of_unit.toFixed(2) : '—'}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </div>` : `<div style="padding:20px;text-align:center;color:var(--text4);font-size:13px">Nothing to import — all rows are duplicates or incomplete.</div>`}
+    </div>`;
+}
+
+async function confirmImportOffers() {
+  const rows = window._pendingImportOffers;
+  if (!rows || !rows.length) { toast('Nothing to import', 'error'); return; }
+
+  const btn = document.querySelector('#importOffersFoot .btn-primary');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner spin-sm" style="border-color:rgba(255,255,255,.3);border-top-color:#fff;flex-shrink:0"></span> Importing…'; }
+
+  const tid = toast('Importing ' + rows.length + ' offers…', 'loading', 0);
+  try {
+    const BATCH = 500;
+    for (let i = 0; i < rows.length; i += BATCH) {
+      const { error } = await sb.from('offers').insert(rows.slice(i, i + BATCH));
+      if (error) throw error;
+    }
+    offersData.push(...rows.map((r, i) => ({ ...r, id: 'imported_' + Date.now() + '_' + i })));
+    // Reload fresh from DB to get real IDs
+    const { data: fresh } = await sb.from('offers').select('*').order('date', { ascending: false });
+    if (fresh) offersData = fresh;
+    populateFilters(); renderView(); updateChips();
+    removeToast(tid);
+    closeImportOffersDrawer();
+    toast(rows.length + ' offers imported ✓', 'success');
+  } catch (e) {
+    removeToast(tid);
+    toast('Import failed: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = 'Confirm Import'; }
+  }
+}
+window.confirmImportOffers = confirmImportOffers;
 
   
 /* ── GLOBALS ── */
