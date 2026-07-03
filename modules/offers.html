@@ -2291,22 +2291,6 @@ async function parseImportOffersPDF(file){
       return;
     }
 
-    // Assign each line to a horizontal lane (column) via x-position clustering
-    const xs = allLines.map(l => l.xMin).sort((a,b) => a - b);
-    const laneBounds = [];
-    let curStart = xs[0];
-    for(let i = 1; i < xs.length; i++){
-      if(xs[i] - xs[i-1] > 45){ laneBounds.push([curStart, xs[i-1]]); curStart = xs[i]; }
-    }
-    laneBounds.push([curStart, xs[xs.length-1]]);
-    const laneIndex = x => {
-      for(let i = 0; i < laneBounds.length; i++){
-        if(x >= laneBounds[i][0] - 20 && x <= laneBounds[i][1] + 45) return i;
-      }
-      return 0;
-    };
-    allLines.forEach(l => l.lane = laneIndex(l.xMin));
-
     const medianH = allLines.map(l=>l.h).sort((a,b)=>a-b)[Math.floor(allLines.length/2)] || 10;
 
     // Anchor lines = lines containing an EAN (8-14 digit run); fallback to price-bearing lines
@@ -2318,69 +2302,44 @@ async function parseImportOffersPDF(file){
       return;
     }
 
-    // If EANs span 2+ distinct lanes, it's a card grid (each lane = one card column).
-    // If they're all in one lane, it's a table (single product column, row spans multiple lanes).
-    const anchorLanes = new Set(anchors.map(a => a.lane));
-    const mode = anchorLanes.size >= 2 ? 'card' : 'table';
-
-    
     const HEADER_WORDS = new Set(['product','description','code','sku','ean','barcode','pallet','layer','case','pack','price','cost','category','unit','inner','was','now','qty','stock','item','no','ref']);
     function isHeaderLike(text){
       const words = text.toLowerCase().replace(/[^a-z0-9\/\s]/g,' ').split(/[\s\/]+/).filter(Boolean);
       if(!words.length) return false;
       return words.every(w => HEADER_WORDS.has(w));
     }
-    
-    let records = [];
-    if(mode === 'card'){
-  const byLane = {};
-  allLines.forEach(l => (byLane[l.lane] = byLane[l.lane] || []).push(l));
-  const anchorSet = new Set(anchors);
-  Object.values(byLane).forEach(laneLines => {
-    laneLines.sort((a,b) => b.y - a.y); // top to bottom
-    let currentBlock = null;
-    laneLines.forEach(l => {
-      if(anchorSet.has(l)){
-        if(currentBlock && currentBlock.length){
-          const rec = extractCardFields(currentBlock);
-          if(rec) records.push(rec);
-        }
-        currentBlock = [l];
-      } else if(currentBlock){
-        currentBlock.push(l);
-      }
-      // lines before the first anchor in this lane (banner/logo) are discarded
-    });
-    if(currentBlock && currentBlock.length){
-      const rec = extractCardFields(currentBlock);
-      if(rec) records.push(rec);
-    }
-  });
-}
-    else {
-      // Table mode: attach wrapped/nearby text (like a 2-line product name) to its nearest anchor row
-      const anchorSet = new Set(anchors);
-      const orphans = allLines.filter(l => !anchorSet.has(l));
-      const cap = medianH * 4;
-      const groups = anchors.map(a => ({ anchor: a, extra: [] }));
-      orphans.forEach(o => {
-        
-        if(isHeaderLike(o.text)) return;
-        let best = null, bestDist = Infinity;
-        groups.forEach(g => {
-          if(g.anchor.page !== o.page) return;
-          const d = Math.abs(g.anchor.y - o.y);
-          if(d < bestDist){ bestDist = d; best = g; }
-        });
-        if(best && bestDist <= cap) best.extra.push(o);
-      });
-      groups.forEach(g => {
-        const block = [g.anchor, ...g.extra].sort((a,b)=>b.y-a.y);
-        const rec = extractCardFields(block);
-        if(rec) records.push(rec);
-      });
+
+    // Assign every non-anchor line to its nearest anchor using bounding-box distance.
+    // This works for both table rows (wrapped names) and card grids (EAN corner + card content)
+    // without needing to guess columns/lanes first.
+    const anchorSet = new Set(anchors);
+    const orphans = allLines.filter(l => !anchorSet.has(l));
+    const cap = medianH * 8;
+    const groups = anchors.map(a => ({ anchor: a, extra: [] }));
+
+    function bboxDist(a, b){
+      const hGap = Math.max(0, b.xMin - a.xMax, a.xMin - b.xMax);
+      const vGap = Math.abs(a.y - b.y);
+      return hGap + vGap;
     }
 
+    orphans.forEach(o => {
+      if(isHeaderLike(o.text)) return;
+      let best = null, bestDist = Infinity;
+      groups.forEach(g => {
+        if(g.anchor.page !== o.page) return;
+        const d = bboxDist(g.anchor, o);
+        if(d < bestDist){ bestDist = d; best = g; }
+      });
+      if(best && bestDist <= cap) best.extra.push(o);
+    });
+
+    let records = [];
+    groups.forEach(g => {
+      const block = [g.anchor, ...g.extra].sort((a,b) => b.y - a.y);
+      const rec = extractCardFields(block);
+      if(rec) records.push(rec);
+    });
     if(!records.length){
       document.getElementById('importOffersResult').innerHTML =
         `<div style="margin-top:12px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r-sm);font-size:12px;color:var(--red);font-weight:600">Could not identify products in this PDF. Try CSV/XLSX instead.</div>`;
