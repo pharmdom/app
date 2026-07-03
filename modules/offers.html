@@ -2326,28 +2326,32 @@ async function parseImportOffersPDF(file){
     const HEADER_STOP = new Set(['product','description','code','sku','ean','barcode','pallet/layer','pallet','layer','case','pack','price','cost','category','unit','inner ean','was case price','now case price','unit price','pallet price']);
 
     let records = [];
-
     if(mode === 'card'){
-      const byLane = {};
-      allLines.forEach(l => (byLane[l.lane] = byLane[l.lane] || []).push(l));
-      Object.values(byLane).forEach(laneLines => {
-        laneLines.sort((a,b) => b.y - a.y);
-        let block = [], lastY = null;
-        laneLines.forEach(l => {
-          if(block.length && lastY != null && (lastY - l.y) > medianH * 3){
-            const rec = extractCardFields(block);
-            if(rec) records.push(rec);
-            block = [];
-          }
-          block.push(l);
-          lastY = l.y;
-        });
-        if(block.length){
-          const rec = extractCardFields(block);
+  const byLane = {};
+  allLines.forEach(l => (byLane[l.lane] = byLane[l.lane] || []).push(l));
+  const anchorSet = new Set(anchors);
+  Object.values(byLane).forEach(laneLines => {
+    laneLines.sort((a,b) => b.y - a.y); // top to bottom
+    let currentBlock = null;
+    laneLines.forEach(l => {
+      if(anchorSet.has(l)){
+        if(currentBlock && currentBlock.length){
+          const rec = extractCardFields(currentBlock);
           if(rec) records.push(rec);
         }
-      });
-    } else {
+        currentBlock = [l];
+      } else if(currentBlock){
+        currentBlock.push(l);
+      }
+      // lines before the first anchor in this lane (banner/logo) are discarded
+    });
+    if(currentBlock && currentBlock.length){
+      const rec = extractCardFields(currentBlock);
+      if(rec) records.push(rec);
+    }
+  });
+}
+    else {
       // Table mode: attach wrapped/nearby text (like a 2-line product name) to its nearest anchor row
       const anchorSet = new Set(anchors);
       const orphans = allLines.filter(l => !anchorSet.has(l));
@@ -2355,7 +2359,7 @@ async function parseImportOffersPDF(file){
       const groups = anchors.map(a => ({ anchor: a, extra: [] }));
       orphans.forEach(o => {
         const t = o.text.trim().toLowerCase();
-        if(HEADER_STOP.has(t)) return;
+        if(isHeaderLike(o.text)) return;
         let best = null, bestDist = Infinity;
         groups.forEach(g => {
           if(g.anchor.page !== o.page) return;
