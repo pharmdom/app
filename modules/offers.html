@@ -2207,80 +2207,89 @@ async function parseImportOffersPDF(file){
     await window._pdfJsReady;
     const buf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-    let allLines = [];
+    let allBlocks = [];
 
     for(let p = 1; p <= pdf.numPages; p++){
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
       const items = content.items
-        .map(it => ({ str: it.str, x: it.transform[4], y: it.transform[5], w: it.width }))
+        .map(it => ({
+          str: it.str,
+          x: it.transform[4],
+          y: it.transform[5],
+          w: it.width,
+          h: Math.abs(it.transform[3]) || Math.abs(it.transform[0]) || 10
+        }))
         .filter(it => it.str && it.str.trim());
+      if(!items.length) continue;
+
+      // Group items into lines (same baseline y)
       items.sort((a,b) => b.y - a.y || a.x - b.x);
       const lines = [];
       items.forEach(it => {
-        let line = lines.find(l => Math.abs(l.y - it.y) < 3);
-        if(!line){ line = { y: it.y, items: [] }; lines.push(line); }
+        let line = lines.find(l => Math.abs(l.y - it.y) < Math.max(2, it.h * 0.3));
+        if(!line){ line = { y: it.y, items: [], h: it.h }; lines.push(line); }
         line.items.push(it);
+        line.h = Math.max(line.h, it.h);
       });
+
+      // Join line text using actual gap distance (fixes letter-spaced garbage)
       lines.forEach(l => {
         l.items.sort((a,b) => a.x - b.x);
-        l.text = l.items.map(i => i.str).join(' ').replace(/\s+/g,' ').trim();
+        let text = '', prevEnd = null;
+        l.items.forEach(it => {
+          if(prevEnd !== null){
+            const gap = it.x - prevEnd;
+            if(gap > it.h * 0.28) text += ' ';
+          }
+          text += it.str;
+          prevEnd = it.x + (it.w || it.str.length * it.h * 0.5);
+        });
+        l.text = text.replace(/\s+/g,' ').trim();
         l.xMin = Math.min(...l.items.map(i => i.x));
+        l.xMax = Math.max(...l.items.map(i => i.x + (i.w||0)));
         l.page = p;
       });
-      allLines.push(...lines.filter(l => l.text));
-    }
+      const validLines = lines.filter(l => l.text);
+      validLines.sort((a,b) => b.y - a.y);
 
-    if(!allLines.length){
-      showImportOffersPDFEditable([]);
-      return;
-    }
-
-    // Cluster lines into columns by x position (handles multi-column flyers)
-    const xs = allLines.map(l => l.xMin).sort((a,b) => a - b);
-    const colBounds = [];
-    let curStart = xs[0];
-    for(let i = 1; i < xs.length; i++){
-      if(xs[i] - xs[i-1] > 80){ colBounds.push([curStart, xs[i-1]]); curStart = xs[i]; }
-    }
-    colBounds.push([curStart, xs[xs.length-1]]);
-    const colIndex = x => {
-      for(let i = 0; i < colBounds.length; i++){
-        if(x >= colBounds[i][0] - 40 && x <= colBounds[i][1] + 80) return i;
+      // Group lines into blocks (cards) via 2D proximity — fixes cards merging together
+      const used = new Array(validLines.length).fill(false);
+      for(let i = 0; i < validLines.length; i++){
+        if(used[i]) continue;
+        const block = [validLines[i]];
+        used[i] = true;
+        let changed = true;
+        while(changed){
+          changed = false;
+          for(let j = 0; j < validLines.length; j++){
+            if(used[j]) continue;
+            const lj = validLines[j];
+            const belongs = block.some(lb => {
+              const vGap = Math.abs(lb.y - lj.y);
+              const hOverlap = !(lb.xMax < lj.xMin - lb.h*1.5) && !(lj.xMax < lb.xMin - lb.h*1.5);
+              return vGap < lb.h * 2.2 && hOverlap;
+            });
+            if(belongs){ block.push(lj); used[j] = true; changed = true; }
+          }
+        }
+        allBlocks.push(block);
       }
-      return 0;
-    };
-    allLines.forEach(l => l.col = colIndex(l.xMin));
-
-    // Group lines by page+column, then split into blocks by vertical gaps
-    const groups = {};
-    allLines.forEach(l => {
-      const k = l.page + '_' + l.col;
-      (groups[k] = groups[k] || []).push(l);
-    });
-    const blocks = [];
-    Object.values(groups).forEach(arr => {
-      arr.sort((a,b) => b.y - a.y);
-      let cur = null, lastY = null;
-      arr.forEach(l => {
-        if(cur && lastY != null && (lastY - l.y) < 40){ cur.push(l); }
-        else { cur = [l]; blocks.push(cur); }
-        lastY = l.y;
-      });
-    });
+    }
 
     // Extract product_name / ean / cost per block
     const rows = [];
-    blocks.forEach(block => {
+    allBlocks.forEach(block => {
       const text = block.map(l => l.text).join(' ');
       const prices = [...text.matchAll(/£\s?(\d+(?:\.\d{1,2})?)/g)].map(m => parseFloat(m[1])).filter(n => !isNaN(n));
       const eanMatch = text.match(/\b\d{8,14}\b/);
       if(!prices.length && !eanMatch) return;
-      const cost = prices.length ? Math.min(...prices) : null; // lowest price = cost
+      const cost = prices.length ? Math.min(...prices) : null;
       const ean = eanMatch ? eanMatch[0] : null;
       const nameCandidates = block.map(l => l.text)
         .filter(t => !/^£?\s?\d+(\.\d+)?$/.test(t))
         .filter(t => !/^\d{8,14}$/.test(t))
+        .filter(t => !/^pallet[:\s]/i.test(t))
         .filter(t => t.replace(/[^a-zA-Z]/g,'').length > 3);
       nameCandidates.sort((a,b) => b.length - a.length);
       const product_name = nameCandidates[0] || '';
