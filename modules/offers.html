@@ -2206,6 +2206,37 @@ const fields = [
 
 
 /* ── PDF PARSING ── */
+function extractCardFields(blockLines){
+  const text = blockLines.map(l => l.text).join(' ');
+  const prices = [...text.matchAll(/£\s?(\d+(?:\.\d{1,2})?)/g)].map(m => parseFloat(m[1])).filter(n => !isNaN(n));
+  const cost = prices.length ? Math.min(...prices) : null;
+
+  const eanMatch = text.match(/\b\d{8,14}\b/);
+  const ean = eanMatch ? eanMatch[0] : null;
+
+  // Code: a standalone short digit token (4-7 digits) that isn't the EAN
+  let code = null;
+  for(const l of blockLines){
+    const t = l.text.trim();
+    if(/^\d{4,7}$/.test(t) && t !== ean){ code = t; break; }
+  }
+
+  const caseMatch = text.match(/\d+\s*[xX]\s*\d+\s*ML/i);
+  const caseSize = caseMatch ? caseMatch[0].replace(/\s+/g,' ').trim() : null;
+
+  const nameCandidates = blockLines.map(l => l.text)
+    .filter(t => !/^£?\s?\d+(\.\d+)?$/.test(t))
+    .filter(t => !/^\d{4,14}$/.test(t))
+    .filter(t => !/^pallet[:\s]/i.test(t))
+    .filter(t => !/\d+\s*[xX]\s*\d+\s*ML/i.test(t))
+    .filter(t => t.replace(/[^a-zA-Z]/g,'').length > 3);
+  nameCandidates.sort((a,b) => b.length - a.length);
+  const product_name = nameCandidates[0] || '';
+
+  if(!product_name && !ean && cost == null) return null;
+  return { product_name, ean, cost, code, caseSize };
+}
+
 async function parseImportOffersPDF(file){
   document.getElementById('importOffersResult').innerHTML =
     `<div style="margin-top:16px;text-align:center;padding:24px"><span class="spinner spin-md"></span><p style="margin-top:10px;font-size:12.5px;color:var(--text3)">Reading PDF…</p></div>`;
@@ -2213,18 +2244,15 @@ async function parseImportOffersPDF(file){
     await window._pdfJsReady;
     const buf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-    let allRows = [];
+    let allLines = [];
 
     for(let p = 1; p <= pdf.numPages; p++){
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
       const items = content.items
         .map(it => ({
-          str: it.str,
-          x: it.transform[4],
-          y: it.transform[5],
-          w: it.width,
-          h: Math.abs(it.transform[3]) || Math.abs(it.transform[0]) || 10
+          str: it.str, x: it.transform[4], y: it.transform[5],
+          w: it.width, h: Math.abs(it.transform[3]) || Math.abs(it.transform[0]) || 10
         }))
         .filter(it => it.str && it.str.trim());
       if(!items.length) continue;
@@ -2233,54 +2261,98 @@ async function parseImportOffersPDF(file){
       const lines = [];
       items.forEach(it => {
         let line = lines.find(l => Math.abs(l.y - it.y) < Math.max(2, it.h * 0.3));
-        if(!line){ line = { y: it.y, items: [], h: it.h }; lines.push(line); }
+        if(!line){ line = { y: it.y, items: [], h: it.h, page: p }; lines.push(line); }
         line.items.push(it);
         line.h = Math.max(line.h, it.h);
       });
-      lines.sort((a,b) => b.y - a.y);
 
-      // Split each line into cells: small gap = same cell, big gap = new column
       lines.forEach(l => {
         l.items.sort((a,b) => a.x - b.x);
-        const cells = [];
+        l.cells = []; l.text = '';
         let cur = '', prevEnd = null;
         l.items.forEach(it => {
           if(prevEnd !== null){
             const gap = it.x - prevEnd;
-            if(gap > it.h * 2.5){
-              cells.push(cur.trim());
-              cur = '';
-            } else if(gap > it.h * 0.28){
-              cur += ' ';
-            }
+            if(gap > it.h * 2.5){ l.cells.push(cur.trim()); cur = ''; }
+            else if(gap > it.h * 0.28){ cur += ' '; }
           }
           cur += it.str;
           prevEnd = it.x + (it.w || it.str.length * it.h * 0.5);
         });
-        if(cur.trim()) cells.push(cur.trim());
-        if(cells.length) allRows.push(cells);
+        if(cur.trim()) l.cells.push(cur.trim());
+        l.text = l.cells.join(' ').trim();
+        l.xMin = Math.min(...l.items.map(i => i.x));
+        l.xMax = Math.max(...l.items.map(i => i.x + (i.w||0)));
       });
+
+      allLines.push(...lines.filter(l => l.text));
     }
 
-    if(!allRows.length){
+    if(!allLines.length){
       document.getElementById('importOffersResult').innerHTML =
         `<div style="margin-top:12px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r-sm);font-size:12px;color:var(--red);font-weight:600">No readable text found in this PDF.</div>`;
       return;
     }
 
-    // Convert to CSV-formatted lines so the existing header-picker + mapping UI can be reused as-is
-    const maxCols = Math.max(...allRows.map(r => r.length));
-    const csvLines = allRows.map(cells => {
-      const padded = cells.slice(0, maxCols);
-      while(padded.length < maxCols) padded.push('');
-      return padded.map(c => {
-        const v = String(c || '');
-        return /[,"\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
-      }).join(',');
-    });
+    // Detect table mode: a real table has full data rows on one line (EAN + price together)
+    const tableLikeLines = allLines.filter(l => /\b\d{8,14}\b/.test(l.text) && /£\s?\d/.test(l.text));
+    const isTableMode = tableLikeLines.length >= 1 && tableLikeLines.length >= allLines.length * 0.05;
 
+    if(isTableMode){
+      // Genuine table: each qualifying line's cells become a CSV row (existing behaviour)
+      const maxCols = Math.max(...allLines.map(l => l.cells.length));
+      const csvLines = allLines.filter(l => l.cells.length).map(l => {
+        const padded = l.cells.slice(0, maxCols);
+        while(padded.length < maxCols) padded.push('');
+        return padded.map(c => {
+          const v = String(c || '');
+          return /[,"\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
+        }).join(',');
+      });
+      _importOffersParsedLines = csvLines;
+      showImportOffersHeaderPicker(csvLines);
+      return;
+    }
+
+    // Card mode: cluster lines into per-product blocks via 2D proximity
+    allLines.sort((a,b) => b.y - a.y);
+    const used = new Array(allLines.length).fill(false);
+    const blocks = [];
+    for(let i = 0; i < allLines.length; i++){
+      if(used[i]) continue;
+      const block = [allLines[i]]; used[i] = true;
+      let changed = true;
+      while(changed){
+        changed = false;
+        for(let j = 0; j < allLines.length; j++){
+          if(used[j]) continue;
+          const lj = allLines[j];
+          const belongs = block.some(lb => {
+            const vGap = Math.abs(lb.y - lj.y);
+            const hOverlap = !(lb.xMax < lj.xMin - lb.h*1.5) && !(lj.xMax < lb.xMin - lb.h*1.5);
+            return vGap < lb.h * 2.2 && hOverlap;
+          });
+          if(belongs){ block.push(lj); used[j] = true; changed = true; }
+        }
+      }
+      blocks.push(block);
+    }
+
+    const records = blocks.map(extractCardFields).filter(Boolean);
+    if(!records.length){
+      document.getElementById('importOffersResult').innerHTML =
+        `<div style="margin-top:12px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r-sm);font-size:12px;color:var(--red);font-weight:600">Could not identify products in this PDF. Try CSV/XLSX instead.</div>`;
+      return;
+    }
+
+    const csvEsc = v => { v = String(v ?? ''); return /[,"\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; };
+    const csvLines = [
+      ['Product Name','EAN','Cost','Code','Case/Pack'].map(csvEsc).join(','),
+      ...records.map(r => [r.product_name||'', r.ean||'', r.cost!=null?r.cost.toFixed(2):'', r.code||'', r.caseSize||''].map(csvEsc).join(','))
+    ];
     _importOffersParsedLines = csvLines;
     showImportOffersHeaderPicker(csvLines);
+    selectImportOffersHeaderRow(0); // our synthetic header is always row 1
   }catch(e){
     document.getElementById('importOffersResult').innerHTML =
       `<div style="margin-top:12px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r-sm);font-size:12px;color:var(--red);font-weight:600">Failed to read PDF: ${esc(e.message)}</div>`;
