@@ -609,6 +609,25 @@ body{overflow:hidden}
   </div>
 </div>
 
+
+
+
+<script>
+(function(){
+  window._pdfJsReady = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      resolve();
+    };
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+})();
+</script>
+
+
 <script>
 (function(){
 'use strict';
@@ -1929,6 +1948,8 @@ window.addSrcMultiEanRow=addSrcMultiEanRow;
 
 
 /* ── IMPORT OFFERS ── */
+let _importOffersMode = 'csv';   // 'csv' | 'pdf'
+let _pdfEditableRows = [];
 let _importOffersRows = [];
 let _importOffersSuppliers = [];
 let _importOffersMapping = {};
@@ -1938,6 +1959,8 @@ async function openImportOffersDrawer() {
   _importOffersRows = [];
   _importOffersParsedLines = [];
   _importOffersMapping = {};
+  _importOffersMode = 'csv';
+  _pdfEditableRows = [];
   document.getElementById('importOffersTitle').textContent = 'Import Offers';
   document.getElementById('importOffersBtn').disabled = true;
 
@@ -1969,7 +1992,7 @@ window.closeImportOffersDrawer = closeImportOffersDrawer;
 function buildImportOffersUploadUI() {
   document.getElementById('importOffersBody').innerHTML = `
     <p style="font-size:12.5px;color:var(--text3);margin-bottom:16px;line-height:1.55">
-      Upload a CSV or XLSX file with offer data. You'll map columns to fields on the next step.
+      Upload a CSV, XLSX, or PDF file with offer data. You'll map columns to fields on the next step.
     </p>
     <div id="importOffersZone" onclick="document.getElementById('importOffersFileInput').click()"
       ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
@@ -1978,8 +2001,8 @@ function buildImportOffersUploadUI() {
       style="border:2px dashed var(--border);border-radius:var(--r-lg);padding:36px 20px;text-align:center;cursor:pointer;background:var(--surface2);transition:all .2s">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32" style="color:var(--text4);margin:0 auto 10px;display:block"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       <p style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:4px">Click to upload or drag & drop</p>
-      <span style="font-size:12px;color:var(--text4)">CSV or XLSX</span>
-      <input type="file" id="importOffersFileInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleImportOffersFile(this.files[0])">
+      <span style="font-size:12px;color:var(--text4)">CSV, XLSX, or PDF</span>
+      <input type="file" id="importOffersFileInput" accept=".csv,.xlsx,.xls,.pdf" style="display:none" onchange="handleImportOffersFile(this.files[0])">
     </div>
     <div id="importOffersResult"></div>`;
 }
@@ -1996,11 +2019,12 @@ function handleImportOffersFile(file) {
   if (!file) return;
   const ext = file.name.split('.').pop().toLowerCase();
   if (ext === 'csv') {
+    _importOffersMode = 'csv';
     const reader = new FileReader();
     reader.onload = e => parseImportOffersCSV(e.target.result);
     reader.readAsText(file, 'latin1');
   } else if (ext === 'xlsx' || ext === 'xls') {
-    // Load XLSX lazily
+    _importOffersMode = 'csv';
     if (!window.XLSX) {
       const s = document.createElement('script');
       s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
@@ -2023,9 +2047,12 @@ function handleImportOffersFile(file) {
       };
       reader.readAsArrayBuffer(file);
     }
+  } else if (ext === 'pdf') {
+    _importOffersMode = 'pdf';
+    parseImportOffersPDF(file);
   } else {
     document.getElementById('importOffersResult').innerHTML =
-      `<div style="margin-top:12px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r-sm);font-size:12px;color:var(--red);font-weight:600">Unsupported file type. Use CSV or XLSX.</div>`;
+      `<div style="margin-top:12px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r-sm);font-size:12px;color:var(--red);font-weight:600">Unsupported file type. Use CSV, XLSX, or PDF.</div>`;
   }
 }
 window.handleImportOffersFile = handleImportOffersFile;
@@ -2171,31 +2198,207 @@ function showImportOffersMapping(headers, rows) {
   document.getElementById('importOffersBtn').disabled = false;
 }
 
+
+/* ── PDF PARSING ── */
+async function parseImportOffersPDF(file){
+  document.getElementById('importOffersResult').innerHTML =
+    `<div style="margin-top:16px;text-align:center;padding:24px"><span class="spinner spin-md"></span><p style="margin-top:10px;font-size:12.5px;color:var(--text3)">Reading PDF…</p></div>`;
+  try{
+    await window._pdfJsReady;
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    let allLines = [];
+
+    for(let p = 1; p <= pdf.numPages; p++){
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      const items = content.items
+        .map(it => ({ str: it.str, x: it.transform[4], y: it.transform[5], w: it.width }))
+        .filter(it => it.str && it.str.trim());
+      items.sort((a,b) => b.y - a.y || a.x - b.x);
+      const lines = [];
+      items.forEach(it => {
+        let line = lines.find(l => Math.abs(l.y - it.y) < 3);
+        if(!line){ line = { y: it.y, items: [] }; lines.push(line); }
+        line.items.push(it);
+      });
+      lines.forEach(l => {
+        l.items.sort((a,b) => a.x - b.x);
+        l.text = l.items.map(i => i.str).join(' ').replace(/\s+/g,' ').trim();
+        l.xMin = Math.min(...l.items.map(i => i.x));
+        l.page = p;
+      });
+      allLines.push(...lines.filter(l => l.text));
+    }
+
+    if(!allLines.length){
+      showImportOffersPDFEditable([]);
+      return;
+    }
+
+    // Cluster lines into columns by x position (handles multi-column flyers)
+    const xs = allLines.map(l => l.xMin).sort((a,b) => a - b);
+    const colBounds = [];
+    let curStart = xs[0];
+    for(let i = 1; i < xs.length; i++){
+      if(xs[i] - xs[i-1] > 80){ colBounds.push([curStart, xs[i-1]]); curStart = xs[i]; }
+    }
+    colBounds.push([curStart, xs[xs.length-1]]);
+    const colIndex = x => {
+      for(let i = 0; i < colBounds.length; i++){
+        if(x >= colBounds[i][0] - 40 && x <= colBounds[i][1] + 80) return i;
+      }
+      return 0;
+    };
+    allLines.forEach(l => l.col = colIndex(l.xMin));
+
+    // Group lines by page+column, then split into blocks by vertical gaps
+    const groups = {};
+    allLines.forEach(l => {
+      const k = l.page + '_' + l.col;
+      (groups[k] = groups[k] || []).push(l);
+    });
+    const blocks = [];
+    Object.values(groups).forEach(arr => {
+      arr.sort((a,b) => b.y - a.y);
+      let cur = null, lastY = null;
+      arr.forEach(l => {
+        if(cur && lastY != null && (lastY - l.y) < 40){ cur.push(l); }
+        else { cur = [l]; blocks.push(cur); }
+        lastY = l.y;
+      });
+    });
+
+    // Extract product_name / ean / cost per block
+    const rows = [];
+    blocks.forEach(block => {
+      const text = block.map(l => l.text).join(' ');
+      const prices = [...text.matchAll(/£\s?(\d+(?:\.\d{1,2})?)/g)].map(m => parseFloat(m[1])).filter(n => !isNaN(n));
+      const eanMatch = text.match(/\b\d{8,14}\b/);
+      if(!prices.length && !eanMatch) return;
+      const cost = prices.length ? Math.min(...prices) : null; // lowest price = cost
+      const ean = eanMatch ? eanMatch[0] : null;
+      const nameCandidates = block.map(l => l.text)
+        .filter(t => !/^£?\s?\d+(\.\d+)?$/.test(t))
+        .filter(t => !/^\d{8,14}$/.test(t))
+        .filter(t => t.replace(/[^a-zA-Z]/g,'').length > 3);
+      nameCandidates.sort((a,b) => b.length - a.length);
+      const product_name = nameCandidates[0] || '';
+      if(!product_name && !ean && cost == null) return;
+      rows.push({ product_name, ean, cost_of_unit: cost });
+    });
+
+    showImportOffersPDFEditable(rows);
+  }catch(e){
+    document.getElementById('importOffersResult').innerHTML =
+      `<div style="margin-top:12px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r-sm);font-size:12px;color:var(--red);font-weight:600">Failed to read PDF: ${esc(e.message)}</div>`;
+  }
+}
+
+function showImportOffersPDFEditable(rows){
+  _pdfEditableRows = rows.map((r,i) => ({ ...r, _id: i }));
+  const supOptions = _importOffersSuppliers.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  document.getElementById('importOffersResult').innerHTML = `
+    <div style="margin-top:14px;background:var(--accent-bg);border:1px solid var(--accent-bd);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--accent);font-weight:600;margin-bottom:12px">
+      Extracted ${_pdfEditableRows.length} item${_pdfEditableRows.length !== 1 ? 's' : ''} from PDF — please check and correct before importing
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <label style="font-size:11px;font-weight:700;color:var(--accent);width:110px;flex-shrink:0;text-transform:uppercase;letter-spacing:.4px">Supplier *</label>
+      <select id="importOffersSupplierSel" style="flex:1;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none">
+        <option value="">— Select supplier —</option>
+        ${supOptions}
+      </select>
+    </div>
+    <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-bottom:1px solid var(--border)">
+        <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Review Extracted Rows</span>
+        <button type="button" onclick="addPDFEditableRow()" style="font-size:11px;font-weight:700;color:var(--accent);background:none;border:none;cursor:pointer">+ Add row</button>
+      </div>
+      <div style="max-height:320px;overflow-y:auto" id="pdfEditableRowsWrap">${renderPDFEditableRows()}</div>
+    </div>`;
+  document.getElementById('importOffersBtn').disabled = _pdfEditableRows.length === 0;
+}
+
+function renderPDFEditableRows(){
+  if(!_pdfEditableRows.length){
+    return `<div style="padding:20px;text-align:center;color:var(--text4);font-size:12.5px">No rows detected — click "+ Add row" to enter manually</div>`;
+  }
+  return `<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr>
+      <th style="padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--border);text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;color:var(--text4)">Product Name</th>
+      <th style="padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--border);text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;color:var(--text4);width:130px">EAN</th>
+      <th style="padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--border);text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;color:var(--text4);width:90px">Cost £</th>
+      <th style="width:32px"></th>
+    </tr></thead>
+    <tbody>
+      ${_pdfEditableRows.map(r => `<tr data-rid="${r._id}">
+        <td style="padding:4px 6px;border-bottom:1px solid var(--border2)"><input value="${esc(r.product_name||'')}" oninput="updatePDFRow(${r._id},'product_name',this.value)" style="width:100%;padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--font)"></td>
+        <td style="padding:4px 6px;border-bottom:1px solid var(--border2)"><input value="${esc(r.ean||'')}" oninput="updatePDFRow(${r._id},'ean',this.value)" style="width:100%;padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--mono)"></td>
+        <td style="padding:4px 6px;border-bottom:1px solid var(--border2)"><input type="number" step="0.01" value="${r.cost_of_unit != null ? r.cost_of_unit : ''}" oninput="updatePDFRow(${r._id},'cost_of_unit',this.value)" style="width:100%;padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--font)"></td>
+        <td style="padding:4px 6px;border-bottom:1px solid var(--border2);text-align:center">
+          <span onclick="removePDFRow(${r._id})" style="cursor:pointer;color:var(--text4);font-size:13px;font-weight:700" onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text4)'">✕</span>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+window.updatePDFRow = function(id, field, val){
+  const r = _pdfEditableRows.find(x => x._id === id);
+  if(!r) return;
+  r[field] = field === 'cost_of_unit' ? (val === '' ? null : parseFloat(val)) : val;
+};
+window.removePDFRow = function(id){
+  _pdfEditableRows = _pdfEditableRows.filter(r => r._id !== id);
+  document.getElementById('pdfEditableRowsWrap').innerHTML = renderPDFEditableRows();
+  document.getElementById('importOffersBtn').disabled = _pdfEditableRows.length === 0;
+};
+window.addPDFEditableRow = function(){
+  const nid = _pdfEditableRows.length ? Math.max(..._pdfEditableRows.map(r => r._id)) + 1 : 0;
+  _pdfEditableRows.push({ _id: nid, product_name: '', ean: '', cost_of_unit: null });
+  document.getElementById('pdfEditableRowsWrap').innerHTML = renderPDFEditableRows();
+  document.getElementById('importOffersBtn').disabled = _pdfEditableRows.length === 0;
+};
+
+  
 async function doImportOffers() {
   const supplierName = document.getElementById('importOffersSupplierSel')?.value?.trim();
   if (!supplierName) { toast('Select a supplier first', 'error'); return; }
-  if (!_importOffersMapping.product_name) { toast('Map the Product Name column first', 'error'); return; }
-  if (!_importOffersRows.length) { toast('No rows to import', 'error'); return; }
 
-  const today = new Date().toISOString().split('T')[0];
-  const getVal = (row, field) => (_importOffersMapping[field] ? (row[_importOffersMapping[field]] || '').trim() : '');
-
-  // Build valid rows
-  const validRows = [];
+  let validRows = [];
   let skipped = 0;
-  _importOffersRows.forEach(row => {
-    const productName = getVal(row, 'product_name');
-    if (!productName) { skipped++; return; }
-    const eanRaw = getVal(row, 'ean').replace(/\.0+$/, '').trim();
-    const ean = eanRaw || null;
-    const costRaw = getVal(row, 'cost').replace(/[£$,\s]/g, '');
-    const cost = costRaw !== '' ? parseFloat(costRaw) : null;
-    validRows.push({ product_name: productName, ean, cost_of_unit: (!isNaN(cost) && cost !== null) ? cost : null, supplier_name: supplierName, date: today });
-  });
 
-  if (!validRows.length) { toast('No valid rows found — check Product Name mapping', 'error'); return; }
+  if (_importOffersMode === 'pdf') {
+    const today = new Date().toISOString().split('T')[0];
+    _pdfEditableRows.forEach(r => {
+      const productName = (r.product_name || '').trim();
+      if (!productName) { skipped++; return; }
+      const eanRaw = (r.ean || '').replace(/\D/g, '');
+      const ean = /^\d{8,14}$/.test(eanRaw) ? eanRaw : null;
+      const cost = (r.cost_of_unit != null && !isNaN(r.cost_of_unit)) ? r.cost_of_unit : null;
+      validRows.push({ product_name: productName, ean, cost_of_unit: cost, supplier_name: supplierName, date: today });
+    });
+    if (!validRows.length) { toast('No valid rows — add at least one product name', 'error'); return; }
+  } else {
+    if (!_importOffersMapping.product_name) { toast('Map the Product Name column first', 'error'); return; }
+    if (!_importOffersRows.length) { toast('No rows to import', 'error'); return; }
 
-  // Deduplicate against existing offers (same EAN + supplier, non-rejected)
+    const today = new Date().toISOString().split('T')[0];
+    const getVal = (row, field) => (_importOffersMapping[field] ? (row[_importOffersMapping[field]] || '').trim() : '');
+
+    _importOffersRows.forEach(row => {
+      const productName = getVal(row, 'product_name');
+      if (!productName) { skipped++; return; }
+      const eanRaw = getVal(row, 'ean').replace(/\.0+$/, '').trim();
+      const ean = eanRaw || null;
+      const costRaw = getVal(row, 'cost').replace(/[£$,\s]/g, '');
+      const cost = costRaw !== '' ? parseFloat(costRaw) : null;
+      validRows.push({ product_name: productName, ean, cost_of_unit: (!isNaN(cost) && cost !== null) ? cost : null, supplier_name: supplierName, date: today });
+    });
+
+    if (!validRows.length) { toast('No valid rows found — check Product Name mapping', 'error'); return; }
+  }
+
+  // Deduplicate against existing offers (same EAN + supplier, non-rejected) — unchanged
   const existingOffers = offersData.filter(r => (r.approval || '').toLowerCase() !== 'rejected');
   const existingKeys = new Set(existingOffers.map(r => `${String(r.ean || '').trim().toLowerCase()}|${String(r.supplier_name || '').trim().toLowerCase()}`));
 
@@ -2203,12 +2406,10 @@ async function doImportOffers() {
   let duplicates = 0;
   validRows.forEach(row => {
     const key = `${String(row.ean || '').trim().toLowerCase()}|${String(row.supplier_name || '').trim().toLowerCase()}`;
-    // Only deduplicate when EAN is present — no EAN means we can't tell if it's a duplicate
     if (row.ean && existingKeys.has(key)) { duplicates++; return; }
     toInsert.push(row);
   });
 
-  // Show summary before confirming
   showImportOffersSummary(toInsert, duplicates, skipped, supplierName);
 }
 window.doImportOffers = doImportOffers;
