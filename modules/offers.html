@@ -2214,21 +2214,26 @@ function extractCardFields(blockLines){
   const eanMatch = text.match(/\b\d{8,14}\b/);
   const ean = eanMatch ? eanMatch[0] : null;
 
-  // Code: a standalone short digit token (4-7 digits) that isn't the EAN
+  // Code: standalone digit code (4-7 digits) or alphanumeric SKU (letters+digits), excluding the EAN
   let code = null;
   for(const l of blockLines){
     const t = l.text.trim();
-    if(/^\d{4,7}$/.test(t) && t !== ean){ code = t; break; }
+    if(t === ean) continue;
+    if(/^\d{4,7}$/.test(t)){ code = t; break; }
+    if(/^[A-Za-z]{2,6}\d{2,6}$/.test(t)){ code = t; break; }
   }
 
-  const caseMatch = text.match(/\d+\s*[xX]\s*\d+\s*ML/i);
+  // Case/pack size: any "N x M unit" pattern, unit-agnostic (ml, g, kg, l, oz, etc.)
+  const caseMatch = text.match(/\d+\s*[xX]\s*\d+\s*(ml|g|kg|l|oz|ltr|litre|litres)\b/i) ||
+                     text.match(/\bpack of\s*\d+\b/i) ||
+                     text.match(/\bcase of\s*\d+\b/i);
   const caseSize = caseMatch ? caseMatch[0].replace(/\s+/g,' ').trim() : null;
 
   const nameCandidates = blockLines.map(l => l.text)
     .filter(t => !/^£?\s?\d+(\.\d+)?$/.test(t))
     .filter(t => !/^\d{4,14}$/.test(t))
     .filter(t => !/^pallet[:\s]/i.test(t))
-    .filter(t => !/\d+\s*[xX]\s*\d+\s*ML/i.test(t))
+    .filter(t => !/\d+\s*[xX]\s*\d+\s*(ml|g|kg|l|oz|ltr|litre|litres)\b/i.test(t))
     .filter(t => t.replace(/[^a-zA-Z]/g,'').length > 3);
   nameCandidates.sort((a,b) => b.length - a.length);
   const product_name = nameCandidates[0] || '';
