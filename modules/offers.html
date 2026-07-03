@@ -2323,8 +2323,14 @@ async function parseImportOffersPDF(file){
     const anchorLanes = new Set(anchors.map(a => a.lane));
     const mode = anchorLanes.size >= 2 ? 'card' : 'table';
 
-    const HEADER_STOP = new Set(['product','description','code','sku','ean','barcode','pallet/layer','pallet','layer','case','pack','price','cost','category','unit','inner ean','was case price','now case price','unit price','pallet price']);
-
+    
+    const HEADER_WORDS = new Set(['product','description','code','sku','ean','barcode','pallet','layer','case','pack','price','cost','category','unit','inner','was','now','qty','stock','item','no','ref']);
+    function isHeaderLike(text){
+      const words = text.toLowerCase().replace(/[^a-z0-9\/\s]/g,' ').split(/[\s\/]+/).filter(Boolean);
+      if(!words.length) return false;
+      return words.every(w => HEADER_WORDS.has(w));
+    }
+    
     let records = [];
     if(mode === 'card'){
   const byLane = {};
@@ -2358,7 +2364,7 @@ async function parseImportOffersPDF(file){
       const cap = medianH * 4;
       const groups = anchors.map(a => ({ anchor: a, extra: [] }));
       orphans.forEach(o => {
-        const t = o.text.trim().toLowerCase();
+        
         if(isHeaderLike(o.text)) return;
         let best = null, bestDist = Infinity;
         groups.forEach(g => {
