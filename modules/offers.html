@@ -2214,29 +2214,24 @@ function extractCardFields(blockLines){
   const eanMatch = text.match(/\b\d{8,14}\b/);
   const ean = eanMatch ? eanMatch[0] : null;
 
-  // Code: standalone digit code (4-7 digits) or alphanumeric SKU (letters+digits), excluding the EAN
-  let code = null;
-  for(const l of blockLines){
-    const t = l.text.trim();
-    if(t === ean) continue;
-    if(/^\d{4,7}$/.test(t)){ code = t; break; }
-    if(/^[A-Za-z]{2,6}\d{2,6}$/.test(t)){ code = t; break; }
+  const numTokens = [...text.matchAll(/\b\d{4,14}\b/g)].map(m => m[0]);
+  let code = numTokens.find(t => t.length >= 4 && t.length <= 7 && t !== ean) || null;
+  if(!code){
+    const skuMatch = text.match(/\b[A-Za-z]{2,6}\d{2,6}\b/);
+    code = skuMatch ? skuMatch[0] : null;
   }
 
-  // Case/pack size: any "N x M unit" pattern, unit-agnostic (ml, g, kg, l, oz, etc.)
   const caseMatch = text.match(/\d+\s*[xX]\s*\d+\s*(ml|g|kg|l|oz|ltr|litre|litres)\b/i) ||
                      text.match(/\bpack of\s*\d+\b/i) ||
                      text.match(/\bcase of\s*\d+\b/i);
   const caseSize = caseMatch ? caseMatch[0].replace(/\s+/g,' ').trim() : null;
 
-  const nameCandidates = blockLines.map(l => l.text)
-    .filter(t => !/^£?\s?\d+(\.\d+)?$/.test(t))
-    .filter(t => !/^\d{4,14}$/.test(t))
+  const nameParts = blockLines.map(l => l.text)
+    .filter(t => !/£\s?\d/.test(t))
     .filter(t => !/^pallet[:\s]/i.test(t))
     .filter(t => !/\d+\s*[xX]\s*\d+\s*(ml|g|kg|l|oz|ltr|litre|litres)\b/i.test(t))
-    .filter(t => t.replace(/[^a-zA-Z]/g,'').length > 3);
-  nameCandidates.sort((a,b) => b.length - a.length);
-  const product_name = nameCandidates[0] || '';
+    .filter(t => t.replace(/[^a-zA-Z]/g,'').length > 1);
+  const product_name = nameParts.join(' ').replace(/\s+/g,' ').trim();
 
   if(!product_name && !ean && cost == null) return null;
   return { product_name, ean, cost, code, caseSize };
@@ -2273,19 +2268,16 @@ async function parseImportOffersPDF(file){
 
       lines.forEach(l => {
         l.items.sort((a,b) => a.x - b.x);
-        l.cells = []; l.text = '';
-        let cur = '', prevEnd = null;
+        let text = '', prevEnd = null;
         l.items.forEach(it => {
           if(prevEnd !== null){
             const gap = it.x - prevEnd;
-            if(gap > it.h * 2.5){ l.cells.push(cur.trim()); cur = ''; }
-            else if(gap > it.h * 0.28){ cur += ' '; }
+            if(gap > it.h * 0.28) text += ' ';
           }
-          cur += it.str;
+          text += it.str;
           prevEnd = it.x + (it.w || it.str.length * it.h * 0.5);
         });
-        if(cur.trim()) l.cells.push(cur.trim());
-        l.text = l.cells.join(' ').trim();
+        l.text = text.replace(/\s+/g,' ').trim();
         l.xMin = Math.min(...l.items.map(i => i.x));
         l.xMax = Math.max(...l.items.map(i => i.x + (i.w||0)));
       });
@@ -2299,51 +2291,86 @@ async function parseImportOffersPDF(file){
       return;
     }
 
-    // Detect table mode: a real table has full data rows on one line (EAN + price together)
-    const tableLikeLines = allLines.filter(l => /\b\d{8,14}\b/.test(l.text) && /£\s?\d/.test(l.text));
-    const isTableMode = tableLikeLines.length >= 1 && tableLikeLines.length >= allLines.length * 0.05;
+    // Assign each line to a horizontal lane (column) via x-position clustering
+    const xs = allLines.map(l => l.xMin).sort((a,b) => a - b);
+    const laneBounds = [];
+    let curStart = xs[0];
+    for(let i = 1; i < xs.length; i++){
+      if(xs[i] - xs[i-1] > 45){ laneBounds.push([curStart, xs[i-1]]); curStart = xs[i]; }
+    }
+    laneBounds.push([curStart, xs[xs.length-1]]);
+    const laneIndex = x => {
+      for(let i = 0; i < laneBounds.length; i++){
+        if(x >= laneBounds[i][0] - 20 && x <= laneBounds[i][1] + 45) return i;
+      }
+      return 0;
+    };
+    allLines.forEach(l => l.lane = laneIndex(l.xMin));
 
-    if(isTableMode){
-      // Genuine table: each qualifying line's cells become a CSV row (existing behaviour)
-      const maxCols = Math.max(...allLines.map(l => l.cells.length));
-      const csvLines = allLines.filter(l => l.cells.length).map(l => {
-        const padded = l.cells.slice(0, maxCols);
-        while(padded.length < maxCols) padded.push('');
-        return padded.map(c => {
-          const v = String(c || '');
-          return /[,"\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
-        }).join(',');
-      });
-      _importOffersParsedLines = csvLines;
-      showImportOffersHeaderPicker(csvLines);
+    const medianH = allLines.map(l=>l.h).sort((a,b)=>a-b)[Math.floor(allLines.length/2)] || 10;
+
+    // Anchor lines = lines containing an EAN (8-14 digit run); fallback to price-bearing lines
+    let anchors = allLines.filter(l => /\b\d{8,14}\b/.test(l.text));
+    if(!anchors.length) anchors = allLines.filter(l => /£\s?\d/.test(l.text));
+    if(!anchors.length){
+      document.getElementById('importOffersResult').innerHTML =
+        `<div style="margin-top:12px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r-sm);font-size:12px;color:var(--red);font-weight:600">Could not identify products in this PDF. Try CSV/XLSX instead.</div>`;
       return;
     }
 
-    // Card mode: cluster lines into per-product blocks via 2D proximity
-    allLines.sort((a,b) => b.y - a.y);
-    const used = new Array(allLines.length).fill(false);
-    const blocks = [];
-    for(let i = 0; i < allLines.length; i++){
-      if(used[i]) continue;
-      const block = [allLines[i]]; used[i] = true;
-      let changed = true;
-      while(changed){
-        changed = false;
-        for(let j = 0; j < allLines.length; j++){
-          if(used[j]) continue;
-          const lj = allLines[j];
-          const belongs = block.some(lb => {
-            const vGap = Math.abs(lb.y - lj.y);
-            const hOverlap = !(lb.xMax < lj.xMin - lb.h*1.5) && !(lj.xMax < lb.xMin - lb.h*1.5);
-            return vGap < lb.h * 2.2 && hOverlap;
-          });
-          if(belongs){ block.push(lj); used[j] = true; changed = true; }
+    // If EANs span 2+ distinct lanes, it's a card grid (each lane = one card column).
+    // If they're all in one lane, it's a table (single product column, row spans multiple lanes).
+    const anchorLanes = new Set(anchors.map(a => a.lane));
+    const mode = anchorLanes.size >= 2 ? 'card' : 'table';
+
+    const HEADER_STOP = new Set(['product','description','code','sku','ean','barcode','pallet/layer','pallet','layer','case','pack','price','cost','category','unit','inner ean','was case price','now case price','unit price','pallet price']);
+
+    let records = [];
+
+    if(mode === 'card'){
+      const byLane = {};
+      allLines.forEach(l => (byLane[l.lane] = byLane[l.lane] || []).push(l));
+      Object.values(byLane).forEach(laneLines => {
+        laneLines.sort((a,b) => b.y - a.y);
+        let block = [], lastY = null;
+        laneLines.forEach(l => {
+          if(block.length && lastY != null && (lastY - l.y) > medianH * 3){
+            const rec = extractCardFields(block);
+            if(rec) records.push(rec);
+            block = [];
+          }
+          block.push(l);
+          lastY = l.y;
+        });
+        if(block.length){
+          const rec = extractCardFields(block);
+          if(rec) records.push(rec);
         }
-      }
-      blocks.push(block);
+      });
+    } else {
+      // Table mode: attach wrapped/nearby text (like a 2-line product name) to its nearest anchor row
+      const anchorSet = new Set(anchors);
+      const orphans = allLines.filter(l => !anchorSet.has(l));
+      const cap = medianH * 4;
+      const groups = anchors.map(a => ({ anchor: a, extra: [] }));
+      orphans.forEach(o => {
+        const t = o.text.trim().toLowerCase();
+        if(HEADER_STOP.has(t)) return;
+        let best = null, bestDist = Infinity;
+        groups.forEach(g => {
+          if(g.anchor.page !== o.page) return;
+          const d = Math.abs(g.anchor.y - o.y);
+          if(d < bestDist){ bestDist = d; best = g; }
+        });
+        if(best && bestDist <= cap) best.extra.push(o);
+      });
+      groups.forEach(g => {
+        const block = [g.anchor, ...g.extra].sort((a,b)=>b.y-a.y);
+        const rec = extractCardFields(block);
+        if(rec) records.push(rec);
+      });
     }
 
-    const records = blocks.map(extractCardFields).filter(Boolean);
     if(!records.length){
       document.getElementById('importOffersResult').innerHTML =
         `<div style="margin-top:12px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r-sm);font-size:12px;color:var(--red);font-weight:600">Could not identify products in this PDF. Try CSV/XLSX instead.</div>`;
@@ -2352,12 +2379,12 @@ async function parseImportOffersPDF(file){
 
     const csvEsc = v => { v = String(v ?? ''); return /[,"\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; };
     const csvLines = [
-      ['Product Name','EAN','Cost','Code','Case/Pack'].map(csvEsc).join(','),
+      ['Product Name','EAN','Cost','Code','Case Qty'].map(csvEsc).join(','),
       ...records.map(r => [r.product_name||'', r.ean||'', r.cost!=null?r.cost.toFixed(2):'', r.code||'', r.caseSize||''].map(csvEsc).join(','))
     ];
     _importOffersParsedLines = csvLines;
     showImportOffersHeaderPicker(csvLines);
-    selectImportOffersHeaderRow(0); // our synthetic header is always row 1
+    selectImportOffersHeaderRow(0);
   }catch(e){
     document.getElementById('importOffersResult').innerHTML =
       `<div style="margin-top:12px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r-sm);font-size:12px;color:var(--red);font-weight:600">Failed to read PDF: ${esc(e.message)}</div>`;
