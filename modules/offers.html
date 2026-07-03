@@ -1949,7 +1949,6 @@ window.addSrcMultiEanRow=addSrcMultiEanRow;
 
 /* ── IMPORT OFFERS ── */
 let _importOffersMode = 'csv';   // 'csv' | 'pdf'
-let _pdfEditableRows = [];
 let _importOffersRows = [];
 let _importOffersSuppliers = [];
 let _importOffersMapping = {};
@@ -1960,7 +1959,6 @@ async function openImportOffersDrawer() {
   _importOffersParsedLines = [];
   _importOffersMapping = {};
   _importOffersMode = 'csv';
-  _pdfEditableRows = [];
   document.getElementById('importOffersTitle').textContent = 'Import Offers';
   document.getElementById('importOffersBtn').disabled = true;
 
@@ -2131,11 +2129,15 @@ function selectImportOffersHeaderRow(rowIdx) {
 
   // Auto-detect mapping
   const aliases = {
-    product_name: ['product name', 'productname', 'name', 'title', 'description', 'product'],
-    ean: ['ean', 'barcode', 'gtin', 'ean13', 'ean/upc'],
-    cost: ['cost', 'price', 'unit cost', 'cost of unit', 'buy price', 'wholesale price'],
-  };
-  _importOffersMapping = { product_name: '', ean: '', cost: '' };
+  product_name: ['product name', 'productname', 'name', 'title', 'description', 'product'],
+  ean: ['ean', 'barcode', 'gtin', 'ean13', 'ean/upc'],
+  cost: ['cost', 'price', 'unit cost', 'cost of unit', 'buy price', 'wholesale price'],
+  code: ['code', 'sku', 'product code', 'item code'],
+  barcode: ['barcode', 'outer barcode', 'case barcode'],
+  category: ['category', 'cat', 'type'],
+  case_qty: ['case', 'case qty', 'case size', 'pack size', 'qty per case', 'pallet/layer', 'pallet', 'layer'],
+};
+_importOffersMapping = { product_name: '', ean: '', cost: '', code: '', barcode: '', category: '', case_qty: '' };
   Object.entries(aliases).forEach(([field, aliasList]) => {
     const found = headers.find(h => aliasList.includes(h.toLowerCase().trim()));
     if (found) _importOffersMapping[field] = found;
@@ -2151,11 +2153,15 @@ function showImportOffersMapping(headers, rows) {
     ...headers.map(h => `<option value="${esc(h)}" ${_importOffersMapping[field] === h ? 'selected' : ''}>${esc(h)}</option>`)
   ].join('');
 
-  const fields = [
-    { key: 'product_name', label: 'Product Name', required: true },
-    { key: 'ean', label: 'EAN', required: false },
-    { key: 'cost', label: 'Cost (£)', required: false },
-  ];
+const fields = [
+  { key: 'product_name', label: 'Product Name', required: true },
+  { key: 'ean', label: 'EAN', required: false },
+  { key: 'cost', label: 'Cost (£)', required: false },
+  { key: 'code', label: 'Code / SKU', required: false },
+  { key: 'barcode', label: 'Barcode', required: false },
+  { key: 'category', label: 'Category', required: false },
+  { key: 'case_qty', label: 'Case Qty', required: false },
+];
 
   let html = `
     <div style="margin-top:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:14px">
@@ -2207,7 +2213,7 @@ async function parseImportOffersPDF(file){
     await window._pdfJsReady;
     const buf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-    let allBlocks = [];
+    let allRows = [];
 
     for(let p = 1; p <= pdf.numPages; p++){
       const page = await pdf.getPage(p);
@@ -2223,7 +2229,6 @@ async function parseImportOffersPDF(file){
         .filter(it => it.str && it.str.trim());
       if(!items.length) continue;
 
-      // Group items into lines (same baseline y)
       items.sort((a,b) => b.y - a.y || a.x - b.x);
       const lines = [];
       items.forEach(it => {
@@ -2232,182 +2237,90 @@ async function parseImportOffersPDF(file){
         line.items.push(it);
         line.h = Math.max(line.h, it.h);
       });
+      lines.sort((a,b) => b.y - a.y);
 
-      // Join line text using actual gap distance (fixes letter-spaced garbage)
+      // Split each line into cells: small gap = same cell, big gap = new column
       lines.forEach(l => {
         l.items.sort((a,b) => a.x - b.x);
-        let text = '', prevEnd = null;
+        const cells = [];
+        let cur = '', prevEnd = null;
         l.items.forEach(it => {
           if(prevEnd !== null){
             const gap = it.x - prevEnd;
-            if(gap > it.h * 0.28) text += ' ';
+            if(gap > it.h * 2.5){
+              cells.push(cur.trim());
+              cur = '';
+            } else if(gap > it.h * 0.28){
+              cur += ' ';
+            }
           }
-          text += it.str;
+          cur += it.str;
           prevEnd = it.x + (it.w || it.str.length * it.h * 0.5);
         });
-        l.text = text.replace(/\s+/g,' ').trim();
-        l.xMin = Math.min(...l.items.map(i => i.x));
-        l.xMax = Math.max(...l.items.map(i => i.x + (i.w||0)));
-        l.page = p;
+        if(cur.trim()) cells.push(cur.trim());
+        if(cells.length) allRows.push(cells);
       });
-      const validLines = lines.filter(l => l.text);
-      validLines.sort((a,b) => b.y - a.y);
-
-      // Group lines into blocks (cards) via 2D proximity — fixes cards merging together
-      const used = new Array(validLines.length).fill(false);
-      for(let i = 0; i < validLines.length; i++){
-        if(used[i]) continue;
-        const block = [validLines[i]];
-        used[i] = true;
-        let changed = true;
-        while(changed){
-          changed = false;
-          for(let j = 0; j < validLines.length; j++){
-            if(used[j]) continue;
-            const lj = validLines[j];
-            const belongs = block.some(lb => {
-              const vGap = Math.abs(lb.y - lj.y);
-              const hOverlap = !(lb.xMax < lj.xMin - lb.h*1.5) && !(lj.xMax < lb.xMin - lb.h*1.5);
-              return vGap < lb.h * 2.2 && hOverlap;
-            });
-            if(belongs){ block.push(lj); used[j] = true; changed = true; }
-          }
-        }
-        allBlocks.push(block);
-      }
     }
 
-    // Extract product_name / ean / cost per block
-    const rows = [];
-    allBlocks.forEach(block => {
-      const text = block.map(l => l.text).join(' ');
-      const prices = [...text.matchAll(/£\s?(\d+(?:\.\d{1,2})?)/g)].map(m => parseFloat(m[1])).filter(n => !isNaN(n));
-      const eanMatch = text.match(/\b\d{8,14}\b/);
-      if(!prices.length && !eanMatch) return;
-      const cost = prices.length ? Math.min(...prices) : null;
-      const ean = eanMatch ? eanMatch[0] : null;
-      const nameCandidates = block.map(l => l.text)
-        .filter(t => !/^£?\s?\d+(\.\d+)?$/.test(t))
-        .filter(t => !/^\d{8,14}$/.test(t))
-        .filter(t => !/^pallet[:\s]/i.test(t))
-        .filter(t => t.replace(/[^a-zA-Z]/g,'').length > 3);
-      nameCandidates.sort((a,b) => b.length - a.length);
-      const product_name = nameCandidates[0] || '';
-      if(!product_name && !ean && cost == null) return;
-      rows.push({ product_name, ean, cost_of_unit: cost });
+    if(!allRows.length){
+      document.getElementById('importOffersResult').innerHTML =
+        `<div style="margin-top:12px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r-sm);font-size:12px;color:var(--red);font-weight:600">No readable text found in this PDF.</div>`;
+      return;
+    }
+
+    // Convert to CSV-formatted lines so the existing header-picker + mapping UI can be reused as-is
+    const maxCols = Math.max(...allRows.map(r => r.length));
+    const csvLines = allRows.map(cells => {
+      const padded = cells.slice(0, maxCols);
+      while(padded.length < maxCols) padded.push('');
+      return padded.map(c => {
+        const v = String(c || '');
+        return /[,"\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
+      }).join(',');
     });
 
-    showImportOffersPDFEditable(rows);
+    _importOffersParsedLines = csvLines;
+    showImportOffersHeaderPicker(csvLines);
   }catch(e){
     document.getElementById('importOffersResult').innerHTML =
       `<div style="margin-top:12px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r-sm);font-size:12px;color:var(--red);font-weight:600">Failed to read PDF: ${esc(e.message)}</div>`;
   }
 }
 
-function showImportOffersPDFEditable(rows){
-  _pdfEditableRows = rows.map((r,i) => ({ ...r, _id: i }));
-  const supOptions = _importOffersSuppliers.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
-  document.getElementById('importOffersResult').innerHTML = `
-    <div style="margin-top:14px;background:var(--accent-bg);border:1px solid var(--accent-bd);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--accent);font-weight:600;margin-bottom:12px">
-      Extracted ${_pdfEditableRows.length} item${_pdfEditableRows.length !== 1 ? 's' : ''} from PDF — please check and correct before importing
-    </div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-      <label style="font-size:11px;font-weight:700;color:var(--accent);width:110px;flex-shrink:0;text-transform:uppercase;letter-spacing:.4px">Supplier *</label>
-      <select id="importOffersSupplierSel" style="flex:1;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none">
-        <option value="">— Select supplier —</option>
-        ${supOptions}
-      </select>
-    </div>
-    <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-bottom:1px solid var(--border)">
-        <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Review Extracted Rows</span>
-        <button type="button" onclick="addPDFEditableRow()" style="font-size:11px;font-weight:700;color:var(--accent);background:none;border:none;cursor:pointer">+ Add row</button>
-      </div>
-      <div style="max-height:320px;overflow-y:auto" id="pdfEditableRowsWrap">${renderPDFEditableRows()}</div>
-    </div>`;
-  document.getElementById('importOffersBtn').disabled = _pdfEditableRows.length === 0;
-}
-
-function renderPDFEditableRows(){
-  if(!_pdfEditableRows.length){
-    return `<div style="padding:20px;text-align:center;color:var(--text4);font-size:12.5px">No rows detected — click "+ Add row" to enter manually</div>`;
-  }
-  return `<table style="width:100%;border-collapse:collapse;font-size:12px">
-    <thead><tr>
-      <th style="padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--border);text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;color:var(--text4)">Product Name</th>
-      <th style="padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--border);text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;color:var(--text4);width:130px">EAN</th>
-      <th style="padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--border);text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;color:var(--text4);width:90px">Cost £</th>
-      <th style="width:32px"></th>
-    </tr></thead>
-    <tbody>
-      ${_pdfEditableRows.map(r => `<tr data-rid="${r._id}">
-        <td style="padding:4px 6px;border-bottom:1px solid var(--border2)"><input value="${esc(r.product_name||'')}" oninput="updatePDFRow(${r._id},'product_name',this.value)" style="width:100%;padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--font)"></td>
-        <td style="padding:4px 6px;border-bottom:1px solid var(--border2)"><input value="${esc(r.ean||'')}" oninput="updatePDFRow(${r._id},'ean',this.value)" style="width:100%;padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--mono)"></td>
-        <td style="padding:4px 6px;border-bottom:1px solid var(--border2)"><input type="number" step="0.01" value="${r.cost_of_unit != null ? r.cost_of_unit : ''}" oninput="updatePDFRow(${r._id},'cost_of_unit',this.value)" style="width:100%;padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--font)"></td>
-        <td style="padding:4px 6px;border-bottom:1px solid var(--border2);text-align:center">
-          <span onclick="removePDFRow(${r._id})" style="cursor:pointer;color:var(--text4);font-size:13px;font-weight:700" onmouseenter="this.style.color='var(--red)'" onmouseleave="this.style.color='var(--text4)'">✕</span>
-        </td>
-      </tr>`).join('')}
-    </tbody>
-  </table>`;
-}
-window.updatePDFRow = function(id, field, val){
-  const r = _pdfEditableRows.find(x => x._id === id);
-  if(!r) return;
-  r[field] = field === 'cost_of_unit' ? (val === '' ? null : parseFloat(val)) : val;
-};
-window.removePDFRow = function(id){
-  _pdfEditableRows = _pdfEditableRows.filter(r => r._id !== id);
-  document.getElementById('pdfEditableRowsWrap').innerHTML = renderPDFEditableRows();
-  document.getElementById('importOffersBtn').disabled = _pdfEditableRows.length === 0;
-};
-window.addPDFEditableRow = function(){
-  const nid = _pdfEditableRows.length ? Math.max(..._pdfEditableRows.map(r => r._id)) + 1 : 0;
-  _pdfEditableRows.push({ _id: nid, product_name: '', ean: '', cost_of_unit: null });
-  document.getElementById('pdfEditableRowsWrap').innerHTML = renderPDFEditableRows();
-  document.getElementById('importOffersBtn').disabled = _pdfEditableRows.length === 0;
-};
-
-  
-async function doImportOffers() {
+ async function doImportOffers() {
   const supplierName = document.getElementById('importOffersSupplierSel')?.value?.trim();
   if (!supplierName) { toast('Select a supplier first', 'error'); return; }
+  if (!_importOffersMapping.product_name) { toast('Map the Product Name column first', 'error'); return; }
+  if (!_importOffersRows.length) { toast('No rows to import', 'error'); return; }
 
-  let validRows = [];
+  const today = new Date().toISOString().split('T')[0];
+  const getVal = (row, field) => (_importOffersMapping[field] ? (row[_importOffersMapping[field]] || '').trim() : '');
+
+  const validRows = [];
   let skipped = 0;
+  _importOffersRows.forEach(row => {
+    const productName = getVal(row, 'product_name');
+    if (!productName) { skipped++; return; }
+    const eanRaw = getVal(row, 'ean').replace(/\.0+$/, '').trim();
+    const ean = eanRaw || null;
+    const costRaw = getVal(row, 'cost').replace(/[£$,\s]/g, '');
+    const cost = costRaw !== '' ? parseFloat(costRaw) : null;
+    const rowData = {
+      product_name: productName,
+      ean,
+      cost_of_unit: (!isNaN(cost) && cost !== null) ? cost : null,
+      supplier_name: supplierName,
+      date: today,
+    };
+    const code = getVal(row, 'code'); if (code) rowData.code = code;
+    const barcode = getVal(row, 'barcode'); if (barcode) rowData.barcode = barcode;
+    const category = getVal(row, 'category'); if (category) rowData.category = category;
+    const caseQty = getVal(row, 'case_qty'); if (caseQty) rowData.case_qty = caseQty;
+    validRows.push(rowData);
+  });
 
-  if (_importOffersMode === 'pdf') {
-    const today = new Date().toISOString().split('T')[0];
-    _pdfEditableRows.forEach(r => {
-      const productName = (r.product_name || '').trim();
-      if (!productName) { skipped++; return; }
-      const eanRaw = (r.ean || '').replace(/\D/g, '');
-      const ean = /^\d{8,14}$/.test(eanRaw) ? eanRaw : null;
-      const cost = (r.cost_of_unit != null && !isNaN(r.cost_of_unit)) ? r.cost_of_unit : null;
-      validRows.push({ product_name: productName, ean, cost_of_unit: cost, supplier_name: supplierName, date: today });
-    });
-    if (!validRows.length) { toast('No valid rows — add at least one product name', 'error'); return; }
-  } else {
-    if (!_importOffersMapping.product_name) { toast('Map the Product Name column first', 'error'); return; }
-    if (!_importOffersRows.length) { toast('No rows to import', 'error'); return; }
+  if (!validRows.length) { toast('No valid rows found — check Product Name mapping', 'error'); return; }
 
-    const today = new Date().toISOString().split('T')[0];
-    const getVal = (row, field) => (_importOffersMapping[field] ? (row[_importOffersMapping[field]] || '').trim() : '');
-
-    _importOffersRows.forEach(row => {
-      const productName = getVal(row, 'product_name');
-      if (!productName) { skipped++; return; }
-      const eanRaw = getVal(row, 'ean').replace(/\.0+$/, '').trim();
-      const ean = eanRaw || null;
-      const costRaw = getVal(row, 'cost').replace(/[£$,\s]/g, '');
-      const cost = costRaw !== '' ? parseFloat(costRaw) : null;
-      validRows.push({ product_name: productName, ean, cost_of_unit: (!isNaN(cost) && cost !== null) ? cost : null, supplier_name: supplierName, date: today });
-    });
-
-    if (!validRows.length) { toast('No valid rows found — check Product Name mapping', 'error'); return; }
-  }
-
-  // Deduplicate against existing offers (same EAN + supplier, non-rejected) — unchanged
   const existingOffers = offersData.filter(r => (r.approval || '').toLowerCase() !== 'rejected');
   const existingKeys = new Set(existingOffers.map(r => `${String(r.ean || '').trim().toLowerCase()}|${String(r.supplier_name || '').trim().toLowerCase()}`));
 
