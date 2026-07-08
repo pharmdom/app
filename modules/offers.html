@@ -2064,7 +2064,7 @@ function splitImportOffersLine(line) {
     else cur += c;
   }
   result.push(cur);
-  return result;
+  return result.map(v => v.replace(/\xa3/g, '£'));
 }
 
 function parseImportOffersCSV(text) {
@@ -2107,15 +2107,25 @@ function selectImportOffersHeaderRow(rowIdx) {
   if (sel) sel.style.background = 'var(--accent-bg)';
 
   const lines = _importOffersParsedLines;
-  const headers = splitImportOffersLine(lines[rowIdx]).map(h => h.trim().replace(/^"|"$/g, ''));
+const headers = splitImportOffersLine(lines[rowIdx]).map(h => h.trim().replace(/^"|"$/g, '').replace(/\xa3/g, '£'));
 
+  let currentCategory = '';
   const rows = [];
   lines.slice(rowIdx + 1).forEach(line => {
     const vals = splitImportOffersLine(line);
     const cells = vals.map(v => v.trim().replace(/^"|"$/g, ''));
+    const nonEmpty = cells.filter(Boolean);
+    // Detect category-only rows (single non-empty cell, not a number/EAN, not a price)
+    if (nonEmpty.length === 1 && nonEmpty[0].length > 1 && !/^\d{8,14}$/.test(nonEmpty[0]) && !nonEmpty[0].startsWith('£')) {
+      currentCategory = nonEmpty[0];
+      return;
+    }
     if (!cells.some(Boolean)) return;
     const obj = {};
-    headers.forEach((h, i) => obj[h] = (vals[i] || '').trim().replace(/^"|"$/g, ''));
+    headers.forEach((h, i) => obj[h] = (vals[i] || '').trim().replace(/^"|"$/g, '').replace(/\xa3/g, '£'));
+    if (currentCategory && !obj['category'] && !obj['Category'] && !obj['CATEGORY']) {
+      obj['__detectedCategory'] = currentCategory;
+    }
     rows.push(obj);
   });
 
