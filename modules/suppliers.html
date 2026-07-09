@@ -352,7 +352,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
     </div>
     <div class="sc-allcat-search-wrap">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" class="sc-allcat-search-input" id="scAllCatSearch" placeholder="Search by EAN or product name…" oninput="clearTimeout(window._acSt);window._acSt=setTimeout(()=>{acPage=0;renderAllCatalog()},250)">
+      <input type="text" class="sc-allcat-search-input" id="scAllCatSearch" placeholder="Search by EAN or product name…" oninput="clearTimeout(window._acSt);window._acSt=setTimeout(()=>{window.acPage=0;renderAllCatalog()},250)">
     </div>
     
 <button class="sc-select-toggle" id="scAcDownloadBtn" onclick="openDownloadDialog()">
@@ -594,10 +594,10 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
     <div class="sc-cat-toolbar">
       <div class="sc-search-wrap">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" class="sc-search-input" id="scCatSearch" placeholder="Search EAN, product…" oninput="catalogPage=0;renderCatalog()">
+        <input type="text" class="sc-search-input" id="scCatSearch" placeholder="Search EAN, product…" oninput="window.catalogPage=0;renderCatalog()">
       </div>
       <div class="sc-cat-filter-wrap">
-        <select class="sc-cat-select" id="scCatStatusFilter" onchange="catalogPage=0;renderCatalog()" style="max-width:160px">
+        <select class="sc-cat-select" id="scCatStatusFilter" onchange="window.catalogPage=0;renderCatalog()" style="max-width:160px">
           <option value="">All Statuses</option>
           <option value="Approved">Approved</option>
           <option value="Rejected">Rejected</option>
@@ -997,9 +997,19 @@ function toggleSupActionMenu(e){
 }
 function closeSupActionMenu(){document.getElementById('scSupActionMenu')?.classList.remove('open');}
 
-function openSupInsight(sid){
-  const priceChanges=catalogData.filter(r=>r.status==='New price'&&r.old_cost!=null);
-  const newItems=catalogData.filter(r=>r.status==='New');
+async function openSupInsight(sid){
+  // Always use fresh data from DB for accuracy
+  const{data:freshData}=await sb.from('catalog').select('*').eq('supplier_id',sid).order('product_name').limit(10000);
+  const fresh=freshData||[];
+  // Update catalogData in memory if this is the current supplier
+  if(sid===currentSupId){
+    catalogData=fresh;
+    const ids=new Set(fresh.map(c=>c.id));
+    allCatalogData=allCatalogData.filter(c=>!ids.has(c.id));
+    allCatalogData.push(...fresh);
+  }
+  const priceChanges=fresh.filter(r=>r.status==='New price'&&r.old_cost!=null);
+  const newItems=fresh.filter(r=>r.status==='New');
   const card=document.getElementById('scSupCard');
 
   // Find the element after the KPI grid — everything from kpi-grid down
@@ -1319,6 +1329,8 @@ function getFiltered(){
 function renderCatalog(){
   const data=getFiltered();
   const cc=document.getElementById('scCatContent');
+  if(typeof window.catalogPage==='number')catalogPage=window.catalogPage;
+  if(typeof window.acPage==='number')acPage=window.acPage;
   if(!data.length){
     cc.innerHTML=`<div class="sc-state"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg><p>No products found</p><span>Try adjusting your search or filters</span></div>`;
     return;
@@ -1416,9 +1428,9 @@ html+=`<tr style="animation-delay:${Math.min(i,20)*0.02}s">
     const start=catalogPage*PAGE+1;
     const end=Math.min((catalogPage+1)*PAGE,data.length);
     pag.innerHTML=`
-      <button onclick="catalogPage=Math.max(0,catalogPage-1);renderCatalog()" ${catalogPage===0?'disabled':''} style="padding:4px 10px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer;transition:all .15s" ${catalogPage===0?'style="opacity:.4;cursor:default"':''}>← Prev</button>
+      <button onclick="window.catalogPage=Math.max(0,window.catalogPage-1);renderCatalog()" ${catalogPage===0?'disabled':''} style="padding:4px 10px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer;transition:all .15s">← Prev</button>
       <span style="font-size:12px;color:var(--text3);font-weight:600">${start}–${end} of ${data.length.toLocaleString()}</span>
-      <button onclick="catalogPage=Math.min(totalPages-1,catalogPage+1);renderCatalog()" ${catalogPage>=totalPages-1?'disabled':''} style="padding:4px 10px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer;transition:all .15s">Next →</button>`;
+      <button onclick="window.catalogPage=Math.min(${totalPages-1},window.catalogPage+1);renderCatalog()" ${catalogPage>=totalPages-1?'disabled':''} style="padding:4px 10px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer;transition:all .15s">Next →</button>`;
     cc.appendChild(pag);
   }
 
@@ -1890,6 +1902,7 @@ function closeAllCatalog(){
 }
 
 function renderAllCatalog(){
+  if(typeof window.acPage==='number')acPage=window.acPage;
   const q=(document.getElementById('scAllCatSearch').value||'').toLowerCase().trim();
   let data=_acAllData;
   if(q)data=data.filter(r=>(String(r.ean||'')+' '+String(r.product_name||'')+' '+String(r.supplier_name||'')).toLowerCase().includes(q));
@@ -1993,9 +2006,9 @@ function renderAllCatalog(){
     const start=acPage*PAGE+1;
     const end=Math.min((acPage+1)*PAGE,total);
     html+=`<div style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-top:1px solid var(--border);background:var(--surface)">
-      <button onclick="acPage=Math.max(0,acPage-1);renderAllCatalog()" ${acPage===0?'disabled':''} style="padding:4px 10px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer">← Prev</button>
+      <button onclick="window.acPage=Math.max(0,window.acPage-1);renderAllCatalog()" ${acPage===0?'disabled':''} style="padding:4px 10px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer">← Prev</button>
       <span style="font-size:12px;color:var(--text3);font-weight:600">${start}–${end} of ${total.toLocaleString()}</span>
-      <button onclick="acPage=Math.min(${totalPages-1},acPage+1);renderAllCatalog()" ${acPage>=totalPages-1?'disabled':''} style="padding:4px 10px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer">Next →</button>
+      <button onclick="window.acPage=Math.min(${totalPages-1},window.acPage+1);renderAllCatalog()" ${acPage>=totalPages-1?'disabled':''} style="padding:4px 10px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer">Next →</button>
     </div>`;
   }
 
@@ -2730,6 +2743,8 @@ window.addMultiEanRow=addMultiEanRow;
   
   
 /* ── EXPOSE GLOBALS ── */
+window.catalogPage = catalogPage;
+window.acPage = acPage;
 window.toggleCatOffers=toggleCatOffers;
 window.loadOffersForCatalog=loadOffersForCatalog;
 window.openCatalogSourcingModal=openCatalogSourcingModal;
