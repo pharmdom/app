@@ -354,6 +354,9 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 
 
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.abtn.pre-actioned{background:var(--surface2);color:var(--text3);border-color:var(--border);opacity:.7;}
+.abtn.pre-actioned::after{content:' (prev)';font-size:9px;opacity:.7;}
 </style>
 
 <!-- TOASTS -->
@@ -600,6 +603,8 @@ async function restoreFromDB() {
   sold7d:      0,
   sold30d:     0,
   soldAll:     0,
+  last_action: r.last_action || null,
+  status_override: r.status_override || null,
 }));
 
     acts = {};
@@ -857,9 +862,9 @@ function render() {
   const sf = document.getElementById('statusFilter').value;
 
   // Compute status for all
-  const withStatus = ALL.map(x => {
+const withStatus = ALL.map(x => {
     const pct = calcSellThrough(x);
-    const status = getStatus(pct);
+    const status = x.status_override || getStatus(pct);
     return { ...x, pct, status };
   });
 
@@ -1050,9 +1055,9 @@ function buildFocusCard(x) {
         <div class="fc-stat-sub"><span style="color:var(--accent);font-weight:700;">${x._salesLoading ? '…' : Math.round((x.sold7d||0)/((x.sold7d||0)+(x.available||0)||1)*100) + '% sell-through'}</span></div>
       </div>
       <div class="fc-stat" style="border-color:var(--accent-bd);background:var(--accent-bg);">
-        <div class="fc-stat-lbl" style="color:var(--accent);">Sold (All time)</div>
-        <div class="fc-stat-val blue">${(x.soldAll||0).toLocaleString()}</div>
-        <div class="fc-stat-sub"><span style="color:var(--accent);font-weight:700;">${x._salesLoading ? '…' : x.pct + '% sell-through'}</span></div>
+        <div class="fc-stat-lbl" style="color:var(--accent);">Sold (30d)</div>
+        <div class="fc-stat-val blue">${(x.sold30d||0).toLocaleString()}</div>
+        <div class="fc-stat-sub"><span style="color:var(--accent);font-weight:700;">${x._salesLoading ? '...' : Math.round((x.sold30d||0)/((x.sold30d||0)+(x.available||0)||1)*100) + '% sell-through'}</span></div>
       </div>
     </div>
 
@@ -1064,6 +1069,17 @@ function buildFocusCard(x) {
       </div>
     </div>
 
+<div style="display:flex;align-items:center;gap:6px;margin:8px 0;font-size:11px;color:var(--text4)">
+      <span>Override zone:</span>
+      <select onchange="saveStatusOverride(${x.variant_id}, this.value)" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface)">
+        <option value="" ${!x.status_override?'selected':''}>Auto (${x.pct}%)</option>
+        <option value="strong" ${x.status_override==='strong'?'selected':''}>No Action</option>
+        <option value="moderate" ${x.status_override==='moderate'?'selected':''}>Moderate</option>
+        <option value="slow" ${x.status_override==='slow'?'selected':''}>Slow Movers</option>
+        <option value="offload" ${x.status_override==='offload'?'selected':''}>Offload</option>
+      </select>
+    </div>
+    
     <div class="fc-actions">
       <button class="abtn${a === 'ok' ? ' on-ok' : ''}" onclick="actAndAdvance(${x.variant_id},'ok')">
         <svg viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -1073,7 +1089,7 @@ function buildFocusCard(x) {
         <svg viewBox="0 0 12 12" fill="none"><polyline points="1,6 3.5,10.5 6,1.5 8.5,10.5 11,6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Monitor
       </button>
-      <button class="abtn${a === 'price' ? ' on-price' : ''}" onclick="actAndAdvance(${x.variant_id},'price')">
+      <button class="abtn${a === 'price' ? ' on-price' : (!a && x.last_action === 'price') ? ' pre-actioned' : ''}" onclick="actAndAdvance(${x.variant_id},'price')">
         <svg viewBox="0 0 12 12" fill="none"><line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8.5 3H4.5a2 2 0 1 0 0 3h3a2 2 0 1 1 0 3H3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Slash Price
       </button>
@@ -1159,19 +1175,40 @@ function saveNote(id, val) {
   if (acts[id]) saveActionToDB(id, acts[id], val.trim());
 }
 
+
+async function saveStatusOverride(id, status) {
+  if (!sb) return;
+  const item = ALL.find(x => x.variant_id === id);
+  if (item) item.status_override = status || null;
+  try {
+    await sb.from('inventory_skus').update({ status_override: status || null }).eq('variant_id', id);
+  } catch(e) {}
+  render();
+}
+window.saveStatusOverride = saveStatusOverride;
+  
 /* ── RESET ── */
 function confirmReset() {
   openConfirm('Reset all actions?',
     'This will clear all actions and notes for the current inventory. The inventory data stays — just the review decisions are cleared.',
     async () => {
       closeConfirm();
-      try {
-        await sb.from('inventory_skus').update({ action: null, note: null, actioned_at: null }).neq('variant_id', 0);
-        acts = {}; notes = {}; actsOrder = [];
+try {
+        // Preserve last_action='price' for any row currently marked Slash Price, before clearing it
+        await sb.from('inventory_skus').update({ last_action: 'price' }).eq('action', 'price');
+        // Clear action/note for everything except Clearance (which stays actioned forever)
+        await sb.from('inventory_skus').update({ action: null, note: null, actioned_at: null })
+          .neq('variant_id', 0).neq('action', 'clearance');
+        Object.keys(acts).forEach(id => {
+          if (acts[id] === 'clearance') return;
+          delete acts[id];
+        });
+        Object.keys(notes).forEach(id => { if (acts[id] !== 'clearance') delete notes[id]; });
+        actsOrder = actsOrder.filter(id => acts[id] === 'clearance');
         queueIdx = 0;
-        render();
-        toast('All actions cleared', 'info');
-      } catch(e) { toast('Reset failed: ' + e.message, 'error'); }
+        await restoreFromDB(); // reload so last_action populates into ALL
+        toast('Actions cleared (Clearance preserved)', 'info');
+      } catch(e) { toast('Reset failed: ' + e.message, 'error'); 
     }
   );
 }
