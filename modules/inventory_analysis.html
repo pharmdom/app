@@ -817,8 +817,8 @@ async function pollUntilDone(btn) {
     await new Promise(r => setTimeout(r, POLL_INTERVAL));
 
     try {
-      const { data, error } = await sb.from('inventory_skus')
-        .select('variant_id,product_id,product_title,sku,price,cost_price,available,total_qty_sold,combined_qty_sold,image_url,action,note', { count: 'exact' })
+        const { data, error } = await sb.from('inventory_skus')
+        .select('variant_id,product_id,product_title,sku,price,cost_price,available,total_qty_sold,combined_qty_sold,image_url,action,note,last_action,status_override', { count: 'exact' })
         .order('variant_id', { ascending: true });
 
       if (error) continue;
@@ -828,7 +828,7 @@ async function pollUntilDone(btn) {
       showBanner(`Loading… ${count} SKUs synced so far`, pct);
 
       // Render whatever we have immediately
-      if (count > 0) {
+     if (count > 0) {
         ALL = data.map(r => ({
           variant_id:     r.variant_id,
           product_id:     r.product_id,
@@ -842,7 +842,10 @@ async function pollUntilDone(btn) {
           sold7d:      0,
           sold30d:     0,
           soldAll:     0,
+          last_action: r.last_action || null,
+          status_override: r.status_override || null,
         }));
+        acts = {}; notes = {};
         data.forEach(r => {
           if (r.action) acts[r.variant_id] = r.action;
           if (r.note)   notes[r.variant_id] = r.note;
