@@ -603,9 +603,14 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
   </select>
   <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
 </div>
-      <div class="sc-cat-filter-wrap">
-        <select class="sc-cat-select" id="scCatCategoryFilter" onchange="renderCatalog()">
-          <option value="">All Categories</option>
+    <div class="sc-cat-filter-wrap">
+        <select class="sc-cat-select" id="scCatStatusFilter" onchange="renderCatalog()" style="max-width:160px">
+          <option value="">All Statuses</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+          <option value="New price">Price Changes</option>
+          <option value="New">New Lines</option>
+          <option value="__none__">No Status</option>
         </select>
         <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
@@ -805,7 +810,7 @@ async function selectSupplier(sid){
   allCatalogData=allCatalogData.filter(c=>!ids.has(c.id));
   allCatalogData.push(...catalogData);
 
-  populateCategoryFilter(catalogData);
+  
   renderCatalog();
   renderSupplierCard(s);
   const cnt=document.getElementById('scCatCount');
@@ -1291,23 +1296,28 @@ async function doDeleteSupplier(sid){
 }
 
 /* ── CATALOG ── */
-function populateCategoryFilter(rows){
-  const sel=document.getElementById('scCatCategoryFilter');
+function populateStatusFilter(rows){
+  const sel=document.getElementById('scCatStatusFilter');
+  if(!sel)return;
   const prev=sel.value;
-  const cats=[...new Set(rows.map(r=>r.category||'').filter(Boolean))].sort();
-  sel.innerHTML='<option value="">All Categories</option>'+cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  const statuses=[...new Set(rows.map(r=>r.status||'').filter(Boolean))].sort();
+  sel.innerHTML='<option value="">All Statuses</option>'
+    +statuses.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')
+    +'<option value="__none__">No Status</option>';
   if(prev)sel.value=prev;
 }
 
 
-
 function getFiltered(){
   const q=(document.getElementById('scCatSearch').value||'').toLowerCase().trim();
-  const cat=document.getElementById('scCatCategoryFilter').value;
+  const statusFilter=document.getElementById('scCatStatusFilter').value;
   const cf=window.catalogViewFilter||catalogViewFilter;
   return catalogData.filter(r=>{
     if(q){const s=(String(r.ean||'')+' '+String(r.product_name||'')+' '+String(r.code||'')).toLowerCase();if(!s.includes(q))return false;}
-    if(cat&&(r.category||'')!==cat)return false;
+    if(statusFilter){
+      if(statusFilter==='__none__'){if(r.status)return false;}
+      else if((r.status||'')!==statusFilter)return false;
+    }
     if(cf==='price_change'&&r.status!=='New price')return false;
     if(cf==='new_items'&&r.status!=='New')return false;
     if(cf==='both'&&r.status!=='New price'&&r.status!=='New')return false;
@@ -2392,7 +2402,7 @@ toUpdate.forEach(u=>{
 
         allCatalogData.push(...toInsertNew);
         catalogData=allCatalogData.filter(c=>c.supplier_id===importSupId);
-        populateCategoryFilter(catalogData);
+        populateStatusFilter(catalogData);
         renderCatalog();
         const cnt=document.getElementById('scCatCount');
         cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
@@ -2523,7 +2533,7 @@ async function handleRefresh(){
       allCatalogData=allCatalogData.filter(c=>!ids.has(c.id));
       allCatalogData.push(...catalogData);
       const s=allSuppliers.find(x=>x.supplier_id===currentSupId);
-      if(s){renderSupplierCard(s);populateCategoryFilter(catalogData);renderCatalog();}
+      if(s){renderSupplierCard(s);renderCatalog();}
       const cnt=document.getElementById('scCatCount');
       cnt.textContent=catalogData.length+' product'+(catalogData.length!==1?'s':'');
     }
