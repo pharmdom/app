@@ -350,7 +350,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
     </div>
     <div class="sc-allcat-search-wrap">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" class="sc-allcat-search-input" id="scAllCatSearch" placeholder="Search by EAN or product name…" oninput="clearTimeout(window._acSt);window._acSt=setTimeout(renderAllCatalog,250)">
+      <input type="text" class="sc-allcat-search-input" id="scAllCatSearch" placeholder="Search by EAN or product name…" oninput="clearTimeout(window._acSt);window._acSt=setTimeout(()=>{acPage=0;renderAllCatalog()},250)">
     </div>
     
 <button class="sc-select-toggle" id="scAcDownloadBtn" onclick="openDownloadDialog()">
@@ -592,10 +592,10 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
     <div class="sc-cat-toolbar">
       <div class="sc-search-wrap">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" class="sc-search-input" id="scCatSearch" placeholder="Search EAN, product…" oninput="renderCatalog()">
+        <input type="text" class="sc-search-input" id="scCatSearch" placeholder="Search EAN, product…" oninput="catalogPage=0;renderCatalog()">
       </div>
       <div class="sc-cat-filter-wrap">
-        <select class="sc-cat-select" id="scCatStatusFilter" onchange="renderCatalog()" style="max-width:160px">
+        <select class="sc-cat-select" id="scCatStatusFilter" onchange="catalogPage=0;renderCatalog()" style="max-width:160px">
           <option value="">All Statuses</option>
           <option value="Approved">Approved</option>
           <option value="Rejected">Rejected</option>
@@ -660,6 +660,8 @@ let importRows     = [];     // parsed rows ready to import
 let importSupId    = null;   // supplier for import
 let _parsedLines   = [];     // raw lines for header picker
 let _catalogOffersMap = {};
+let catalogPage = 0;
+let acPage = 0;
 
 
 /* ── AGENT ── */
@@ -1311,6 +1313,7 @@ function getFiltered(){
   });
 }
 
+
 function renderCatalog(){
   const data=getFiltered();
   const cc=document.getElementById('scCatContent');
@@ -1319,6 +1322,10 @@ function renderCatalog(){
     return;
   }
   cc.innerHTML='';
+  const PAGE=500;
+  const totalPages=Math.ceil(data.length/PAGE);
+  if(catalogPage>=totalPages)catalogPage=0;
+  const display=data.slice(catalogPage*PAGE,(catalogPage+1)*PAGE);
   const outer=document.createElement('div');outer.className='sc-tbl-outer';
   let html=`<table class="sc-cat-table" style="table-layout:fixed">
   <colgroup>
@@ -1339,16 +1346,24 @@ function renderCatalog(){
     <th class="resizable-th" style="width:90px">Agent</th>
     <th style="width:32px"></th>
   </tr></thead><tbody>`;
-  const total=data.length;
-  const display=data.slice(0,500);
   display.forEach((r,i)=>{
     const ean=r.ean||'';
     const cost=fmtCost(getCatalogEffectiveCost(r));
     const id=esc(String(r.id||''));
     const status=r.status||'';
     const statusCls=status==='Approved'?'approved':status==='Rejected'?'rejected':'';
-    const rowHighlight=r.status==='New price'?'background:rgba(251,191,36,.18)':r.status==='New'?'background:rgba(16,185,129,.07)':'';
-html+=`<tr style="animation-delay:${Math.min(i,20)*0.02}s;${rowHighlight}">
+    // Price change indicator
+    let priceIndicator='';
+    if(r.status==='New price'&&r.old_cost!=null){
+      const diff=parseFloat(r.cost||0)-parseFloat(r.old_cost||0);
+      priceIndicator=diff>0
+        ?`<span style="color:var(--red);font-size:9px;font-weight:800;margin-left:4px">▲</span>`
+        :`<span style="color:var(--green);font-size:9px;font-weight:800;margin-left:4px">▼</span>`;
+    }
+    if(r.status==='New'){
+      priceIndicator=`<span style="color:var(--accent);font-size:9px;font-weight:800;margin-left:4px">★</span>`;
+    }
+html+=`<tr style="animation-delay:${Math.min(i,20)*0.02}s">
       ${bulkSelectMode?`<td><input type="checkbox" class="sc-row-cb sc-row-cb-item" data-id="${id}" ${selectedIds.has(id)?'checked':''} onchange="if(this.checked)selectedIds.add('${id}');else selectedIds.delete('${id}');updateBulkCount()"></td>`:''}
 <td style="vertical-align:top;padding-top:10px;padding-left:10px;padding-right:8px">
   <a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(ean||'—')}</a>
@@ -1372,7 +1387,7 @@ html+=`<tr style="animation-delay:${Math.min(i,20)*0.02}s;${rowHighlight}">
   })()}
 </td>
       <td style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0" title="${esc(r.product_name||'')}">${esc(r.product_name||'—')}</td>
-      <td><span class="cat-cost${!cost?' empty':''}">${cost?'£'+cost:'—'}</span></td>
+      <td><span class="cat-cost${!cost?' empty':''}">${cost?'£'+cost:'—'}</span>${priceIndicator}</td>
       <td>
         <select class="sc-status-sel ${statusCls}" id="status_${id}" onchange="updateStatus('${id}',this.value)" onclick="event.stopPropagation()">
           <option value="" ${!status?'selected':''}>—</option>
@@ -1389,38 +1404,47 @@ html+=`<tr style="animation-delay:${Math.min(i,20)*0.02}s;${rowHighlight}">
     </tr>`;
   });
   html+='</tbody></table>';
-  if(total>500){
-    html+=`<div style="padding:12px 18px;text-align:center;font-size:12px;color:var(--text3);border-top:1px solid var(--border);background:var(--surface2)">
-      Showing first 1,000 of <strong>${total.toLocaleString()}</strong> products — use search to narrow results
-    </div>`;
-  }
   outer.innerHTML=html;
   cc.appendChild(outer);
+
+  // Pagination bar
+  if(totalPages>1){
+    const pag=document.createElement('div');
+    pag.style.cssText='display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0';
+    const start=catalogPage*PAGE+1;
+    const end=Math.min((catalogPage+1)*PAGE,data.length);
+    pag.innerHTML=`
+      <button onclick="catalogPage=Math.max(0,catalogPage-1);renderCatalog()" ${catalogPage===0?'disabled':''} style="padding:4px 10px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer;transition:all .15s" ${catalogPage===0?'style="opacity:.4;cursor:default"':''}>← Prev</button>
+      <span style="font-size:12px;color:var(--text3);font-weight:600">${start}–${end} of ${data.length.toLocaleString()}</span>
+      <button onclick="catalogPage=Math.min(totalPages-1,catalogPage+1);renderCatalog()" ${catalogPage>=totalPages-1?'disabled':''} style="padding:4px 10px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer;transition:all .15s">Next →</button>`;
+    cc.appendChild(pag);
+  }
+
   // Make columns resizable
-outer.querySelectorAll('.resizable-th').forEach(th=>{
-  const handle=document.createElement('div');
-  handle.style.cssText='position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;user-select:none;z-index:1;border-radius:3px;transition:background .15s;';
-  th.style.position='relative';
-  th.appendChild(handle);
-  handle.addEventListener('mouseenter',()=>handle.style.background='var(--accent-bd)');
-  handle.addEventListener('mouseleave',()=>{if(!handle._dragging)handle.style.background='';});
-  let startX,startW;
-  handle.addEventListener('mousedown',e=>{
-    startX=e.pageX;startW=th.offsetWidth;
-    handle._dragging=true;handle.style.background='var(--accent)';
-    const onMove=e=>{
-      const w=Math.max(40,startW+e.pageX-startX)+'px';
-      th.style.width=w;
-      const idx=Array.from(th.parentElement.children).indexOf(th);
-      const col=th.closest('table').querySelectorAll('col')[idx];
-      if(col)col.style.width=w;
-    };
-    const onUp=()=>{handle._dragging=false;handle.style.background='';document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);};
-    document.addEventListener('mousemove',onMove);
-    document.addEventListener('mouseup',onUp);
-    e.preventDefault();
+  outer.querySelectorAll('.resizable-th').forEach(th=>{
+    const handle=document.createElement('div');
+    handle.style.cssText='position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;user-select:none;z-index:1;border-radius:3px;transition:background .15s;';
+    th.style.position='relative';
+    th.appendChild(handle);
+    handle.addEventListener('mouseenter',()=>handle.style.background='var(--accent-bd)');
+    handle.addEventListener('mouseleave',()=>{if(!handle._dragging)handle.style.background='';});
+    let startX,startW;
+    handle.addEventListener('mousedown',e=>{
+      startX=e.pageX;startW=th.offsetWidth;
+      handle._dragging=true;handle.style.background='var(--accent)';
+      const onMove=e=>{
+        const w=Math.max(40,startW+e.pageX-startX)+'px';
+        th.style.width=w;
+        const idx=Array.from(th.parentElement.children).indexOf(th);
+        const col=th.closest('table').querySelectorAll('col')[idx];
+        if(col)col.style.width=w;
+      };
+      const onUp=()=>{handle._dragging=false;handle.style.background='';document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);};
+      document.addEventListener('mousemove',onMove);
+      document.addEventListener('mouseup',onUp);
+      e.preventDefault();
+    });
   });
-});
 }
 
 /* ── STATUS UPDATE ── */
@@ -1867,99 +1891,109 @@ function renderAllCatalog(){
   const q=(document.getElementById('scAllCatSearch').value||'').toLowerCase().trim();
   let data=_acAllData;
   if(q)data=data.filter(r=>(String(r.ean||'')+' '+String(r.product_name||'')+' '+String(r.supplier_name||'')).toLowerCase().includes(q));
-
   data=[...data].sort((a,b)=>{
     const ea=String(a.ean||''),eb=String(b.ean||'');
     if(ea!==eb)return ea.localeCompare(eb);
     return(parseFloat(a.cost)||999999)-(parseFloat(b.cost)||999999);
   });
-
   const total=data.length;
-  const display=data.slice(0,500);
-
+  const PAGE=500;
+  const totalPages=Math.ceil(total/PAGE);
+  if(acPage>=totalPages)acPage=0;
+  const display=data.slice(acPage*PAGE,(acPage+1)*PAGE);
   const cnt=document.getElementById('scAllCatCount');
   cnt.textContent=total.toLocaleString()+' product'+(total!==1?'s':'');
   cnt.style.display='';
-
   const body=document.getElementById('scAllCatBody');
   if(!total){body.innerHTML='<div class="sc-state"><p>No products found</p></div>';return;}
-
   let html=`<table class="sc-allcat-table"><thead><tr>
     ${acBulkMode?'<th style="width:32px"><input type="checkbox" class="sc-row-cb" onchange="document.querySelectorAll(\'.sc-ac-cb-item\').forEach(c=>{c.checked=this.checked;if(c.checked)acSelectedIds.add(c.dataset.id);else acSelectedIds.delete(c.dataset.id)});updateAcBulkCount()"></th>':''}
     <th style="width:130px">EAN</th><th>Product Name</th><th style="width:120px">Supplier</th><th style="width:80px">Cost</th><th style="width:110px">Status</th><th style="width:90px">Agent</th><th style="width:32px"></th>
   </tr></thead><tbody>`;
-
-  // Group by EAN
-const eanGroups={};
-display.forEach(r=>{
-  const k=String(r.ean||'__no_ean__');
-  if(!eanGroups[k])eanGroups[k]=[];
-  eanGroups[k].push(r);
-});
-
-Object.entries(eanGroups).forEach(([ean,rows])=>{
-  const isGroup=rows.length>1;
-  rows.forEach((r,ri)=>{
-    const rid=esc(String(r.id||''));
-    const cost=fmtCost(getCatalogEffectiveCost(r));
-    const status=r.status||'';
-    const statusCls=status==='Approved'?'approved':status==='Rejected'?'rejected':'';
-    const isFirst=ri===0;
-    const groupBg=isGroup?'background:rgba(24,71,212,.04)':'';
-    const leftBorder=isGroup?'border-left:3px solid var(--accent-bd)':'';
-    const topBorder=isGroup&&isFirst?'border-top:2px solid var(--accent-bd)':'';
-    html+=`<tr style="${groupBg};${leftBorder};${topBorder}">
-      ${acBulkMode?`<td><input type="checkbox" class="sc-row-cb sc-ac-cb-item" data-id="${rid}" ${acSelectedIds.has(rid)?'checked':''} onchange="if(this.checked)acSelectedIds.add('${rid}');else acSelectedIds.delete('${rid}');updateAcBulkCount()"></td>`:''}
-      <td style="vertical-align:top;padding-top:10px">
-  <a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(ean||'—')}</a>
-    ${(()=>{
-    if(ri!==0)return'';
-    const offers=_catalogOffersMap[String(r.ean||'').trim()]||[];
-    if(!offers.length)return'';
-    const tid='offtog_'+rid;
-    const tpid='offpanel_'+rid;
-    return`<div style="margin-top:5px">
-      <button id="${tid}" onclick="event.stopPropagation();toggleCatOffers('${tid}','${tpid}')" style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:20px;border:1px solid var(--accent-bd);background:var(--accent-bg);color:var(--accent);font-size:10px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="9" height="9" id="${tid}_caret" style="transition:transform .18s"><polyline points="6 9 12 15 18 9"/></svg>
-        ${offers.length} offer${offers.length!==1?'s':''}
-      </button>
-      <div id="${tpid}" style="display:none;margin-top:5px;padding:6px 9px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);min-width:160px">
-        ${offers.map(o=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11px;padding:2px 0;border-bottom:1px solid var(--border2)">
-          <span style="color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.name||'Unknown')}</span>
-          <span style="font-weight:700;color:var(--green);flex-shrink:0">£${parseFloat(o.cost).toFixed(2)}</span>
-        </div>`).join('')}
-      </div>
-    </div>`;
-  })()}
-</td>
-      <td style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px" title="${esc(r.product_name||'')}">${esc(r.product_name||'—')}</td>
-      <td style="font-size:11.5px;color:var(--text3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.supplier_name||'—')}</td>
-      <td><span class="cat-cost${!cost?' empty':''}">${cost?'£'+cost:'—'}</span></td>
-      <td>
-        <select class="sc-status-sel ${statusCls}" id="ac_status_${rid}" onchange="updateStatus('${rid}',this.value)">
-          <option value="" ${!status?'selected':''}>—</option>
-          <option value="Approved" ${status==='Approved'?'selected':''}>Approved</option>
-          <option value="Rejected" ${status==='Rejected'?'selected':''}>Rejected</option>
-        </select>
-      </td>
-      <td id="ac_agent_${rid}" style="font-size:11px;color:var(--text3)">${esc(r.agent||'—')}</td>
-      <td>
-        <button class="sc-del-btn" onclick="confirmDelProd('${rid}','${esc(r.product_name||'')}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-        </button>
-      </td>
-    </tr>`;
+  const eanGroups={};
+  display.forEach(r=>{
+    const k=String(r.ean||'__no_ean__');
+    if(!eanGroups[k])eanGroups[k]=[];
+    eanGroups[k].push(r);
   });
-  // Spacer row between EAN groups when multiple suppliers
-  if(isGroup){
-    html+=`<tr><td colspan="8" style="padding:0;height:4px;background:transparent;border:none"></td></tr>`;
-  }
-});
+  Object.entries(eanGroups).forEach(([ean,rows])=>{
+    const isGroup=rows.length>1;
+    rows.forEach((r,ri)=>{
+      const rid=esc(String(r.id||''));
+      const cost=fmtCost(getCatalogEffectiveCost(r));
+      const status=r.status||'';
+      const statusCls=status==='Approved'?'approved':status==='Rejected'?'rejected':'';
+      const isFirst=ri===0;
+      const groupBg=isGroup?'background:rgba(24,71,212,.04)':'';
+      const leftBorder=isGroup?'border-left:3px solid var(--accent-bd)':'';
+      const topBorder=isGroup&&isFirst?'border-top:2px solid var(--accent-bd)':'';
+      // Price change indicator
+      let priceIndicator='';
+      if(r.status==='New price'&&r.old_cost!=null){
+        const diff=parseFloat(r.cost||0)-parseFloat(r.old_cost||0);
+        priceIndicator=diff>0
+          ?`<span style="color:var(--red);font-size:9px;font-weight:800;margin-left:4px">▲</span>`
+          :`<span style="color:var(--green);font-size:9px;font-weight:800;margin-left:4px">▼</span>`;
+      }
+      if(r.status==='New'){
+        priceIndicator=`<span style="color:var(--accent);font-size:9px;font-weight:800;margin-left:4px">★</span>`;
+      }
+      html+=`<tr style="${groupBg};${leftBorder};${topBorder}">
+        ${acBulkMode?`<td><input type="checkbox" class="sc-row-cb sc-ac-cb-item" data-id="${rid}" ${acSelectedIds.has(rid)?'checked':''} onchange="if(this.checked)acSelectedIds.add('${rid}');else acSelectedIds.delete('${rid}');updateAcBulkCount()"></td>`:''}
+        <td style="vertical-align:top;padding-top:10px">
+    <a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(ean||'—')}</a>
+      ${(()=>{
+      if(ri!==0)return'';
+      const offers=_catalogOffersMap[String(r.ean||'').trim()]||[];
+      if(!offers.length)return'';
+      const tid='offtog_'+rid;
+      const tpid='offpanel_'+rid;
+      return`<div style="margin-top:5px">
+        <button id="${tid}" onclick="event.stopPropagation();toggleCatOffers('${tid}','${tpid}')" style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:20px;border:1px solid var(--accent-bd);background:var(--accent-bg);color:var(--accent);font-size:10px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="9" height="9" id="${tid}_caret" style="transition:transform .18s"><polyline points="6 9 12 15 18 9"/></svg>
+          ${offers.length} offer${offers.length!==1?'s':''}
+        </button>
+        <div id="${tpid}" style="display:none;margin-top:5px;padding:6px 9px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);min-width:160px">
+          ${offers.map(o=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11px;padding:2px 0;border-bottom:1px solid var(--border2)">
+            <span style="color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.name||'Unknown')}</span>
+            <span style="font-weight:700;color:var(--green);flex-shrink:0">£${parseFloat(o.cost).toFixed(2)}</span>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    })()}
+  </td>
+        <td style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px" title="${esc(r.product_name||'')}">${esc(r.product_name||'—')}</td>
+        <td style="font-size:11.5px;color:var(--text3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.supplier_name||'—')}</td>
+        <td><span class="cat-cost${!cost?' empty':''}">${cost?'£'+cost:'—'}</span>${priceIndicator}</td>
+        <td>
+          <select class="sc-status-sel ${statusCls}" id="ac_status_${rid}" onchange="updateStatus('${rid}',this.value)">
+            <option value="" ${!status?'selected':''}>—</option>
+            <option value="Approved" ${status==='Approved'?'selected':''}>Approved</option>
+            <option value="Rejected" ${status==='Rejected'?'selected':''}>Rejected</option>
+          </select>
+        </td>
+        <td id="ac_agent_${rid}" style="font-size:11px;color:var(--text3)">${esc(r.agent||'—')}</td>
+        <td>
+          <button class="sc-del-btn" onclick="confirmDelProd('${rid}','${esc(r.product_name||'')}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
+        </td>
+      </tr>`;
+    });
+    if(isGroup){
+      html+=`<tr><td colspan="8" style="padding:0;height:4px;background:transparent;border:none"></td></tr>`;
+    }
+  });
   html+='</tbody></table>';
 
-  if(total>500){
-    html+=`<div style="padding:16px 20px;text-align:center;font-size:12.5px;color:var(--text3);border-top:1px solid var(--border);background:var(--surface2)">
-      Showing first 200 of <strong>${total.toLocaleString()}</strong> products${q?' matching <em>"'+esc(q)+'"</em>':''} — use search to narrow results
+  // Pagination
+  if(totalPages>1){
+    const start=acPage*PAGE+1;
+    const end=Math.min((acPage+1)*PAGE,total);
+    html+=`<div style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-top:1px solid var(--border);background:var(--surface)">
+      <button onclick="acPage=Math.max(0,acPage-1);renderAllCatalog()" ${acPage===0?'disabled':''} style="padding:4px 10px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer">← Prev</button>
+      <span style="font-size:12px;color:var(--text3);font-weight:600">${start}–${end} of ${total.toLocaleString()}</span>
+      <button onclick="acPage=Math.min(${totalPages-1},acPage+1);renderAllCatalog()" ${acPage>=totalPages-1?'disabled':''} style="padding:4px 10px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer">Next →</button>
     </div>`;
   }
 
@@ -2478,6 +2512,7 @@ function showImportConfirm(newCount,updates,skipped,incomplete,onConfirm,onCance
 
 window._pendingImportConfirm = onConfirm;
 window._pendingImportCancel = onCancel;
+  
 
 foot.innerHTML=`
     <button class="sc-btn sc-btn-secondary sc-btn-sm" onclick="window._pendingImportCancel&&window._pendingImportCancel()">Cancel</button>
