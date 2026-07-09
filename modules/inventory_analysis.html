@@ -355,7 +355,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
-.abtn.pre-actioned{background:var(--surface2);color:var(--text3);border-color:var(--border);opacity:.7;}
+.abtn.pre-actioned{background:var(--strong-bg);color:var(--strong);border-color:var(--strong-bd);opacity:.85;}
 .abtn.pre-actioned::after{content:' (prev)';font-size:9px;opacity:.7;}
 
 /* ── INVENTORY INSIGHTS ── */
@@ -874,6 +874,16 @@ async function pollUntilDone(btn) {
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Refresh';
 }
 
+
+async function cyclePriceActionsForReview() {
+  if (!sb) return;
+  try {
+    // Remember these were previously Slash Priced (drives the greyed button)
+    await sb.from('inventory_skus').update({ last_action: 'price' }).eq('action', 'price');
+    // Clear just the Slash Price actions so they return to the review queue
+    await sb.from('inventory_skus').update({ action: null, note: null, actioned_at: null }).eq('action', 'price');
+  } catch(e) { console.warn('Could not cycle price actions', e); }
+}
   
 async function saveActionToDB(id, action, note) {
   if (!sb) return;
@@ -900,6 +910,7 @@ async function triggerSync() {
 
   showBanner('Triggering Veeqo sync…', 5);
 try {
+    await cyclePriceActionsForReview();
     showBanner('Connecting to Veeqo…', 8);
 
     // Fire and forget — don't await
