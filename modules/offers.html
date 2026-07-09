@@ -1952,6 +1952,7 @@ let _importOffersMode = 'csv';   // 'csv' | 'pdf'
 let _importOffersRows = [];
 let _importOffersSuppliers = [];
 let _importOffersMapping = {};
+window._importOffersMapping = _importOffersMapping;
 let _importOffersParsedLines = [];
 
 async function openImportOffersDrawer() {
@@ -2170,7 +2171,7 @@ const fields = [
             <label style="font-size:11px;font-weight:700;color:${f.required ? 'var(--accent)' : 'var(--text3)'};width:110px;flex-shrink:0;text-transform:uppercase;letter-spacing:.4px">
               ${f.label}${f.required ? ' *' : ''}
             </label>
-            <select id="iomap_${f.key}" autocomplete="off" onchange="_importOffersMapping['${f.key}']=this.value"
+            <select id="iomap_${f.key}" autocomplete="off" onchange="_importOffersMapping['${f.key}']=this.value;window._importOffersMapping['${f.key}']=this.value"
               style="flex:1;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:var(--font);background:var(--surface);color:var(--text);outline:none">
               ${colOptions(f.key)}
             </select>
@@ -2369,6 +2370,11 @@ async function parseImportOffersPDF(file){
  async function doImportOffers() {
   const supplierName = document.getElementById('importOffersSupplierSel')?.value?.trim();
   if (!supplierName) { toast('Select a supplier first', 'error'); return; }
+  // Sync mapping from dropdowns at import time
+  ['product_name','ean','cost_of_unit'].forEach(k => {
+    const el = document.getElementById('iomap_' + k);
+    if (el) _importOffersMapping[k] = el.value;
+  });
   if (!_importOffersMapping.product_name) { toast('Map the Product Name column first', 'error'); return; }
   if (!_importOffersRows.length) { toast('No rows to import', 'error'); return; }
 
