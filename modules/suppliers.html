@@ -656,7 +656,6 @@ let bulkSelectMode = false;
 let selectedIds    = new Set();
 let acBulkMode     = false;
 let acSelectedIds  = new Set();
-let catalogViewFilter = ''; // '' | 'price_change' | 'new_items' | 'both'
 let importRows     = [];     // parsed rows ready to import
 let importSupId    = null;   // supplier for import
 let _parsedLines   = [];     // raw lines for header picker
@@ -1302,16 +1301,12 @@ function populateStatusFilter(rows){
 function getFiltered(){
   const q=(document.getElementById('scCatSearch').value||'').toLowerCase().trim();
   const statusFilter=document.getElementById('scCatStatusFilter').value;
-  const cf=window.catalogViewFilter||catalogViewFilter;
   return catalogData.filter(r=>{
     if(q){const s=(String(r.ean||'')+' '+String(r.product_name||'')+' '+String(r.code||'')).toLowerCase();if(!s.includes(q))return false;}
     if(statusFilter){
       if(statusFilter==='__none__'){if(r.status)return false;}
       else if((r.status||'')!==statusFilter)return false;
     }
-    if(cf==='price_change'&&r.status!=='New price')return false;
-    if(cf==='new_items'&&r.status!=='New')return false;
-    if(cf==='both'&&r.status!=='New price'&&r.status!=='New')return false;
     return true;
   });
 }
