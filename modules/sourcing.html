@@ -351,7 +351,8 @@ col.col-agent     { width: 110px; }
 .guide-fab:hover{transform:scale(1.12);box-shadow:0 6px 28px rgba(37,99,235,.5)}
 .guide-fab svg{width:20px;height:20px}
 @keyframes fabPulse{0%,100%{box-shadow:0 4px 20px rgba(37,99,235,.4)}50%{box-shadow:0 4px 32px rgba(37,99,235,.7),0 0 0 8px rgba(37,99,235,.1)}}
-.guide-overlay{position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .28s ease;backdrop-filter:blur(6px)}
+.guide-overlay{position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:2000;display:none;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .28s ease;backdrop-filter:blur(6px)}
+.guide-overlay.open{display:flex;} 
 .guide-overlay.open{opacity:1;pointer-events:all}
 .guide-modal{background:#fff;border-radius:20px;width:860px;max-width:96vw;height:580px;max-height:92vh;display:flex;overflow:hidden;box-shadow:0 32px 80px rgba(15,23,42,.3),0 8px 24px rgba(15,23,42,.15);transform:scale(.94) translateY(16px);transition:transform .32s cubic-bezier(.34,1.56,.64,1)}
 .guide-overlay.open .guide-modal{transform:scale(1) translateY(0)}
@@ -2041,7 +2042,8 @@ init();
   let tourActive = false;
   window.openGuide = function() {
     const overlay = document.getElementById('guideOverlay');
-    overlay.classList.add('open');
+    overlay.style.display = 'flex';
+    requestAnimationFrame(() => overlay.classList.add('open'));
     // Update live stats in the overview panel
     try {
       const total = document.getElementById('statTotal')?.textContent?.match(/\d+/)?.[0] || '—';
@@ -2056,7 +2058,9 @@ init();
     } catch(e) {}
   };
   window.closeGuide = function() {
-    document.getElementById('guideOverlay').classList.remove('open');
+    const overlay = document.getElementById('guideOverlay');
+    overlay.classList.remove('open');
+    setTimeout(() => { overlay.style.display = 'none'; }, 300);
   };
   window.switchGuidePanel = function(panel, btn) {
     const current = document.querySelector('.guide-panel.active');
