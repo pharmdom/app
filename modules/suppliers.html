@@ -1009,7 +1009,21 @@ async function openSupInsight(sid){
     allCatalogData.push(...fresh);
   }
   const priceChanges=fresh.filter(r=>r.status==='New price'&&r.old_cost!=null);
-  const newItems=fresh.filter(r=>r.status==='New');
+
+// Find the most recent import date for this supplier
+const latestDate=fresh.reduce((best,r)=>{
+  if(!r.date)return best;
+  const[d,m,y]=(r.date).split('/');
+  const t=new Date(+y,+m-1,+d).getTime();
+  return t>best?t:best;
+},0);
+
+const newItems=fresh.filter(r=>{
+  if(r.status!=='New')return false;
+  if(!latestDate||!r.date)return false;
+  const[d,m,y]=(r.date).split('/');
+  return new Date(+y,+m-1,+d).getTime()===latestDate;
+});
   const card=document.getElementById('scSupCard');
 
   // Find the element after the KPI grid — everything from kpi-grid down
