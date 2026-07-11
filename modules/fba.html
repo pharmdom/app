@@ -208,7 +208,273 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .upload-progress { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #eff6ff; border-radius: 8px; font-size: 12px; font-weight: 600; color: #1e40af; margin-top: 4px; }
 @media (max-width: 900px) { .kanban-wrapper { overflow-x: auto; overflow-y: hidden; } .kanban-column { min-width: 280px; flex-shrink: 0; } .drawer { width: 93vw; } }
 @media (max-width: 640px) { html, body { overflow: auto; height: auto; } .page-wrapper { height: auto; overflow: visible; padding: 8px; } .page-titl { font-size: 16px; } .page-header { flex-direction: column; align-items: stretch; } .header-left { flex-wrap: wrap; } .header-actions { width: 100%; justify-content: flex-end; } .search-wrap { max-width: 100%; min-width: 0; } .kanban-wrapper { overflow-x: auto; flex-direction: row; min-height: 0; height: 62vh; } .kanban-column { min-width: 240px; flex-shrink: 0; height: 100%; } .drawer { width: 100%; max-width: 100%; } .drawer-kpi-row { grid-template-columns: repeat(2,1fr); } .info-grid { grid-template-columns: 1fr !important; } .modal { width: 100vw; height: 92vh; border-radius: 12px 12px 0 0; margin-top: auto; } .modal-sm { height: auto; max-height: 94vh; } .form-row { grid-template-columns: 1fr; } .stat-chip span { display: none; } .stat-chip { padding: 5px 8px; } .modal-toolbar { flex-direction: column; align-items: stretch; } .modal-toolbar .search-wrap { max-width: 100%; } .header-actions { flex-wrap: wrap; } .lc-row { grid-template-columns: 1fr auto; grid-template-rows: auto auto; } .lc-row > div:first-child { grid-column: 1; } .lc-row > div:nth-child(2) { grid-column: 1; } .lc-row > button { grid-column: 2; grid-row: 1; } }
+
+/* ══ PAGE GUIDE SYSTEM ══ */
+.guide-fab{position:fixed;bottom:24px;right:24px;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 4px 20px rgba(37,99,235,.4);z-index:800;transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;animation:fabPulse 2.5s ease-in-out 1s 3}
+.guide-fab:hover{transform:scale(1.12);box-shadow:0 6px 28px rgba(37,99,235,.5)}
+.guide-fab svg{width:20px;height:20px}
+@keyframes fabPulse{0%,100%{box-shadow:0 4px 20px rgba(37,99,235,.4)}50%{box-shadow:0 4px 32px rgba(37,99,235,.7),0 0 0 8px rgba(37,99,235,.1)}}
+.guide-overlay{position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:2000;display:none;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .28s ease;backdrop-filter:blur(6px)}
+.guide-overlay.open{display:flex;opacity:1;pointer-events:all}
+.guide-modal{background:#fff;border-radius:20px;width:860px;max-width:96vw;height:580px;max-height:92vh;display:flex;overflow:hidden;box-shadow:0 32px 80px rgba(15,23,42,.3),0 8px 24px rgba(15,23,42,.15);transform:scale(.94) translateY(16px);transition:transform .32s cubic-bezier(.34,1.56,.64,1)}
+.guide-overlay.open .guide-modal{transform:scale(1) translateY(0)}
+.guide-nav{width:196px;flex-shrink:0;background:#f8fafc;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;padding:20px 10px;gap:4px}
+.guide-nav-header{padding:0 8px 16px;border-bottom:1px solid #e2e8f0;margin-bottom:8px}
+.guide-nav-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8}
+.guide-nav-page{font-size:13.5px;font-weight:700;color:#0f172a;margin-top:3px}
+.guide-nav-btn{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:10px;border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;color:#64748b;transition:all .15s;text-align:left;width:100%}
+.guide-nav-btn:hover{background:#e2e8f0;color:#334155}
+.guide-nav-btn.active{background:#eff6ff;color:#2563eb}
+.guide-nav-btn svg{width:15px;height:15px;flex-shrink:0}
+.guide-nav-btn .nav-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0;opacity:.4;margin-left:auto;transition:opacity .15s}
+.guide-nav-btn.active .nav-dot{opacity:1}
+.guide-content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.guide-content-inner{flex:1;overflow:hidden;position:relative}
+.guide-panel{position:absolute;inset:0;padding:28px 32px;overflow-y:auto;opacity:0;transform:translateX(18px);transition:opacity .22s ease,transform .22s ease;pointer-events:none}
+.guide-panel.active{opacity:1;transform:translateX(0);pointer-events:all}
+.guide-panel.leaving{transform:translateX(-18px)}
+.guide-panel-title{font-size:18px;font-weight:800;color:#0f172a;margin-bottom:6px}
+.guide-panel-sub{font-size:13px;color:#64748b;margin-bottom:20px;line-height:1.6}
+.guide-video-wrap{width:100%;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%);display:flex;align-items:center;justify-content:center;margin-bottom:20px;border:1px solid #e2e8f0}
+.guide-video-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#fff;text-align:center;padding:20px}
+.guide-video-placeholder .play-ring{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s,background .2s}
+.guide-video-placeholder .play-ring:hover{transform:scale(1.1);background:rgba(255,255,255,.25)}
+.guide-video-placeholder p{font-size:13px;font-weight:600;color:rgba(255,255,255,.7)}
+.guide-video-placeholder span{font-size:11px;color:rgba(255,255,255,.4)}
+.guide-action-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+.guide-action-card{background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 16px;cursor:pointer;transition:all .18s;text-align:left}
+.guide-action-card:hover{border-color:#bfdbfe;background:#eff6ff;transform:translateY(-2px);box-shadow:0 4px 16px rgba(37,99,235,.1)}
+.guide-action-card-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.guide-action-card-icon.blue{background:#eff6ff;color:#2563eb}
+.guide-action-card-icon.green{background:#f0fdf4;color:#15803d}
+.guide-action-card-icon.amber{background:#fffbeb;color:#d97706}
+.guide-action-card-icon.purple{background:#f5f3ff;color:#7c3aed}
+.guide-action-card-icon svg{width:15px;height:15px}
+.guide-action-card-title{font-size:12.5px;font-weight:700;color:#0f172a;margin-bottom:4px}
+.guide-action-card-desc{font-size:11.5px;color:#64748b;line-height:1.55}
+.guide-steps{display:flex;flex-direction:column;gap:12px;margin-bottom:8px}
+.guide-step{display:flex;align-items:flex-start;gap:14px;padding:14px 16px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;transition:border-color .15s}
+.guide-step:hover{border-color:#bfdbfe}
+.guide-step-num{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;box-shadow:0 2px 8px rgba(37,99,235,.3)}
+.guide-step-text{flex:1}
+.guide-step-label{font-size:13px;font-weight:700;color:#0f172a;margin-bottom:3px}
+.guide-step-desc{font-size:12px;color:#64748b;line-height:1.55}
+.guide-tips{display:flex;flex-direction:column;gap:8px}
+.guide-tip{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0}
+.guide-tip-icon{width:20px;height:20px;flex-shrink:0;margin-top:1px;color:#2563eb}
+.guide-tip-icon svg{width:20px;height:20px}
+.guide-tip-text{font-size:12.5px;color:#334155;line-height:1.6}
+.guide-tip-text strong{color:#0f172a}
+.guide-footer{padding:14px 20px;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;background:#f8fafc;flex-shrink:0}
+.guide-footer-hint{font-size:11.5px;color:#94a3b8;display:flex;align-items:center;gap:6px}
+.guide-footer-hint kbd{padding:2px 7px;background:#fff;border:1px solid #e2e8f0;border-radius:5px;font-family:'SF Mono','Fira Code',monospace;font-size:10.5px;color:#64748b}
+.guide-close-btn{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;background:#fff;border:1.5px solid #e2e8f0;font-size:12.5px;font-weight:600;font-family:inherit;color:#64748b;cursor:pointer;transition:all .15s}
+.guide-close-btn:hover{background:#e2e8f0;color:#334155}
+.guide-tour-btn{display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:9px;background:linear-gradient(135deg,#2563eb,#1d4ed8);border:none;font-size:12.5px;font-weight:700;font-family:inherit;color:#fff;cursor:pointer;transition:all .18s;box-shadow:0 2px 8px rgba(37,99,235,.3)}
+.guide-tour-btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(37,99,235,.4)}
+.guide-tour-btn svg{width:13px;height:13px}
+/* TOUR */
+.tour-highlight{position:fixed;z-index:3001;border-radius:10px;box-shadow:0 0 0 4000px rgba(15,23,42,.65),0 0 0 3px #2563eb,0 0 0 6px rgba(37,99,235,.25);pointer-events:none;transition:all .38s cubic-bezier(.4,0,.2,1)}
+.tour-card{position:fixed;z-index:3002;background:#fff;border-radius:16px;width:320px;max-width:90vw;box-shadow:0 20px 60px rgba(15,23,42,.25),0 6px 20px rgba(15,23,42,.12);overflow:hidden;transition:all .35s cubic-bezier(.4,0,.2,1);pointer-events:all}
+.tour-card-hero{padding:14px 16px 12px;background:linear-gradient(135deg,#0f172a,#1e3a8a);position:relative;overflow:hidden}
+.tour-card-hero::before{content:'';position:absolute;top:-30px;right:-30px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.04)}
+.tour-step-label{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:rgba(255,255,255,.4);margin-bottom:4px}
+.tour-card-title{font-size:14px;font-weight:800;color:#fff;line-height:1.3;position:relative;z-index:1}
+.tour-card-body{padding:14px 16px 16px}
+.tour-card-desc{font-size:12.5px;color:#334155;line-height:1.65;margin-bottom:14px}
+.tour-card-desc strong{color:#0f172a}
+.tour-foot{display:flex;align-items:center;justify-content:space-between}
+.tour-dots{display:flex;gap:4px}
+.tour-dot{width:6px;height:6px;border-radius:50%;background:#e2e8f0;transition:all .2s}
+.tour-dot.active{background:#2563eb;width:16px;border-radius:3px}
+.tour-btns{display:flex;gap:6px}
+.tour-btn{padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;border:1.5px solid;transition:all .15s}
+.tour-btn-skip{background:#fff;border-color:#e2e8f0;color:#94a3b8}
+.tour-btn-skip:hover{border-color:#94a3b8;color:#64748b}
+.tour-btn-next{background:#2563eb;border-color:#2563eb;color:#fff}
+.tour-btn-next:hover{background:#1d4ed8}
+.tour-btn-finish{background:#15803d;border-color:#15803d;color:#fff}
+.tour-btn-finish:hover{filter:brightness(1.08)}
+@media(max-width:640px){.guide-modal{flex-direction:column;height:92vh}.guide-nav{width:100%;flex-direction:row;padding:10px;gap:4px;overflow-x:auto;border-right:none;border-bottom:1px solid #e2e8f0}.guide-nav-header{display:none}.guide-nav-btn span{display:none}.guide-action-cards{grid-template-columns:1fr}}
 </style>
+
+
+<!-- ══ GUIDE FAB ══ -->
+<button class="guide-fab" id="guideFab" onclick="openGuide()" title="Page Guide (Ctrl+G)">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+</button>
+<!-- ══ GUIDE MODAL ══ -->
+<div class="guide-overlay" id="guideOverlay" onclick="if(event.target===this)closeGuide()">
+  <div class="guide-modal">
+    <div class="guide-nav">
+      <div class="guide-nav-header">
+        <img src="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png" alt="Pharm &amp; Dom" style="height:22px;width:auto;object-fit:contain;display:block;margin-bottom:10px;" onerror="this.style.display='none'">
+        <div class="guide-nav-title">Page Guide</div>
+        <div class="guide-nav-page">FBA Opportunities</div>
+      </div>
+      <button class="guide-nav-btn active" data-panel="overview" onclick="switchGuidePanel('overview',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Overview<span class="nav-dot"></span>
+      </button>
+      <button class="guide-nav-btn" data-panel="actions" onclick="switchGuidePanel('actions',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Quick Actions<span class="nav-dot"></span>
+      </button>
+      <button class="guide-nav-btn" data-panel="howto" onclick="switchGuidePanel('howto',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        How It Works<span class="nav-dot"></span>
+      </button>
+      <button class="guide-nav-btn" data-panel="tips" onclick="switchGuidePanel('tips',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        Tips<span class="nav-dot"></span>
+      </button>
+    </div>
+    <div class="guide-content">
+      <div class="guide-content-inner">
+        <!-- OVERVIEW -->
+        <div class="guide-panel active" id="guidePanel-overview">
+          <div class="guide-panel-title">Welcome to FBA Opportunities</div>
+          <div class="guide-panel-sub">This page tracks Amazon FBA preparation from start to finish. Products move through a Kanban board — from Warehouse prep, through Digital Ops, to Completed — giving the whole team a clear view of every shipment's status.</div>
+          <div class="guide-video-wrap">
+            <div class="guide-video-placeholder">
+              <div class="play-ring"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+              <p>Watch: FBA Opportunities Overview</p>
+              <span>Video coming soon — check back later</span>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 14px;text-align:center">
+              <div style="font-size:20px;font-weight:800;color:#2563eb" id="guideStatTotal">—</div>
+              <div style="font-size:11px;font-weight:600;color:#2563eb;margin-top:2px">Total Work Items</div>
+            </div>
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;text-align:center">
+              <div style="font-size:20px;font-weight:800;color:#15803d" id="guideStatCompleted">—</div>
+              <div style="font-size:11px;font-weight:600;color:#15803d;margin-top:2px">Completed</div>
+            </div>
+          </div>
+        </div>
+        <!-- QUICK ACTIONS -->
+        <div class="guide-panel" id="guidePanel-actions">
+          <div class="guide-panel-title">What Can You Do Here?</div>
+          <div class="guide-panel-sub">Tap any card to jump straight to that feature.</div>
+          <div class="guide-action-cards">
+            <div class="guide-action-card" onclick="closeGuide();setTimeout(function(){openAddWorkModal()},300)">
+              <div class="guide-action-card-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg></div>
+              <div class="guide-action-card-title">Add Work</div>
+              <div class="guide-action-card-desc">Create a new work item by entering one or more label codes. The system auto-fills prep details from the FBA Products database and groups multiple codes into a single batch record.</div>
+            </div>
+            <div class="guide-action-card" onclick="closeGuide();setTimeout(function(){openProductsModal()},300)">
+              <div class="guide-action-card-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
+              <div class="guide-action-card-title">View Products</div>
+              <div class="guide-action-card-desc">Open the FBA Products database — the master list of all products with their prep instructions, packaging requirements, ASIN, barcode image, and product image.</div>
+            </div>
+            <div class="guide-action-card" onclick="closeGuide();setTimeout(function(){openWorkTableModal()},300)">
+              <div class="guide-action-card-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+              <div class="guide-action-card-title">Work Table</div>
+              <div class="guide-action-card-desc">See all work items in a flat table view — searchable, with status badges. Click any row to open its full detail drawer for editing.</div>
+            </div>
+            <div class="guide-action-card" onclick="closeGuide();setTimeout(function(){showCompletedModal()},300)">
+              <div class="guide-action-card-icon green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="guide-action-card-title">View Completed</div>
+              <div class="guide-action-card-desc">See all records that have completed the full pipeline — units completed, UPS collected, and Veeqo stock adjusted.</div>
+            </div>
+          </div>
+        </div>
+        <!-- HOW IT WORKS -->
+        <div class="guide-panel" id="guidePanel-howto">
+          <div class="guide-panel-title">How It Works</div>
+          <div class="guide-panel-sub">Every FBA shipment follows a four-stage flow across two Kanban columns.</div>
+          <div class="guide-steps">
+            <div class="guide-step">
+              <div class="guide-step-num">1</div>
+              <div class="guide-step-text">
+                <div class="guide-step-label">Add a product to the FBA database</div>
+                <div class="guide-step-desc">Click <strong>Products → Add Product</strong> to create an FBA product record. Set the label code, brand, ASIN, all prep options (poly bag, warning label, barcode, box, bundle, DG label), and upload the product image and barcode image. This becomes the prep reference for all future work items.</div>
+              </div>
+            </div>
+            <div class="guide-step">
+              <div class="guide-step-num">2</div>
+              <div class="guide-step-text">
+                <div class="guide-step-label">Create a work item</div>
+                <div class="guide-step-desc">Click <strong>Work → Add Work</strong> and enter one or more label codes with their unit quantities. The system auto-matches each code to the FBA Products database and shows the full prep brief. Multiple label codes become a single batch work item. Add a grouping link, collection date, and grouping images if needed.</div>
+              </div>
+            </div>
+            <div class="guide-step">
+              <div class="guide-step-num">3</div>
+              <div class="guide-step-text">
+                <div class="guide-step-label">Work through the Kanban board</div>
+                <div class="guide-step-desc">New work items land in <strong>Warehouse</strong>. Click any card to open the detail drawer. The Warehouse tab lets you mark units completed and toggle UPS Collected. Once units are completed and UPS is collected, the card moves to <strong>Digital Ops</strong> — where Veeqo Stock Adjusted is toggled. After that, the record is Completed.</div>
+              </div>
+            </div>
+            <div class="guide-step">
+              <div class="guide-step-num">4</div>
+              <div class="guide-step-text">
+                <div class="guide-step-label">Track completion</div>
+                <div class="guide-step-desc">The green <strong>Completed</strong> chip in the header shows how many records have finished the full pipeline. Click it to see the full completed list. All data syncs to Supabase in real time — changes made on any device are reflected immediately.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- TIPS -->
+        <div class="guide-panel" id="guidePanel-tips">
+          <div class="guide-panel-title">Handy Tips</div>
+          <div class="guide-panel-sub">Little things that make using this page much easier.</div>
+          <div class="guide-tips">
+            <div class="guide-tip">
+              <div class="guide-tip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
+              <div class="guide-tip-text">A work item's <strong>Kanban column is determined automatically</strong> by its data — not by dragging. Units Completed + UPS Collected → Digital Ops. Then Veeqo Stock Adjusted → Completed. You can never move a card to the wrong stage.</div>
+            </div>
+            <div class="guide-tip">
+              <div class="guide-tip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg></div>
+              <div class="guide-tip-text">When adding work with <strong>multiple label codes</strong>, all codes are grouped into a single batch work item. The drawer shows each product's image, prep options, and barcode in a numbered list — so the warehouse team sees everything they need in one place.</div>
+            </div>
+            <div class="guide-tip">
+              <div class="guide-tip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="guide-tip-text">The <strong>Delete button</strong> requires two clicks — the first click turns it red and says "Confirm?", and you have 3 seconds to click again to confirm. This prevents accidental deletions. The button resets automatically if you don't confirm.</div>
+            </div>
+            <div class="guide-tip">
+              <div class="guide-tip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+              <div class="guide-tip-text">You can upload <strong>PDF files</strong> for both product images and barcode images — they are automatically converted to PNG on upload. Existing Google Drive image URLs are displayed as-is; only new uploads go to Supabase Storage.</div>
+            </div>
+            <div class="guide-tip">
+              <div class="guide-tip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
+              <div class="guide-tip-text">Press <strong>Ctrl + G</strong> (or Cmd + G on Mac) at any time to reopen this guide.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="guide-footer">
+        <div class="guide-footer-hint">Press <kbd>Esc</kbd> to close &nbsp;·&nbsp; <kbd>Ctrl G</kbd> to reopen</div>
+        <div style="display:flex;gap:8px">
+          <button class="guide-close-btn" onclick="closeGuide()">Close</button>
+          <button class="guide-tour-btn" onclick="closeGuide();setTimeout(startGuideTour,300)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Take the Tour
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- TOUR ELEMENTS -->
+<div class="tour-highlight" id="tourHighlight" style="display:none"></div>
+<div class="tour-card" id="tourCard" style="display:none">
+  <div class="tour-card-hero">
+    <div class="tour-step-label" id="tourStepLabel"></div>
+    <div class="tour-card-title" id="tourCardTitle"></div>
+  </div>
+  <div class="tour-card-body">
+    <div class="tour-card-desc" id="tourCardDesc"></div>
+    <div class="tour-foot">
+      <div class="tour-dots" id="tourDots"></div>
+      <div class="tour-btns">
+        <button class="tour-btn tour-btn-skip" onclick="endGuideTour()">End Tour</button>
+        <button class="tour-btn tour-btn-next" id="tourNextBtn" onclick="tourNextStep()">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <div class="page-wrapper">
   <div style="margin-bottom:6px;flex-shrink:0">
@@ -1590,5 +1856,167 @@ window.handleGroupingImagesUpload      = handleGroupingImagesUpload;
 ══════════════════════════════════════════════════ */
 loadData();
 
+})();
+
+
+
+/* ══ PAGE GUIDE & TOUR ══ */
+(function(){
+  var GUIDE_KEY='pd_guide_fba_seen';
+  var TOUR_STEPS=[
+    {
+      target:'.page-header',
+      title:'Status Chips &amp; Search',
+      desc:'The chips show total work items and how many are completed. The green chip is clickable — it opens the completed records list. Use the search box to filter cards by label code, brand, or ASIN.',
+      position:'bottom'
+    },
+    {
+      target:'.header-actions',
+      title:'Work &amp; Products Buttons',
+      desc:'<strong>Work</strong> opens the work table and lets you add new work items. <strong>Products</strong> opens the FBA Products database — the master list of all products and their prep instructions.',
+      position:'bottom'
+    },
+    {
+      target:'.kanban-wrapper',
+      title:'The Kanban Board',
+      desc:'Work items flow left to right: <strong>Warehouse</strong> (prep in progress) → <strong>Digital Ops</strong> (units complete, UPS collected, awaiting Veeqo adjustment). The column a card sits in is determined automatically by its data.',
+      position:'top',
+      fallback:'.page-wrapper'
+    },
+    {
+      target:'.kanban-column:first-child',
+      title:'Warehouse Column',
+      desc:'Cards here need physical prep — poly bagging, labelling, boxing. Click any card to open the detail drawer, where you can see the full prep brief, mark units completed, and toggle UPS Collected.',
+      position:'right',
+      fallback:'.kanban-wrapper'
+    },
+    {
+      target:'.kanban-column:nth-child(2)',
+      title:'Digital Ops Column',
+      desc:'Cards here have been physically prepped and collected by UPS. The final step is toggling <strong>Veeqo Stock Adjusted</strong> in the detail drawer — after that, the record moves to Completed.',
+      position:'left',
+      fallback:'.kanban-wrapper'
+    },
+    {
+      target:'.kanban-card',
+      title:'A Work Item Card',
+      desc:'Each card shows the label code, brand, ASIN, units required, and all prep option chips (Poly, Barcode, Box, DG, etc.). Click the card to open the full detail drawer with tabs for Product Info, Prep, and Warehouse.',
+      position:'right',
+      fallback:'.kanban-wrapper'
+    }
+  ];
+  var tourStep=0,tourActive=false;
+  window.openGuide=function(){
+    var overlay=document.getElementById('guideOverlay');
+    overlay.style.display='flex';
+    requestAnimationFrame(function(){overlay.classList.add('open');});
+    try{
+      var total=0,completed=0;
+      if(typeof warehouseData!=='undefined'){
+        total=warehouseData.length;
+        if(typeof getBucket==='function'){
+          warehouseData.forEach(function(r){if(getBucket(r)==='completed')completed++;});
+        }
+      }
+      var gt=document.getElementById('guideStatTotal');
+      var gc=document.getElementById('guideStatCompleted');
+      if(gt)gt.textContent=total;
+      if(gc)gc.textContent=completed;
+    }catch(e){}
+  };
+  window.closeGuide=function(){
+    var overlay=document.getElementById('guideOverlay');
+    overlay.classList.remove('open');
+    setTimeout(function(){overlay.style.display='none';},300);
+  };
+  window.switchGuidePanel=function(panel,btn){
+    var current=document.querySelector('.guide-panel.active');
+    var next=document.getElementById('guidePanel-'+panel);
+    if(!next||current===next)return;
+    current.classList.add('leaving');
+    current.classList.remove('active');
+    requestAnimationFrame(function(){
+      next.classList.add('active');
+      setTimeout(function(){current.classList.remove('leaving');},220);
+    });
+    document.querySelectorAll('.guide-nav-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+  };
+  window.startGuideTour=function(){
+    tourActive=true;tourStep=0;
+    document.getElementById('tourHighlight').style.display='block';
+    document.getElementById('tourCard').style.display='block';
+    renderTourStep();
+  };
+  window.endGuideTour=function(){
+    tourActive=false;
+    document.getElementById('tourHighlight').style.display='none';
+    document.getElementById('tourCard').style.display='none';
+  };
+  window.tourNextStep=function(){
+    if(tourStep<TOUR_STEPS.length-1){tourStep++;renderTourStep();}
+    else{window.endGuideTour();}
+  };
+  function renderTourStep(){
+    var step=TOUR_STEPS[tourStep];
+    var total=TOUR_STEPS.length;
+    var isLast=tourStep===total-1;
+    var el=document.querySelector(step.target);
+    if(!el&&step.fallback)el=document.querySelector(step.fallback);
+    if(!el){window.tourNextStep();return;}
+    el.scrollIntoView({behavior:'smooth',block:'center'});
+    setTimeout(function(){
+      var rect=el.getBoundingClientRect();
+      var pad=8;
+      var hl=document.getElementById('tourHighlight');
+      hl.style.top=(rect.top-pad)+'px';
+      hl.style.left=(rect.left-pad)+'px';
+      hl.style.width=(rect.width+pad*2)+'px';
+      hl.style.height=(rect.height+pad*2)+'px';
+      var card=document.getElementById('tourCard');
+      var cardW=320,margin=14;
+      var vw=window.innerWidth,vh=window.innerHeight;
+      var pos=step.position||'bottom';
+      var top,left;
+      if(pos==='bottom'){top=rect.bottom+pad+margin;left=rect.left+rect.width/2-cardW/2;}
+      else if(pos==='top'){top=rect.top-pad-220-margin;left=rect.left+rect.width/2-cardW/2;}
+      else if(pos==='right'){top=rect.top+rect.height/2-110;left=rect.right+pad+margin;}
+      else{top=rect.top+rect.height/2-110;left=rect.left-cardW-pad-margin;}
+      left=Math.max(12,Math.min(left,vw-cardW-12));
+      top=Math.max(12,Math.min(top,vh-240));
+      card.style.top=top+'px';card.style.left=left+'px';
+      document.getElementById('tourStepLabel').textContent='Step '+(tourStep+1)+' of '+total;
+      document.getElementById('tourCardTitle').innerHTML=step.title;
+      document.getElementById('tourCardDesc').innerHTML=step.desc;
+      var dots=document.getElementById('tourDots');dots.innerHTML='';
+      for(var i=0;i<total;i++){var d=document.createElement('div');d.className='tour-dot'+(i===tourStep?' active':'');dots.appendChild(d);}
+      var nb=document.getElementById('tourNextBtn');
+      nb.textContent=isLast?'Finish':'Next';
+      nb.className='tour-btn '+(isLast?'tour-btn-finish':'tour-btn-next');
+    },350);
+  }
+  document.addEventListener('keydown',function(e){
+    if((e.ctrlKey||e.metaKey)&&e.key==='g'){
+      e.preventDefault();
+      if(tourActive){window.endGuideTour();return;}
+      var guideOpen=document.getElementById('guideOverlay').classList.contains('open');
+      if(guideOpen)closeGuide();else openGuide();
+    }
+    if(e.key==='Escape'){
+      if(tourActive){window.endGuideTour();return;}
+      if(document.getElementById('guideOverlay').classList.contains('open')){closeGuide();return;}
+    }
+  });
+  var fab=document.getElementById('guideFab');
+  if(!localStorage.getItem(GUIDE_KEY)){
+    localStorage.setItem(GUIDE_KEY,'1');
+  }else{
+    if(fab)fab.style.display='none';
+  }
+  var _origClose=window.closeGuide;
+  window.closeGuide=function(){
+    _origClose();
+    if(fab)fab.style.display='none';
+  };
 })();
 </script>
