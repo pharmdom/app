@@ -64,8 +64,8 @@ body { overflow: hidden; }
 .planner-date-label { padding: 0 10px; font-size: 12px; font-weight: 600; color: #0f172a; white-space: nowrap; cursor: pointer; border-radius: 6px; transition: background .15s; user-select: none; }
 .planner-date-label:hover { background: #f1f5f9; }
 .planner-view-select { padding: 7px 10px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 12px; font-family: inherit; background: #fff; color: #0f172a; cursor: pointer; outline: none; }
-.planner-add-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: #0f172a; color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; white-space: nowrap; }
-.planner-add-btn:hover { background: #1e293b; }
+.planner-add-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: #2563eb; color: #fff; border: none; border-radius: 9px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.planner-add-btn:hover { background: #1d4ed8; }
 .planner-team-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: #fff; color: #0f172a; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; }
 .planner-team-btn:hover { border-color: #94a3b8; background: #f8fafc; }
 .planner-closed-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: #fff; color: #64748b; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; }
@@ -1079,7 +1079,12 @@ async function init() {
 
     S.workingDays     = [1,2,3,4,5];
     S.closedDays      = JSON.parse(localStorage.getItem('rota_closedDays') || '[]');
-    S.hiddenEmployees = JSON.parse(localStorage.getItem('rota_hiddenEmps') || '[]');
+    try {
+      const { data: hidSetting } = await sb.from('app_settings').select('value').eq('key','rota_hidden_employees').single();
+      S.hiddenEmployees = JSON.parse(hidSetting?.value || '[]');
+    } catch(e) {
+      S.hiddenEmployees = [];
+    }
     S.loaded          = true;
     S.view            = 'week';
     S.currentDate     = snapToMonday(isoDate(new Date()));
@@ -1677,12 +1682,16 @@ function renderTeamModal(){
   });
   document.getElementById('teamModalBody').innerHTML=html;
 }
-function toggleEmployeeVisibility(id){
+async function toggleEmployeeVisibility(id){
   const idx=S.hiddenEmployees.indexOf(id);
   if(idx>-1){S.hiddenEmployees.splice(idx,1);showToast('Employee shown','success');}
   else{S.hiddenEmployees.push(id);showToast('Employee hidden','info');}
-  localStorage.setItem('rota_hiddenEmps',JSON.stringify(S.hiddenEmployees));
   renderGrid(); renderTeamModal();
+  try {
+    await sb.from('app_settings').update({ value: JSON.stringify(S.hiddenEmployees) }).eq('key','rota_hidden_employees');
+  } catch(e) {
+    showToast('Failed to save visibility','error');
+  }
 }
 document.getElementById('teamModal').addEventListener('click',function(e){if(e.target===this)closeTeamModal();});
 
