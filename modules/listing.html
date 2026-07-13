@@ -574,6 +574,7 @@ function daysAgoLabel(n) { if(n===null) return ''; if(n===0) return 'Today'; if(
 
 /* ── CALCULATED FIELDS ── */
 function applyAutoFields(row) {
+  row.warehouse = true;
   const sales = parseFloat(row.sales) || 0;
   const qty   = parseFloat(row.qty_purchased) || 0;
   const listOthers = qty > sales;
@@ -914,7 +915,6 @@ function renderDrawer(row) {
       + renderAsinField(id, row.asins, row.asins_status)
       + editCard(id,'supplier_name',row.supplier_name||'','text','Supplier Name')
       + editCard(id,'code',row.code||'','text','EAN')
-      + (stage==='ready'||stage==='listed' ? boolCard(id,'warehouse',row.warehouse,'Warehouse Notified') : '')
       + (stage==='ready'||stage==='listed' ? boolCard(id,'arrived',row.arrived,'Delivery Received') : '')
       + '</div></div>'
       + sec('Financials')
@@ -1105,8 +1105,8 @@ async function toggleBool(id, field, newVal) {
   if (idx < 0) return;
   const row = allData[idx];
 
-  // Block warehouse/arrived if checklist incomplete
-  if ((field === 'warehouse' || field === 'arrived') && newVal === true) {
+// Block arrived if checklist incomplete
+  if (field === 'arrived' && newVal === true) {
     if (!STAGE_CHECK_FIELDS.every(f => toBool(row[f]))) {
       showToast('Complete Veeqo checklist first', 'error');
       renderDrawer(row); return;
@@ -1121,7 +1121,7 @@ row[field] = v;
   if (field === 'fba_opportunity') row._fbaManual = true;
   applyAutoFields(row);
 
-  const update = { [field]: v, last_updated: new Date().toISOString() };
+  const update = { [field]: v, warehouse: true, last_updated: new Date().toISOString() };
 
   // Save auto-calculated fields too
   update.list_ebay            = row.list_ebay;
