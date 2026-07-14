@@ -290,7 +290,7 @@ html,body{font-family:var(--font);font-size:13px;color:var(--text);background:va
 var SB_URL='https://mbmgcqknbajwndiveewf.supabase.co';
 var SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ibWdjcWtuYmFqd25kaXZlZXdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MjM5NDYsImV4cCI6MjA5NTI5OTk0Nn0.PtMnPnh8FjfS9Qla-D17Jfk-0ArgtKLTRrE52edAVdU';
 var sb=null;
-var _orders=[],_lineItems=[],_packers=[],_weekStats=[];
+var _orders=[],_lineItems=[],_packers=[],_weekStats=[],_latestPackers={};
 var _trendChart=null,_whTrendChart=null;
 var _whClockInt=null,_refreshInt=null;
 
@@ -413,14 +413,20 @@ function computeCapacity(){
 function computeStats(){
   var totalOrders=_orders.length;
   var shipped=_orders.filter(function(o){return(o.status||'').toLowerCase()==='shipped';}).length;
-  var totalPacked=_packers.reduce(function(a,p){return a+(parseInt(p.count)||0);},0);
+_latestPackers={};
+_packers.forEach(function(p){
+  if(!_latestPackers[p.packer_name]||new Date(p.updated_at)>new Date(_latestPackers[p.packer_name].updated_at)){
+    _latestPackers[p.packer_name]=p;
+  }
+});
+var totalPacked=Object.values(_latestPackers).reduce(function(a,p){return a+(parseInt(p.count)||0);},0);
   var capacity=computeCapacity();
   var qtyMap={};
   _lineItems.forEach(function(li){qtyMap[li.order_id]=(qtyMap[li.order_id]||0)+(parseInt(li.quantity)||0);});
   var totalItems=_orders.reduce(function(a,o){return a+(qtyMap[o.order_id]||0);},0);
   var shippedItems=_orders.filter(function(o){return(o.status||'').toLowerCase()==='shipped';}).reduce(function(a,o){return a+(qtyMap[o.order_id]||0);},0);
   var buffer=totalPacked-shippedItems;
-  var activePackers=_packers.filter(function(p){return (parseInt(p.count)||0)>0;}).length;
+  var activePackers=Object.values(_latestPackers).filter(function(p){return (parseInt(p.count)||0)>0;}).length;
   var twoHAgo=new Date(new Date().getTime()-2*3600000);
 var readyToShip=_orders.filter(function(o){return(o.status||'').toLowerCase()==='ready_to_ship';}).length;
 var paymentRequired=_orders.filter(function(o){
@@ -567,7 +573,7 @@ function renderDecisionPanel(stats){
 
   var rateMap={};
   _weekStats.forEach(function(w){rateMap[w.name]=parseInt(w.packs_per_hour)||0;});
-  var sorted=_packers.slice().sort(function(a,b){return(b.count||0)-(a.count||0);});
+  var sorted=Object.values(_latestPackers).sort(function(a,b){return(b.count||0)-(a.count||0);});
   document.getElementById('dpPackers').innerHTML=sorted.map(function(p){
     var initials=p.packer_name.split(/[\s/]+/).map(function(w){return w[0]||'';}).join('').toUpperCase().slice(0,2);
     var rate=rateMap[p.packer_name]||0;
@@ -581,8 +587,8 @@ function renderDecisionPanel(stats){
 
 /* ── PACKER BARS ── */
 function renderPackerBars(){
-  var sorted=_packers.slice().sort(function(a,b){return(b.count||0)-(a.count||0);});
-  var existing=document.querySelectorAll('#packerBars .bar-fill');
+  var sorted=Object.values(_latestPackers).sort(function(a,b){return(b.count||0)-(a.count||0);});
+var existing=document.querySelectorAll('#packerBars .bar-fill');
   if(existing.length===sorted.length){
     existing.forEach(function(el,i){var pct=Math.round((sorted[i].count||0)/(sorted[0].count||1)*100);el.style.width=pct+'%';});
     document.querySelectorAll('#packerBars .bar-count').forEach(function(el,i){el.textContent=sorted[i].count||0;});
@@ -736,8 +742,8 @@ _whTrendChart=new Chart(whCtx,{
 
   var rateMap={};
   _weekStats.forEach(function(w){rateMap[w.name]=parseInt(w.packs_per_hour)||0;});
-  var sorted=_packers.slice().sort(function(a,b){return(b.count||0)-(a.count||0);});
-  document.getElementById('whPackers').innerHTML=sorted.map(function(p){
+  var sorted=Object.values(_latestPackers).sort(function(a,b){return(b.count||0)-(a.count||0);});
+    document.getElementById('whPackers').innerHTML=sorted.map(function(p){
     var initials=p.packer_name.split(/[\s/]+/).map(function(w){return w[0]||'';}).join('').toUpperCase().slice(0,2);
     var rate=rateMap[p.packer_name]||0;
     return '<div class="wh-packer">'
