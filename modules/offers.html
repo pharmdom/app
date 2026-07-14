@@ -1974,8 +1974,7 @@ async function loadSrcUsers(){
 
 async function openSourcingModal(offer){
   _srcOffer=offer;
-  await loadSrcSuppliers();
-  const users=await loadSrcUsers();
+  const [, users] = await Promise.all([loadSrcSuppliers(), loadSrcUsers()]);
   const usrOpts=users.map(u=>`<option value="${esc(u)}"${u===_agentName?' selected':''}>${esc(u)}</option>`).join('');
 
   document.getElementById('srcFormBody').innerHTML=`
@@ -2080,9 +2079,7 @@ const required=['src_productName','src_agent','src_fulfillment','src_keepa','src
   const supplierCheapestRaw=document.getElementById('src_supplierCheapest').value;
   const notesTxt=document.getElementById('src_notes').value.trim();
 
-  const{data:maxRow}=await sb.from('sourcing').select('opportunity_id').order('opportunity_id',{ascending:false}).limit(1).single();
-  const lastNum=maxRow?parseInt(maxRow.opportunity_id.replace('SRC-',''))||0:0;
-  const opportunityId='SRC-'+String(lastNum+1).padStart(6,'0');
+  const opportunityId='SRC-'+Date.now();
 
   const insertData={
     opportunity_id:opportunityId,
@@ -2123,9 +2120,9 @@ const required=['src_productName','src_agent','src_fulfillment','src_keepa','src
     return;
   }
 
-  if(notesTxt) await sb.from('sourcing_notes').insert({opportunity_id:opportunityId,author_name:agentName||'Unknown',text:notesTxt});
-
-  await sb.from('sourcing_hours').insert({
+  await Promise.all([
+  notesTxt ? sb.from('sourcing_notes').insert({opportunity_id:opportunityId,author_name:agentName||'Unknown',text:notesTxt}) : Promise.resolve(),
+  sb.from('sourcing_hours').insert({
     opportunity_id:opportunityId,agent:agentName,
     supplier_name:insertData.supplier_name,product_name:insertData.product_name,
     seconds,formatted:String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0'),
@@ -2136,7 +2133,8 @@ const required=['src_productName','src_agent','src_fulfillment','src_keepa','src
     unit_quantity:insertData.unit_quantity,packing:insertData.packing,
     seasonality:insertData.seasonality,competition:insertData.competition,
     supplier_stock:insertData.supplier_stock,
-  });
+  })
+]);
 
   closeSourcingModal();
   // Remove offer from board
@@ -2805,7 +2803,7 @@ window.openRejectedModal=openRejectedModal;window.closeRejectedModal=closeReject
 window.toggleSmartFilters=toggleSmartFilters;window.applySmartFilters=applySmartFilters;window.clearSmartFilters=clearSmartFilters;window.toggleMultiSupplier=toggleMultiSupplier;
 
 /* ── INIT ── */
-(async()=>{ loadCurrentUser(); loadOffers(false); })();
+(async()=>{ loadCurrentUser(); loadSrcSuppliers(); loadOffers(false); })();
 
 })();
 
