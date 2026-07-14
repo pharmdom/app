@@ -530,7 +530,7 @@ function renderView(){
     <th style="width:100px">Date</th>
     <th>Product Name</th>
     <th>Supplier & Code</th>
-    <th style="width:110px">Bin Location</th>
+    <th class="center" style="width:110px">Bin Location</th>
     <th class="center" style="width:120px">Images Shared</th>
     <th class="center" style="width:140px">SKU Label Printed</th>
     <th class="center" style="width:70px">Status</th>
@@ -544,7 +544,7 @@ function renderView(){
     if(r.supplier_name)html+=`<div class="sup-cell">${esc(r.supplier_name)}</div>`;
     html+=`</td>`;
     html+=`<td>${r.code?`<span class="code-badge">${esc(r.code)}</span>`:'<span style="color:var(--text4)">—</span>'}</td>`;
-    html+=`<td><input type="text" value="${esc(r.bin_location||'')}" placeholder="e.g. A1-03" style="width:100%;padding:5px 8px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:var(--font);color:var(--text);background:var(--surface2);outline:none;transition:border-color .15s" onfocus="this.style.borderColor='var(--accent)';this.style.background='#fff'" onblur="this.style.borderColor='var(--border)';this.style.background='var(--surface2)';saveBinLocation('${esc(String(r.opportunity_id||''))}',this.value)"></td>`;
+    html+=`<td class="center">${ynToggle(id,'bin_location',!!r.bin_location)}</td>`;
     html+=`<td class="center">${ynToggle(id,'images_shared',imgDone)}</td>`;
     html+=`<td class="center">${ynToggle(id,'sku_label_printed',skuDone)}</td>`;
     html+=`<td class="center"><div class="dots"><div class="dot${imgDone?' done':''}" title="Images Shared"></div><div class="dot${skuDone?' done':''}" title="SKU Label Printed"></div></div></td>`;
@@ -631,22 +631,9 @@ async function toggleField(opportunityId,field,newVal){
 
 
 
-/* ── BIN LOCATION ── */
-async function saveBinLocation(opportunityId, value) {
-  const rec = allData.find(r => String(r.opportunity_id) === String(opportunityId));
-  if (!rec || rec.bin_location === value) return;
-  rec.bin_location = value;
-  const tid = toast('Saving…', 'info', 0);
-  const { error } = await sb.from('listing').update({ bin_location: value || null }).eq('opportunity_id', opportunityId);
-  removeToast(tid);
-  if (error) toast('Failed to save', 'error');
-  else toast('Bin location saved', 'success');
-}
-
   
 /* ── GLOBALS ── */
 window.renderView=renderView;
-window.saveBinLocation = saveBinLocation;
 window.setFilter=setFilter;
 window.toggleField=toggleField;
 
