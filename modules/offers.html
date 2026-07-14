@@ -2652,8 +2652,10 @@ async function parseImportOffersPDF(file){
   const validRows = [];
   let skipped = 0;
   _importOffersRows.forEach(row => {
-    const productName = getVal(row, 'product_name');
-    if (!productName) { skipped++; return; }
+   const productName = getVal(row, 'product_name');
+    const eanCheck = getVal(row, 'ean').trim();
+    const costCheck = getVal(row, 'cost_of_unit').replace(/[£$,\s]/g,'');
+    if (!productName || !eanCheck || costCheck === '' || isNaN(parseFloat(costCheck))) { skipped++; return; }
     let eanRaw = getVal(row, 'ean').trim();
     // Handle scientific notation (e.g. 5.01234e+12) and float suffix (e.g. 12345678.0)
     if (eanRaw) {
