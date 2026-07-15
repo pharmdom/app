@@ -679,14 +679,14 @@ body{overflow:hidden}
               <div class="guide-step-num">3</div>
               <div class="guide-step-text">
                 <div class="guide-step-label">Action each SKU</div>
-                <div class="guide-step-desc">Choose one of three actions — <strong>Purchased</strong> if you've placed the order, <strong>Not Available</strong> if the product can't be sourced right now (it will reappear next week), or <strong>Reject</strong> to permanently skip this SKU in all future uploads. Add a note for context. After any action the next product loads automatically.</div>
+                <div class="guide-step-desc">Choose one of three actions — <strong>Purchased</strong> if you've placed the order, <strong>Depleted</strong> if the product can't be sourced right now (it will reappear next week), or <strong>Reject</strong> to permanently skip this SKU in all future uploads. Add a note for context. After any action the next product loads automatically.</div>
               </div>
             </div>
             <div class="guide-step">
               <div class="guide-step-num">4</div>
               <div class="guide-step-text">
                 <div class="guide-step-label">Track progress in the Actioned Bucket</div>
-                <div class="guide-step-desc">Everything you action moves to the right panel instantly. Filter by status tab (Purchased, Not Available, Rejected), sort by recency, days left, or name. Use the ↩ undo button on any card to send it back to the review queue. Your session auto-saves to the database — closing the tab never loses progress.</div>
+                <div class="guide-step-desc">Everything you action moves to the right panel instantly. Filter by status tab (Purchased, Depleted, Rejected), sort by recency, days left, or name. Use the ↩ undo button on any card to send it back to the review queue. Your session auto-saves to the database — closing the tab never loses progress.</div>
               </div>
             </div>
           </div>
@@ -702,7 +702,7 @@ body{overflow:hidden}
             </div>
             <div class="guide-tip">
               <div class="guide-tip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
-              <div class="guide-tip-text"><strong>Not Available</strong> clears on the next upload so the product reappears for review if still needed. <strong>Reject</strong> is permanent — use it only for products that should never be replenished again (discontinued lines). You can undo a Reject from the bucket before closing the tab.</div>
+              <div class="guide-tip-text"><strong>Depleted</strong> clears on the next upload so the product reappears for review if still needed. <strong>Reject</strong> is permanent — use it only for products that should never be replenished again (discontinued lines). You can undo a Reject from the bucket before closing the tab.</div>
             </div>
             <div class="guide-tip">
               <div class="guide-tip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="3" height="15"/><rect x="7" y="4" width="2" height="15"/><rect x="11" y="4" width="4" height="15"/><rect x="17" y="4" width="2" height="15"/></svg></div>
@@ -911,7 +911,7 @@ body{overflow:hidden}
             <span class="bucket-sort-label">Sort</span>
             <span class="bucket-tab active" id="btab-all" onclick="setBucketTab('all')">All</span>
             <span class="bucket-tab bt-pur" id="btab-pur" onclick="setBucketTab('pur')">Purchased</span>
-            <span class="bucket-tab bt-na" id="btab-na" onclick="setBucketTab('na')">Not Available</span>
+            <span class="bucket-tab bt-na" id="btab-na" onclick="setBucketTab('na')">Depleted</span>
             <span class="bucket-tab bt-def" id="btab-def" onclick="setBucketTab('def')">Deferred</span>
             <span class="bucket-tab bt-basket" id="btab-basket" onclick="setBucketTab('basket')">In Basket</span>
             <span class="bucket-tab bt-rej" id="btab-rej" onclick="setBucketTab('rej')">Rejected</span>
@@ -974,7 +974,7 @@ body{overflow:hidden}
 <div class="supplier-overlay" id="supplierOverlay">
   <div class="supplier-dialog">
     <div class="supplier-dialog-hdr">
-      <div class="supplier-dialog-title">Add to Basket</div>
+      <div class="supplier-dialog-title">Basket</div>
       <div class="supplier-dialog-sub" id="supplierDialogSub">Select a supplier for this order</div>
     </div>
     <div class="supplier-dialog-body" id="supplierDialogBody">
@@ -982,7 +982,7 @@ body{overflow:hidden}
     </div>
     <div class="supplier-dialog-ftr">
       <button class="btn btn-secondary btn-sm" onclick="closeSupplierDialog()">Cancel</button>
-      <button class="btn btn-primary btn-sm" id="supplierConfirmBtn" onclick="confirmSupplierPick()" disabled>Add to Basket</button>
+      <button class="btn btn-primary btn-sm" id="supplierConfirmBtn" onclick="confirmSupplierPick()" disabled>Basket</button>
     </div>
   </div>
 </div>
@@ -1390,7 +1390,7 @@ const queuePanel = document.getElementById('queuePanel');
     const gapUnits   = ALL.filter(x => !acts[x.s]).reduce((s, x) => s + x.q, 0);
 
     const alerts = [];
-    if (critNA > 0) alerts.push({ type: 'danger', icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>', text: `<strong>${critNA} critical SKU${critNA > 1 ? 's' : ''} marked Not Available</strong> — these are out of stock and couldn't be sourced.` });
+    if (critNA > 0) alerts.push({ type: 'danger', icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>', text: `<strong>${critNA} critical SKU${critNA > 1 ? 's' : ''} marked Depleted</strong> — these are out of stock and couldn't be sourced.` });
     if (noPricePur > 0) alerts.push({ type: 'warn', icon: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>', text: `<strong>${noPricePur} purchased SKU${noPricePur > 1 ? 's' : ''} missing COGs</strong> — estimated spend may be understated.` });
 
     queueBody.innerHTML = `<div class="queue-done-state">
@@ -1416,7 +1416,7 @@ const queuePanel = document.getElementById('queuePanel');
         </div>
         <div class="summary-stat">
           <div class="summary-stat-val amber">${naItems.length}</div>
-          <div class="summary-stat-label">Not Available</div>
+          <div class="summary-stat-label">Depleted</div>
           <div class="summary-stat-sub">${critNA > 0 ? critNA + ' are critical urgency' : 'none critical'}</div>
         </div>
         <div class="summary-stat">
@@ -1637,11 +1637,11 @@ return `<div class="focus-card ${cardBorderCls}">
       </button>
       <button class="abtn${a === 'basket' ? ' on-pur' : ''}" onclick="actAndAdvance('${esc(x.s)}','basket')">
         <svg viewBox="0 0 12 12" fill="none"><path d="M2 2.5h1.2l1.6 4.5h4l1.2-3H4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5.5" cy="9" r=".8" fill="currentColor"/><circle cx="8.5" cy="9" r=".8" fill="currentColor"/></svg>
-        Add to Basket
+        Basket
       </button>
       <button class="abtn${a === 'na' ? ' on-na' : ''}" onclick="actAndAdvance('${esc(x.s)}','na')">
         <svg viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/><line x1="2.5" y1="9.5" x2="9.5" y2="2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        Not Available
+        Depleted
       </button>
       <button class="abtn${a === 'rej' ? ' on-rej' : ''}" onclick="actAndAdvance('${esc(x.s)}','rej')">
         <svg viewBox="0 0 12 12" fill="none"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -1657,7 +1657,7 @@ return `<div class="focus-card ${cardBorderCls}">
 function buildBucketCard(x) {
   const a = acts[x.s];
   const pillCls  = a === 'pur' ? 'status-pill sp-pur' : a === 'na' ? 'status-pill sp-na' : a === 'def' ? 'status-pill sp-def' : a === 'basket' ? 'status-pill' : 'status-pill sp-rej';
-  const pillTxt  = a === 'pur' ? 'Purchased' : a === 'na' ? 'Not Available' : a === 'def' ? 'Deferred' : a === 'basket' ? 'In Basket' : 'Rejected';
+  const pillTxt  = a === 'pur' ? 'Purchased' : a === 'na' ? 'Depleted' : a === 'def' ? 'Deferred' : a === 'basket' ? 'In Basket' : 'Rejected';
   const borderCls = a === 'pur' ? 'bc-pur' : a === 'na' ? 'bc-na' : a === 'def' ? '' : a === 'basket' ? 'bc-pur' : 'bc-rej';
   let daysCls, daysTxt;
   if (x.d <= 0)      { daysCls = 'days-badge days-crit'; daysTxt = 'Out of stock'; }
@@ -1836,7 +1836,7 @@ function renderBasketModal() {
     body.innerHTML = `<div class="basket-empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
       <div style="font-size:13px;font-weight:600;color:var(--text3);">Basket is empty</div>
-      <div style="font-size:12px;">Mark products "Add to Basket" in the review queue.</div>
+      <div style="font-size:12px;">Mark products "Basket" in the review queue.</div>
     </div>`;
     return;
   }
@@ -2114,14 +2114,14 @@ async function restoreFromDB() {
 
       var actionBars = [
         { label: 'Purchased',      count: snap.purchased,    color: 'var(--green)',  max: totalSkus },
-        { label: 'Not Available',  count: snap.notAvailable, color: 'var(--amber)',  max: totalSkus },
+        { label: 'Depleted',  count: snap.notAvailable, color: 'var(--amber)',  max: totalSkus },
         { label: 'Rejected',       count: snap.rejected,     color: 'var(--red)',    max: totalSkus },
         { label: 'Pending',        count: snap.pending,      color: 'var(--text4)',  max: totalSkus },
       ];
 
       var alerts = [];
       if (critNA > 0)
-        alerts.push({ type: 'danger', icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>', text: '<strong>' + critNA + ' critical SKU' + (critNA > 1 ? 's' : '') + ' marked Not Available</strong> — out of stock and couldn\'t be sourced.' });
+        alerts.push({ type: 'danger', icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>', text: '<strong>' + critNA + ' critical SKU' + (critNA > 1 ? 's' : '') + ' marked Depleted</strong> — out of stock and couldn\'t be sourced.' });
       if (noPricePur > 0)
         alerts.push({ type: 'warn', icon: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>', text: '<strong>' + noPricePur + ' purchased SKU' + (noPricePur > 1 ? 's' : '') + ' missing COGs</strong> — estimated spend may be understated.' });
       if (coverageGap > 0)
@@ -2147,7 +2147,7 @@ async function restoreFromDB() {
         + riSummaryCard('SKUs Reviewed', totalSkus, actionPct + '% actioned', actionPct === 100 ? 'green' : '')
         + riSummaryCard('Purchased', purRows.length, totalUnits.toLocaleString() + ' units to order', purRows.length > 0 ? 'green' : '')
         + riSummaryCard('Est. Spend', estSpend > 0 ? '£' + estSpend.toLocaleString('en-GB', {minimumFractionDigits:2,maximumFractionDigits:2}) : '—', estSpend > 0 ? 'COGs × qty' : 'no COGs data', estSpend > 0 ? 'blue' : '')
-        + riSummaryCard('Not Available', naRows.length, critNA > 0 ? critNA + ' critical' : 'none critical', naRows.length > 0 ? 'amber' : '')
+        + riSummaryCard('Depleted', naRows.length, critNA > 0 ? critNA + ' critical' : 'none critical', naRows.length > 0 ? 'amber' : '')
         + '</div>';
 
 // Action breakdown — pie chart
@@ -2200,7 +2200,7 @@ async function restoreFromDB() {
         html += '<div class="ri-sec-lbl">Critical SKUs This Week</div>';
         html += criticalActioned.map(function(r) {
           var pillCls = r.action === 'pur' ? 'pur' : r.action === 'na' ? 'na' : 'rej';
-          var pillTxt = r.action === 'pur' ? 'Purchased' : r.action === 'na' ? 'Not Available' : 'Rejected';
+          var pillTxt = r.action === 'pur' ? 'Purchased' : r.action === 'na' ? 'Depleted' : 'Rejected';
           var daysLbl = r.daysLeft <= 0 ? 'Out of stock' : r.daysLeft + 'd left';
           return '<div class="ri-sku-row">'
             + '<div class="ri-sku-name" title="' + riEsc(r.name||r.sku) + '">' + riEsc(r.name||r.sku) + '</div>'
@@ -2439,7 +2439,7 @@ async function init() {
     {
       target:'.focus-card-actions',
       title:'Action Buttons',
-      desc:'<strong>Purchased</strong> — order placed. <strong>Not Available</strong> — can\'t source right now, reappears next week. <strong>Reject</strong> — permanently skips this SKU across all future uploads. After any action the next product loads automatically.',
+      desc:'<strong>Purchased</strong> — order placed. <strong>Depleted</strong> — can\'t source right now, reappears next week. <strong>Reject</strong> — permanently skips this SKU across all future uploads. After any action the next product loads automatically.',
       position:'top',
       fallback:'.focus-card'
     },
@@ -2458,7 +2458,7 @@ async function init() {
     {
       target:'.bucket-header',
       title:'Tabs &amp; Sorting',
-      desc:'Filter by <strong>All</strong>, <strong>Purchased</strong>, <strong>Not Available</strong>, or <strong>Rejected</strong>. Sort by <strong>Recent</strong> (order actioned), <strong>Days</strong> (urgency), or <strong>Name</strong> (alphabetical).',
+      desc:'Filter by <strong>All</strong>, <strong>Purchased</strong>, <strong>Depleted</strong>, or <strong>Rejected</strong>. Sort by <strong>Recent</strong> (order actioned), <strong>Days</strong> (urgency), or <strong>Name</strong> (alphabetical).',
       position:'bottom'
     },
     {
