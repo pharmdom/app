@@ -918,6 +918,9 @@ let _mergeSelected = [];
 let _catalogMap = {}; 
 let _offersMap = {};
 let _pendingApprovalOffer = null;  // ean -> price
+let _supMapCache=null;
+let _supMapKey='';
+
 
 /* ── SUPABASE ── */
 const SB_URL = 'https://mbmgcqknbajwndiveewf.supabase.co';
@@ -944,6 +947,17 @@ function getColour(name){
   }
   return _colourMap[name];
 }
+
+function getCachedSupMap(){
+  const rawNames=[];
+  offersData.forEach(r=>{const s=r.supplier_name||'';if(s&&rawNames.indexOf(s)<0)rawNames.push(s);});
+  const key=rawNames.slice().sort().join('|');
+  if(_supMapCache&&_supMapKey===key) return _supMapCache;
+  _supMapKey=key;
+  _supMapCache=buildSupplierMap(rawNames);
+  return _supMapCache;
+}
+  
 function initials(str){
   if(!str)return'?';
   const p=str.trim().split(/\s+/).filter(Boolean);
@@ -1042,20 +1056,23 @@ async function bulkApprove(){
   const ids=[..._bulkSelected];
   if(!ids.length)return;
   const tid=toast('Approving '+ids.length+'…','loading',0);
+  const now=new Date().toISOString();
+  const offers=ids.map(id=>offersData.find(r=>String(r.id)===String(id))).filter(Boolean);
+  const rows=offers.map((offer,i)=>({
+    opportunity_id:'SRC-'+Date.now()+'-'+i,
+    agent:_agentName,created_at:now,last_updated:now,
+    supplier_name:offer.supplier_name||'',code:offer.code||offer.ean||'',
+    product_name:offer.product_name||'',cost_of_unit:offer.cost_of_unit||null,
+    unit_quantity:offer.unit_quantity||offer.case_qty||null,
+    purchased:false,approved:false,source:'Offer'
+  }));
   let done=0;
-  for(const id of ids){
-    try{
-      const offer=offersData.find(r=>String(r.id)===String(id));
-      if(!offer)continue;
-      const{count}=await sb.from('sourcing').select('*',{count:'exact',head:true});
-      const oppId='SRC-'+String((count||0)+1).padStart(6,'0');
-      const now=new Date().toISOString();
-      await sb.from('sourcing').insert({opportunity_id:oppId,agent:_agentName,created_at:now,last_updated:now,supplier_name:offer.supplier_name||'',code:offer.code||offer.ean||'',product_name:offer.product_name||'',cost_of_unit:offer.cost_of_unit||null,unit_quantity:offer.unit_quantity||offer.case_qty||null,purchased:false,approved:false,source:'Offer'});
-      await sb.from('offers').delete().eq('id',id);
-      offersData=offersData.filter(r=>String(r.id)!==String(id));
-      done++;
-    }catch(e){}
-  }
+  try{
+    await sb.from('sourcing').insert(rows);
+    await sb.from('offers').delete().in('id',ids);
+    offersData=offersData.filter(r=>!ids.includes(String(r.id)));
+    done=rows.length;
+  }catch(e){}
   _bulkSelected.clear();
   populateFilters();renderView();updateChips();updateBulkBar();
   removeToast(tid);toast(done+' offers approved','success');
@@ -1066,12 +1083,10 @@ async function bulkDelete(){
   openConfirm('Delete '+ids.length+' Offers?','These offers will be permanently removed.',async()=>{
     closeConfirm();
     const tid=toast('Deleting…','loading',0);
-    for(const id of ids){
-      try{
-        await sb.from('offers').delete().eq('id',id);
-        offersData=offersData.filter(r=>String(r.id)!==String(id));
-      }catch(e){}
-    }
+    try{
+  await sb.from('offers').delete().in('id',ids);
+  offersData=offersData.filter(r=>!ids.includes(String(r.id)));
+}catch(e){}
     _bulkSelected.clear();
     populateFilters();renderView();updateChips();updateBulkBar();
     removeToast(tid);toast(ids.length+' offers deleted','success');
@@ -1106,7 +1121,9 @@ function buildOffersMap(){
   
 async function loadCatalogPrices(){
   try{
-const{data}=await sb.from('catalog').select('ean,cost,supplier_name').not('ean','is',null).not('cost','is',null);
+    const eans=[...new Set(offersData.map(r=>String(r.ean||'').trim()).filter(Boolean))];
+    if(!eans.length){_catalogMap={};return;}
+    const{data}=await sb.from('catalog').select('ean,cost,supplier_name').in('ean',eans).not('cost','is',null);
     _catalogMap={};
     (data||[]).forEach(r=>{
       const k=String(r.ean||'').trim();
@@ -1152,7 +1169,7 @@ function updateChips(){
   const filtered=getFiltered();
   const rawNames=[];
   active.forEach(r=>{const s=r.supplier_name||'';if(s&&rawNames.indexOf(s)<0)rawNames.push(s);});
-  const supMap=buildSupplierMap(rawNames);
+  const supMap=getCachedSupMap();
   const supCount=new Set(rawNames.map(n=>supMap[n])).size;
   const isFiltered=filtered.length!==active.length;
   setChip('chipTotal',isFiltered?filtered.length+' / '+active.length+' Offers':active.length+' Offer'+(active.length!==1?'s':''));
@@ -1283,7 +1300,7 @@ function populateFilters(){
   const sel=document.getElementById('supFilter'),prev=sel.value;
   const rawNames=[];
   offersData.forEach(r=>{const s=r.supplier_name||'';if(s&&rawNames.indexOf(s)<0)rawNames.push(s);});
-  const supMap=buildSupplierMap(rawNames);
+  const supMap=getCachedSupMap();
   const canonicals=[];
   rawNames.forEach(n=>{const c=supMap[n];if(canonicals.indexOf(c)<0)canonicals.push(c);});
   canonicals.sort();
@@ -1297,9 +1314,7 @@ function getFiltered(){
   const q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
   const supFilter=document.getElementById('supFilter').value;
   const dt=document.getElementById('dateFilter').value;
-  const rawNames=[];
-  offersData.forEach(r=>{const s=r.supplier_name||'';if(s&&rawNames.indexOf(s)<0)rawNames.push(s);});
-  const supMap=buildSupplierMap(rawNames);
+  const supMap=getCachedSupMap();
   let base=offersData.filter(r=>{
     if((r.approval||'').toLowerCase()==='rejected')return false;
     if(q){const s=(String(r.ean||'')+' '+String(r.product_name||'')+' '+String(r.supplier_name||'')).toLowerCase();if(!s.includes(q))return false;}
@@ -1336,9 +1351,7 @@ function showEmpty(title,sub){document.getElementById('offersContentArea').inner
 
 /* ── KANBAN ── */
 function getSupGroups(data){
-  const allRaw=[];
-  offersData.forEach(r=>{const s=r.supplier_name||'';if(s&&allRaw.indexOf(s)<0)allRaw.push(s);});
-  const supMap=buildSupplierMap(allRaw);
+  const supMap=getCachedSupMap();
   const cols={};
   data.forEach(r=>{
     const raw=r.supplier_name||'Unknown';
@@ -1455,10 +1468,8 @@ if(ean){html+=`<div style="display:flex;align-items:center;justify-content:space
 }
 
 
-  function _openCardDrawer(id,supplierGroup){
-  const allRaw=[];
-  offersData.forEach(r=>{const s=r.supplier_name||'';if(s&&allRaw.indexOf(s)<0)allRaw.push(s);});
-  const supMap=buildSupplierMap(allRaw);
+function _openCardDrawer(id,supplierGroup){
+  const supMap=getCachedSupMap();
   const groupItems=offersData.filter(r=>{
     const canonical=supMap[r.supplier_name||'']||(r.supplier_name||'Unknown');
     return canonical===supplierGroup&&(r.approval||'').toLowerCase()!=='rejected';
@@ -1712,9 +1723,7 @@ function advanceAfterAction(removedId){
 }
   
 function getFilteredGroupItems(supplierKey){
-  const allRaw=[];
-  offersData.forEach(r=>{const s=r.supplier_name||'';if(s&&allRaw.indexOf(s)<0)allRaw.push(s);});
-  const supMap=buildSupplierMap(allRaw);
+  const supMap=getCachedSupMap();
   return offersData.filter(r=>{
     const canonical=supMap[r.supplier_name||'']||(r.supplier_name||'Unknown');
     return canonical===supplierKey&&(r.approval||'').toLowerCase()!=='rejected';
@@ -1756,20 +1765,20 @@ async function doRejectOffer(){
   const ids=isBulk?_bulkRejectIds:[_rejectId];
   const id=_rejectId;
   closeRejectModal();
-  if(isBulk){
-    const tid=toast('Rejecting '+ids.length+'…','loading',0);
-    for(const bid of ids){
-      try{
-        await sb.from('offers').update({approval:'Rejected',note:reason,agent:_agentName}).eq('id',bid);
-        const rec=offersData.find(r=>String(r.id)===String(bid));
-        if(rec){rec.approval='Rejected';rec.note=reason;rec.agent=_agentName;}
-      }catch(e){}
-    }
-    _bulkSelected.clear();_bulkRejectIds=[];
-    populateFilters();renderView();updateChips();updateBulkBar();
-    removeToast(tid);toast(ids.length+' offers rejected','info');
-    return;
-  }
+if(isBulk){
+  const tid=toast('Rejecting '+ids.length+'…','loading',0);
+  try{
+    await sb.from('offers').update({approval:'Rejected',note:reason,agent:_agentName}).in('id',ids);
+    ids.forEach(bid=>{
+      const rec=offersData.find(r=>String(r.id)===String(bid));
+      if(rec){rec.approval='Rejected';rec.note=reason;rec.agent=_agentName;}
+    });
+  }catch(e){}
+  _bulkSelected.clear();_bulkRejectIds=[];
+  populateFilters();renderView();updateChips();updateBulkBar();
+  removeToast(tid);toast(ids.length+' offers rejected','info');
+  return;
+}
 const rec=offersData.find(r=>String(r.id)===String(id));
   if(rec){rec.approval='Rejected';rec.note=reason;rec.agent=_agentName;}
   advanceAfterAction(id);
@@ -1810,9 +1819,7 @@ async function completeOfferApproval(){
 /* ── MERGE ── */
 function openMergeModal(){
   _mergeSelected=[];
-  const allRaw=[];
-  offersData.forEach(r=>{const s=r.supplier_name||'';if(s&&allRaw.indexOf(s)<0)allRaw.push(s);});
-  const supMap=buildSupplierMap(allRaw);
+  const supMap=getCachedSupMap();
   const cols={};
   offersData.forEach(r=>{
     const raw=r.supplier_name||'Unknown';
@@ -1849,7 +1856,7 @@ async function doMerge(){
   const targetSupplier=_mergeSelected[0];
   const allRaw=[];
   offersData.forEach(r=>{const s=r.supplier_name||'';if(s&&allRaw.indexOf(s)<0)allRaw.push(s);});
-  const supMap=buildSupplierMap(allRaw);
+  const supMap=getCachedSupMap();
   const sourceNames=[];
   allRaw.forEach(raw=>{
     const canonical=supMap[raw]||raw;
@@ -1961,9 +1968,12 @@ async function loadSrcSuppliers(){
   _srcSuppliers=(data||[]).map(s=>s.name);
 }
 
+let _srcUsersCache=null;
 async function loadSrcUsers(){
+  if(_srcUsersCache) return _srcUsersCache;
   const{data}=await sb.from('users').select('first_name,last_name').eq('status','Active').in('user_id',['USR-0008','USR-0009','USR-0010']);
-  return (data||[]).map(u=>((u.first_name||'')+' '+(u.last_name||'')).trim());
+  _srcUsersCache=(data||[]).map(u=>((u.first_name||'')+' '+(u.last_name||'')).trim());
+  return _srcUsersCache;
 }
 
 async function openSourcingModal(offer){
@@ -2765,6 +2775,7 @@ async function confirmImportOffers() {
     // Reload fresh from DB to get real IDs
     const { data: fresh } = await sb.from('offers').select('*').order('date', { ascending: false });
     if (fresh) offersData = fresh;
+    await loadCatalogPrices();
     populateFilters(); renderView(); updateChips();
     removeToast(tid);
     closeImportOffersDrawer();
