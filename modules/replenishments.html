@@ -568,6 +568,17 @@ body{overflow:hidden}
 .basket-item-actions{display:flex;gap:6px;margin-top:8px;}
 .basket-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;text-align:center;padding:40px 20px;color:var(--text4);}
 .basket-empty svg{width:28px;height:28px;opacity:.4;}
+
+/* Basket modal toolbar */
+.basket-toolbar{padding:12px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;background:var(--surface);}
+.basket-counter{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text2);white-space:nowrap;flex-shrink:0;}
+.basket-search-box{position:relative;flex:1;min-width:160px;}
+.basket-search-box svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text4);width:13px;height:13px;pointer-events:none;}
+.basket-search-box input{width:100%;padding:6px 9px 6px 30px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:var(--font);background:var(--surface2);color:var(--text);outline:none;transition:all .15s;}
+.basket-search-box input:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(24,71,212,.07)}
+.basket-supplier-filter{display:flex;align-items:center;gap:5px;flex-shrink:0;}
+.basket-supplier-select{padding:5px 9px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:var(--font);background:var(--surface2);color:var(--text2);outline:none;cursor:pointer;transition:all .15s;}
+.basket-supplier-select:focus{border-color:var(--accent);}
 </style>
 
 
@@ -986,10 +997,11 @@ body{overflow:hidden}
     </div>
   </div>
 </div>
+  
 <!-- Basket Modal -->
 <div class="basket-overlay" id="basketOverlay" onclick="if(event.target===this)closeBasket()">
   <div class="basket-modal" onclick="event.stopPropagation()">
-    <div class="basket-modal-hdr">
+<div class="basket-modal-hdr">
       <div class="basket-modal-title-row">
         <div class="basket-modal-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
@@ -998,6 +1010,18 @@ body{overflow:hidden}
         <button class="basket-modal-close" onclick="closeBasket()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
+      </div>
+    </div>
+    <div class="basket-toolbar">
+      <span class="basket-counter" id="basketToolbarCount">0 items</span>
+      <div class="basket-search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="basketSearchInput" placeholder="Search name, SKU or EAN…" oninput="renderBasketModal()">
+      </div>
+      <div class="basket-supplier-filter">
+        <select class="basket-supplier-select" id="basketSupplierFilter" onchange="renderBasketModal()">
+          <option value="">All suppliers</option>
+        </select>
       </div>
     </div>
     <div class="basket-modal-body" id="basketModalBody"></div>
@@ -1818,21 +1842,50 @@ window.closeActionsMenu = closeActionsMenu;
 
 
 function openBasket() {
+  const s = document.getElementById('basketSearchInput');
+  const f = document.getElementById('basketSupplierFilter');
+  if (s) s.value = '';
+  if (f) f.value = '';
   renderBasketModal();
   document.getElementById('basketOverlay').classList.add('open');
 }
 function closeBasket() {
   document.getElementById('basketOverlay').classList.remove('open');
 }
+
 function renderBasketModal() {
-  const items = ALL.filter(x => acts[x.s] === 'basket');
+  let items = ALL.filter(x => acts[x.s] === 'basket');
   const body = document.getElementById('basketModalBody');
   const count = document.getElementById('basketModalCount');
   const spend = document.getElementById('basketModalSpend');
-  count.textContent = items.length + ' item' + (items.length !== 1 ? 's' : '');
+
+  // Populate supplier filter with unique suppliers in basket
+  const supplierSelect = document.getElementById('basketSupplierFilter');
+  if (supplierSelect) {
+    const activeSups = [...new Set(items.map(x => basketSuppliers[x.s] || '—'))].sort();
+    const currentVal = supplierSelect.value;
+    supplierSelect.innerHTML = '<option value="">All suppliers</option>'
+      + activeSups.map(s => `<option value="${esc(s)}"${currentVal === s ? ' selected' : ''}>${esc(s)}</option>`).join('');
+  }
+
+  // Apply search filter
+  const q = (document.getElementById('basketSearchInput')?.value || '').toLowerCase().trim();
+  const supFilter = document.getElementById('basketSupplierFilter')?.value || '';
+  if (q) items = items.filter(x =>
+    x.t.toLowerCase().includes(q) || x.s.toLowerCase().includes(q) || (x.ean||'').toLowerCase().includes(q)
+  );
+  if (supFilter) items = items.filter(x => (basketSuppliers[x.s] || '—') === supFilter);
+
+  // Update counters
+  const totalItems = ALL.filter(x => acts[x.s] === 'basket').length;
+  count.textContent = items.length + ' item' + (items.length !== 1 ? 's' : '') + (items.length !== totalItems ? ' of ' + totalItems : '');
+  const toolbarCount = document.getElementById('basketToolbarCount');
+  if (toolbarCount) toolbarCount.textContent = items.length + (items.length !== totalItems ? ' of ' + totalItems : '') + ' item' + (totalItems !== 1 ? 's' : '');
+
   const estSpend = items.reduce((s, x) => s + (x.q * (x.cogs || 0)), 0);
   spend.textContent = estSpend > 0 ? 'Est. £' + estSpend.toLocaleString('en-GB', {minimumFractionDigits:2,maximumFractionDigits:2}) : '';
-  if (!items.length) {
+
+  if (!ALL.filter(x => acts[x.s] === 'basket').length) {
     body.innerHTML = `<div class="basket-empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
       <div style="font-size:13px;font-weight:600;color:var(--text3);">Basket is empty</div>
@@ -1840,6 +1893,16 @@ function renderBasketModal() {
     </div>`;
     return;
   }
+
+  if (!items.length) {
+    body.innerHTML = `<div class="basket-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <div style="font-size:13px;font-weight:600;color:var(--text3);">No results</div>
+      <div style="font-size:12px;">Try a different search or filter.</div>
+    </div>`;
+    return;
+  }
+
   body.innerHTML = items.map(x => {
     const sup = basketSuppliers[x.s] || '—';
     let daysCls = x.d < 7 ? 'days-badge days-crit' : x.d < 20 ? 'days-badge days-warn' : 'days-badge days-ok';
@@ -1860,7 +1923,7 @@ function renderBasketModal() {
         <div class="basket-item-actions">
           <button class="abtn on-pur btn-sm" style="flex:none;padding:5px 10px;font-size:11px;" onclick="markBasketPurchased('${esc(x.s)}')">
             <svg viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Mark Purchased
+            Purchased
           </button>
           <button class="abtn btn-sm" style="flex:none;padding:5px 10px;font-size:11px;" onclick="removeFromBasket('${esc(x.s)}')">
             <svg viewBox="0 0 12 12" fill="none"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
