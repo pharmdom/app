@@ -1359,7 +1359,7 @@ function render() {
 
   const nonDeferred = ALL.filter(x => !acts[x.s]);
   const deferredItems = ALL.filter(x => acts[x.s] === 'def');
-  const pending = nonDeferred.length > 0 ? nonDeferred : deferredItems;
+  let pending = nonDeferred.length > 0 ? nonDeferred : deferredItems;
   const isShowingDeferred = nonDeferred.length === 0 && deferredItems.length > 0;
   if (q) pending = pending.filter(x =>
     x.s.toLowerCase().includes(q) || x.t.toLowerCase().includes(q) || (x.ean||'').toLowerCase().includes(q)
@@ -1906,7 +1906,9 @@ function undoAct(sku) {
   
   
 function queueNav(dir) {
-  const pending = ALL.filter(x => !acts[x.s]);
+  const nonDeferred = ALL.filter(x => !acts[x.s]);
+  const deferredItems = ALL.filter(x => acts[x.s] === 'def');
+  const pending = nonDeferred.length > 0 ? nonDeferred : deferredItems;
   queueIdx = Math.max(0, Math.min(pending.length - 1, queueIdx + dir));
   render();
 }
@@ -1986,10 +1988,10 @@ function esc(s) {
 }
 
 // ── KEYBOARD ──
-if (e.key === 'Escape' && document.getElementById('supplierOverlay').classList.contains('open')) { closeSupplierDialog(); return; }
-if (e.key === 'Escape' && document.getElementById('basketOverlay').classList.contains('open')) { closeBasket(); return; }
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && document.getElementById('confirmOverlay').classList.contains('open')) closeConfirm();
+  if (e.key === 'Escape' && document.getElementById('supplierOverlay').classList.contains('open')) { closeSupplierDialog(); return; }
+  if (e.key === 'Escape' && document.getElementById('basketOverlay').classList.contains('open')) { closeBasket(); return; }
+  if (e.key === 'Escape' && document.getElementById('confirmOverlay').classList.contains('open')) { closeConfirm(); return; }
 });
 
 
