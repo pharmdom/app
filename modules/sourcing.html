@@ -623,7 +623,6 @@ col.col-agent     { width: 110px; }
       <span class="src-basket-counter" id="srcBasketCount">0 items</span>
       <span class="src-basket-counter" id="srcBasketSuppliers" style="display:none;"></span>
       <span class="src-basket-counter" id="srcBasketUnits" style="display:none;"></span>
-      <span class="src-basket-counter" id="srcBasketEst" style="display:none;background:#f0fdf4;border-color:#bbf7d0;color:#15803d;"></span>
       <div class="src-basket-search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="srcBasketSearchInput" placeholder="Search product or supplier…" oninput="renderSrcBasket()">
@@ -1829,11 +1828,13 @@ function renderSrcBasket() {
 
   const totalUnits = allBasket.reduce((s, p) => s + (parseFloat(p.unit_quantity) || 0), 0);
   const unitsEl = document.getElementById('srcBasketUnits');
-  if (unitsEl) { unitsEl.textContent = totalUnits.toLocaleString() + ' units'; unitsEl.style.display = totalUnits > 0 ? '' : 'none'; }
-
-  const estSpend = allBasket.reduce((s, p) => s + ((parseFloat(p.unit_quantity) || 0) * (parseFloat(p.cost_of_unit) || 0)), 0);
-  const estEl = document.getElementById('srcBasketEst');
-  if (estEl) { estEl.textContent = estSpend > 0 ? 'Est. £' + estSpend.toLocaleString('en-GB', {minimumFractionDigits:2,maximumFractionDigits:2}) : ''; estEl.style.display = estSpend > 0 ? '' : 'none'; }
+  if (unitsEl) {
+    const totalValue = allBasket.reduce((s, p) => s + ((parseFloat(p.unit_quantity) || 0) * (parseFloat(p.cost_of_unit) || 0)), 0);
+    unitsEl.innerHTML = totalUnits > 0
+      ? `${totalUnits.toLocaleString()} units<br><span style="font-size:10.5px;font-weight:600;color:#15803d;">£${totalValue.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`
+      : '';
+    unitsEl.style.display = totalUnits > 0 ? '' : 'none';
+  }
 
   document.getElementById('srcBasketFtrCount').textContent =
     items.length + ' item' + (items.length !== 1 ? 's' : '');
