@@ -648,6 +648,10 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
         <div class="form-group"><label>Grouping Link</label><input type="url" id="awGroupingLink" placeholder="https://…"></div>
         <div class="form-group"><label>Collection Booked</label><input type="date" id="awCollectionBooked" class="date-input-styled"></div>
       </div>
+      <div class="form-row">
+        <div class="form-group"><label>Deadline</label><input type="date" id="awDeadline" class="date-input-styled"></div>
+        <div class="form-group"></div>
+      </div>
       <div class="form-group full">
         <label>Grouping Images</label>
         <div class="file-upload-area" id="awGroupingImgUploadArea" onclick="document.getElementById('awGroupingImgFile').click()">
@@ -695,7 +699,8 @@ const SB_TO_DISPLAY = {
   'veeqo_adjusted':'Veeqo Stock Adjusted','units_completed':'Units Completed',
   'ups_collected':'UPS Collected','note':'Note','barcode_image':'Barcode Image',
   'grouping_link':'Grouping Link','grouping_image':'Grouping Image',
-  'collection_booked':'Collection Booked','product_image':'Product Image'
+  'collection_booked':'Collection Booked','product_image':'Product Image',
+  'deadline':'Deadline'
 };
 const DISPLAY_TO_SB = Object.fromEntries(Object.entries(SB_TO_DISPLAY).map(([k,v])=>[v,k]));
 
@@ -1109,8 +1114,9 @@ function renderDrawer(row) {
       body += '</div>';
     }
 
-    if (!infoAndPrepReadonly && source !== 'fba') {
-      body += sec('Grouping & Collection') + '<div class="drawer-section"><div class="info-grid" style="margin-bottom:10px">' + eCard(id, 'Grouping Link', row['Grouping Link'] || '', 'url', false) + dateCard(id, 'Collection Booked', row['Collection Booked'] || '') + '</div><div style="margin-bottom:6px"><div class="info-card"><label>Grouping Images</label>' + renderGroupingImages(row['Grouping Image'] || '', id) + '</div></div>' + '<div class="info-card" style="margin-bottom:6px"><label>Note</label><textarea class="edit-textarea" oninput="markDirty(\'Note\',this.value)">' + esc(drawerDirtyFields.hasOwnProperty('Note') ? drawerDirtyFields['Note'] : (row['Note'] || '')) + '</textarea></div>' + '</div>';
+if (!infoAndPrepReadonly && source !== 'fba') {
+      body += sec('Grouping & Collection') + '<div class="drawer-section"><div class="info-grid" style="margin-bottom:10px">' + eCard(id, 'Grouping Link', row['Grouping Link'] || '', 'url', false) + dateCard(id, 'Collection Booked', row['Collection Booked'] || '') + '</div><div style="margin-bottom:6px"><div class="info-card"><label>Grouping Images</label>' + renderGroupingImages(row['Grouping Image'] || '', id) + '</div></div>' + '</div>';
+      body += sec('Notes & Deadline') + '<div class="drawer-section"><div class="info-card" style="margin-bottom:8px"><label>Note</label><textarea class="edit-textarea" oninput="markDirty(\'Note\',this.value)">' + esc(drawerDirtyFields.hasOwnProperty('Note') ? drawerDirtyFields['Note'] : (row['Note'] || '')) + '</textarea></div>' + dateCard(id, 'Deadline', row['Deadline'] || '') + '</div>';
     } else if (source !== 'fba') {
       const gl = row['Grouping Link'] || '', cb = row['Collection Booked'] || '', gi = row['Grouping Image'] || '';
       body += sec('Grouping & Collection') + '<div class="drawer-section">';
@@ -1120,6 +1126,8 @@ function renderDrawer(row) {
         if (gi) body += renderGroupingImages(gi, id, true);
       } else { body += '<div style="color:#94a3b8;font-size:12px">No grouping or collection data</div>'; }
       body += '</div>';
+      const noteVal = row['Note'] || '', deadlineVal = row['Deadline'] || '';
+      body += sec('Notes & Deadline') + '<div class="drawer-section"><div class="info-card readonly" style="margin-bottom:8px"><label>Note</label><textarea class="edit-textarea" readonly style="background:#f8fafc;pointer-events:none;color:#475569">' + esc(noteVal) + '</textarea></div><div class="info-card readonly"><label>Deadline</label><input type="date" class="edit-input date-input-styled" value="' + ea(toInputDate(deadlineVal)) + '" readonly style="background:#f8fafc;pointer-events:none;color:#475569"></div></div>';
     }
   }
 
@@ -1600,7 +1608,7 @@ function openAddWorkModal() {
   awLabelCodeRows = []; awRowDebounceTimers = {};
   document.getElementById('awLabelCodeRows').innerHTML = ''; document.getElementById('awMatchedProducts').innerHTML = '';
   document.getElementById('addWorkModalOverlay').classList.add('visible');
-  document.getElementById('awGroupingLink').value = ''; document.getElementById('awCollectionBooked').value = ''; document.getElementById('awNote').value = '';
+  document.getElementById('awGroupingLink').value = ''; document.getElementById('awCollectionBooked').value = ''; document.getElementById('awDeadline').value = ''; document.getElementById('awNote').value = '';
   awGroupingImgFiles = [];
   const prev = document.getElementById('awGroupingImgPreview'); if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
   const prevFile = document.getElementById('awGroupingImgFile'); if (prevFile) prevFile.value = '';
@@ -1683,20 +1691,21 @@ async function submitAddWork() {
   const maxWH = warehouseData.reduce((max, r) => { const n = parseInt(String(r['ID']||'').replace('WH-','')) || 0; return n > max ? n : max; }, 0);
   const now = new Date().toISOString();
 
-  const buildDisplayRow = (id, labelCode, brand, productLine, asin, prepInstructions, bundle, dgLabel, polyBag, warningLabel, barcode, box, barcodeImage, productImage, groupingLink, groupingImage, collectionBooked, unitsRequired, note) => ({
+const buildDisplayRow = (id, labelCode, brand, productLine, asin, prepInstructions, bundle, dgLabel, polyBag, warningLabel, barcode, box, barcodeImage, productImage, groupingLink, groupingImage, collectionBooked, unitsRequired, note, deadline) => ({
     'ID': id, 'Date Created': now, 'Last Updated': now,
     'Label Code': labelCode, 'Brand': brand, 'Product Line': productLine, 'ASIN': asin,
     'Prep Instructions': prepInstructions, 'Bundle': bundle, 'DG Label': dgLabel,
     'Poly Bag': polyBag, 'Warning Label': warningLabel, 'Barcode': barcode, 'Box': box,
     'Barcode Image': barcodeImage, 'Product Image': productImage,
     'Grouping Link': groupingLink, 'Grouping Image': groupingImage, 'Collection Booked': collectionBooked,
-    'Units Required': unitsRequired, 'Veeqo Stock Adjusted': '', 'Units Completed': 0, 'UPS Collected': '', 'Note': note
+    'Units Required': unitsRequired, 'Veeqo Stock Adjusted': '', 'Units Completed': 0, 'UPS Collected': '', 'Note': note,
+    'Deadline': deadline
   });
 
   if (validRows.length === 1) {
     const r = validRows[0], m = r.match || {};
     const newId = 'WH-' + String(maxWH + 1).padStart(4, '0');
-    const newDisplayRow = buildDisplayRow(newId, r.code, m['Brand']||'', m['Product Line']||'', m['ASIN']||'', m['Prep Instructions']||'', m['Bundle']||'', m['DG Label']||'', m['Poly Bag']||'', m['Warning Label']||'', m['Barcode']||'', m['Box']||'', m['Barcode Image']||'', m['Product Image']||'', sharedGroupingLink||m['Grouping Link']||'', uploadedGroupingImageValue||m['Grouping Image']||'', sharedCollectionBooked||m['Collection Booked']||'', Number(r.units)||0, document.getElementById('awNote').value.trim());
+    const newDisplayRow = buildDisplayRow(newId, r.code, m['Brand']||'', m['Product Line']||'', m['ASIN']||'', m['Prep Instructions']||'', m['Bundle']||'', m['DG Label']||'', m['Poly Bag']||'', m['Warning Label']||'', m['Barcode']||'', m['Box']||'', m['Barcode Image']||'', m['Product Image']||'', sharedGroupingLink||m['Grouping Link']||'', uploadedGroupingImageValue||m['Grouping Image']||'', sharedCollectionBooked||m['Collection Booked']||'', Number(r.units)||0, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim());
     warehouseData.unshift(newDisplayRow); closeAddWorkModal(); applyFilters();
     showToast('1 work item added', 'success'); btn.disabled = false; btn.innerHTML = 'Add Work';
     const { data: inserted, error } = await sb.from('fba_work').insert(displayRowToSb(newDisplayRow)).select().single();
@@ -1713,7 +1722,7 @@ async function submitAddWork() {
       return { labelCode:r.code, units:Number(r.units)||0, brand:m['Brand']||'', productLine:m['Product Line']||'', asin:m['ASIN']||'', bundle:m['Bundle']||'', dgLabel:m['DG Label']||'', polyBag:m['Poly Bag']||'', warningLabel:m['Warning Label']||'', barcode:m['Barcode']||'', box:m['Box']||'', barcodeImage:m['Barcode Image']||'', productImage:m['Product Image']||'', prepInstructions:m['Prep Instructions']||'' };
     });
     const newId = 'WH-' + String(maxWH + 1).padStart(4, '0');
-    const newDisplayRow = buildDisplayRow(newId, combinedLabel, first['Brand']||'', validRows.map(r=>(r.match||{})['Product Line']||r.code).join(' / '), first['ASIN']||'', JSON.stringify(batchItems), first['Bundle']||'', first['DG Label']||'', first['Poly Bag']||'', first['Warning Label']||'', first['Barcode']||'', first['Box']||'', first['Barcode Image']||'', first['Product Image']||'', sharedGroupingLink||first['Grouping Link']||'', uploadedGroupingImageValue||first['Grouping Image']||'', sharedCollectionBooked||first['Collection Booked']||'', totalUnits, document.getElementById('awNote').value.trim());
+    const newDisplayRow = buildDisplayRow(newId, combinedLabel, first['Brand']||'', validRows.map(r=>(r.match||{})['Product Line']||r.code).join(' / '), first['ASIN']||'', JSON.stringify(batchItems), first['Bundle']||'', first['DG Label']||'', first['Poly Bag']||'', first['Warning Label']||'', first['Barcode']||'', first['Box']||'', first['Barcode Image']||'', first['Product Image']||'', sharedGroupingLink||first['Grouping Link']||'', uploadedGroupingImageValue||first['Grouping Image']||'', sharedCollectionBooked||first['Collection Booked']||'', totalUnits, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim());
     warehouseData.unshift(newDisplayRow); closeAddWorkModal(); applyFilters();
     showToast('Batch of ' + validRows.length + ' label codes added as 1 work item', 'success'); btn.disabled = false; btn.innerHTML = 'Add Work';
     const { data: inserted, error } = await sb.from('fba_work').insert(displayRowToSb(newDisplayRow)).select().single();
