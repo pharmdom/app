@@ -690,14 +690,14 @@ body{overflow:hidden}
               <div class="guide-step-num">3</div>
               <div class="guide-step-text">
                 <div class="guide-step-label">Action each SKU</div>
-                <div class="guide-step-desc">Choose one of three actions — <strong>Purchased</strong> if you've placed the order, <strong>Depleted</strong> if the product can't be sourced right now (it will reappear next week), or <strong>Reject</strong> to permanently skip this SKU in all future uploads. Add a note for context. After any action the next product loads automatically.</div>
+                <div class="guide-step-desc">Choose one of three actions — <strong>Purchased</strong> if you've placed the order, <strong>Not available</strong> if the product can't be sourced right now (it will reappear next week), or <strong>Reject</strong> to permanently skip this SKU in all future uploads. Add a note for context. After any action the next product loads automatically.</div>
               </div>
             </div>
             <div class="guide-step">
               <div class="guide-step-num">4</div>
               <div class="guide-step-text">
                 <div class="guide-step-label">Track progress in the Actioned Bucket</div>
-                <div class="guide-step-desc">Everything you action moves to the right panel instantly. Filter by status tab (Purchased, Depleted, Rejected), sort by recency, days left, or name. Use the ↩ undo button on any card to send it back to the review queue. Your session auto-saves to the database — closing the tab never loses progress.</div>
+                <div class="guide-step-desc">Everything you action moves to the right panel instantly. Filter by status tab (Purchased, Not available, Rejected), sort by recency, days left, or name. Use the ↩ undo button on any card to send it back to the review queue. Your session auto-saves to the database — closing the tab never loses progress.</div>
               </div>
             </div>
           </div>
@@ -713,7 +713,7 @@ body{overflow:hidden}
             </div>
             <div class="guide-tip">
               <div class="guide-tip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
-              <div class="guide-tip-text"><strong>Depleted</strong> clears on the next upload so the product reappears for review if still needed. <strong>Reject</strong> is permanent — use it only for products that should never be replenished again (discontinued lines). You can undo a Reject from the bucket before closing the tab.</div>
+              <div class="guide-tip-text"><strong>Not available</strong> clears on the next upload so the product reappears for review if still needed. <strong>Reject</strong> is permanent — use it only for products that should never be replenished again (discontinued lines). You can undo a Reject from the bucket before closing the tab.</div>
             </div>
             <div class="guide-tip">
               <div class="guide-tip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="3" height="15"/><rect x="7" y="4" width="2" height="15"/><rect x="11" y="4" width="4" height="15"/><rect x="17" y="4" width="2" height="15"/></svg></div>
@@ -920,7 +920,7 @@ body{overflow:hidden}
             <span class="bucket-sort-label">Sort</span>
             <span class="bucket-tab active" id="btab-all" onclick="setBucketTab('all')">All</span>
             <span class="bucket-tab bt-pur" id="btab-pur" onclick="setBucketTab('pur')">Purchased</span>
-            <span class="bucket-tab bt-na" id="btab-na" onclick="setBucketTab('na')">Depleted</span>
+            <span class="bucket-tab bt-na" id="btab-na" onclick="setBucketTab('na')">Not available</span>
             <span class="bucket-tab bt-def" id="btab-def" onclick="setBucketTab('def')">Deferred</span>
             <span class="bucket-tab bt-basket" id="btab-basket" onclick="setBucketTab('basket')">In Basket</span>
             <span class="bucket-tab bt-rej" id="btab-rej" onclick="setBucketTab('rej')">Rejected</span>
@@ -1012,6 +1012,8 @@ body{overflow:hidden}
     </div>
     <div class="basket-toolbar">
       <span class="basket-counter" id="basketToolbarCount">0 items</span>
+      <span class="basket-counter" id="basketToolbarSuppliers" style="display:none;">0 suppliers</span>
+      <span class="basket-counter" id="basketToolbarSpend" style="display:none;background:var(--green-bg);border-color:var(--green-bd);color:var(--green);"></span>
       <div class="basket-search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="basketSearchInput" placeholder="Search name, SKU or EAN…" oninput="renderBasketModal()">
@@ -1412,7 +1414,7 @@ const queuePanel = document.getElementById('queuePanel');
     const gapUnits   = ALL.filter(x => !acts[x.s]).reduce((s, x) => s + x.q, 0);
 
     const alerts = [];
-    if (critNA > 0) alerts.push({ type: 'danger', icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>', text: `<strong>${critNA} critical SKU${critNA > 1 ? 's' : ''} marked Depleted</strong> — these are out of stock and couldn't be sourced.` });
+    if (critNA > 0) alerts.push({ type: 'danger', icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>', text: `<strong>${critNA} critical SKU${critNA > 1 ? 's' : ''} marked Not available</strong> — these are out of stock and couldn't be sourced.` });
     if (noPricePur > 0) alerts.push({ type: 'warn', icon: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>', text: `<strong>${noPricePur} purchased SKU${noPricePur > 1 ? 's' : ''} missing COGs</strong> — estimated spend may be understated.` });
 
     queueBody.innerHTML = `<div class="queue-done-state">
@@ -1438,7 +1440,7 @@ const queuePanel = document.getElementById('queuePanel');
         </div>
         <div class="summary-stat">
           <div class="summary-stat-val amber">${naItems.length}</div>
-          <div class="summary-stat-label">Depleted</div>
+          <div class="summary-stat-label">Not available</div>
           <div class="summary-stat-sub">${critNA > 0 ? critNA + ' are critical urgency' : 'none critical'}</div>
         </div>
         <div class="summary-stat">
@@ -1663,7 +1665,7 @@ return `<div class="focus-card ${cardBorderCls}">
       </button>
       <button class="abtn${a === 'na' ? ' on-na' : ''}" onclick="actAndAdvance('${esc(x.s)}','na')">
         <svg viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/><line x1="2.5" y1="9.5" x2="9.5" y2="2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        Depleted
+        Not available
       </button>
       <button class="abtn${a === 'rej' ? ' on-rej' : ''}" onclick="actAndAdvance('${esc(x.s)}','rej')">
         <svg viewBox="0 0 12 12" fill="none"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -1679,7 +1681,7 @@ return `<div class="focus-card ${cardBorderCls}">
 function buildBucketCard(x) {
   const a = acts[x.s];
   const pillCls  = a === 'pur' ? 'status-pill sp-pur' : a === 'na' ? 'status-pill sp-na' : a === 'def' ? 'status-pill sp-def' : a === 'basket' ? 'status-pill' : 'status-pill sp-rej';
-  const pillTxt  = a === 'pur' ? 'Purchased' : a === 'na' ? 'Depleted' : a === 'def' ? 'Deferred' : a === 'basket' ? 'In Basket' : 'Rejected';
+  const pillTxt  = a === 'pur' ? 'Purchased' : a === 'na' ? 'Not available' : a === 'def' ? 'Deferred' : a === 'basket' ? 'In Basket' : 'Rejected';
   const borderCls = a === 'pur' ? 'bc-pur' : a === 'na' ? 'bc-na' : a === 'def' ? '' : a === 'basket' ? 'bc-pur' : 'bc-rej';
   let daysCls, daysTxt;
   if (x.d <= 0)      { daysCls = 'days-badge days-crit'; daysTxt = 'Out of stock'; }
@@ -1787,12 +1789,18 @@ function actAndAdvance(sku, key) {
   document.getElementById('supplierConfirmBtn').disabled = true;
   document.getElementById('supplierOverlay').classList.add('open');
   const suppliers = await loadSuppliers();
-  document.getElementById('supplierDialogBody').innerHTML = suppliers.length
-    ? suppliers.map(s => `<div class="supplier-option" onclick="selectSupplier('${esc(s)}')" id="supopt_${esc(s.replace(/[^a-zA-Z0-9]/g,'_'))}">
-        <div class="supplier-option-dot"></div>
-        ${esc(s)}
-      </div>`).join('')
-    : '<div style="text-align:center;padding:20px;color:var(--text4);font-size:12px;">No suppliers found</div>';
+  const inquiryOption = `<div class="supplier-option" onclick="selectSupplier('Inquiry')" id="supopt_Inquiry" style="border-color:var(--amber-bd);background:var(--amber-bg);">
+    <div class="supplier-option-dot" style="background:var(--amber);"></div>
+    <span style="color:var(--amber);font-weight:700;">Inquiry</span>
+    <span style="font-size:10px;color:var(--text4);margin-left:auto;">supplier not listed</span>
+  </div>`;
+  document.getElementById('supplierDialogBody').innerHTML = inquiryOption
+    + (suppliers.length
+      ? suppliers.map(s => `<div class="supplier-option" onclick="selectSupplier('${esc(s)}')" id="supopt_${esc(s.replace(/[^a-zA-Z0-9]/g,'_'))}">
+          <div class="supplier-option-dot"></div>
+          ${esc(s)}
+        </div>`).join('')
+      : '<div style="text-align:center;padding:20px;color:var(--text4);font-size:12px;">No suppliers found</div>');
 }
 function selectSupplier(name) {
   _selectedSupplier = name;
@@ -1879,9 +1887,14 @@ function renderBasketModal() {
   count.textContent = items.length + ' item' + (items.length !== 1 ? 's' : '') + (items.length !== totalItems ? ' of ' + totalItems : '');
   const toolbarCount = document.getElementById('basketToolbarCount');
   if (toolbarCount) toolbarCount.textContent = items.length + (items.length !== totalItems ? ' of ' + totalItems : '') + ' item' + (totalItems !== 1 ? 's' : '');
-
+  const allBasketItems = ALL.filter(x => acts[x.s] === 'basket');
+  const uniqueSuppliers = new Set(allBasketItems.map(x => basketSuppliers[x.s] || '—').filter(Boolean)).size;
+  const toolbarSuppliers = document.getElementById('basketToolbarSuppliers');
+  if (toolbarSuppliers) { toolbarSuppliers.textContent = uniqueSuppliers + ' supplier' + (uniqueSuppliers !== 1 ? 's' : ''); toolbarSuppliers.style.display = uniqueSuppliers > 0 ? '' : 'none'; }
   const estSpend = items.reduce((s, x) => s + (x.q * (x.cogs || 0)), 0);
-  spend.textContent = estSpend > 0 ? 'Est. £' + estSpend.toLocaleString('en-GB', {minimumFractionDigits:2,maximumFractionDigits:2}) : '';
+  const toolbarSpend = document.getElementById('basketToolbarSpend');
+  if (toolbarSpend) { toolbarSpend.textContent = estSpend > 0 ? 'Est. £' + estSpend.toLocaleString('en-GB', {minimumFractionDigits:2,maximumFractionDigits:2}) : ''; toolbarSpend.style.display = estSpend > 0 ? '' : 'none'; }
+  spend.textContent = '';
 
   if (!ALL.filter(x => acts[x.s] === 'basket').length) {
     body.innerHTML = `<div class="basket-empty">
@@ -1915,8 +1928,16 @@ function renderBasketModal() {
         <div class="basket-item-meta">
           <span class="pill-sku">${esc(x.s)}</span>
           <span class="${daysCls}" style="font-size:10px;padding:1px 6px;">${daysTxt}</span>
-          <span class="basket-item-supplier">${esc(sup)}</span>
+          ${x.cogs ? `<span style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text3);">£${x.cogs.toFixed(2)}/unit</span>` : ''}
           ${x.q > 0 ? `<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--green);margin-left:auto;">× ${x.q.toLocaleString()}</span>` : ''}
+        </div>
+        <div style="margin-top:6px;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);">Supplier</span>
+          <select style="padding:4px 8px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:var(--font);background:var(--surface2);color:var(--text2);outline:none;cursor:pointer;flex:1;max-width:240px;"
+            onchange="updateBasketSupplier('${esc(x.s)}',this.value)">
+            <option value="Inquiry" ${sup==='Inquiry'?'selected':''} style="color:var(--amber);">Inquiry</option>
+            ${_suppliers.map(s=>`<option value="${esc(s)}" ${sup===s?'selected':''}>${esc(s)}</option>`).join('')}
+          </select>
         </div>
         <div class="basket-item-actions">
           <button class="abtn on-pur btn-sm" style="flex:none;padding:5px 10px;font-size:11px;" onclick="markBasketPurchased('${esc(x.s)}')">
@@ -1939,6 +1960,14 @@ function markBasketPurchased(sku) {
   renderBasketModal();
   toast('Marked as purchased', 'success');
 }
+
+function updateBasketSupplier(sku, supplierName) {
+  basketSuppliers[sku] = supplierName;
+  saveActionToDB(sku, 'basket', notes[sku] || '');
+  renderBasketModal();
+}
+window.updateBasketSupplier = updateBasketSupplier;
+  
 function removeFromBasket(sku) {
   delete acts[sku];
   actsOrder = actsOrder.filter(s => s !== sku);
@@ -2175,14 +2204,14 @@ async function restoreFromDB() {
 
       var actionBars = [
         { label: 'Purchased',      count: snap.purchased,    color: 'var(--green)',  max: totalSkus },
-        { label: 'Depleted',  count: snap.notAvailable, color: 'var(--amber)',  max: totalSkus },
+        { label: 'Not available',  count: snap.notAvailable, color: 'var(--amber)',  max: totalSkus },
         { label: 'Rejected',       count: snap.rejected,     color: 'var(--red)',    max: totalSkus },
         { label: 'Pending',        count: snap.pending,      color: 'var(--text4)',  max: totalSkus },
       ];
 
       var alerts = [];
       if (critNA > 0)
-        alerts.push({ type: 'danger', icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>', text: '<strong>' + critNA + ' critical SKU' + (critNA > 1 ? 's' : '') + ' marked Depleted</strong> — out of stock and couldn\'t be sourced.' });
+        alerts.push({ type: 'danger', icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>', text: '<strong>' + critNA + ' critical SKU' + (critNA > 1 ? 's' : '') + ' marked Not available</strong> — out of stock and couldn\'t be sourced.' });
       if (noPricePur > 0)
         alerts.push({ type: 'warn', icon: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>', text: '<strong>' + noPricePur + ' purchased SKU' + (noPricePur > 1 ? 's' : '') + ' missing COGs</strong> — estimated spend may be understated.' });
       if (coverageGap > 0)
@@ -2208,7 +2237,7 @@ async function restoreFromDB() {
         + riSummaryCard('SKUs Reviewed', totalSkus, actionPct + '% actioned', actionPct === 100 ? 'green' : '')
         + riSummaryCard('Purchased', purRows.length, totalUnits.toLocaleString() + ' units to order', purRows.length > 0 ? 'green' : '')
         + riSummaryCard('Est. Spend', estSpend > 0 ? '£' + estSpend.toLocaleString('en-GB', {minimumFractionDigits:2,maximumFractionDigits:2}) : '—', estSpend > 0 ? 'COGs × qty' : 'no COGs data', estSpend > 0 ? 'blue' : '')
-        + riSummaryCard('Depleted', naRows.length, critNA > 0 ? critNA + ' critical' : 'none critical', naRows.length > 0 ? 'amber' : '')
+        + riSummaryCard('Not available', naRows.length, critNA > 0 ? critNA + ' critical' : 'none critical', naRows.length > 0 ? 'amber' : '')
         + '</div>';
 
 // Action breakdown — pie chart
@@ -2261,7 +2290,7 @@ async function restoreFromDB() {
         html += '<div class="ri-sec-lbl">Critical SKUs This Week</div>';
         html += criticalActioned.map(function(r) {
           var pillCls = r.action === 'pur' ? 'pur' : r.action === 'na' ? 'na' : 'rej';
-          var pillTxt = r.action === 'pur' ? 'Purchased' : r.action === 'na' ? 'Depleted' : 'Rejected';
+          var pillTxt = r.action === 'pur' ? 'Purchased' : r.action === 'na' ? 'Not available' : 'Rejected';
           var daysLbl = r.daysLeft <= 0 ? 'Out of stock' : r.daysLeft + 'd left';
           return '<div class="ri-sku-row">'
             + '<div class="ri-sku-name" title="' + riEsc(r.name||r.sku) + '">' + riEsc(r.name||r.sku) + '</div>'
@@ -2501,7 +2530,7 @@ async function init() {
     {
       target:'.focus-card-actions',
       title:'Action Buttons',
-      desc:'<strong>Purchased</strong> — order placed. <strong>Depleted</strong> — can\'t source right now, reappears next week. <strong>Reject</strong> — permanently skips this SKU across all future uploads. After any action the next product loads automatically.',
+      desc:'<strong>Purchased</strong> — order placed. <strong>Not available</strong> — can\'t source right now, reappears next week. <strong>Reject</strong> — permanently skips this SKU across all future uploads. After any action the next product loads automatically.',
       position:'top',
       fallback:'.focus-card'
     },
