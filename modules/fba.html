@@ -296,6 +296,11 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .tour-btn-finish{background:#15803d;border-color:#15803d;color:#fff}
 .tour-btn-finish:hover{filter:brightness(1.08)}
 @media(max-width:640px){.guide-modal{flex-direction:column;height:92vh}.guide-nav{width:100%;flex-direction:row;padding:10px;gap:4px;overflow-x:auto;border-right:none;border-bottom:1px solid #e2e8f0}.guide-nav-header{display:none}.guide-nav-btn span{display:none}.guide-action-cards{grid-template-columns:1fr}}
+
+.deadline-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;white-space:nowrap;}
+.deadline-badge svg{width:9px;height:9px;flex-shrink:0;}
+.deadline-badge.overdue{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
+.deadline-badge.soon{background:#fffbeb;color:#d97706;border:1px solid #fde68a;}
 </style>
 
 
@@ -942,6 +947,18 @@ function buildCard(row) {
   return card;
 }
 
+
+function deadlineBadge(deadlineVal, small) {
+  if (!deadlineVal) return '';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dl = new Date(deadlineVal); dl.setHours(0,0,0,0);
+  if (isNaN(dl)) return '';
+  const diff = Math.round((dl - today) / 86400000);
+  if (diff < 0) return '<span class="deadline-badge overdue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Overdue</span>';
+  if (diff <= 3) return '<span class="deadline-badge soon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' + (diff === 0 ? 'Due today' : 'Due in ' + diff + 'd') + '</span>';
+  return '';
+}
+  
 function cardHTML(row) {
   const labelCode   = row['Label Code']   || '—';
   const brand       = row['Brand']        || '';
@@ -959,12 +976,14 @@ function cardHTML(row) {
     const batchImages = batchItems.map(b => b.productImage).filter(Boolean);
     const chipDefs = [['DG Label', batchItems[0].dgLabel],['Poly Bag', batchItems[0].polyBag],['Warn', batchItems[0].warningLabel],['Barcode', batchItems[0].barcode],['Box', batchItems[0].box]];
     const chips = chipDefs.map(([lbl, val]) => { const v = String(val || '').toLowerCase(); if (v === 'yes') return '<span class="chip yes">' + lbl + '</span>'; if (v === 'no') return '<span class="chip no">' + lbl + '</span>'; return '<span class="chip unset">' + lbl + '</span>'; }).join('');
-    return '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px"><div style="flex:1;min-width:0"><div style="display:inline-flex;align-items:center;padding:1px 7px;border-radius:100px;font-size:8px;font-weight:800;background:#dbeafe;color:#1d4ed8;margin-bottom:3px;letter-spacing:.3px">GROUP · ' + batchItems.length + ' PRODUCTS</div><div class="kc-label">' + esc(combinedLabel) + '</div>' + (batchBrands ? '<div class="kc-brandline">' + esc(batchBrands) + '</div>' : '') + '</div>' + (batchImages.length ? '<div style="display:flex;gap:3px;flex-shrink:0">' + batchImages.slice(0, 3).map(img => '<div style="width:36px;height:36px;border-radius:6px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9;flex-shrink:0"><img src="' + ea(img) + '" style="width:100%;height:100%;object-fit:cover;display:block"></div>').join('') + (batchImages.length > 3 ? '<div style="width:36px;height:36px;border-radius:6px;background:#f1f5f9;border:1.5px solid #e2e8f0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#64748b;flex-shrink:0">+' + (batchImages.length - 3) + '</div>' : '') + '</div>' : '') + '</div><div class="kc-stats"><div class="kc-stat"><div class="kc-stat-label">Total Units</div><div class="kc-stat-val">' + esc(String(unitsReq || '—')) + '</div></div></div><div class="kc-chips">' + chips + '</div>';
+    const dlBadgeBatch = deadlineBadge(row['Deadline']);
+    return '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px"><div style="flex:1;min-width:0"><div style="display:inline-flex;align-items:center;padding:1px 7px;border-radius:100px;font-size:8px;font-weight:800;background:#dbeafe;color:#1d4ed8;margin-bottom:3px;letter-spacing:.3px">GROUP · ' + batchItems.length + ' PRODUCTS</div><div class="kc-label">' + esc(combinedLabel) + '</div>' + (batchBrands ? '<div class="kc-brandline">' + esc(batchBrands) + '</div>' : '') + '</div>' + (batchImages.length ? '<div style="display:flex;gap:3px;flex-shrink:0">' + batchImages.slice(0, 3).map(img => '<div style="width:36px;height:36px;border-radius:6px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9;flex-shrink:0"><img src="' + ea(img) + '" style="width:100%;height:100%;object-fit:cover;display:block"></div>').join('') + (batchImages.length > 3 ? '<div style="width:36px;height:36px;border-radius:6px;background:#f1f5f9;border:1.5px solid #e2e8f0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#64748b;flex-shrink:0">+' + (batchImages.length - 3) + '</div>' : '') + '</div>' : '') + '</div><div class="kc-stats"><div class="kc-stat"><div class="kc-stat-label">Total Units</div><div class="kc-stat-val">' + esc(String(unitsReq || '—')) + '</div></div></div><div class="kc-chips">' + chips + (dlBadgeBatch ? '<span style="margin-left:auto">' + dlBadgeBatch + '</span>' : '') + '</div>';
   }
 
   const chipDefs = [{ key:'DG Label', label:'DG' },{ key:'Poly Bag', label:'Poly' },{ key:'Warning Label', label:'Warn' },{ key:'Barcode', label:'Barcode' },{ key:'Box', label:'Box' }];
   const chips = chipDefs.map(c => { const v = String(row[c.key] || '').trim().toLowerCase(); if (v === 'yes') return '<span class="chip yes">' + c.label + '</span>'; if (v === 'no') return '<span class="chip no">' + c.label + '</span>'; return '<span class="chip unset">' + c.label + '</span>'; }).join('');
-  return '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px"><div style="flex:1;min-width:0"><div class="kc-label">' + esc(labelCode) + '</div>' + (brand ? '<div class="kc-brandline">' + esc(brand) + '</div>' : '') + (asin ? '<div class="kc-asin">' + esc(asin) + '</div>' : '') + '</div>' + (prodImg ? '<div style="flex-shrink:0;width:44px;height:44px;border-radius:7px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9"><img src="' + ea(prodImg) + '" style="width:100%;height:100%;object-fit:cover;display:block"></div>' : '') + '</div><div class="kc-stats"><div class="kc-stat"><div class="kc-stat-label">Units Req.</div><div class="kc-stat-val">' + esc(String(unitsReq || '—')) + '</div></div></div><div class="kc-chips">' + chips + '</div>';
+  const dlBadge = deadlineBadge(row['Deadline']);
+  return '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px"><div style="flex:1;min-width:0"><div class="kc-label">' + esc(labelCode) + '</div>' + (brand ? '<div class="kc-brandline">' + esc(brand) + '</div>' : '') + (asin ? '<div class="kc-asin">' + esc(asin) + '</div>' : '') + '</div>' + (prodImg ? '<div style="flex-shrink:0;width:44px;height:44px;border-radius:7px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9"><img src="' + ea(prodImg) + '" style="width:100%;height:100%;object-fit:cover;display:block"></div>' : '') + '</div><div class="kc-stats"><div class="kc-stat"><div class="kc-stat-label">Units Req.</div><div class="kc-stat-val">' + esc(String(unitsReq || '—')) + '</div></div></div><div class="kc-chips">' + chips + (dlBadge ? '<span style="margin-left:auto">' + dlBadge + '</span>' : '') + '</div>';
 }
 
 /* ══════════════════════════════════════════════════
@@ -1116,8 +1135,10 @@ function renderDrawer(row) {
 
 if (!infoAndPrepReadonly && source !== 'fba') {
       body += sec('Grouping & Collection') + '<div class="drawer-section"><div class="info-grid" style="margin-bottom:10px">' + eCard(id, 'Grouping Link', row['Grouping Link'] || '', 'url', false) + dateCard(id, 'Collection Booked', row['Collection Booked'] || '') + '</div><div style="margin-bottom:6px"><div class="info-card"><label>Grouping Images</label>' + renderGroupingImages(row['Grouping Image'] || '', id) + '</div></div>' + '</div>';
-      body += sec('Notes & Deadline') + '<div class="drawer-section"><div class="info-card" style="margin-bottom:8px"><label>Note</label><textarea class="edit-textarea" oninput="markDirty(\'Note\',this.value)">' + esc(drawerDirtyFields.hasOwnProperty('Note') ? drawerDirtyFields['Note'] : (row['Note'] || '')) + '</textarea></div>' + dateCard(id, 'Deadline', row['Deadline'] || '') + '</div>';
-    } else if (source !== 'fba') {
+      const _dlBadgeDrawer = deadlineBadge(drawerDirtyFields.hasOwnProperty('Deadline') ? drawerDirtyFields['Deadline'] : (row['Deadline'] || ''));
+      const _dlValDrawer = drawerDirtyFields.hasOwnProperty('Deadline') ? drawerDirtyFields['Deadline'] : (row['Deadline'] || '');
+      body += sec('Notes & Deadline') + '<div class="drawer-section"><div class="info-card" style="margin-bottom:8px"><label>Note</label><textarea class="edit-textarea" oninput="markDirty(\'Note\',this.value)">' + esc(drawerDirtyFields.hasOwnProperty('Note') ? drawerDirtyFields['Note'] : (row['Note'] || '')) + '</textarea></div><div class="info-card"><label style="display:flex;align-items:center;gap:6px">Deadline' + (_dlBadgeDrawer ? '&nbsp;' + _dlBadgeDrawer : '') + '</label><input type="date" class="edit-input date-input-styled" value="' + ea(toInputDate(_dlValDrawer)) + '" oninput="markDirty(\'Deadline\',this.value)"></div></div>';
+  } else if (source !== 'fba') {
       const gl = row['Grouping Link'] || '', cb = row['Collection Booked'] || '', gi = row['Grouping Image'] || '';
       body += sec('Grouping & Collection') + '<div class="drawer-section">';
       if (gl || cb || gi) {
@@ -1127,8 +1148,9 @@ if (!infoAndPrepReadonly && source !== 'fba') {
       } else { body += '<div style="color:#94a3b8;font-size:12px">No grouping or collection data</div>'; }
       body += '</div>';
       const noteVal = row['Note'] || '', deadlineVal = row['Deadline'] || '';
-      body += sec('Notes & Deadline') + '<div class="drawer-section"><div class="info-card readonly" style="margin-bottom:8px"><label>Note</label><textarea class="edit-textarea" readonly style="background:#f8fafc;pointer-events:none;color:#475569">' + esc(noteVal) + '</textarea></div><div class="info-card readonly"><label>Deadline</label><input type="date" class="edit-input date-input-styled" value="' + ea(toInputDate(deadlineVal)) + '" readonly style="background:#f8fafc;pointer-events:none;color:#475569"></div></div>';
-    }
+      const _dlBadgeRO = deadlineBadge(deadlineVal);
+      body += sec('Notes & Deadline') + '<div class="drawer-section"><div class="info-card readonly" style="margin-bottom:8px"><label>Note</label><textarea class="edit-textarea" readonly style="background:#f8fafc;pointer-events:none;color:#475569">' + esc(noteVal) + '</textarea></div><div class="info-card readonly"><label style="display:flex;align-items:center;gap:6px">Deadline' + (_dlBadgeRO ? '&nbsp;' + _dlBadgeRO : '') + '</label><input type="date" class="edit-input date-input-styled" value="' + ea(toInputDate(deadlineVal)) + '" readonly style="background:#f8fafc;pointer-events:none;color:#475569"></div></div>';
+  }
   }
 
   if (activeTab === 'prep') {
