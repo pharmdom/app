@@ -1163,12 +1163,42 @@ window.renderCentralBasket = async function() {
 
 
 
-  window.cbUpdateReplSupplier = async function(sku, supplierName) {
+window.cbUpdateReplSupplier = async function(sku, supplierName) {
     try {
       await window.sb.from('replenishment_skus').update({ supplier_name: supplierName || null }).eq('sku', sku);
-      _cbSupplierList = []; // bust cache so MOQ re-resolves
-      window.renderCentralBasket();
       if (window.render) window.render();
+      // Update MOQ bar in place without re-rendering the basket
+      const sfEl = document.getElementById('cbSupplierFilter');
+      const supplierQ = sfEl?.value || '';
+      const moqBar = document.getElementById('cbMoqBar');
+      if (!moqBar) return;
+      // Recompute visible value from current DOM state is complex,
+      // so just re-resolve MOQ against the supplier filter if one is active,
+      // otherwise use the newly selected supplier name
+      const targetSupplier = supplierQ || supplierName;
+      if (!targetSupplier) { moqBar.style.display = 'none'; return; }
+      const supplierList = await _loadCbSuppliers();
+      const sup = supplierList.find(s => s.name === targetSupplier);
+      const moq = sup?.moq || 0;
+      if (!moq) { moqBar.style.display = 'none'; return; }
+      // Read current total value from the units counter
+      const unitsEl = document.getElementById('cbUnits');
+      const valText = unitsEl?.querySelector('span')?.textContent || '';
+      const totalValue = parseFloat(valText.replace(/[^0-9.]/g, '')) || 0;
+      if (!totalValue) { moqBar.style.display = 'none'; return; }
+      const met = totalValue >= moq;
+      const pct = Math.min(100, Math.round((totalValue / moq) * 100));
+      moqBar.style.display = 'flex';
+      moqBar.innerHTML = `<div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:11px;font-weight:700;color:#475569;">MOQ — ${escH(targetSupplier)}</span>
+          <span style="font-size:11px;font-weight:700;color:${met ? '#15803d' : '#92400e'};">${met ? '✓ Met' : `${pct}% — £${(moq - totalValue).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})} to go`}</span>
+        </div>
+        <div style="height:5px;background:#e2e8f0;border-radius:99px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${met ? '#22c55e' : '#f59e0b'};border-radius:99px;transition:width .3s;"></div>
+        </div>
+        <div style="font-size:10.5px;color:#94a3b8;margin-top:3px;">MOQ £${moq.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})} · Basket £${totalValue.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+      </div>`;
     } catch(e) { _cbToast('Failed to update supplier', 'error'); }
   };
 
