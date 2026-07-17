@@ -523,6 +523,7 @@ const pages = {
     fbaopportunities: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
     calendar:         `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
     procurement:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
+    basket: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>`,
     suppliers:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
     offers:           `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`,
     warehouse:        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
@@ -617,11 +618,12 @@ const pages = {
           perms.fbaopportunities ? navItem('fbaopportunities', ic.fbaopportunities, 'FBA Opportunities', () => loadModule('fbaopportunities')) : '',
         ]);
       }
-      if (perms.suppliers || perms.offers || perms.replenishments) {
+if (perms.suppliers || perms.offers || perms.replenishments || perms.sourcing) {
         html += navGroup('procurement', 'Procurement', ic.procurement, [
           perms.offers    ? navItem('offers',    ic.offers,    'Offers',    () => loadModule('offers'))    : '',
           perms.suppliers ? navItem('suppliers', ic.suppliers, 'Suppliers', () => loadModule('suppliers')) : '',
-          perms.replenishments   ? navItem('replenishments',   ic.replenishments,   'Replenishments',   () => loadModule('replenishments'))   : '',
+          perms.replenishments ? navItem('replenishments', ic.replenishments, 'Replenishments', () => loadModule('replenishments')) : '',
+          (perms.sourcing || perms.replenishments) ? navItem('central-basket', ic.basket, 'Basket', () => window.openCentralBasket('all')) : '',
         ]);
       }
       if (perms.fba || perms.inventory || perms.deliverychecks || perms.packagingfault) {
@@ -863,6 +865,332 @@ function toggleCollapse() { document.getElementById('sidebar').classList.toggle(
   </script>
 
 
+  <script>
+(function() {
+  'use strict';
+  let _cbFilter = 'all'; // 'all' | 'newline' | 'replens'
+  let _cbOpen = false;
+
+  function escH(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function escA(s) { return String(s||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+  window.openCentralBasket = function(filter) {
+    _cbFilter = filter || 'all';
+    const s = document.getElementById('cbSearch');
+    if (s) s.value = '';
+    _cbOpen = true;
+    const overlay = document.getElementById('centralBasketOverlay');
+    overlay.style.opacity = '1';
+    overlay.style.pointerEvents = 'all';
+    const modal = document.getElementById('centralBasketModal');
+    if (modal) modal.style.transform = 'none';
+    _updateFilterButtons();
+    window.renderCentralBasket();
+  };
+
+  window.closeCentralBasket = function() {
+    _cbOpen = false;
+    const overlay = document.getElementById('centralBasketOverlay');
+    overlay.style.opacity = '0';
+    overlay.style.pointerEvents = 'none';
+    const modal = document.getElementById('centralBasketModal');
+    if (modal) modal.style.transform = 'scale(.97) translateY(8px)';
+  };
+
+  window.setCbFilter = function(f) {
+    _cbFilter = f;
+    _updateFilterButtons();
+    window.renderCentralBasket();
+  };
+
+  function _updateFilterButtons() {
+    const btns = { all: 'cbFilterAll', newline: 'cbFilterNewline', replens: 'cbFilterReplens' };
+    const styles = {
+      all:     { active: 'background:#0f172a;color:#fff;border-color:#0f172a;',     inactive: 'background:#f8fafc;color:#64748b;border-color:#e2e8f0;' },
+      newline: { active: 'background:#2563eb;color:#fff;border-color:#2563eb;',     inactive: 'background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;' },
+      replens: { active: 'background:#7c3aed;color:#fff;border-color:#7c3aed;',     inactive: 'background:#f5f3ff;color:#7c3aed;border-color:#c4b5fd;' },
+    };
+    Object.entries(btns).forEach(([key, id]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.style.cssText = 'padding:4px 11px;border-radius:100px;font-size:11.5px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s;border:1px solid;' + (key === _cbFilter ? styles[key].active : styles[key].inactive);
+    });
+  }
+
+  window.renderCentralBasket = async function() {
+    if (!_cbOpen) return;
+    const body = document.getElementById('cbBody');
+    body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-size:13px;gap:8px;"><div style="width:16px;height:16px;border:2.5px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin .65s linear infinite;"></div>Loading…</div>';
+
+    const sb = window.sb;
+    let newlines = [], replens = [];
+
+    try {
+      // Fetch new lines from sourcing
+      const { data: srcData } = await sb
+        .from('sourcing')
+        .select('opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,approved,purchased,sourcing_approvals(status)')
+        .eq('approved', true)
+        .eq('purchased', false);
+      newlines = (srcData || []).filter(p => {
+        const approvals = p.sourcing_approvals || [];
+        return !approvals.some(a => a.status === 'rejected');
+      });
+    } catch(e) { console.warn('CB: failed to fetch sourcing', e); }
+
+    try {
+      // Fetch replenishments in basket
+      const { data: repData } = await sb
+        .from('replenishment_skus')
+        .select('sku,name,ean,order_qty,cost_price,days_left,urgency,image_url,supplier_name,action')
+        .eq('action', 'basket');
+      replens = repData || [];
+    } catch(e) { console.warn('CB: failed to fetch replenishments', e); }
+
+    // Compute counters (always from full unfiltered sets)
+    const allItems = [
+      ...newlines.map(p => ({ type: 'newline', units: parseFloat(p.unit_quantity)||0, cost: parseFloat(p.cost_of_unit)||0, supplier: p.supplier_name||'' })),
+      ...replens.map(p => ({ type: 'replens', units: parseFloat(p.order_qty)||0, cost: parseFloat(p.cost_price)||0, supplier: p.supplier_name||'' })),
+    ];
+    const totalItems = allItems.length;
+    const uniqueSuppliers = new Set(allItems.map(i => i.supplier).filter(Boolean)).size;
+    const totalUnits = allItems.reduce((s, i) => s + i.units, 0);
+    const totalValue = allItems.reduce((s, i) => s + (i.units * i.cost), 0);
+
+    // Counters
+    document.getElementById('cbCount').textContent = totalItems + ' item' + (totalItems !== 1 ? 's' : '');
+    const suppEl = document.getElementById('cbSuppliers');
+    if (suppEl) { suppEl.textContent = uniqueSuppliers + ' supplier' + (uniqueSuppliers !== 1 ? 's' : ''); suppEl.style.display = uniqueSuppliers > 0 ? 'flex' : 'none'; }
+    const unitsEl = document.getElementById('cbUnits');
+    if (unitsEl) {
+      unitsEl.innerHTML = totalUnits > 0 ? `${totalUnits.toLocaleString()} units<br><span style="font-size:10.5px;font-weight:600;color:#15803d;">£${totalValue.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>` : '';
+      unitsEl.style.display = totalUnits > 0 ? 'flex' : 'none';
+    }
+
+    // Filter by type
+    let filteredNewlines = newlines;
+    let filteredReplens = replens;
+    if (_cbFilter === 'newline') filteredReplens = [];
+    if (_cbFilter === 'replens') filteredNewlines = [];
+
+    // Filter by search
+    const q = (document.getElementById('cbSearch')?.value || '').toLowerCase().trim();
+    if (q) {
+      filteredNewlines = filteredNewlines.filter(p =>
+        (p.product_name||'').toLowerCase().includes(q) || (p.supplier_name||'').toLowerCase().includes(q) || (p.code||'').toLowerCase().includes(q));
+      filteredReplens = filteredReplens.filter(p =>
+        (p.name||'').toLowerCase().includes(q) || (p.supplier_name||'').toLowerCase().includes(q) || (p.ean||'').toLowerCase().includes(q));
+    }
+
+    const visibleCount = filteredNewlines.length + filteredReplens.length;
+    document.getElementById('cbFtrCount').textContent = visibleCount + ' item' + (visibleCount !== 1 ? 's' : '');
+
+    if (totalItems === 0) {
+      body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;text-align:center;padding:40px 20px;color:#94a3b8;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px;opacity:.4;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        <div style="font-size:13px;font-weight:600;color:#475569;">Basket is empty</div>
+        <div style="font-size:12px;">Approved sourcing products and replenishment basket items will appear here.</div>
+      </div>`;
+      return;
+    }
+
+    if (visibleCount === 0) {
+      body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;text-align:center;padding:40px 20px;color:#94a3b8;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px;opacity:.4;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <div style="font-size:13px;font-weight:600;color:#475569;">No results</div>
+        <div style="font-size:12px;">Try a different search or filter.</div>
+      </div>`;
+      return;
+    }
+
+    let html = '';
+
+    // ── NEW LINE ITEMS ──
+    filteredNewlines.forEach(p => {
+      const costOfUnit = parseFloat(p.cost_of_unit);
+      const unitQty = parseFloat(p.unit_quantity) || 0;
+      const rawCode = (p.code || '').trim();
+      const eanDisplay = rawCode ? rawCode.split(',').map(s => s.split(':')[0].trim()).filter(Boolean).join(', ') : '';
+      const initials = (p.product_name||'?').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+      html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:8px;">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div style="flex-shrink:0;width:36px;height:36px;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#2563eb;">${escH(initials)}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+              <span style="font-size:13px;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;" title="${escA(p.product_name||'')}">${escH(p.product_name||'—')}</span>
+              <span style="flex-shrink:0;font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;letter-spacing:.3px;">New Line</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+              ${eanDisplay ? `<span style="font-family:monospace;font-size:11px;color:#64748b;">${escH(eanDisplay)}</span>` : ''}
+              <span style="font-size:11px;color:#64748b;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 6px;">${escH(p.supplier_name||'—')}</span>
+              ${!isNaN(costOfUnit) ? `<span style="font-size:11px;font-weight:600;color:#374151;">£${costOfUnit.toFixed(2)}/unit</span>` : ''}
+              <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                ${unitQty > 0 ? `<span style="font-size:11px;font-weight:700;color:#15803d;">× ${unitQty.toLocaleString()} units</span>` : ''}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:10px;border-top:1px solid #e2e8f0;">
+              <input type="number" id="cbNLQty_${escA(p.opportunity_id)}" min="0" placeholder="Qty purchased…" style="width:140px;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;font-family:inherit;background:#fff;color:#0f172a;outline:none;">
+              <button onclick="window.cbMarkNewLinePurchased('${escA(p.opportunity_id)}')" style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:7px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;transition:background .15s;">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Purchased
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    });
+
+    // ── REPLENISHMENT ITEMS ──
+    filteredReplens.forEach(p => {
+      const costPrice = parseFloat(p.cost_price) || 0;
+      const orderQty = parseInt(p.order_qty) || 0;
+      const totalVal = costPrice * orderQty;
+      const daysLeft = parseFloat(p.days_left) || 0;
+      const daysCls = daysLeft <= 0 ? '#dc2626' : daysLeft < 7 ? '#dc2626' : daysLeft < 20 ? '#92400e' : '#15803d';
+      const daysBg = daysLeft <= 0 ? '#fef2f2' : daysLeft < 7 ? '#fef2f2' : daysLeft < 20 ? '#fffbeb' : '#f0fdf4';
+      const daysBd = daysLeft <= 0 ? '#fecaca' : daysLeft < 7 ? '#fecaca' : daysLeft < 20 ? '#fde68a' : '#bbf7d0';
+      const daysTxt = daysLeft <= 0 ? 'Out of stock' : daysLeft + 'd left';
+      const initials = (p.name||'?').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+      html += `<div style="background:#faf8ff;border:1px solid #e9e3ff;border-radius:10px;padding:14px 16px;margin-bottom:8px;">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div style="flex-shrink:0;width:36px;height:36px;border-radius:8px;background:#f5f3ff;border:1px solid #c4b5fd;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#7c3aed;overflow:hidden;position:relative;">
+            ${p.image_url ? `<img src="${escA(p.image_url)}" alt="" style="width:100%;height:100%;object-fit:contain;position:absolute;inset:0;" onerror="this.style.display='none'">` : ''}
+            <span>${escH(initials)}</span>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+              <span style="font-size:13px;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;" title="${escA(p.name||'')}">${escH(p.name||'—')}</span>
+              <span style="flex-shrink:0;font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px;background:#f5f3ff;border:1px solid #c4b5fd;color:#7c3aed;letter-spacing:.3px;">Replenishment</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+              ${p.ean ? `<span style="font-family:monospace;font-size:11px;color:#64748b;">${escH(p.ean)}</span>` : ''}
+              <span style="font-size:11px;font-weight:600;padding:1px 7px;border-radius:4px;background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;font-family:monospace;">${escH(p.sku||'—')}</span>
+              <span style="font-family:monospace;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid ${daysBd};background:${daysBg};color:${daysCls};">${daysTxt}</span>
+              ${p.supplier_name ? `<span style="font-size:11px;color:#64748b;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 6px;">${escH(p.supplier_name)}</span>` : ''}
+              ${costPrice > 0 ? `<span style="font-size:11px;font-weight:600;color:#374151;">£${costPrice.toFixed(2)}/unit</span>` : ''}
+              <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0;flex-direction:column;align-items:flex-end;">
+                ${orderQty > 0 ? `<span style="font-size:11px;font-weight:700;color:#15803d;">× ${orderQty.toLocaleString()} units</span>` : ''}
+                ${totalVal > 0 ? `<span style="font-size:10.5px;font-weight:600;color:#15803d;">£${totalVal.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>` : ''}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:10px;border-top:1px solid #e9e3ff;">
+              <button onclick="window.cbMarkReplPurchased('${escA(p.sku)}')" style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:7px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;transition:background .15s;">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Purchased
+              </button>
+              <button onclick="window.cbRemoveRepl('${escA(p.sku)}')" style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:7px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;background:#f8fafc;color:#64748b;border:1.5px solid #e2e8f0;transition:background .15s;">
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    });
+
+    body.innerHTML = html;
+  };
+
+  // ── PURCHASE ACTIONS ──
+  window.cbMarkNewLinePurchased = async function(id) {
+    const qtyInput = document.getElementById(`cbNLQty_${id}`);
+    const qty = parseFloat(qtyInput?.value || '');
+    if (!qty || qty <= 0) { _cbToast('Enter a quantity', 'error'); return; }
+    try {
+      await window.sb.from('sourcing').update({ purchased: true, qty_purchased: qty, last_updated: new Date().toISOString() }).eq('opportunity_id', id);
+      _cbToast('Marked as purchased', 'success');
+      window.renderCentralBasket();
+      // Refresh sourcing page if active
+      if (window.renderSrcBasket) window.renderSrcBasket();
+      if (window.renderTable) window.renderTable();
+      if (window.updateStats) window.updateStats();
+    } catch(e) { _cbToast('Failed to save', 'error'); }
+  };
+
+  window.cbMarkReplPurchased = async function(sku) {
+    try {
+      await window.sb.from('replenishment_skus').update({ action: 'pur', actioned_at: new Date().toISOString() }).eq('sku', sku);
+      _cbToast('Marked as purchased', 'success');
+      window.renderCentralBasket();
+      // Refresh replenishments page bucket if active
+      if (window.render) window.render();
+    } catch(e) { _cbToast('Failed to save', 'error'); }
+  };
+
+  window.cbRemoveRepl = async function(sku) {
+    try {
+      await window.sb.from('replenishment_skus').update({ action: null, actioned_at: null }).eq('sku', sku);
+      _cbToast('Removed from basket', 'success');
+      window.renderCentralBasket();
+      if (window.render) window.render();
+    } catch(e) { _cbToast('Failed to remove', 'error'); }
+  };
+
+  function _cbToast(msg, type) {
+    // Use sourcing toast if available, otherwise use replenishments toast, otherwise create one
+    if (window.showToast) { window.showToast(msg, type); return; }
+    const c = document.getElementById('toastContainer') || document.getElementById('toasts');
+    if (!c) return;
+    const t = document.createElement('div');
+    t.style.cssText = `display:flex;align-items:center;gap:9px;padding:11px 16px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.18);animation:toastIn .2s ease;max-width:320px;color:#fff;background:${type==='success'?'#15803d':type==='error'?'#dc2626':'#1e40af'};`;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+  }
+
+  // Escape key closes basket
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('centralBasketOverlay')?.style.pointerEvents === 'all') {
+      window.closeCentralBasket();
+    }
+  });
+
+  window.closeCentralBasket = window.closeCentralBasket;
+})();
+</script>
+
+
+
+
+    <!-- ══ CENTRAL BASKET MODAL ══ -->
+<div id="centralBasketOverlay" style="position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:5000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .22s;backdrop-filter:blur(3px);" onclick="if(event.target===this)window.closeCentralBasket()">
+  <div style="background:#fff;border-radius:18px;width:960px;height:760px;max-width:96vw;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.18);transform:scale(.97) translateY(8px);transition:transform .25s cubic-bezier(.34,1.56,.64,1);overflow:hidden;" onclick="event.stopPropagation()" id="centralBasketModal">
+    <!-- Header -->
+    <div style="padding:18px 22px 0;flex-shrink:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;">
+        <div style="font-size:15px;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:8px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;flex-shrink:0;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          Central Basket
+        </div>
+        <button onclick="window.closeCentralBasket()" style="width:28px;height:28px;border-radius:7px;border:1.5px solid #e2e8f0;background:#f8fafc;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;transition:all .15s;flex-shrink:0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <!-- Toolbar -->
+    <div id="cbToolbar" style="padding:10px 22px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;background:#fff;">
+      <span id="cbCount" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;background:#f8fafc;border:1px solid #e2e8f0;color:#64748b;font-size:11.5px;font-weight:600;white-space:nowrap;flex-shrink:0;">0 items</span>
+      <span id="cbSuppliers" style="display:none;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;background:#f8fafc;border:1px solid #e2e8f0;color:#64748b;font-size:11.5px;font-weight:600;white-space:nowrap;flex-shrink:0;"></span>
+      <span id="cbUnits" style="display:none;flex-direction:column;padding:4px 10px;border-radius:100px;background:#f8fafc;border:1px solid #e2e8f0;color:#64748b;font-size:11.5px;font-weight:600;white-space:nowrap;flex-shrink:0;line-height:1.3;"></span>
+      <!-- Filter tabs -->
+      <div style="display:flex;gap:4px;margin-left:4px;">
+        <button id="cbFilterAll" onclick="window.setCbFilter('all')" style="padding:4px 11px;border-radius:100px;font-size:11.5px;font-weight:600;font-family:inherit;cursor:pointer;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;transition:all .15s;">All</button>
+        <button id="cbFilterNewline" onclick="window.setCbFilter('newline')" style="padding:4px 11px;border-radius:100px;font-size:11.5px;font-weight:600;font-family:inherit;cursor:pointer;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;transition:all .15s;">New Lines</button>
+        <button id="cbFilterReplens" onclick="window.setCbFilter('replens')" style="padding:4px 11px;border-radius:100px;font-size:11.5px;font-weight:600;font-family:inherit;cursor:pointer;border:1px solid #c4b5fd;background:#f5f3ff;color:#7c3aed;transition:all .15s;">Replenishments</button>
+      </div>
+      <!-- Search -->
+      <div style="position:relative;flex:1;min-width:160px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#94a3b8;width:13px;height:13px;pointer-events:none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="cbSearch" placeholder="Search product or supplier…" oninput="window.renderCentralBasket()" style="width:100%;padding:6px 9px 6px 30px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;background:#f8fafc;color:#0f172a;outline:none;transition:border-color .15s;">
+      </div>
+    </div>
+    <!-- Body -->
+    <div id="cbBody" style="flex:1;min-height:0;overflow-y:auto;padding:16px 22px 22px;"></div>
+    <!-- Footer -->
+    <div style="padding:10px 22px;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;background:#fafafa;flex-shrink:0;font-size:11.5px;color:#64748b;">
+      <span id="cbFtrCount">0 items</span>
+    </div>
+  </div>
+</div>
 
 
   <div id="modalMiniCard" style="
@@ -871,6 +1199,7 @@ function toggleCollapse() { document.getElementById('sidebar').classList.toggle(
   box-shadow:0 8px 32px rgba(15,23,42,.16),0 2px 8px rgba(15,23,42,.08);
   width:260px;overflow:hidden;
 ">
+    
   <div style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);padding:11px 14px;display:flex;align-items:center;gap:8px;">
     <div style="flex:1;min-width:0;">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.4);margin-bottom:2px;">Sourcing Product</div>
