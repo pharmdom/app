@@ -1828,14 +1828,14 @@ return Object.values(weeks).sort((a,b) => b.weekKey.localeCompare(a.weekKey)).ma
   }
 
   function updateBanner() {
-    const allFiltered = filteredEmps.flatMap(e => e.filteredRecords);
-    const totalPay    = allFiltered.reduce((s,r) => s+r.totalPay, 0);
-    const paidTotal   = allFiltered.filter(r => r.paid === 'Yes').reduce((s,r) => s+r.totalPay, 0);
-    const pendTotal   = totalPay - paidTotal;
+    const allFilteredWeeks = filteredEmps.flatMap(e => groupByWeek(e.filteredRecords));
+    const totalPay  = allFilteredWeeks.reduce((s,w) => s+w.totalPay, 0);
+    const paidTotal = allFilteredWeeks.filter(w => w.paid === 'Yes').reduce((s,w) => s+w.totalPay, 0);
+    const pendTotal = allFilteredWeeks.filter(w => w.paid !== 'Yes').reduce((s,w) => s+w.totalPay, 0);
     document.getElementById('bannerTotal').textContent   = '£' + fmt(totalPay);
     document.getElementById('bannerPaid').textContent    = '£' + fmt(paidTotal);
     document.getElementById('bannerPending').textContent = '£' + fmt(pendTotal);
-    document.getElementById('summaryBanner').style.display = allFiltered.length ? 'grid' : 'none';
+document.getElementById('summaryBanner').style.display = allFilteredWeeks.length ? 'grid' : 'none';
   }
 
   function renderList() {
@@ -1896,9 +1896,10 @@ return Object.values(weeks).sort((a,b) => b.weekKey.localeCompare(a.weekKey)).ma
     const emp = employees[drawerEmpId];
     if (!emp) return;
     const initials  = getInitials(emp.name);
-    const totalPay  = emp.records.reduce((s,r) => s+r.totalPay+(r.bonus||0), 0);
-const totalPaid = emp.records.filter(r => r.paid === 'Yes').reduce((s,r) => s+r.totalPay+(r.bonus||0), 0);
-const totalPend = emp.records.filter(r => r.paid !== 'Yes').reduce((s,r) => s+r.totalPay+(r.bonus||0), 0);
+    const empWeeksForKpi = groupByWeek(emp.records);
+    const totalPay  = empWeeksForKpi.reduce((s,w) => s+w.totalPay, 0);
+    const totalPaid = empWeeksForKpi.filter(w => w.paid === 'Yes').reduce((s,w) => s+w.totalPay, 0);
+    const totalPend = empWeeksForKpi.filter(w => w.paid !== 'Yes').reduce((s,w) => s+w.totalPay, 0);
     const empWeeks  = groupByWeek(emp.records);
     const pendCount = empWeeks.filter(w => w.paid !== 'Yes').length;
     const paidCount = empWeeks.filter(w => w.paid === 'Yes').length;
