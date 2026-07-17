@@ -788,7 +788,7 @@ body{overflow:hidden}
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
   </button>
   <div class="actions-menu" id="actionsMenu">
-    <div class="actions-menu-item" onclick="closeActionsMenu();openBasket()">
+    <div class="actions-menu-item" onclick="closeActionsMenu();window.openCentralBasket('replens')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
       Basket
     </div>
@@ -996,43 +996,6 @@ body{overflow:hidden}
   </div>
 </div>
   
-<!-- Basket Modal -->
-<div class="basket-overlay" id="basketOverlay" onclick="if(event.target===this)closeBasket()">
-  <div class="basket-modal" onclick="event.stopPropagation()">
-<div class="basket-modal-hdr">
-      <div class="basket-modal-title-row">
-        <div class="basket-modal-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-          Basket
-        </div>
-        <button class="basket-modal-close" onclick="closeBasket()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-    </div>
-    <div class="basket-toolbar">
-      <span class="basket-counter" id="basketToolbarCount">0 items</span>
-      <span class="basket-counter" id="basketToolbarSuppliers" style="display:none;">0 suppliers</span>
-      <span class="basket-counter" id="basketToolbarQty" style="display:none;"></span>
-      <span class="basket-counter" id="basketToolbarSpend" style="display:none;background:var(--green-bg);border-color:var(--green-bd);color:var(--green);"></span>
-      <div class="basket-search-box">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="basketSearchInput" placeholder="Search name, SKU or EAN…" oninput="renderBasketModal()">
-      </div>
-      <div class="basket-supplier-filter">
-        <select class="basket-supplier-select" id="basketSupplierFilter" onchange="renderBasketModal()">
-          <option value="">All suppliers</option>
-        </select>
-      </div>
-    </div>
-    <div class="basket-modal-body" id="basketModalBody"></div>
-    <div class="basket-modal-ftr">
-      <span id="basketModalCount">0 items</span>
-      <span id="basketModalSpend"></span>
-    </div>
-  </div>
-</div>
-
 </div>
 
 <script>
@@ -1848,115 +1811,6 @@ window.closeActionsMenu = closeActionsMenu;
 
 
 
-function openBasket() {
-  const s = document.getElementById('basketSearchInput');
-  const f = document.getElementById('basketSupplierFilter');
-  if (s) s.value = '';
-  if (f) f.value = '';
-  document.getElementById('basketOverlay').classList.add('open');
-  loadSuppliers().then(() => renderBasketModal());
-}
-function closeBasket() {
-  document.getElementById('basketOverlay').classList.remove('open');
-}
-
-function renderBasketModal() {
-  let items = ALL.filter(x => acts[x.s] === 'basket');
-  const body = document.getElementById('basketModalBody');
-  const count = document.getElementById('basketModalCount');
-  const spend = document.getElementById('basketModalSpend');
-
-  // Populate supplier filter with unique suppliers in basket
-  const supplierSelect = document.getElementById('basketSupplierFilter');
-  if (supplierSelect) {
-    const activeSups = [...new Set(items.map(x => basketSuppliers[x.s] || '—'))].sort();
-    const currentVal = supplierSelect.value;
-    supplierSelect.innerHTML = '<option value="">All suppliers</option>'
-      + activeSups.map(s => `<option value="${esc(s)}"${currentVal === s ? ' selected' : ''}>${esc(s)}</option>`).join('');
-  }
-
-  // Apply search filter
-  const q = (document.getElementById('basketSearchInput')?.value || '').toLowerCase().trim();
-  const supFilter = document.getElementById('basketSupplierFilter')?.value || '';
-  if (q) items = items.filter(x =>
-    x.t.toLowerCase().includes(q) || x.s.toLowerCase().includes(q) || (x.ean||'').toLowerCase().includes(q)
-  );
-  if (supFilter) items = items.filter(x => (basketSuppliers[x.s] || '—') === supFilter);
-
-  // Update counters
-  const totalItems = ALL.filter(x => acts[x.s] === 'basket').length;
-  count.textContent = items.length + ' item' + (items.length !== 1 ? 's' : '') + (items.length !== totalItems ? ' of ' + totalItems : '');
-  const toolbarCount = document.getElementById('basketToolbarCount');
-  if (toolbarCount) toolbarCount.textContent = items.length + (items.length !== totalItems ? ' of ' + totalItems : '') + ' item' + (totalItems !== 1 ? 's' : '');
-  const allBasketItems = ALL.filter(x => acts[x.s] === 'basket');
-  const uniqueSuppliers = new Set(allBasketItems.map(x => basketSuppliers[x.s] || '—').filter(Boolean)).size;
-  const toolbarSuppliers = document.getElementById('basketToolbarSuppliers');
-  if (toolbarSuppliers) { toolbarSuppliers.textContent = uniqueSuppliers + ' supplier' + (uniqueSuppliers !== 1 ? 's' : ''); toolbarSuppliers.style.display = uniqueSuppliers > 0 ? '' : 'none'; }
-  const estSpend = items.reduce((s, x) => s + (x.q * (x.cogs || 0)), 0);
-  const totalQty = items.reduce((s, x) => s + (x.q || 0), 0);
-  const toolbarQty = document.getElementById('basketToolbarQty');
-  if (toolbarQty) { toolbarQty.textContent = totalQty.toLocaleString() + ' units'; toolbarQty.style.display = totalQty > 0 ? '' : 'none'; }
-  const toolbarSpend = document.getElementById('basketToolbarSpend');
-  if (toolbarSpend) { toolbarSpend.textContent = estSpend > 0 ? 'Est. £' + estSpend.toLocaleString('en-GB', {minimumFractionDigits:2,maximumFractionDigits:2}) : ''; toolbarSpend.style.display = estSpend > 0 ? '' : 'none'; }
-  spend.textContent = '';
-
-  if (!ALL.filter(x => acts[x.s] === 'basket').length) {
-    body.innerHTML = `<div class="basket-empty">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-      <div style="font-size:13px;font-weight:600;color:var(--text3);">Basket is empty</div>
-      <div style="font-size:12px;">Mark products "Basket" in the review queue.</div>
-    </div>`;
-    return;
-  }
-
-  if (!items.length) {
-    body.innerHTML = `<div class="basket-empty">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <div style="font-size:13px;font-weight:600;color:var(--text3);">No results</div>
-      <div style="font-size:12px;">Try a different search or filter.</div>
-    </div>`;
-    return;
-  }
-
-  body.innerHTML = items.map(x => {
-    const sup = basketSuppliers[x.s] || '—';
-    let daysCls = x.d < 7 ? 'days-badge days-crit' : x.d < 20 ? 'days-badge days-warn' : 'days-badge days-ok';
-    let daysTxt = x.d <= 0 ? 'Out of stock' : x.d + 'd left';
-    return `<div class="basket-item">
-      <div style="width:40px;height:40px;border-radius:6px;overflow:hidden;background:var(--accent-bg);border:1px solid var(--accent-bd);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--accent);position:relative;">
-        ${x.img ? `<img src="${esc(x.img)}" alt="" style="width:100%;height:100%;object-fit:contain;position:absolute;inset:0;" onerror="this.style.display='none'">` : ''}
-        <span>${esc(x.t.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join(''))}</span>
-      </div>
-      <div class="basket-item-body">
-        <div class="basket-item-name" title="${esc(x.t)}">${esc(x.t)}</div>
-        <div class="basket-item-meta">
-          <span class="pill-sku">${esc(x.s)}</span>
-          <span class="${daysCls}" style="font-size:10px;padding:1px 6px;">${daysTxt}</span>
-          ${x.cogs ? `<span style="font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text3);">£${x.cogs.toFixed(2)}/unit</span>` : ''}
-          ${x.q > 0 ? `<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--green);margin-left:auto;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:1px;"><span>× ${x.q.toLocaleString()} units</span>${x.cogs ? `<span style="font-size:10px;font-weight:600;color:var(--text3);">£${(x.q * x.cogs).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>` : ''}</span>` : ''}
-        </div>
-        <div style="margin-top:6px;display:flex;align-items:center;gap:6px;">
-          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);">Supplier</span>
-          <select style="padding:4px 8px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:var(--font);background:var(--surface2);color:var(--text2);outline:none;cursor:pointer;flex:1;max-width:240px;"
-            onchange="updateBasketSupplier('${esc(x.s)}',this.value)">
-            <option value="Inquiry" ${sup==='Inquiry'?'selected':''} style="color:var(--amber);">Inquiry</option>
-            ${_suppliers.map(s=>`<option value="${esc(s)}" ${sup===s?'selected':''}>${esc(s)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="basket-item-actions">
-          <button class="abtn on-pur btn-sm" style="flex:none;padding:5px 10px;font-size:11px;" onclick="markBasketPurchased('${esc(x.s)}')">
-            <svg viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Purchased
-          </button>
-          <button class="abtn btn-sm" style="flex:none;padding:5px 10px;font-size:11px;" onclick="removeFromBasket('${esc(x.s)}')">
-            <svg viewBox="0 0 12 12" fill="none"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Remove
-          </button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
 function markBasketPurchased(sku) {
   acts[sku] = 'pur';
   saveActionToDB(sku, 'pur', notes[sku] || '');
@@ -1979,8 +1833,6 @@ function removeFromBasket(sku) {
   render();
   renderBasketModal();
 }
-window.openBasket = openBasket;
-window.closeBasket = closeBasket;
 window.markBasketPurchased = markBasketPurchased;
 window.removeFromBasket = removeFromBasket;
 
@@ -2084,7 +1936,6 @@ function esc(s) {
 // ── KEYBOARD ──
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.getElementById('supplierOverlay').classList.contains('open')) { closeSupplierDialog(); return; }
-  if (e.key === 'Escape' && document.getElementById('basketOverlay').classList.contains('open')) { closeBasket(); return; }
   if (e.key === 'Escape' && document.getElementById('confirmOverlay').classList.contains('open')) { closeConfirm(); return; }
 });
 
@@ -2458,11 +2309,8 @@ window.openSupplierDialog = openSupplierDialog;
 window.closeSupplierDialog = closeSupplierDialog;
 window.selectSupplier = selectSupplier;
 window.confirmSupplierPick = confirmSupplierPick;
-window.openBasket = openBasket;
-window.closeBasket = closeBasket;
 window.markBasketPurchased = markBasketPurchased;
 window.removeFromBasket = removeFromBasket;
-window.renderBasketModal = renderBasketModal;
 window.toggleActionsMenu = toggleActionsMenu;
 window.closeActionsMenu = closeActionsMenu;
 window.dragOver = dragOver;
