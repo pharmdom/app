@@ -1,5 +1,5 @@
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; } 
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes toastIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 
@@ -7,11 +7,32 @@
     display: flex; flex-direction: column; height: 100%;
     font-family: 'Inter', system-ui, sans-serif; color: #0f172a;
   }
-  /* Toolbar */
-  .cb-toolbar {
-    padding: 10px 0 10px 0; display: flex; flex-direction: column;
-    gap: 8px; flex-shrink: 0; background: transparent;
+
+  /* ── FIXED HEADER ── */
+  .cb-header {
+    position: sticky; top: -15px; z-index: 100;
+    background: #fff; margin: -15px -15px 0 -15px;
+    padding: 14px 15px 12px; border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 1px 6px rgba(0,0,0,.06);
   }
+  @media (max-width: 480px) {
+    .cb-header { margin: -10px -10px 0 -10px; padding: 12px 10px 10px; }
+  }
+
+  /* ── TABS ── */
+  .cb-tabs {
+    display: flex; gap: 4px; margin-bottom: 12px;
+  }
+  .cb-tab {
+    padding: 6px 16px; border-radius: 8px; font-size: 12.5px; font-weight: 600;
+    font-family: inherit; cursor: pointer; border: 1.5px solid #e2e8f0;
+    background: #fff; color: #64748b; transition: all .15s;
+  }
+  .cb-tab:hover { border-color: #94a3b8; color: #334155; }
+  .cb-tab.active-to-buy { background: #0f172a; color: #fff; border-color: #0f172a; }
+  .cb-tab.active-purchased { background: #15803d; color: #fff; border-color: #15803d; }
+
+  /* ── TOOLBAR ── */
   .cb-toolbar-row {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   }
@@ -21,12 +42,35 @@
     color: #64748b; font-size: 11.5px; font-weight: 600;
     white-space: nowrap; flex-shrink: 0;
   }
-  .cb-filter-btn {
-    padding: 4px 11px; border-radius: 100px; font-size: 11.5px;
-    font-weight: 600; font-family: inherit; cursor: pointer;
-    transition: all .15s; border: 1px solid;
+
+  /* ── TYPE DROPDOWN ── */
+  .cb-type-wrap { position: relative; flex-shrink: 0; }
+  .cb-type-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 11px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    font-family: inherit; cursor: pointer; border: 1.5px solid #e2e8f0;
+    background: #fff; color: #0f172a; transition: all .15s; white-space: nowrap;
   }
-  .cb-search-wrap { position: relative; flex: 1; min-width: 180px; }
+  .cb-type-btn:hover { border-color: #94a3b8; }
+  .cb-type-btn svg { width: 12px; height: 12px; flex-shrink: 0; }
+  .cb-type-menu {
+    position: absolute; top: calc(100% + 5px); left: 0; z-index: 300;
+    background: #fff; border: 1.5px solid #e2e8f0; border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.1); padding: 5px; min-width: 170px;
+    opacity: 0; pointer-events: none; transform: translateY(-4px);
+    transition: opacity .15s, transform .15s;
+  }
+  .cb-type-menu.open { opacity: 1; pointer-events: all; transform: translateY(0); }
+  .cb-type-opt {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    border-radius: 7px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    color: #0f172a; transition: background .12s;
+  }
+  .cb-type-opt:hover { background: #f1f5f9; }
+  .cb-type-opt.selected { background: #f1f5f9; }
+  .cb-type-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .cb-search-wrap { position: relative; flex: 1; min-width: 160px; }
   .cb-search-wrap svg {
     position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
     color: #94a3b8; width: 13px; height: 13px; pointer-events: none;
@@ -44,22 +88,55 @@
   }
   .cb-moq-bar {
     display: none; padding: 8px 12px; background: #f8fafc;
-    border: 1px solid #e2e8f0; border-radius: 8px;
+    border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 8px;
   }
-  /* Body */
-  .cb-body {
-    flex: 1; min-height: 0; overflow-y: auto;
-    padding: 16px 0 8px 0;
-  }
+
+  /* ── BODY ── */
+  .cb-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 0 8px 0; }
   .cb-body::-webkit-scrollbar { width: 4px; }
   .cb-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
-  /* Footer */
+
+  /* ── KANBAN ── */
+  .cb-kanban {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start;
+  }
+  @media (max-width: 640px) { .cb-kanban { grid-template-columns: 1fr; } }
+  .cb-kanban-col { display: flex; flex-direction: column; gap: 0; }
+  .cb-kanban-header {
+    padding: 8px 12px; border-radius: 10px 10px 0 0; font-size: 11px;
+    font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .cb-kanban-header.nl { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-bottom: none; }
+  .cb-kanban-header.repl { background: #f5f3ff; color: #7c3aed; border: 1px solid #c4b5fd; border-bottom: none; }
+  .cb-kanban-body {
+    border-radius: 0 0 10px 10px; border: 1px solid #e2e8f0;
+    border-top: none; background: #fafafa; padding: 8px;
+    display: flex; flex-direction: column; gap: 6px; min-height: 80px;
+  }
+
+  /* ── PAGINATION ── */
+  .cb-pagination {
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 12px 0 4px;
+  }
+  .cb-page-btn {
+    padding: 5px 12px; border-radius: 7px; border: 1.5px solid #e2e8f0;
+    background: #fff; color: #64748b; font-size: 12px; font-weight: 600;
+    font-family: inherit; cursor: pointer; transition: all .15s;
+  }
+  .cb-page-btn:hover:not(:disabled) { border-color: #94a3b8; color: #334155; }
+  .cb-page-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .cb-page-btn.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+
+  /* ── FOOTER ── */
   .cb-footer {
     padding: 10px 0; border-top: 1px solid #e2e8f0;
     display: flex; align-items: center; justify-content: space-between;
     flex-shrink: 0; font-size: 11.5px; color: #64748b;
   }
-  /* Toast */
+
+  /* ── TOAST ── */
   .cb-toasts {
     position: fixed; bottom: 20px; right: 20px;
     z-index: 9999; display: flex; flex-direction: column; gap: 7px;
@@ -67,17 +144,42 @@
 </style>
 
 <div class="cb-page">
-  <!-- Toolbar -->
-  <div class="cb-toolbar">
+  <!-- Fixed Header -->
+  <div class="cb-header">
+    <!-- To Purchase / Purchased tabs -->
+    <div class="cb-tabs">
+      <button class="cb-tab active-to-buy" id="cbTabToBuy" onclick="window.setCbTab('tobuy')">
+        To Purchase
+      </button>
+      <button class="cb-tab" id="cbTabPurchased" onclick="window.setCbTab('purchased')">
+        Purchased
+      </button>
+    </div>
+    <!-- Toolbar -->
     <div class="cb-toolbar-row">
       <span id="cbCount" class="cb-chip">0 items</span>
       <span id="cbSuppliers" class="cb-chip" style="display:none;"></span>
       <span id="cbUnits" class="cb-chip" style="display:none;flex-direction:column;line-height:1.3;"></span>
-      <div style="display:flex;gap:4px;margin-left:4px;">
-        <button id="cbFilterAll" class="cb-filter-btn" onclick="window.setCbFilter('all')">All</button>
-        <button id="cbFilterNewline" class="cb-filter-btn" onclick="window.setCbFilter('newline')">New Lines</button>
-        <button id="cbFilterReplens" class="cb-filter-btn" onclick="window.setCbFilter('replens')">Replenishments</button>
+
+      <!-- Type dropdown -->
+      <div class="cb-type-wrap" id="cbTypeWrap">
+        <button class="cb-type-btn" id="cbTypeBtn" onclick="window.toggleCbTypeMenu(event)">
+          <span id="cbTypeBtnLabel">All</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="cb-type-menu" id="cbTypeMenu">
+          <div class="cb-type-opt selected" id="cbTypeOptAll" onclick="window.setCbFilter('all')">
+            <span class="cb-type-dot" style="background:#0f172a;"></span> All
+          </div>
+          <div class="cb-type-opt" id="cbTypeOptNewline" onclick="window.setCbFilter('newline')">
+            <span class="cb-type-dot" style="background:#2563eb;"></span> New Lines
+          </div>
+          <div class="cb-type-opt" id="cbTypeOptReplens" onclick="window.setCbFilter('replens')">
+            <span class="cb-type-dot" style="background:#7c3aed;"></span> Replenishments
+          </div>
+        </div>
       </div>
+
       <div class="cb-search-wrap">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="cbSearch" class="cb-search" placeholder="Search product, EAN, supplier…" oninput="window.renderCentralBasket()">
@@ -108,10 +210,12 @@
 <script>
 (function () {
   'use strict';
-
   const sb = window.sb;
 
-  let _cbFilter = 'all';
+  let _cbFilter  = 'all';   // 'all' | 'newline' | 'replens'
+  let _cbTab     = 'tobuy'; // 'tobuy' | 'purchased'
+  let _cbPage    = 1;
+  const PAGE_SIZE = 25;
   let _cbSupplierList = [];
 
   function escH(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -126,48 +230,99 @@
     return _cbSupplierList;
   }
 
-  function _updateFilterButtons() {
-    const btns = { all: 'cbFilterAll', newline: 'cbFilterNewline', replens: 'cbFilterReplens' };
-    const styles = {
-      all:     { active: 'background:#0f172a;color:#fff;border-color:#0f172a;',   inactive: 'background:#f8fafc;color:#64748b;border-color:#e2e8f0;' },
-      newline: { active: 'background:#2563eb;color:#fff;border-color:#2563eb;',   inactive: 'background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;' },
-      replens: { active: 'background:#7c3aed;color:#fff;border-color:#7c3aed;',   inactive: 'background:#f5f3ff;color:#7c3aed;border-color:#c4b5fd;' },
-    };
-    Object.entries(btns).forEach(([key, id]) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.style.cssText = 'padding:4px 11px;border-radius:100px;font-size:11.5px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s;border:1px solid;' + (key === _cbFilter ? styles[key].active : styles[key].inactive);
+  // ── TABS ──
+  window.setCbTab = function(tab) {
+    _cbTab = tab;
+    _cbPage = 1;
+    const toBuyBtn = document.getElementById('cbTabToBuy');
+    const purBtn   = document.getElementById('cbTabPurchased');
+    if (toBuyBtn) {
+      toBuyBtn.className = 'cb-tab' + (tab === 'tobuy' ? ' active-to-buy' : '');
+    }
+    if (purBtn) {
+      purBtn.className = 'cb-tab' + (tab === 'purchased' ? ' active-purchased' : '');
+    }
+    window.renderCentralBasket();
+  };
+
+  // ── TYPE DROPDOWN ──
+  window.toggleCbTypeMenu = function(e) {
+    e.stopPropagation();
+    document.getElementById('cbTypeMenu').classList.toggle('open');
+  };
+  document.addEventListener('click', function() {
+    document.getElementById('cbTypeMenu')?.classList.remove('open');
+  });
+
+  function _updateTypeDropdown() {
+    const labels = { all: 'All', newline: 'New Lines', replens: 'Replenishments' };
+    const dots   = { all: '#0f172a', newline: '#2563eb', replens: '#7c3aed' };
+    const btn = document.getElementById('cbTypeBtn');
+    if (btn) {
+      btn.style.borderColor = _cbFilter === 'all' ? '#e2e8f0' : _cbFilter === 'newline' ? '#bfdbfe' : '#c4b5fd';
+      btn.style.color       = _cbFilter === 'all' ? '#0f172a' : _cbFilter === 'newline' ? '#1d4ed8' : '#7c3aed';
+      btn.style.background  = _cbFilter === 'all' ? '#fff' : _cbFilter === 'newline' ? '#eff6ff' : '#f5f3ff';
+      document.getElementById('cbTypeBtnLabel').textContent = labels[_cbFilter];
+    }
+    ['all','newline','replens'].forEach(k => {
+      const el = document.getElementById('cbTypeOpt' + k.charAt(0).toUpperCase() + k.slice(1));
+      if (el) el.classList.toggle('selected', k === _cbFilter);
     });
+    document.getElementById('cbTypeMenu')?.classList.remove('open');
   }
 
   window.setCbFilter = function(f) {
     _cbFilter = f;
-    _updateFilterButtons();
+    _cbPage = 1;
+    _updateTypeDropdown();
     window.renderCentralBasket();
   };
 
+  // ── MAIN RENDER ──
   window.renderCentralBasket = async function() {
     const body = document.getElementById('cbBody');
     if (!body) return;
     body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;color:#94a3b8;font-size:13px;gap:8px;"><div style="width:16px;height:16px;border:2.5px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin .65s linear infinite;"></div>Loading…</div>';
 
-    let newlines = [], replens = [];
-    try {
-      const { data: srcData } = await sb
-        .from('sourcing')
-        .select('opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,approved,purchased,sourcing_approvals(status)')
-        .eq('approved', true).eq('purchased', false);
-      newlines = (srcData || []).filter(p => !(p.sourcing_approvals||[]).some(a => a.status === 'rejected'));
-    } catch(e) { console.warn('CB: sourcing fetch failed', e); }
-    try {
-      const { data: repData } = await sb
-        .from('replenishment_skus')
-        .select('sku,name,ean,order_qty,cost_price,days_left,urgency,image_url,supplier_name,action,actioned_at')
-        .eq('action', 'basket');
-      replens = repData || [];
-    } catch(e) { console.warn('CB: replenishments fetch failed', e); }
-
     const supplierList = await _loadCbSuppliers();
+
+    // ── Fetch based on tab ──
+    let newlines = [], replens = [], purNewlines = [], purReplens = [];
+
+    if (_cbTab === 'tobuy') {
+      try {
+        const { data } = await sb
+          .from('sourcing')
+          .select('opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,approved,purchased,sourcing_approvals(status)')
+          .eq('approved', true).eq('purchased', false);
+        newlines = (data || []).filter(p => !(p.sourcing_approvals||[]).some(a => a.status === 'rejected'));
+      } catch(e) { console.warn('CB: sourcing fetch failed', e); }
+      try {
+        const { data } = await sb
+          .from('replenishment_skus')
+          .select('sku,name,ean,order_qty,cost_price,days_left,urgency,image_url,supplier_name,action,actioned_at')
+          .eq('action', 'basket');
+        replens = data || [];
+      } catch(e) { console.warn('CB: replenishments fetch failed', e); }
+    } else {
+      // Purchased tab
+      try {
+        const { data } = await sb
+          .from('sourcing')
+          .select('opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,qty_purchased,last_updated,approved,purchased,sourcing_approvals(status)')
+          .eq('approved', true).eq('purchased', true);
+        purNewlines = (data || []).filter(p => !(p.sourcing_approvals||[]).some(a => a.status === 'rejected'));
+      } catch(e) { console.warn('CB: sourcing purchased fetch failed', e); }
+      try {
+        const { data } = await sb
+          .from('replenishment_skus')
+          .select('sku,name,ean,order_qty,cost_price,days_left,urgency,image_url,supplier_name,action,actioned_at')
+          .eq('action', 'pur');
+        purReplens = data || [];
+      } catch(e) { console.warn('CB: replenishments purchased fetch failed', e); }
+      newlines = purNewlines;
+      replens  = purReplens;
+    }
 
     // Populate supplier filter
     const allSupplierNames = [...new Set([
@@ -181,27 +336,31 @@
         + allSupplierNames.map(n => `<option value="${escA(n)}"${n === currentVal ? ' selected' : ''}>${escH(n)}</option>`).join('');
     }
 
-    // Apply filters
-    let filteredNewlines = _cbFilter === 'replens' ? [] : newlines;
-    let filteredReplens  = _cbFilter === 'newline' ? [] : replens;
+    // Apply type filter
+    let filteredNL   = _cbFilter === 'replens' ? [] : newlines;
+    let filteredRepl = _cbFilter === 'newline'  ? [] : replens;
+
+    // Apply search
     const q = (document.getElementById('cbSearch')?.value || '').toLowerCase().trim();
     if (q) {
-      filteredNewlines = filteredNewlines.filter(p =>
+      filteredNL   = filteredNL.filter(p =>
         (p.product_name||'').toLowerCase().includes(q) || (p.supplier_name||'').toLowerCase().includes(q) ||
         (p.code||'').toLowerCase().includes(q) || (p.opportunity_id||'').toLowerCase().includes(q));
-      filteredReplens = filteredReplens.filter(p =>
+      filteredRepl = filteredRepl.filter(p =>
         (p.name||'').toLowerCase().includes(q) || (p.supplier_name||'').toLowerCase().includes(q) || (p.ean||'').toLowerCase().includes(q));
     }
+
+    // Apply supplier filter
     const supplierQ = sfEl?.value || '';
     if (supplierQ) {
-      filteredNewlines = filteredNewlines.filter(p => p.supplier_name === supplierQ);
-      filteredReplens  = filteredReplens.filter(p => p.supplier_name === supplierQ);
+      filteredNL   = filteredNL.filter(p => p.supplier_name === supplierQ);
+      filteredRepl = filteredRepl.filter(p => p.supplier_name === supplierQ);
     }
 
     // Counters
     const visibleItems = [
-      ...filteredNewlines.map(p => ({ units: parseFloat(p.unit_quantity)||0, cost: parseFloat(p.cost_of_unit)||0, supplier: p.supplier_name||'' })),
-      ...filteredReplens.map(p =>  ({ units: parseFloat(p.order_qty)||0,    cost: parseFloat(p.cost_price)||0,    supplier: p.supplier_name||'' })),
+      ...filteredNL.map(p =>   ({ units: parseFloat(p.unit_quantity)||0, cost: parseFloat(p.cost_of_unit)||0, supplier: p.supplier_name||'' })),
+      ...filteredRepl.map(p => ({ units: parseFloat(p.order_qty)||0,     cost: parseFloat(p.cost_price)||0,   supplier: p.supplier_name||'' })),
     ];
     const totalItems      = visibleItems.length;
     const uniqueSuppliers = new Set(visibleItems.map(i => i.supplier).filter(Boolean)).size;
@@ -217,10 +376,10 @@
       unitsEl.style.display = totalUnits > 0 ? 'flex' : 'none';
     }
 
-    // MOQ bar
+    // MOQ bar (to-buy only, single supplier)
     const moqBar = document.getElementById('cbMoqBar');
     if (moqBar) {
-      if (uniqueSuppliers === 1 && totalValue > 0) {
+      if (_cbTab === 'tobuy' && uniqueSuppliers === 1 && totalValue > 0) {
         const sName = visibleItems.find(i => i.supplier)?.supplier || '';
         const sup = supplierList.find(s => s.name === sName);
         const moq = sup?.moq || 0;
@@ -242,129 +401,230 @@
       } else { moqBar.style.display = 'none'; }
     }
 
-    // Sort by recency
-    const sortedItems = [
-      ...filteredReplens.map(p => ({ _type: 'repl', _ts: p.actioned_at || '', data: p })),
-      ...filteredNewlines.map(p => ({ _type: 'nl', _ts: '', data: p })),
-    ].sort((a, b) => {
-      if (a._ts && b._ts) return b._ts.localeCompare(a._ts);
-      if (a._ts) return -1; if (b._ts) return 1; return 0;
-    });
+    document.getElementById('cbFtrCount').textContent = totalItems + ' item' + (totalItems !== 1 ? 's' : '');
 
-    const allTotal = newlines.length + replens.length;
-    const visibleCount = filteredNewlines.length + filteredReplens.length;
-    document.getElementById('cbFtrCount').textContent = visibleCount + ' item' + (visibleCount !== 1 ? 's' : '');
-
-    if (allTotal === 0) {
+    if (totalItems === 0) {
+      const emptyMsg = _cbTab === 'purchased'
+        ? 'No purchased items yet.'
+        : 'Basket is empty — approved sourcing products and replenishment basket items appear here.';
       body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;gap:10px;text-align:center;padding:40px 20px;color:#94a3b8;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px;opacity:.4;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-        <div style="font-size:13px;font-weight:600;color:#475569;">Basket is empty</div>
-        <div style="font-size:12px;">Approved sourcing products and replenishment basket items will appear here.</div>
-      </div>`; return;
-    }
-    if (visibleCount === 0) {
-      body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;gap:10px;text-align:center;padding:40px 20px;color:#94a3b8;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px;opacity:.4;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <div style="font-size:13px;font-weight:600;color:#475569;">No results</div>
-        <div style="font-size:12px;">Try a different search or filter.</div>
-      </div>`; return;
+        <div style="font-size:13px;font-weight:600;color:#475569;">${_cbTab === 'purchased' ? 'No purchased items' : 'Basket is empty'}</div>
+        <div style="font-size:12px;">${emptyMsg}</div>
+      </div>`;
+      return;
     }
 
-    let html = '';
-    sortedItems.forEach(item => {
-      if (item._type === 'nl') {
-        const p = item.data;
-        const costOfUnit = parseFloat(p.cost_of_unit);
-        const unitQty = parseFloat(p.unit_quantity) || 0;
-        const totalVal = !isNaN(costOfUnit) ? costOfUnit * unitQty : 0;
-        const rawCode = (p.code || '').trim();
-        const eanDisplay = rawCode ? rawCode.split(',').map(s => s.split(':')[0].trim()).filter(Boolean).join(', ') : '';
-        const ini = (p.product_name||'?').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
-        html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:8px;">
-          <div style="display:flex;align-items:flex-start;gap:12px;">
-            <div style="flex-shrink:0;width:36px;height:36px;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#2563eb;">${escH(ini)}</div>
-            <div style="flex:1;min-width:0;">
-              <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
-                <span style="font-size:13px;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;" title="${escA(p.product_name||'')}">${escH(p.product_name||'—')}</span>
-                <span style="flex-shrink:0;font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;letter-spacing:.3px;">New Line</span>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-                ${eanDisplay ? `<span style="font-family:monospace;font-size:11px;color:#64748b;">${escH(eanDisplay)}</span>` : ''}
-                <span style="font-size:11px;color:#64748b;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 6px;">${escH(p.supplier_name||'—')}</span>
-                ${!isNaN(costOfUnit) ? `<span style="font-size:11px;font-weight:600;color:#374151;">£${costOfUnit.toFixed(2)}/unit</span>` : ''}
-                <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;gap:1px;">
-                  ${unitQty > 0 ? `<span style="font-size:11px;font-weight:700;color:#15803d;">× ${unitQty.toLocaleString()} units</span>` : ''}
-                  ${totalVal > 0 ? `<span style="font-size:10.5px;font-weight:600;color:#15803d;">£${totalVal.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>` : ''}
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:10px;border-top:1px solid #e2e8f0;">
-                <input type="number" id="cbNLQty_${escA(p.opportunity_id)}" min="0" placeholder="Qty purchased…" style="width:140px;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;font-family:inherit;background:#fff;color:#0f172a;outline:none;">
-                <button onclick="window.cbMarkNewLinePurchased('${escA(p.opportunity_id)}')" style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:7px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;transition:background .15s;">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  Purchased
-                </button>
-              </div>
-            </div>
+    // ── KANBAN view (All + To Buy) ──
+    if (_cbFilter === 'all' && _cbTab === 'tobuy') {
+      body.innerHTML = `<div class="cb-kanban">
+        <div class="cb-kanban-col">
+          <div class="cb-kanban-header nl">
+            <span>New Lines</span>
+            <span style="font-size:10px;opacity:.7;">${filteredNL.length} item${filteredNL.length !== 1 ? 's' : ''}</span>
           </div>
-        </div>`;
-      } else {
-        const p = item.data;
-        const costPrice = parseFloat(p.cost_price) || 0;
-        const orderQty  = parseInt(p.order_qty) || 0;
-        const totalVal  = costPrice * orderQty;
-        const daysLeft  = parseFloat(p.days_left) || 0;
-        const daysCls = daysLeft <= 0 ? '#dc2626' : daysLeft < 7 ? '#dc2626' : daysLeft < 20 ? '#92400e' : '#15803d';
-        const daysBg  = daysLeft <= 0 ? '#fef2f2' : daysLeft < 7 ? '#fef2f2' : daysLeft < 20 ? '#fffbeb' : '#f0fdf4';
-        const daysBd  = daysLeft <= 0 ? '#fecaca' : daysLeft < 7 ? '#fecaca' : daysLeft < 20 ? '#fde68a' : '#bbf7d0';
-        const daysTxt = daysLeft <= 0 ? 'Out of stock' : daysLeft + 'd left';
-        const ini = (p.name||'?').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
-        const suppOpts = '<option value="">— Supplier —</option>'
-          + supplierList.map(s => `<option value="${escA(s.name)}"${s.name===(p.supplier_name||'')?' selected':''}>${escH(s.name)}</option>`).join('')
-          + `<option value="Inquiry"${'Inquiry'===(p.supplier_name||'')?' selected':''}>Inquiry</option>`;
-        html += `<div style="background:#faf8ff;border:1px solid #e9e3ff;border-radius:10px;padding:14px 16px;margin-bottom:8px;">
-          <div style="display:flex;align-items:flex-start;gap:12px;">
-            <div style="flex-shrink:0;width:36px;height:36px;border-radius:8px;background:#f5f3ff;border:1px solid #c4b5fd;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#7c3aed;overflow:hidden;position:relative;">
-              ${p.image_url ? `<img src="${escA(p.image_url)}" alt="" style="width:100%;height:100%;object-fit:contain;position:absolute;inset:0;" onerror="this.style.display='none'">` : ''}
-              <span>${escH(ini)}</span>
-            </div>
-            <div style="flex:1;min-width:0;">
-              <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
-                <span style="font-size:13px;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;" title="${escA(p.name||'')}">${escH(p.name||'—')}</span>
-                <span style="flex-shrink:0;font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px;background:#f5f3ff;border:1px solid #c4b5fd;color:#7c3aed;letter-spacing:.3px;">Replenishment</span>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-                ${p.ean ? `<span style="font-family:monospace;font-size:11px;color:#64748b;">${escH(p.ean)}</span>` : ''}
-                <span style="font-size:11px;font-weight:600;padding:1px 7px;border-radius:4px;background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;font-family:monospace;">${escH(p.sku||'—')}</span>
-                <span style="font-family:monospace;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid ${daysBd};background:${daysBg};color:${daysCls};">${daysTxt}</span>
-                ${costPrice > 0 ? `<span style="font-size:11px;font-weight:600;color:#374151;">£${costPrice.toFixed(2)}/unit</span>` : ''}
-                <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0;gap:1px;">
-                  ${orderQty > 0 ? `<span style="font-size:11px;font-weight:700;color:#15803d;">× ${orderQty.toLocaleString()} units</span>` : ''}
-                  ${totalVal > 0 ? `<span style="font-size:10.5px;font-weight:600;color:#15803d;">£${totalVal.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>` : ''}
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:10px;border-top:1px solid #e9e3ff;">
-                <select onchange="window.cbUpdateReplSupplier('${escA(p.sku)}',this.value)" style="padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;font-family:inherit;background:#fff;color:#0f172a;outline:none;cursor:pointer;min-width:160px;">${suppOpts}</select>
-                <button onclick="window.cbMarkReplPurchased('${escA(p.sku)}')" style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:7px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;transition:background .15s;">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  Purchased
-                </button>
-                <button onclick="window.cbRemoveRepl('${escA(p.sku)}')" style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:7px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;background:#f8fafc;color:#64748b;border:1.5px solid #e2e8f0;transition:background .15s;">
-                  Remove
-                </button>
-              </div>
-            </div>
+          <div class="cb-kanban-body" id="cbKanbanNL">
+            ${filteredNL.length === 0 ? '<div style="font-size:12px;color:#94a3b8;text-align:center;padding:20px 0;">No new lines</div>' : filteredNL.map(p => _renderNLCard(p, supplierList, false)).join('')}
           </div>
-        </div>`;
+        </div>
+        <div class="cb-kanban-col">
+          <div class="cb-kanban-header repl">
+            <span>Replenishments</span>
+            <span style="font-size:10px;opacity:.7;">${filteredRepl.length} item${filteredRepl.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div class="cb-kanban-body" id="cbKanbanRepl">
+            ${filteredRepl.length === 0 ? '<div style="font-size:12px;color:#94a3b8;text-align:center;padding:20px 0;">No replenishments</div>' : filteredRepl.map(p => _renderReplCard(p, supplierList, false)).join('')}
+          </div>
+        </div>
+      </div>`;
+      return;
+    }
+
+    // ── KANBAN view (All + Purchased) ──
+    if (_cbFilter === 'all' && _cbTab === 'purchased') {
+      body.innerHTML = `<div class="cb-kanban">
+        <div class="cb-kanban-col">
+          <div class="cb-kanban-header nl">
+            <span>New Lines</span>
+            <span style="font-size:10px;opacity:.7;">${filteredNL.length} item${filteredNL.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div class="cb-kanban-body">
+            ${filteredNL.length === 0 ? '<div style="font-size:12px;color:#94a3b8;text-align:center;padding:20px 0;">None</div>' : filteredNL.map(p => _renderNLCard(p, supplierList, true)).join('')}
+          </div>
+        </div>
+        <div class="cb-kanban-col">
+          <div class="cb-kanban-header repl">
+            <span>Replenishments</span>
+            <span style="font-size:10px;opacity:.7;">${filteredRepl.length} item${filteredRepl.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div class="cb-kanban-body">
+            ${filteredRepl.length === 0 ? '<div style="font-size:12px;color:#94a3b8;text-align:center;padding:20px 0;">None</div>' : filteredRepl.map(p => _renderReplCard(p, supplierList, true)).join('')}
+          </div>
+        </div>
+      </div>`;
+      return;
+    }
+
+    // ── LIST view with pagination (newline or replens filter) ──
+    const listItems = _cbFilter === 'newline'
+      ? filteredNL.map(p => ({ _type: 'nl', data: p }))
+      : filteredRepl.map(p => ({ _type: 'repl', data: p }));
+
+    // Sort replens by recency
+    if (_cbFilter === 'replens') {
+      listItems.sort((a, b) => {
+        const ta = a.data.actioned_at || ''; const tb = b.data.actioned_at || '';
+        if (ta && tb) return tb.localeCompare(ta);
+        if (ta) return -1; if (tb) return 1; return 0;
+      });
+    }
+
+    const totalPages = Math.ceil(listItems.length / PAGE_SIZE);
+    if (_cbPage > totalPages) _cbPage = Math.max(1, totalPages);
+    const pageItems = listItems.slice((_cbPage - 1) * PAGE_SIZE, _cbPage * PAGE_SIZE);
+    const isPurchased = _cbTab === 'purchased';
+
+    let html = pageItems.map(item =>
+      item._type === 'nl'
+        ? _renderNLCard(item.data, supplierList, isPurchased)
+        : _renderReplCard(item.data, supplierList, isPurchased)
+    ).join('');
+
+    // Pagination
+    if (totalPages > 1) {
+      html += '<div class="cb-pagination">';
+      html += `<button class="cb-page-btn" onclick="window.cbGoPage(${_cbPage - 1})" ${_cbPage === 1 ? 'disabled' : ''}>← Prev</button>`;
+      for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="cb-page-btn${i === _cbPage ? ' active' : ''}" onclick="window.cbGoPage(${i})">${i}</button>`;
       }
-    });
+      html += `<button class="cb-page-btn" onclick="window.cbGoPage(${_cbPage + 1})" ${_cbPage === totalPages ? 'disabled' : ''}>Next →</button>`;
+      html += '</div>';
+    }
+
     body.innerHTML = html;
   };
 
-  // ── SUPPLIER UPDATE (silent, no reload) ──
+  window.cbGoPage = function(p) { _cbPage = p; window.renderCentralBasket(); };
+
+  // ── CARD RENDERERS ──
+  function _renderNLCard(p, supplierList, isPurchased) {
+    const costOfUnit = parseFloat(p.cost_of_unit);
+    const unitQty    = parseFloat(p.unit_quantity) || 0;
+    const qtyPur     = parseFloat(p.qty_purchased) || 0;
+    const totalVal   = !isNaN(costOfUnit) ? costOfUnit * unitQty : 0;
+    const rawCode    = (p.code || '').trim();
+    const eanDisplay = rawCode ? rawCode.split(',').map(s => s.split(':')[0].trim()).filter(Boolean).join(', ') : '';
+    const ini        = (p.product_name||'?').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+
+    const suppOpts = '<option value="">— Supplier —</option>'
+      + supplierList.map(s => `<option value="${escA(s.name)}"${s.name===(p.supplier_name||'')?' selected':''}>${escH(s.name)}</option>`).join('')
+      + `<option value="Inquiry"${'Inquiry'===(p.supplier_name||'')?' selected':''}>Inquiry</option>`;
+
+    const actions = isPurchased
+      ? `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;background:#dcfce7;border:1px solid #bbf7d0;font-size:11px;font-weight:600;color:#15803d;">
+           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+           Purchased${qtyPur > 0 ? ' · ' + qtyPur.toLocaleString() + ' units' : ''}
+         </div>
+         <button onclick="window.cbUndoNLPurchased('${escA(p.opportunity_id)}')" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;">Undo</button>`
+      : `<select onchange="window.cbUpdateNLSupplier('${escA(p.opportunity_id)}',this.value)" style="padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;font-family:inherit;background:#fff;color:#0f172a;outline:none;cursor:pointer;min-width:140px;">${suppOpts}</select>
+         <input type="number" id="cbNLQty_${escA(p.opportunity_id)}" min="0" placeholder="Qty purchased…" style="width:130px;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;font-family:inherit;background:#fff;color:#0f172a;outline:none;">
+         <button onclick="window.cbMarkNewLinePurchased('${escA(p.opportunity_id)}')" style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:7px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;">
+           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Purchased
+         </button>`;
+
+    return `<div style="background:${isPurchased?'#f0fdf4':'#f8fafc'};border:1px solid ${isPurchased?'#bbf7d0':'#e2e8f0'};border-radius:10px;padding:12px 14px;margin-bottom:6px;">
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <div style="flex-shrink:0;width:34px;height:34px;border-radius:8px;background:#eff6ff;border:1px solid #bfdbfe;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#2563eb;">${escH(ini)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <span style="font-size:12.5px;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;" title="${escA(p.product_name||'')}">${escH(p.product_name||'—')}</span>
+            <span style="flex-shrink:0;font-size:10px;font-weight:700;padding:2px 7px;border-radius:100px;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;">New Line</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+            ${eanDisplay ? `<span style="font-family:monospace;font-size:11px;color:#64748b;">${escH(eanDisplay)}</span>` : ''}
+            <span style="font-size:11px;color:#64748b;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 6px;">${escH(p.supplier_name||'—')}</span>
+            ${!isNaN(costOfUnit) ? `<span style="font-size:11px;font-weight:600;color:#374151;">£${costOfUnit.toFixed(2)}/unit</span>` : ''}
+            <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0;">
+              ${unitQty > 0 ? `<span style="font-size:11px;font-weight:700;color:#15803d;">× ${unitQty.toLocaleString()} units</span>` : ''}
+              ${totalVal > 0 ? `<span style="font-size:10.5px;font-weight:600;color:#15803d;">£${totalVal.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>` : ''}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:8px;border-top:1px solid ${isPurchased?'#bbf7d0':'#e2e8f0'};">
+            ${actions}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function _renderReplCard(p, supplierList, isPurchased) {
+    const costPrice = parseFloat(p.cost_price) || 0;
+    const orderQty  = parseInt(p.order_qty) || 0;
+    const totalVal  = costPrice * orderQty;
+    const daysLeft  = parseFloat(p.days_left) || 0;
+    const daysCls = daysLeft <= 0 ? '#dc2626' : daysLeft < 7 ? '#dc2626' : daysLeft < 20 ? '#92400e' : '#15803d';
+    const daysBg  = daysLeft <= 0 ? '#fef2f2' : daysLeft < 7 ? '#fef2f2' : daysLeft < 20 ? '#fffbeb' : '#f0fdf4';
+    const daysBd  = daysLeft <= 0 ? '#fecaca' : daysLeft < 7 ? '#fecaca' : daysLeft < 20 ? '#fde68a' : '#bbf7d0';
+    const daysTxt = daysLeft <= 0 ? 'Out of stock' : daysLeft + 'd left';
+    const ini = (p.name||'?').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+    const suppOpts = '<option value="">— Supplier —</option>'
+      + supplierList.map(s => `<option value="${escA(s.name)}"${s.name===(p.supplier_name||'')?' selected':''}>${escH(s.name)}</option>`).join('')
+      + `<option value="Inquiry"${'Inquiry'===(p.supplier_name||'')?' selected':''}>Inquiry</option>`;
+
+    const actions = isPurchased
+      ? `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;background:#dcfce7;border:1px solid #bbf7d0;font-size:11px;font-weight:600;color:#15803d;">
+           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+           Purchased
+         </div>
+         <button onclick="window.cbUndoReplPurchased('${escA(p.sku)}')" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;">Undo</button>`
+      : `<select onchange="window.cbUpdateReplSupplier('${escA(p.sku)}',this.value)" style="padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;font-family:inherit;background:#fff;color:#0f172a;outline:none;cursor:pointer;min-width:140px;">${suppOpts}</select>
+         <button onclick="window.cbMarkReplPurchased('${escA(p.sku)}')" style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:7px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;">
+           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Purchased
+         </button>
+         <button onclick="window.cbRemoveRepl('${escA(p.sku)}')" style="display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:7px;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;background:#f8fafc;color:#64748b;border:1.5px solid #e2e8f0;">Remove</button>`;
+
+    return `<div style="background:${isPurchased?'#f0fdf4':'#faf8ff'};border:1px solid ${isPurchased?'#bbf7d0':'#e9e3ff'};border-radius:10px;padding:12px 14px;margin-bottom:6px;">
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <div style="flex-shrink:0;width:34px;height:34px;border-radius:8px;background:#f5f3ff;border:1px solid #c4b5fd;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#7c3aed;overflow:hidden;position:relative;">
+          ${p.image_url ? `<img src="${escA(p.image_url)}" alt="" style="width:100%;height:100%;object-fit:contain;position:absolute;inset:0;" onerror="this.style.display='none'">` : ''}
+          <span>${escH(ini)}</span>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <span style="font-size:12.5px;font-weight:600;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;" title="${escA(p.name||'')}">${escH(p.name||'—')}</span>
+            <span style="flex-shrink:0;font-size:10px;font-weight:700;padding:2px 7px;border-radius:100px;background:#f5f3ff;border:1px solid #c4b5fd;color:#7c3aed;">Replenishment</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+            ${p.ean ? `<span style="font-family:monospace;font-size:11px;color:#64748b;">${escH(p.ean)}</span>` : ''}
+            <span style="font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px;background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;font-family:monospace;">${escH(p.sku||'—')}</span>
+            <span style="font-family:monospace;font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;border:1px solid ${daysBd};background:${daysBg};color:${daysCls};">${daysTxt}</span>
+            ${costPrice > 0 ? `<span style="font-size:11px;font-weight:600;color:#374151;">£${costPrice.toFixed(2)}/unit</span>` : ''}
+            <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0;">
+              ${orderQty > 0 ? `<span style="font-size:11px;font-weight:700;color:#15803d;">× ${orderQty.toLocaleString()} units</span>` : ''}
+              ${totalVal > 0 ? `<span style="font-size:10.5px;font-weight:600;color:#15803d;">£${totalVal.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>` : ''}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:8px;border-top:1px solid ${isPurchased?'#bbf7d0':'#e9e3ff'};">
+            ${actions}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── ACTIONS ──
+  window.cbUpdateNLSupplier = async function(id, supplierName) {
+    try {
+      await sb.from('sourcing').update({ supplier_name: supplierName || null, last_updated: new Date().toISOString() }).eq('opportunity_id', id);
+      if (window.renderTable) window.renderTable();
+    } catch(e) { _cbToast('Failed to update supplier', 'error'); }
+  };
+
   window.cbUpdateReplSupplier = async function(sku, supplierName) {
     try {
       await sb.from('replenishment_skus').update({ supplier_name: supplierName || null }).eq('sku', sku);
       if (window.render) window.render();
+      // Update MOQ bar in place
       const sfEl = document.getElementById('cbSupplierFilter');
       const supplierQ = sfEl?.value || '';
       const moqBar = document.getElementById('cbMoqBar');
@@ -395,27 +655,45 @@
     } catch(e) { _cbToast('Failed to update supplier', 'error'); }
   };
 
-  // ── PURCHASE ACTIONS ──
   window.cbMarkNewLinePurchased = async function(id) {
     const qtyInput = document.getElementById(`cbNLQty_${id}`);
     const qty = parseFloat(qtyInput?.value || '');
     if (!qty || qty <= 0) { _cbToast('Enter a quantity', 'error'); return; }
     try {
       await sb.from('sourcing').update({ purchased: true, qty_purchased: qty, last_updated: new Date().toISOString() }).eq('opportunity_id', id);
-      _cbToast('Marked as purchased', 'success');
+      _cbToast('Moved to Purchased ✓', 'success');
       window.renderCentralBasket();
       if (window.renderTable) window.renderTable();
       if (window.updateStats) window.updateStats();
     } catch(e) { _cbToast('Failed to save', 'error'); }
   };
 
+  window.cbUndoNLPurchased = async function(id) {
+    try {
+      await sb.from('sourcing').update({ purchased: false, qty_purchased: null, last_updated: new Date().toISOString() }).eq('opportunity_id', id);
+      _cbToast('Moved back to To Purchase', 'success');
+      window.renderCentralBasket();
+      if (window.renderTable) window.renderTable();
+      if (window.updateStats) window.updateStats();
+    } catch(e) { _cbToast('Failed to undo', 'error'); }
+  };
+
   window.cbMarkReplPurchased = async function(sku) {
     try {
       await sb.from('replenishment_skus').update({ action: 'pur', actioned_at: new Date().toISOString() }).eq('sku', sku);
-      _cbToast('Marked as purchased', 'success');
+      _cbToast('Moved to Purchased ✓', 'success');
       window.renderCentralBasket();
       if (window.render) window.render();
     } catch(e) { _cbToast('Failed to save', 'error'); }
+  };
+
+  window.cbUndoReplPurchased = async function(sku) {
+    try {
+      await sb.from('replenishment_skus').update({ action: 'basket', actioned_at: new Date().toISOString() }).eq('sku', sku);
+      _cbToast('Moved back to To Purchase', 'success');
+      window.renderCentralBasket();
+      if (window.render) window.render();
+    } catch(e) { _cbToast('Failed to undo', 'error'); }
   };
 
   window.cbRemoveRepl = async function(sku) {
@@ -439,7 +717,7 @@
   }
 
   // ── INIT ──
-  _updateFilterButtons();
+  _updateTypeDropdown();
   window.renderCentralBasket();
 })();
 </script>
