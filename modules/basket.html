@@ -378,6 +378,39 @@
     position: fixed; bottom: 20px; right: 20px;
     z-index: 9999; display: flex; flex-direction: column; gap: 7px; pointer-events: none;
   }
+
+
+ /* ── PRODUCT AVATAR ── */
+  .cb-avatar {
+    width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
+    overflow: hidden; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+  }
+  .cb-avatar img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: contain; border-radius: 8px;
+  }
+  .cb-avatar.nl   { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+  .cb-avatar.repl { background: #f5f3ff; color: #7c3aed; border: 1px solid #c4b5fd; }
+  .cb-avatar.inq  { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+  .cb-avatar.pur  { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+
+  /* ── DRAWER IMAGE ── */
+  .cb-drawer-img {
+    width: 56px; height: 56px; border-radius: 10px; flex-shrink: 0;
+    overflow: hidden; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; color: rgba(255,255,255,.5);
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
+    margin-bottom: 10px;
+  }
+  .cb-drawer-img img {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
+  }
+  .cb-drawer-top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 2px; position: relative; z-index: 1; }
+  .cb-drawer-top-text { flex: 1; min-width: 0; }
+ 
 </style>
 
 <div class="cb-page">
@@ -605,14 +638,21 @@
             <div class="cb-kpi"><div class="cb-kpi-label">${dl<=0?'Stock':'Days left'}</div><div class="cb-kpi-val" style="color:${dl<=0?'#f87171':dl<7?'#f87171':dl<20?'#fbbf24':'#4ade80'};">${dl<=0?'OOS':dl+'d'}</div></div>`;
     }
 
+const imgUrl = p.image_url || '';
+    const heroIni = (name||'?').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
     document.getElementById('cbDrawerHero').innerHTML = `
       <div class="cb-drawer-hero">
         <button class="cb-drawer-close" onclick="window.closeCbDrawer()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
-        <div class="cb-drawer-badge ${badgeCls}">${badgeTxt}</div>
-        <div class="cb-drawer-name">${escH(name)}</div>
-        <div class="cb-drawer-sub">${escH(supplier)}</div>
+        <div class="cb-drawer-top">
+          <div class="cb-drawer-img">${imgUrl?`<img src="${escA(imgUrl)}" alt="" onerror="this.style.display='none'">`:''}${escH(heroIni)}</div>
+          <div class="cb-drawer-top-text">
+            <div class="cb-drawer-badge ${badgeCls}" style="margin-bottom:5px;">${badgeTxt}</div>
+            <div class="cb-drawer-name" style="padding-right:36px;">${escH(name)}</div>
+            <div class="cb-drawer-sub">${escH(supplier)}</div>
+          </div>
+        </div>
         <div class="cb-drawer-kpis">${kpis}</div>
       </div>`;
 
@@ -1107,17 +1147,30 @@
   /* ── CARD RENDERERS ── */
   function _safeJson(p) { return JSON.stringify(p).replace(/\\/g,'\\\\').replace(/"/g,'&quot;'); }
 
-  function _nlCard(p,isPurchased,isInquire) {
+
+ function _avatar(imgUrl, name, cls) {
+    const ini = (name||'?').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+    return `<div class="cb-avatar ${cls}">${imgUrl?`<img src="${escA(imgUrl)}" alt="" onerror="this.style.display='none'">`:''}${escH(ini)}</div>`;
+  }
+
+
+function _nlCard(p,isPurchased,isInquire) {
     const cost=parseFloat(p.cost_of_unit); const qty=parseFloat(p.unit_quantity)||0;
     const total=!isNaN(cost)?cost*qty:0;
-    const tagCls=isPurchased?'purchased':isInquire?'inquire':'nl';
+    const tagCls=isPurchased?'pur':isInquire?'inq':'nl';
     const tagTxt=isPurchased?'Purchased':isInquire?'Inquire':'New Line';
+    const cardCls=isPurchased?'purchased':isInquire?'inquire':'nl';
     return `<div class="cb-card${isInquire?' inquire-card':''}" onclick="window.openCbDrawer('nl','${_safeJson(p)}')">
-      <div class="cb-card-name" title="${escH(p.product_name||'')}">${escH(p.product_name||'—')}</div>
-      <div class="cb-card-meta">
-        <span class="cb-card-tag ${tagCls}">${tagTxt}</span>
-        <span class="cb-card-sup">${escH(p.supplier_name||'—')}</span>
-        ${total>0?`<span class="cb-card-val">${fmtGBP(total)}</span>`:''}
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px;">
+        ${_avatar(p.image_url||'', p.product_name, tagCls)}
+        <div style="flex:1;min-width:0;">
+          <div class="cb-card-name" title="${escH(p.product_name||'')}">${escH(p.product_name||'—')}</div>
+          <div class="cb-card-meta">
+            <span class="cb-card-tag ${cardCls}">${tagTxt}</span>
+            <span class="cb-card-sup">${escH(p.supplier_name||'—')}</span>
+            ${total>0?`<span class="cb-card-val">${fmtGBP(total)}</span>`:''}
+          </div>
+        </div>
       </div>
     </div>`;
   }
@@ -1125,14 +1178,20 @@
   function _replCard(p,isPurchased,isInquire) {
     const cost=parseFloat(p.cost_price)||0; const qty=parseInt(p.order_qty)||0;
     const total=cost*qty;
-    const tagCls=isPurchased?'purchased':isInquire?'inquire':'repl';
+    const tagCls=isPurchased?'pur':isInquire?'inq':'repl';
     const tagTxt=isPurchased?'Purchased':isInquire?'Inquire':'Replenishment';
+    const cardCls=isPurchased?'purchased':isInquire?'inquire':'repl';
     return `<div class="cb-card${isInquire?' inquire-card':''}" onclick="window.openCbDrawer('repl','${_safeJson(p)}')">
-      <div class="cb-card-name" title="${escH(p.name||'')}">${escH(p.name||'—')}</div>
-      <div class="cb-card-meta">
-        <span class="cb-card-tag ${tagCls}">${tagTxt}</span>
-        <span class="cb-card-sup">${escH(p.supplier_name||'—')}</span>
-        ${total>0?`<span class="cb-card-val">${fmtGBP(total)}</span>`:''}
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px;">
+        ${_avatar(p.image_url||'', p.name, tagCls)}
+        <div style="flex:1;min-width:0;">
+          <div class="cb-card-name" title="${escH(p.name||'')}">${escH(p.name||'—')}</div>
+          <div class="cb-card-meta">
+            <span class="cb-card-tag ${cardCls}">${tagTxt}</span>
+            <span class="cb-card-sup">${escH(p.supplier_name||'—')}</span>
+            ${total>0?`<span class="cb-card-val">${fmtGBP(total)}</span>`:''}
+          </div>
+        </div>
       </div>
     </div>`;
   }
@@ -1140,15 +1199,21 @@
   function _nlListCard(p,isPurchased,isInquire) {
     const cost=parseFloat(p.cost_of_unit); const qty=parseFloat(p.unit_quantity)||0;
     const total=!isNaN(cost)?cost*qty:0;
-    const tagCls=isPurchased?'purchased':isInquire?'inquire':'nl';
+    const tagCls=isPurchased?'pur':isInquire?'inq':'nl';
     const tagTxt=isPurchased?'Purchased':isInquire?'Inquire':'New Line';
+    const cardCls=isPurchased?'purchased':isInquire?'inquire':'nl';
     return `<div class="cb-list-card${isInquire?' inquire-card':''}" onclick="window.openCbDrawer('nl','${_safeJson(p)}')">
-      <div class="cb-list-card-name" title="${escH(p.product_name||'')}">${escH(p.product_name||'—')}</div>
-      <div class="cb-list-card-meta">
-        <span class="cb-card-tag ${tagCls}">${tagTxt}</span>
-        <span class="cb-card-sup">${escH(p.supplier_name||'—')}</span>
-        ${!isNaN(cost)?`<span style="font-size:11px;font-weight:600;color:#374151;">£${cost.toFixed(2)}/unit</span>`:''}
-        ${total>0?`<span class="cb-card-val" style="margin-left:auto;">${fmtGBP(total)}</span>`:''}
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${_avatar(p.image_url||'', p.product_name, tagCls)}
+        <div style="flex:1;min-width:0;">
+          <div class="cb-list-card-name" title="${escH(p.product_name||'')}">${escH(p.product_name||'—')}</div>
+          <div class="cb-list-card-meta">
+            <span class="cb-card-tag ${cardCls}">${tagTxt}</span>
+            <span class="cb-card-sup">${escH(p.supplier_name||'—')}</span>
+            ${!isNaN(cost)?`<span style="font-size:11px;font-weight:600;color:#374151;">£${cost.toFixed(2)}/unit</span>`:''}
+            ${total>0?`<span class="cb-card-val" style="margin-left:auto;">${fmtGBP(total)}</span>`:''}
+          </div>
+        </div>
       </div>
     </div>`;
   }
@@ -1158,15 +1223,21 @@
     const total=cost*qty; const dl=parseFloat(p.days_left)||0;
     const daysCls=dl<=0?'#dc2626':dl<7?'#dc2626':dl<20?'#92400e':'#15803d';
     const daysTxt=dl<=0?'Out of stock':dl+'d left';
-    const tagCls=isPurchased?'purchased':isInquire?'inquire':'repl';
+    const tagCls=isPurchased?'pur':isInquire?'inq':'repl';
     const tagTxt=isPurchased?'Purchased':isInquire?'Inquire':'Replenishment';
+    const cardCls=isPurchased?'purchased':isInquire?'inquire':'repl';
     return `<div class="cb-list-card${isInquire?' inquire-card':''}" onclick="window.openCbDrawer('repl','${_safeJson(p)}')">
-      <div class="cb-list-card-name" title="${escH(p.name||'')}">${escH(p.name||'—')}</div>
-      <div class="cb-list-card-meta">
-        <span class="cb-card-tag ${tagCls}">${tagTxt}</span>
-        <span class="cb-card-sup">${escH(p.supplier_name||'—')}</span>
-        <span style="font-size:11px;font-weight:700;color:${daysCls};">${daysTxt}</span>
-        ${total>0?`<span class="cb-card-val" style="margin-left:auto;">${fmtGBP(total)}</span>`:''}
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${_avatar(p.image_url||'', p.name, tagCls)}
+        <div style="flex:1;min-width:0;">
+          <div class="cb-list-card-name" title="${escH(p.name||'')}">${escH(p.name||'—')}</div>
+          <div class="cb-list-card-meta">
+            <span class="cb-card-tag ${cardCls}">${tagTxt}</span>
+            <span class="cb-card-sup">${escH(p.supplier_name||'—')}</span>
+            <span style="font-size:11px;font-weight:700;color:${daysCls};">${daysTxt}</span>
+            ${total>0?`<span class="cb-card-val" style="margin-left:auto;">${fmtGBP(total)}</span>`:''}
+          </div>
+        </div>
       </div>
     </div>`;
   }
