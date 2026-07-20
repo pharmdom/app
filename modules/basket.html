@@ -700,7 +700,8 @@ function _renderDetailsTab(type, p, isPurchased, isInquire) {
           <div class="cb-info-card">
             <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Cost per Unit</label>
             <input type="number" class="cb-edit-input" value="${!isNaN(cost)?cost.toFixed(2):''}" placeholder="£0.00" step="0.01" min="0"
-              onblur="window.cbUpdateNLCost('${escA(p.opportunity_id)}',this.value)" id="cbCostNL_${escA(p.opportunity_id)}">
+             oninput="window.cbUpdateNLCostLive('${escA(p.opportunity_id)}',this.value)"
+             onblur="window.cbUpdateNLCost('${escA(p.opportunity_id)}',this.value)" id="cbCostNL_${escA(p.opportunity_id)}">
           </div>
           ${isPurchased?`<div class="cb-info-card">
             <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Qty Purchased</label>
@@ -739,6 +740,7 @@ function _renderDetailsTab(type, p, isPurchased, isInquire) {
           <div class="cb-info-card">
             <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Cost per Unit</label>
             <input type="number" class="cb-edit-input" value="${cost>0?cost.toFixed(2):''}" placeholder="£0.00" step="0.01" min="0"
+            oninput="window.cbUpdateReplCostLive('${escA(p.sku)}',this.value)"
               onblur="window.cbUpdateReplCost('${escA(p.sku)}',this.value)" id="cbCostRepl_${escA(p.sku)}">
           </div>
         </div>
@@ -1217,11 +1219,46 @@ function _nlCard(p,isPurchased,isInquire) {
     } catch(e) { _cbToast('Failed to update supplier','error'); }
   };
 
+function _refreshHeroKpis() {
+    if (!_drawerItem) return;
+    const { type, data: p } = _drawerItem;
+    let kpis = '';
+    if (type==='nl') {
+      const cost=parseFloat(p.cost_of_unit); const qty=parseFloat(p.unit_quantity)||0;
+      const total=!isNaN(cost)?cost*qty:0;
+      kpis=`<div class="cb-kpi"><div class="cb-kpi-label">Unit Cost</div><div class="cb-kpi-val">${!isNaN(cost)?'£'+cost.toFixed(2):'—'}</div></div>
+            <div class="cb-kpi"><div class="cb-kpi-label">Qty</div><div class="cb-kpi-val">${fmtVal(p.unit_quantity)}</div></div>
+            <div class="cb-kpi"><div class="cb-kpi-label">Total</div><div class="cb-kpi-val">${total>0?fmtGBP(total):'—'}</div></div>`;
+    } else {
+      const cost=parseFloat(p.cost_price)||0; const qty=parseInt(p.order_qty)||0;
+      const total=cost*qty; const dl=parseFloat(p.days_left)||0;
+      kpis=`<div class="cb-kpi"><div class="cb-kpi-label">Cost/unit</div><div class="cb-kpi-val">${cost>0?'£'+cost.toFixed(2):'—'}</div></div>
+            <div class="cb-kpi"><div class="cb-kpi-label">Total Value</div><div class="cb-kpi-val">${total>0?fmtGBP(total):'—'}</div></div>
+            <div class="cb-kpi"><div class="cb-kpi-label">${dl<=0?'Stock':'Days left'}</div><div class="cb-kpi-val" style="color:${dl<=0?'#f87171':dl<7?'#f87171':dl<20?'#fbbf24':'#4ade80'};">${dl<=0?'OOS':dl+'d'}</div></div>`;
+    }
+    const kpisEl = document.querySelector('#cbDrawerHero .cb-drawer-kpis');
+    if (kpisEl) kpisEl.innerHTML = kpis;
+  }
+  window.cbUpdateNLCostLive = function(id, val) {
+    const cost = val===''?null:parseFloat(val);
+    if (_drawerItem && !isNaN(cost)) {
+      _drawerItem.data.cost_of_unit = cost;
+      _refreshHeroKpis();
+    }
+  };
+  window.cbUpdateReplCostLive = function(sku, val) {
+    const cost = val===''?null:parseFloat(val);
+    if (_drawerItem && !isNaN(cost)) {
+      _drawerItem.data.cost_price = cost;
+      _refreshHeroKpis();
+    }
+  };
+ 
   window.cbUpdateNLCost = async function(id, val) {
     const cost = val===''?null:parseFloat(val);
     try {
       await sb.from('sourcing').update({ cost_of_unit:cost, last_updated:new Date().toISOString() }).eq('opportunity_id',id);
-      if (_drawerItem) { _drawerItem.data.cost_of_unit=cost; }
+      if (_drawerItem) { _drawerItem.data.cost_of_unit=cost; _renderCbDrawer(); }
       _cbToast('Cost updated','success');
     } catch(e) { _cbToast('Failed to update cost','error'); }
   };
@@ -1230,7 +1267,7 @@ function _nlCard(p,isPurchased,isInquire) {
     const cost = val===''?null:parseFloat(val);
     try {
       await sb.from('replenishment_skus').update({ cost_price:cost }).eq('sku',sku);
-      if (_drawerItem) { _drawerItem.data.cost_price=cost; }
+      if (_drawerItem) { _drawerItem.data.cost_price=cost; _renderCbDrawer(); }
       _cbToast('Cost updated','success');
     } catch(e) { _cbToast('Failed to update cost','error'); }
   };
