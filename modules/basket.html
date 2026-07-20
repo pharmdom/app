@@ -618,8 +618,10 @@
     const isInquire   = _cbTab==='inquire';
 
     /* ── Hero ── */
-    const name     = type==='nl' ? (p.product_name||'—') : (p.name||'—');
-    const supplier = p.supplier_name||'—';
+    const name = type==='nl' ? (p.product_name||'—') : (p.name||'—');
+    const eanDisplay = type==='nl'
+      ? ((p.code||'').split(',')[0].split(':')[0].trim() || '—')
+      : (p.ean||'—');
     const badgeCls = isPurchased?'pur': isInquire?'inq': type==='nl'?'nl':'repl';
     const badgeTxt = isPurchased?'Purchased': isInquire?'Inquire': type==='nl'?'New Line':'Replenishment';
 
@@ -630,11 +632,11 @@
       kpis=`<div class="cb-kpi"><div class="cb-kpi-label">Unit Cost</div><div class="cb-kpi-val">${!isNaN(cost)?'£'+cost.toFixed(2):'—'}</div></div>
             <div class="cb-kpi"><div class="cb-kpi-label">Qty</div><div class="cb-kpi-val">${fmtVal(p.unit_quantity)}</div></div>
             <div class="cb-kpi"><div class="cb-kpi-label">Total</div><div class="cb-kpi-val">${total>0?fmtGBP(total):'—'}</div></div>`;
-    } else {
+} else {
       const cost=parseFloat(p.cost_price)||0; const qty=parseInt(p.order_qty)||0;
       const total=cost*qty; const dl=parseFloat(p.days_left)||0;
       kpis=`<div class="cb-kpi"><div class="cb-kpi-label">Cost/unit</div><div class="cb-kpi-val">${cost>0?'£'+cost.toFixed(2):'—'}</div></div>
-            <div class="cb-kpi"><div class="cb-kpi-label">Order Qty</div><div class="cb-kpi-val">${fmtVal(p.order_qty)}</div></div>
+            <div class="cb-kpi"><div class="cb-kpi-label">Total Value</div><div class="cb-kpi-val">${total>0?fmtGBP(total):'—'}</div></div>
             <div class="cb-kpi"><div class="cb-kpi-label">${dl<=0?'Stock':'Days left'}</div><div class="cb-kpi-val" style="color:${dl<=0?'#f87171':dl<7?'#f87171':dl<20?'#fbbf24':'#4ade80'};">${dl<=0?'OOS':dl+'d'}</div></div>`;
     }
 
@@ -650,7 +652,7 @@ const imgUrl = p.image_url || '';
           <div class="cb-drawer-top-text">
             <div class="cb-drawer-badge ${badgeCls}" style="margin-bottom:5px;">${badgeTxt}</div>
             <div class="cb-drawer-name" style="padding-right:36px;">${escH(name)}</div>
-            <div class="cb-drawer-sub">${escH(supplier)}</div>
+            <div class="cb-drawer-sub" style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.2);" onclick="window.open('https://www.google.com/search?tbm=isch&q=${encodeURIComponent(eanDisplay)}','_blank')" title="Search images">${escH(eanDisplay)}</div>
           </div>
         </div>
         <div class="cb-drawer-kpis">${kpis}</div>
@@ -673,28 +675,33 @@ const imgUrl = p.image_url || '';
     _renderDrawerActions(type, p, isPurchased, isInquire);
   }
 
-  function _renderDetailsTab(type, p, isPurchased, isInquire) {
+function _renderDetailsTab(type, p, isPurchased, isInquire) {
+    const suppOpts = '<option value="">— Select Supplier —</option>'
+      + _cbSupplierList.map(s=>`<option value="${escA(s.name)}"${s.name===(p.supplier_name||'')?' selected':''}>${escH(s.name)}</option>`).join('')
+      + `<option value="Inquiry"${'Inquiry'===(p.supplier_name||'')?' selected':''}>Inquiry</option>`;
+    const supplierSelect = (updateFn) => `
+      <div class="cb-info-card" style="grid-column:1/-1">
+        <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Supplier</label>
+        <select class="cb-edit-input" onchange="${updateFn}">${suppOpts}</select>
+      </div>`;
     let html = '';
     if (type==='nl') {
       const rawCode=(p.code||'').trim();
-      const ean=rawCode?rawCode.split(',').map(s=>s.split(':')[0].trim()).filter(Boolean).join(', '):'—';
       const cost=parseFloat(p.cost_of_unit); const qty=parseFloat(p.unit_quantity)||0;
       const qtyPur=parseFloat(p.qty_purchased)||0;
       html = `
         <div class="cb-sec-label">Product Info</div>
         <div class="cb-info-grid">
-          <div class="cb-info-card" style="grid-column:1/-1">
-            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Product Name</label>
-            <div class="cb-info-val-static">${escH(p.product_name||'—')}</div>
-          </div>
+          ${supplierSelect(`window.cbUpdateNLSupplier('${escA(p.opportunity_id)}',this.value)`)}
           <div class="cb-info-card">
-            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>EAN / Code</label>
-            <div class="cb-info-val-mono">${escH(ean)}</div>
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Qty Approved</label>
+            <input type="number" class="cb-edit-input" value="${qty||''}" placeholder="0" min="0" step="1"
+              onblur="window.cbUpdateNLQty('${escA(p.opportunity_id)}',this.value)" id="cbQtyNL_${escA(p.opportunity_id)}">
           </div>
-          <div class="cb-info-card">
-            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Supplier</label>
-            <div class="cb-info-val-static">${escH(p.supplier_name||'—')}</div>
-          </div>
+          ${isPurchased?`<div class="cb-info-card">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Qty Purchased</label>
+            <div class="cb-info-val-static" style="color:#15803d;">${qtyPur>0?fmtVal(qtyPur)+' units':'—'}</div>
+          </div>`:''}
         </div>
         <div class="cb-sec-label">Financials</div>
         <div class="cb-info-grid">
@@ -703,18 +710,6 @@ const imgUrl = p.image_url || '';
             <input type="number" class="cb-edit-input" value="${!isNaN(cost)?cost.toFixed(2):''}" placeholder="£0.00" step="0.01" min="0"
               onblur="window.cbUpdateNLCost('${escA(p.opportunity_id)}',this.value)" id="cbCostNL_${escA(p.opportunity_id)}">
           </div>
-          <div class="cb-info-card">
-            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Qty Approved</label>
-            <div class="cb-info-val-static">${fmtVal(p.unit_quantity)} units</div>
-          </div>
-          <div class="cb-info-card">
-            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Total Value</label>
-            <div class="cb-info-val-static" style="color:#15803d;">${!isNaN(cost)&&qty>0?fmtGBP(cost*qty):'—'}</div>
-          </div>
-          ${isPurchased?`<div class="cb-info-card">
-            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Qty Purchased</label>
-            <div class="cb-info-val-static" style="color:#15803d;">${qtyPur>0?fmtVal(qtyPur)+' units':'—'}</div>
-          </div>`:''}
         </div>
         <div class="cb-sec-label">Timeline</div>
         <div class="cb-info-grid">
@@ -729,31 +724,25 @@ const imgUrl = p.image_url || '';
         </div>`;
     } else {
       const cost=parseFloat(p.cost_price)||0; const qty=parseInt(p.order_qty)||0;
-      const total=cost*qty; const dl=parseFloat(p.days_left)||0;
+      const dl=parseFloat(p.days_left)||0;
       const daysCls=dl<=0?'#dc2626':dl<7?'#dc2626':dl<20?'#92400e':'#15803d';
       const daysTxt=dl<=0?'Out of stock':dl+'d left';
       html = `
         <div class="cb-sec-label">Product Info</div>
         <div class="cb-info-grid">
-          <div class="cb-info-card" style="grid-column:1/-1">
-            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Product Name</label>
-            <div class="cb-info-val-static">${escH(p.name||'—')}</div>
-          </div>
+          ${supplierSelect(`window.cbUpdateReplSupplier('${escA(p.sku)}',this.value)`)}
           <div class="cb-info-card">
             <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>SKU</label>
             <div class="cb-info-val-mono">${escH(p.sku||'—')}</div>
           </div>
           <div class="cb-info-card">
-            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>EAN</label>
-            <div class="cb-info-val-mono">${escH(p.ean||'—')}</div>
-          </div>
-          <div class="cb-info-card">
-            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Supplier</label>
-            <div class="cb-info-val-static">${escH(p.supplier_name||'—')}</div>
-          </div>
-          <div class="cb-info-card">
             <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Stock Status</label>
             <div class="cb-info-val-static" style="color:${daysCls};">${daysTxt}</div>
+          </div>
+          <div class="cb-info-card">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>Order Qty</label>
+            <input type="number" class="cb-edit-input" value="${qty||''}" placeholder="0" min="0" step="1"
+              onblur="window.cbUpdateReplQty('${escA(p.sku)}',this.value)" id="cbQtyRepl_${escA(p.sku)}">
           </div>
         </div>
         <div class="cb-sec-label">Financials</div>
@@ -762,14 +751,6 @@ const imgUrl = p.image_url || '';
             <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Cost per Unit</label>
             <input type="number" class="cb-edit-input" value="${cost>0?cost.toFixed(2):''}" placeholder="£0.00" step="0.01" min="0"
               onblur="window.cbUpdateReplCost('${escA(p.sku)}',this.value)" id="cbCostRepl_${escA(p.sku)}">
-          </div>
-          <div class="cb-info-card">
-            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>Order Qty</label>
-            <div class="cb-info-val-static">${fmtVal(p.order_qty)} units</div>
-          </div>
-          <div class="cb-info-card">
-            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Total Value</label>
-            <div class="cb-info-val-static" style="color:#15803d;">${total>0?fmtGBP(total):'—'}</div>
           </div>
         </div>
         <div class="cb-sec-label">Timeline</div>
@@ -846,15 +827,8 @@ const imgUrl = p.image_url || '';
       </div>`;
     document.getElementById('cbDrawerBody').innerHTML = html;
   }
-
-  function _renderDrawerActions(type, p, isPurchased, isInquire) {
-    const supplierList = _cbSupplierList;
-    const suppOpts = '<option value="">— Select Supplier —</option>'
-      + supplierList.map(s=>`<option value="${escA(s.name)}"${s.name===(p.supplier_name||'')?' selected':''}>${escH(s.name)}</option>`).join('')
-      + `<option value="Inquiry"${'Inquiry'===(p.supplier_name||'')?' selected':''}>Inquiry</option>`;
-
+function _renderDrawerActions(type, p, isPurchased, isInquire) {
     let html = '';
-
     if (isPurchased) {
       const undoFn = type==='nl'
         ? `window.cbUndoNLPurchased('${escA(p.opportunity_id)}')`
@@ -873,71 +847,68 @@ const imgUrl = p.image_url || '';
       const undoFn = type==='nl'
         ? `window.cbUndoNLInquire('${escA(p.opportunity_id)}')`
         : `window.cbUndoReplInquire('${escA(p.sku)}')`;
-      html = `
-        <div class="cb-action-section">
-          <div class="cb-action-label">Update Supplier</div>
-          <div class="cb-action-row">
-            <select class="cb-select" onchange="${type==='nl'?`window.cbUpdateNLSupplier('${escA(p.opportunity_id)}',this.value)`:`window.cbUpdateReplSupplier('${escA(p.sku)}',this.value)`}">${suppOpts}</select>
+      html = `<div class="cb-action-section">
+        <div class="cb-action-label">Status</div>
+        <div class="cb-action-row">
+          <div class="cb-status-badge inquire">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Inquire
           </div>
+          <button class="cb-btn cb-btn-slate" onclick="${undoFn}">Move to Basket</button>
         </div>
-        <div class="cb-action-section">
-          <div class="cb-action-label">Status</div>
-          <div class="cb-action-row">
-            <div class="cb-status-badge inquire">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              Inquire
-            </div>
-            <button class="cb-btn cb-btn-slate" onclick="${undoFn}">Move to Basket</button>
-          </div>
-        </div>`;
+      </div>`;
     } else if (type==='nl') {
-      html = `
-        <div class="cb-action-section">
-          <div class="cb-action-label">Update Supplier</div>
-          <div class="cb-action-row">
-            <select class="cb-select" onchange="window.cbUpdateNLSupplier('${escA(p.opportunity_id)}',this.value)">${suppOpts}</select>
-          </div>
+      html = `<div class="cb-action-section">
+        <div class="cb-action-label">Actions</div>
+        <div class="cb-action-row">
+          <input type="number" id="cbDrawerNLQty" class="cb-qty-input" min="0" placeholder="Qty purchased…">
+          <button class="cb-btn cb-btn-green" onclick="window.cbMarkNewLinePurchased('${escA(p.opportunity_id)}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Purchased
+          </button>
+          <button class="cb-btn cb-btn-yellow" onclick="window.cbMarkNLInquire('${escA(p.opportunity_id)}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Inquire
+          </button>
         </div>
-        <div class="cb-action-section">
-          <div class="cb-action-label">Actions</div>
-          <div class="cb-action-row">
-            <input type="number" id="cbDrawerNLQty" class="cb-qty-input" min="0" placeholder="Qty purchased…">
-            <button class="cb-btn cb-btn-green" onclick="window.cbMarkNewLinePurchased('${escA(p.opportunity_id)}')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              Purchased
-            </button>
-            <button class="cb-btn cb-btn-yellow" onclick="window.cbMarkNLInquire('${escA(p.opportunity_id)}')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              Inquire
-            </button>
-          </div>
-        </div>`;
+      </div>`;
     } else {
-      html = `
-        <div class="cb-action-section">
-          <div class="cb-action-label">Update Supplier</div>
-          <div class="cb-action-row">
-            <select class="cb-select" onchange="window.cbUpdateReplSupplier('${escA(p.sku)}',this.value)">${suppOpts}</select>
-          </div>
+      html = `<div class="cb-action-section">
+        <div class="cb-action-label">Actions</div>
+        <div class="cb-action-row">
+          <button class="cb-btn cb-btn-green" onclick="window.cbMarkReplPurchased('${escA(p.sku)}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Purchased
+          </button>
+          <button class="cb-btn cb-btn-yellow" onclick="window.cbMarkReplInquire('${escA(p.sku)}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Inquire
+          </button>
+          <button class="cb-btn cb-btn-red" onclick="window.cbRemoveRepl('${escA(p.sku)}')">Remove</button>
         </div>
-        <div class="cb-action-section">
-          <div class="cb-action-label">Actions</div>
-          <div class="cb-action-row">
-            <button class="cb-btn cb-btn-green" onclick="window.cbMarkReplPurchased('${escA(p.sku)}')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              Purchased
-            </button>
-            <button class="cb-btn cb-btn-yellow" onclick="window.cbMarkReplInquire('${escA(p.sku)}')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              Inquire
-            </button>
-            <button class="cb-btn cb-btn-red" onclick="window.cbRemoveRepl('${escA(p.sku)}')">Remove</button>
-          </div>
-        </div>`;
+      </div>`;
     }
     document.getElementById('cbDrawerActions').innerHTML = html;
   }
 
+
+ window.cbUpdateNLQty = async function(id, val) {
+    const qty = val===''?null:parseFloat(val);
+    try {
+      await sb.from('sourcing').update({ unit_quantity:qty, last_updated:new Date().toISOString() }).eq('opportunity_id',id);
+      if (_drawerItem) { _drawerItem.data.unit_quantity=qty; _renderCbDrawer(); }
+      _cbToast('Qty updated','success');
+    } catch(e) { _cbToast('Failed to update qty','error'); }
+  };
+  window.cbUpdateReplQty = async function(sku, val) {
+    const qty = val===''?null:parseInt(val);
+    try {
+      await sb.from('replenishment_skus').update({ order_qty:qty }).eq('sku',sku);
+      if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
+      _cbToast('Qty updated','success');
+    } catch(e) { _cbToast('Failed to update qty','error'); }
+  };
+ 
   /* ── MAIN RENDER ── */
   window.renderCentralBasket = async function() {
     const body = document.getElementById('cbBody');
