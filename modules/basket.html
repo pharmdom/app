@@ -1475,7 +1475,8 @@ window.generateCbPdf = async function() {
           const nlEan = ((p.code||'').split(',')[0].split(':')[0].trim())||'—';
           nlHtml += `<tr><td style="font-family:monospace;font-size:10px;">${escH(nlEan)}</td><td>${escH(p.product_name||'—')}</td><td>${escH(sup)}</td><td>${fmtDate(p.basket_added_at||p.last_updated||p.created_at)}</td><td>${fmtDate(p.purchased_at)}</td><td style="text-align:right;">${q.toLocaleString()}</td><td style="text-align:right;">${fmtGBP(c)}</td><td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td></tr>`;
         });
-        nlHtml += `<tr class="subtotal-row"><td colspan="7">Subtotal — ${escH(sup)}</td><td style="text-align:right;">${fmtGBP(supTotal)}</td></tr>`;
+        const supQtyNL = items.reduce((s,p)=>{return s+(parseFloat(p.unit_quantity)||0);},0);
+        nlHtml += `<tr class="subtotal-row"><td colspan="5">Subtotal — ${escH(sup)}</td><td style="text-align:right;">${supQtyNL.toLocaleString()}</td><td style="text-align:right;">&nbsp;</td><td style="text-align:right;">${fmtGBP(supTotal)}</td></tr>`;
       });
       nlHtml += `<tr class="total-row"><td colspan="7">New Lines Total</td><td style="text-align:right;">${fmtGBP(totalNLVal)}</td></tr></tbody></table>`;
     }
@@ -1494,7 +1495,8 @@ window.generateCbPdf = async function() {
           const c=parseFloat(p.cost_price)||0; const q=parseInt(p.order_qty)||0;
           replHtml += `<tr><td style="font-family:monospace;font-size:10px;">${escH(p.ean||'—')}</td><td>${escH(p.name||'—')}</td><td>${escH(sup)}</td><td>${fmtDate(p.basket_added_at)}</td><td>${fmtDate(p.actioned_at)}</td><td style="text-align:right;">${q.toLocaleString()}</td><td style="text-align:right;">${fmtGBP(c)}</td><td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td></tr>`;
         });
-        replHtml += `<tr class="subtotal-row"><td colspan="7">Subtotal — ${escH(sup)}</td><td style="text-align:right;">${fmtGBP(supTotal)}</td></tr>`;
+        const supQtyRepl = items.reduce((s,p)=>{return s+(parseInt(p.order_qty)||0);},0);
+        replHtml += `<tr class="subtotal-row"><td colspan="5">Subtotal — ${escH(sup)}</td><td style="text-align:right;">${supQtyRepl.toLocaleString()}</td><td style="text-align:right;">&nbsp;</td><td style="text-align:right;">${fmtGBP(supTotal)}</td></tr>`;
       });
       replHtml += `<tr class="total-row"><td colspan="7">Replenishments Total</td><td style="text-align:right;">${fmtGBP(totalReplVal)}</td></tr></tbody></table>`;
     }
