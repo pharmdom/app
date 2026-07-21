@@ -1408,12 +1408,10 @@ if (_drawerItem) { _drawerItem.data.cost_price=cost; _renderCbDrawer(); }
     document.getElementById('cbPdfWeekWrap').style.display  = this.value==='week' ?'block':'none';
   });
 
-
- window.generateCbPdf = async function() {
+window.generateCbPdf = async function() {
     const period = document.getElementById('cbPdfPeriod').value;
     let { nl, repl } = _allPurchased;
 
-    // ── Period filter — use purchased_at for NL, actioned_at for repl ──
     if (period === 'month') {
       const m = document.getElementById('cbPdfMonth').value;
       nl   = nl.filter(p => (p.purchased_at||'').startsWith(m));
@@ -1426,83 +1424,56 @@ if (_drawerItem) { _drawerItem.data.cost_price=cost; _renderCbDrawer(); }
       repl = repl.filter(p => { const d = new Date(p.actioned_at||0); return d >= wkDate && d <= wkEnd; });
     }
 
-    const totalNLVal   = nl.reduce((s,p)  => { const c=parseFloat(p.cost_of_unit)||0; const q=parseFloat(p.unit_quantity)||0; return s+c*q; }, 0);
-    const totalReplVal = repl.reduce((s,p) => { const c=parseFloat(p.cost_price)||0;  const q=parseInt(p.order_qty)||0;       return s+c*q; }, 0);
+    const totalNLVal   = nl.reduce((s,p)   => { const c=parseFloat(p.cost_of_unit)||0; const q=parseFloat(p.unit_quantity)||0; return s+c*q; }, 0);
+    const totalReplVal = repl.reduce((s,p)  => { const c=parseFloat(p.cost_price)||0;  const q=parseInt(p.order_qty)||0;       return s+c*q; }, 0);
     const grandTotal   = totalNLVal + totalReplVal;
 
     const periodLabel = period==='all' ? 'All Purchases'
       : period==='month' ? document.getElementById('cbPdfMonth').options[document.getElementById('cbPdfMonth').selectedIndex]?.text
       : document.getElementById('cbPdfWeek').options[document.getElementById('cbPdfWeek').selectedIndex]?.text;
 
-    // ── Group NL by supplier ──
+    // ── Group by supplier ──
     const nlBySupplier = {};
-    nl.forEach(p => {
-      const s = p.supplier_name || 'Unknown';
-      if (!nlBySupplier[s]) nlBySupplier[s] = [];
-      nlBySupplier[s].push(p);
-    });
-
-    // ── Group Repl by supplier ──
+    nl.forEach(p => { const s=p.supplier_name||'Unknown'; if(!nlBySupplier[s]) nlBySupplier[s]=[]; nlBySupplier[s].push(p); });
     const replBySupplier = {};
-    repl.forEach(p => {
-      const s = p.supplier_name || 'Unknown';
-      if (!replBySupplier[s]) replBySupplier[s] = [];
-      replBySupplier[s].push(p);
-    });
+    repl.forEach(p => { const s=p.supplier_name||'Unknown'; if(!replBySupplier[s]) replBySupplier[s]=[]; replBySupplier[s].push(p); });
 
-    // ── Build NL supplier sections ──
+    // ── NL table ──
     let nlHtml = '';
     if (nl.length) {
-      nlHtml += `<h2>New Lines (${nl.length}) — ${fmtGBP(totalNLVal)}</h2>`;
+      nlHtml += `<h2>New Lines (${nl.length}) — ${fmtGBP(totalNLVal)}</h2>
+      <table><thead><tr>
+        <th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th>
+        <th style="text-align:right">Qty</th><th style="text-align:right">Unit Cost</th><th style="text-align:right">Total</th>
+      </tr></thead><tbody>`;
       Object.entries(nlBySupplier).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([sup, items]) => {
         const supTotal = items.reduce((s,p)=>{const c=parseFloat(p.cost_of_unit)||0;const q=parseFloat(p.unit_quantity)||0;return s+c*q;},0);
-        nlHtml += `<div class="supplier-header">${escH(sup)} <span class="supplier-total">${fmtGBP(supTotal)}</span></div>
-        <table><thead><tr>
-          <th>Product</th><th>Added to Basket</th><th>When Purchased</th>
-          <th style="text-align:right">Qty</th><th style="text-align:right">Unit Cost</th><th style="text-align:right">Total</th>
-        </tr></thead><tbody>`;
         items.forEach(p => {
           const c=parseFloat(p.cost_of_unit)||0; const q=parseFloat(p.unit_quantity)||0;
-          nlHtml += `<tr>
-            <td>${escH(p.product_name||'—')}</td>
-            <td>${fmtDate(p.basket_added_at||p.last_updated||p.created_at)}</td>
-            <td>${fmtDate(p.purchased_at)}</td>
-            <td style="text-align:right;">${q.toLocaleString()}</td>
-            <td style="text-align:right;">${fmtGBP(c)}</td>
-            <td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td>
-          </tr>`;
+          nlHtml += `<tr><td>${escH(p.product_name||'—')}</td><td>${escH(sup)}</td><td>${fmtDate(p.basket_added_at||p.last_updated||p.created_at)}</td><td>${fmtDate(p.purchased_at)}</td><td style="text-align:right;">${q.toLocaleString()}</td><td style="text-align:right;">${fmtGBP(c)}</td><td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td></tr>`;
         });
-        nlHtml += `<tr class="total-row"><td colspan="5">Subtotal — ${escH(sup)}</td><td style="text-align:right;">${fmtGBP(supTotal)}</td></tr>`;
-        nlHtml += `</tbody></table>`;
+        nlHtml += `<tr class="subtotal-row"><td colspan="6">Subtotal — ${escH(sup)}</td><td style="text-align:right;">${fmtGBP(supTotal)}</td></tr>`;
       });
+      nlHtml += `<tr class="total-row"><td colspan="6">New Lines Total</td><td style="text-align:right;">${fmtGBP(totalNLVal)}</td></tr></tbody></table>`;
     }
 
-    // ── Build Repl supplier sections ──
+    // ── Repl table ──
     let replHtml = '';
     if (repl.length) {
-      replHtml += `<h2>Replenishments (${repl.length}) — ${fmtGBP(totalReplVal)}</h2>`;
+      replHtml += `<h2>Replenishments (${repl.length}) — ${fmtGBP(totalReplVal)}</h2>
+      <table><thead><tr>
+        <th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th>
+        <th style="text-align:right">Qty</th><th style="text-align:right">Unit Cost</th><th style="text-align:right">Total</th>
+      </tr></thead><tbody>`;
       Object.entries(replBySupplier).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([sup, items]) => {
         const supTotal = items.reduce((s,p)=>{const c=parseFloat(p.cost_price)||0;const q=parseInt(p.order_qty)||0;return s+c*q;},0);
-        replHtml += `<div class="supplier-header">${escH(sup)} <span class="supplier-total">${fmtGBP(supTotal)}</span></div>
-        <table><thead><tr>
-          <th>Product</th><th>SKU</th><th>Added to Basket</th><th>When Purchased</th>
-          <th style="text-align:right">Qty</th><th style="text-align:right">Unit Cost</th><th style="text-align:right">Total</th>
-        </tr></thead><tbody>`;
         items.forEach(p => {
           const c=parseFloat(p.cost_price)||0; const q=parseInt(p.order_qty)||0;
-          replHtml += `<tr>
-            <td>${escH(p.name||'—')}</td>
-            <td style="font-family:monospace;font-size:10px;">${escH(p.sku||'—')}</td>
-            <td>${fmtDate(p.basket_added_at)}</td>
-            <td>${fmtDate(p.actioned_at)}</td>
-            <td style="text-align:right;">${q.toLocaleString()}</td>
-            <td style="text-align:right;">${fmtGBP(c)}</td>
-            <td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td>
-          </tr>`;
+          replHtml += `<tr><td>${escH(p.name||'—')}</td><td>${escH(sup)}</td><td>${fmtDate(p.basket_added_at)}</td><td>${fmtDate(p.actioned_at)}</td><td style="text-align:right;">${q.toLocaleString()}</td><td style="text-align:right;">${fmtGBP(c)}</td><td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td></tr>`;
         });
-        replHtml += `<tr class="total-row"><td colspan="6">Subtotal — ${escH(sup)}</td><td style="text-align:right;">${fmtGBP(supTotal)}</td></tr>`;
-        replHtml += `</tbody></table>`;
+        replHtml += `<tr class="subtotal-row"><td colspan="6">Subtotal — ${escH(sup)}</td><td style="text-align:right;">${fmtGBP(supTotal)}</td></tr>`;
       });
+      replHtml += `<tr class="total-row"><td colspan="6">Replenishments Total</td><td style="text-align:right;">${fmtGBP(totalReplVal)}</td></tr></tbody></table>`;
     }
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -1522,17 +1493,17 @@ if (_drawerItem) { _drawerItem.data.cost_price=cost; _renderCbDrawer(); }
       .chip-val{font-size:15px;font-weight:700;color:#0f172a;}
       .chip-val.green{color:#15803d;}
       h2{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin:24px 0 8px;padding-top:16px;border-top:2px solid #e2e8f0;}
-      .supplier-header{font-size:11px;font-weight:700;color:#0f172a;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:7px 10px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;}
-      .supplier-total{color:#15803d;}
       table{width:100%;border-collapse:collapse;margin-bottom:16px;}
       th{background:#f8fafc;padding:7px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#64748b;border-bottom:2px solid #e2e8f0;}
       td{padding:7px 10px;border-bottom:1px solid #f1f5f9;font-size:11px;}
       tr:nth-child(even) td{background:#fafafa;}
-      .total-row td{border-top:2px solid #0f172a;font-weight:700;background:#f8fafc!important;}
+      .subtotal-row td{border-top:1px solid #cbd5e1;font-weight:600;font-style:italic;background:#f8fafc!important;color:#475569;}
+      .total-row td{border-top:2px solid #0f172a;font-weight:700;background:#f0f4ff!important;}
       .grand-total{margin-top:20px;padding:14px 16px;background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:10px;display:flex;justify-content:space-between;align-items:center;}
       .grand-total-label{color:rgba(255,255,255,.6);font-size:11px;font-weight:600;}
       .grand-total-val{color:#fff;font-size:18px;font-weight:800;}
       .footer{margin-top:32px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;}
+      @media print{body{padding:20px;}.grand-total{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
     </style></head><body>
     <div class="brand">
       <img src="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png" alt="Pharm &amp; Dom" onerror="this.style.display='none'">
@@ -1554,16 +1525,12 @@ if (_drawerItem) { _drawerItem.data.cost_price=cost; _renderCbDrawer(); }
     <div class="footer"><span>Pharm &amp; Dom · Internal Use Only</span><span>Generated ${fmtDateTime(new Date().toISOString())}</span></div>
     </body></html>`;
 
-    // ── Download as actual PDF file using print-to-blob ──
-    const blob = new Blob([html], { type: 'text/html' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `Purchase-Summary-${periodLabel.replace(/\s+/g,'-')}-${new Date().toISOString().slice(0,10)}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const win = window.open('','_blank');
+    win.document.write(html);
+    win.document.close();
+    win.addEventListener('load', () => { win.print(); });
     window.closeCbPdfModal();
-    _cbToast('Download started','success');
+    _cbToast('Opening print dialog…','success');
   };
 
   /* ── TOAST ── */
