@@ -1464,38 +1464,39 @@ window.generateCbPdf = async function() {
     let nlHtml = '';
     if (nl.length) {
       nlHtml += `<h2>New Lines (${nl.length}) — ${fmtGBP(totalNLVal)}</h2>
-      <table><colgroup><col class="c-product"><col class="c-supplier"><col class="c-date"><col class="c-date"><col class="c-qty"><col class="c-cost"><col class="c-total"></colgroup><thead><tr>
-        <th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th>
+      <table><colgroup><col class="c-ean"><col class="c-product"><col class="c-supplier"><col class="c-date"><col class="c-date"><col class="c-qty"><col class="c-cost"><col class="c-total"></colgroup><thead><tr>
+        <th>EAN</th><th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th>
         <th style="text-align:right">Qty</th><th style="text-align:right">Unit Cost</th><th style="text-align:right">Total</th>
       </tr></thead><tbody>`;
       Object.entries(nlBySupplier).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([sup, items]) => {
         const supTotal = items.reduce((s,p)=>{const c=parseFloat(p.cost_of_unit)||0;const q=parseFloat(p.unit_quantity)||0;return s+c*q;},0);
         items.forEach(p => {
           const c=parseFloat(p.cost_of_unit)||0; const q=parseFloat(p.unit_quantity)||0;
-          nlHtml += `<tr><td>${escH(p.product_name||'—')}</td><td>${escH(sup)}</td><td>${fmtDate(p.basket_added_at||p.last_updated||p.created_at)}</td><td>${fmtDate(p.purchased_at)}</td><td style="text-align:right;">${q.toLocaleString()}</td><td style="text-align:right;">${fmtGBP(c)}</td><td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td></tr>`;
+          const nlEan = ((p.code||'').split(',')[0].split(':')[0].trim())||'—';
+          nlHtml += `<tr><td style="font-family:monospace;font-size:10px;">${escH(nlEan)}</td><td>${escH(p.product_name||'—')}</td><td>${escH(sup)}</td><td>${fmtDate(p.basket_added_at||p.last_updated||p.created_at)}</td><td>${fmtDate(p.purchased_at)}</td><td style="text-align:right;">${q.toLocaleString()}</td><td style="text-align:right;">${fmtGBP(c)}</td><td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td></tr>`;
         });
-        nlHtml += `<tr class="subtotal-row"><td colspan="6">Subtotal — ${escH(sup)}</td><td style="text-align:right;">${fmtGBP(supTotal)}</td></tr>`;
+        nlHtml += `<tr class="subtotal-row"><td colspan="7">Subtotal — ${escH(sup)}</td><td style="text-align:right;">${fmtGBP(supTotal)}</td></tr>`;
       });
-      nlHtml += `<tr class="total-row"><td colspan="6">New Lines Total</td><td style="text-align:right;">${fmtGBP(totalNLVal)}</td></tr></tbody></table>`;
+      nlHtml += `<tr class="total-row"><td colspan="7">New Lines Total</td><td style="text-align:right;">${fmtGBP(totalNLVal)}</td></tr></tbody></table>`;
     }
 
     // ── Repl table ──
     let replHtml = '';
     if (repl.length) {
       replHtml += `<h2>Replenishments (${repl.length}) — ${fmtGBP(totalReplVal)}</h2>
-      <table><colgroup><col class="c-product"><col class="c-supplier"><col class="c-date"><col class="c-date"><col class="c-qty"><col class="c-cost"><col class="c-total"></colgroup><thead><tr>
-        <th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th>
+      <table><colgroup><col class="c-ean"><col class="c-product"><col class="c-supplier"><col class="c-date"><col class="c-date"><col class="c-qty"><col class="c-cost"><col class="c-total"></colgroup><thead><tr>
+        <th>EAN</th><th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th>
         <th style="text-align:right">Qty</th><th style="text-align:right">Unit Cost</th><th style="text-align:right">Total</th>
       </tr></thead><tbody>`;
       Object.entries(replBySupplier).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([sup, items]) => {
         const supTotal = items.reduce((s,p)=>{const c=parseFloat(p.cost_price)||0;const q=parseInt(p.order_qty)||0;return s+c*q;},0);
         items.forEach(p => {
           const c=parseFloat(p.cost_price)||0; const q=parseInt(p.order_qty)||0;
-          replHtml += `<tr><td>${escH(p.name||'—')}</td><td>${escH(sup)}</td><td>${fmtDate(p.basket_added_at)}</td><td>${fmtDate(p.actioned_at)}</td><td style="text-align:right;">${q.toLocaleString()}</td><td style="text-align:right;">${fmtGBP(c)}</td><td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td></tr>`;
+          replHtml += `<tr><td style="font-family:monospace;font-size:10px;">${escH(p.ean||'—')}</td><td>${escH(p.name||'—')}</td><td>${escH(sup)}</td><td>${fmtDate(p.basket_added_at)}</td><td>${fmtDate(p.actioned_at)}</td><td style="text-align:right;">${q.toLocaleString()}</td><td style="text-align:right;">${fmtGBP(c)}</td><td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td></tr>`;
         });
-        replHtml += `<tr class="subtotal-row"><td colspan="6">Subtotal — ${escH(sup)}</td><td style="text-align:right;">${fmtGBP(supTotal)}</td></tr>`;
+        replHtml += `<tr class="subtotal-row"><td colspan="7">Subtotal — ${escH(sup)}</td><td style="text-align:right;">${fmtGBP(supTotal)}</td></tr>`;
       });
-      replHtml += `<tr class="total-row"><td colspan="6">Replenishments Total</td><td style="text-align:right;">${fmtGBP(totalReplVal)}</td></tr></tbody></table>`;
+      replHtml += `<tr class="total-row"><td colspan="7">Replenishments Total</td><td style="text-align:right;">${fmtGBP(totalReplVal)}</td></tr></tbody></table>`;
     }
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -1516,12 +1517,13 @@ window.generateCbPdf = async function() {
       .chip-val.green{color:#15803d;}
       h2{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin:24px 0 8px;padding-top:16px;border-top:2px solid #e2e8f0;}
       table{width:100%;border-collapse:collapse;margin-bottom:16px;table-layout:fixed;}
-      col.c-product{width:28%;}
-      col.c-supplier{width:14%;}
-      col.c-date{width:12%;}
-      col.c-qty{width:7%;}
-      col.c-cost{width:10%;}
-      col.c-total{width:11%;}
+      col.c-ean{width:12%;}
+      col.c-product{width:24%;}
+      col.c-supplier{width:12%;}
+      col.c-date{width:10%;}
+      col.c-qty{width:6%;}
+      col.c-cost{width:9%;}
+      col.c-total{width:9%;}
       th{background:#f8fafc;padding:7px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#64748b;border-bottom:2px solid #e2e8f0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
       td{padding:7px 10px;border-bottom:1px solid #f1f5f9;font-size:11px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
       tr:nth-child(even) td{background:#fafafa;}
