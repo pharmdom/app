@@ -1012,7 +1012,7 @@ const [shiftsRes, usersRes] = await Promise.all([
         };
       });
 
-      // Map shifts to paycheck records
+// Map shifts to paycheck records
       allData = (shiftsRes.data || [])
         .filter(r => r.type !== 'break') // exclude breaks from pay
         .map(r => {
@@ -1033,6 +1033,12 @@ const [shiftsRes, usersRes] = await Promise.all([
             bonusNote:    r.bonus_note || ''
           };
         });
+
+      // Exclude any week that hasn't happened yet (weeks ahead of the current week)
+      const now = new Date();
+      const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+      const currentWeekKey = getWeekKey(todayStr).key;
+      allData = allData.filter(r => getWeekKey(r.date).key <= currentWeekKey);
 
       buildEmployeeMap();
 
@@ -1853,9 +1859,9 @@ document.getElementById('summaryBanner').style.display = allFilteredWeeks.length
     area.innerHTML = '<div class="emp-list">' + sorted.map(emp => empRow(emp)).join('') + '</div>';
   }
 
-  function empRow(emp) {
+function empRow(emp) {
     const recs       = emp.filteredRecords;
-    const totalPay   = recs.reduce((s,r) => s+r.totalPay, 0);
+    const totalPay   = groupByWeek(recs).reduce((s,w) => s+w.totalPay, 0);
     const hasPending = recs.some(r => r.paid !== 'Yes');
     const pendCount  = recs.filter(r => r.paid !== 'Yes').length;
     const initials   = getInitials(emp.name);
