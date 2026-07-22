@@ -441,6 +441,8 @@ body{overflow:hidden}
 .tour-btn-finish{background:var(--green);border-color:var(--green);color:#fff}
 .tour-btn-finish:hover{filter:brightness(1.08)}
 @media(max-width:640px){.guide-modal{flex-direction:column;height:92vh}.guide-nav{width:100%;flex-direction:row;padding:10px;gap:4px;overflow-x:auto;border-right:none;border-bottom:1px solid var(--border)}.guide-nav-header{display:none}.guide-nav-btn span{display:none}.guide-action-cards{grid-template-columns:1fr}}
+
+.k-select-all{width:14px;height:14px;flex-shrink:0;cursor:pointer;accent-color:var(--accent);margin-right:2px;}
 </style>
 
 
@@ -1374,6 +1376,7 @@ function renderKanban(data,area){
     col.innerHTML=`<div class="k-col-hdr"><div class="k-hdr-row">
       <div class="k-avatar" style="background:${colour.bg};color:${colour.fg};border-color:${colour.border}">${esc(initials(sup))}</div>
       <div class="k-sup-info"><div class="k-sup-name" title="${esc(sup)}">${esc(sup)}</div><div class="k-sup-meta">${items.length} offer${items.length!==1?'s':''}</div></div>
+      <input type="checkbox" class="k-select-all" data-sup="${esc(sup)}" onchange="toggleSelectAllSupplier(this)" title="Select all in this column">
       <span class="k-col-count">${items.length}</span>
     </div></div>`;
     const body=document.createElement('div');body.className='k-col-body';
@@ -1382,9 +1385,10 @@ function renderKanban(data,area){
       card.style.animationDelay=(i*0.03)+'s';
       body.appendChild(card);
     });
-    col.appendChild(body);wrap.appendChild(col);
+col.appendChild(body);wrap.appendChild(col);
   });
   outer.appendChild(wrap);area.appendChild(outer);
+  _navAllGroups.forEach(sup=>syncSupplierHeaderCheckbox(sup));
 }
 
 
@@ -1454,12 +1458,14 @@ if(ean){html+=`<div style="display:flex;align-items:center;justify-content:space
   if(catalogHtml)html+=catalogHtml;
   card.innerHTML=html;
 
-  const cb=document.createElement('input');
+const cb=document.createElement('input');
   cb.type='checkbox';cb.className='k-card-select';
+  cb.dataset.id=rid;
   cb.checked=_bulkSelected.has(rid);
   cb.addEventListener('change',e=>{
     e.stopPropagation();
     if(cb.checked)_bulkSelected.add(rid);else _bulkSelected.delete(rid);
+    syncSupplierHeaderCheckbox(supplierGroup);
     updateBulkBar();
   });
   card.appendChild(cb);
@@ -1468,6 +1474,34 @@ if(ean){html+=`<div style="display:flex;align-items:center;justify-content:space
 }
 
 
+  function toggleSelectAllSupplier(cb){
+  const sup=cb.dataset.sup;
+  const supMap=getCachedSupMap();
+  const ids=offersData.filter(r=>{
+    const canonical=supMap[r.supplier_name||'']||(r.supplier_name||'Unknown');
+    return canonical===sup&&(r.approval||'').toLowerCase()!=='rejected';
+  }).map(r=>String(r.id));
+  ids.forEach(id=>{
+    if(cb.checked)_bulkSelected.add(id);else _bulkSelected.delete(id);
+    const cardCb=document.querySelector(`.k-card-select[data-id="${id}"]`);
+    if(cardCb)cardCb.checked=cb.checked;
+  });
+  cb.indeterminate=false;
+  updateBulkBar();
+}
+function syncSupplierHeaderCheckbox(sup){
+  const supMap=getCachedSupMap();
+  const ids=offersData.filter(r=>{
+    const canonical=supMap[r.supplier_name||'']||(r.supplier_name||'Unknown');
+    return canonical===sup&&(r.approval||'').toLowerCase()!=='rejected';
+  }).map(r=>String(r.id));
+  const headerCb=document.querySelector(`.k-select-all[data-sup="${CSS.escape(sup)}"]`);
+  if(!headerCb||!ids.length)return;
+  const selectedCount=ids.filter(id=>_bulkSelected.has(id)).length;
+  headerCb.checked=selectedCount===ids.length;
+  headerCb.indeterminate=selectedCount>0&&selectedCount<ids.length;
+}
+  
 function _openCardDrawer(id,supplierGroup){
   const supMap=getCachedSupMap();
   const groupItems=offersData.filter(r=>{
@@ -2790,6 +2824,7 @@ window.confirmImportOffers = confirmImportOffers;
 
   
 /* ── GLOBALS ── */
+window.toggleSelectAllSupplier=toggleSelectAllSupplier;
 window.openSourcingModal=openSourcingModal;
 window.addSrcAsin=addSrcAsin;window.removeSrcAsin=removeSrcAsin;
 window.closeSourcingModal=closeSourcingModal;
