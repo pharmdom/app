@@ -915,9 +915,14 @@ async function _cbFetchReplPage(pageIndex) {
   }
 
 /* ── PRICE HISTORY ── */
-  async function _cbLogPriceChange(itemType, itemId, price) {
+async function _cbLogPriceChange(itemType, itemId, price) {
     try {
-      await sb.from('cb_price_history').insert({ item_type: itemType, item_id: String(itemId), price });
+      const priceDate = _ymdLocal(new Date());
+      await sb.from('cb_price_history')
+        .upsert(
+          { item_type: itemType, item_id: String(itemId), price, price_date: priceDate, changed_at: new Date().toISOString() },
+          { onConflict: 'item_type,item_id,price_date' }
+        );
     } catch(e) { console.warn('CB price history log:', e); }
   }
 
@@ -1764,7 +1769,7 @@ window.cbUpdateNLCostLive = function(id, val) {
     }
     _cbPreviewPriceHistory('nl', id, val);
     clearTimeout(_cbCostDebounceTimers['nl::'+id]);
-    _cbCostDebounceTimers['nl::'+id] = setTimeout(()=>{ window.cbUpdateNLCost(id, val); }, 1800);
+    _cbCostDebounceTimers['nl::'+id] = setTimeout(()=>{ window.cbUpdateNLCost(id, val); }, 2000);
   };
   window.cbUpdateReplCostLive = function(sku, val) {
     const cost = val===''?null:parseFloat(val);
@@ -1774,7 +1779,7 @@ window.cbUpdateNLCostLive = function(id, val) {
     }
     _cbPreviewPriceHistory('repl', sku, val);
     clearTimeout(_cbCostDebounceTimers['repl::'+sku]);
-    _cbCostDebounceTimers['repl::'+sku] = setTimeout(()=>{ window.cbUpdateReplCost(sku, val); }, 1800);
+    _cbCostDebounceTimers['repl::'+sku] = setTimeout(()=>{ window.cbUpdateReplCost(sku, val); }, 2000);
   };
  
 window.cbUpdateNLCost = async function(id, val) {
