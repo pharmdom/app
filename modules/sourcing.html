@@ -1225,15 +1225,10 @@ function renderDrawer(row) {
             <div class="note-text">${escHtml(n.text)}</div>
           </div>`).join('')
       : '<p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">No notes yet.</p>';
-    const usrOpts = users.map(u => `<option value="${escAttr(u.name)}">${escHtml(u.name)}</option>`).join('');
-    body = section('Thread',
+body = section('Thread',
       `<div class="notes-list">${noteItems}</div>
       <div class="note-composer">
         <div class="note-composer-top">
-          <div class="note-composer-who">
-            <span class="note-composer-label">From</span>
-            <select class="note-user-select" id="noteUser"><option value="">Select user…</option>${usrOpts}</select>
-          </div>
           <textarea class="note-textarea" id="noteInput" placeholder="Write your note here…"></textarea>
         </div>
         <div class="note-composer-bottom">
@@ -1542,13 +1537,13 @@ async function decideProduct(id, decision) {
    
 /* ══ NOTES ══ */
 async function addNote(id) {
-  const selectedUser = document.getElementById('noteUser')?.value;
-  const text         = document.getElementById('noteInput')?.value.trim();
-  if (!selectedUser) { showToast('Please select a user', 'error'); return; }
-  if (!text)         { showToast('Please write something', 'error'); return; }
+  const agentName = getCurrentAgentName();
+  const text       = document.getElementById('noteInput')?.value.trim();
+  if (!agentName) { showToast('Unable to identify current user', 'error'); return; }
+  if (!text)      { showToast('Please write something', 'error'); return; }
   if (text.length > 2000) { showToast('Note too long (max 2000 characters)', 'error'); return; }
   const toastId = showToast('Adding note…', 'loading', 0);
-  const { error } = await sb.from('sourcing_notes').insert({ opportunity_id: id, author_name: selectedUser, text });
+  const { error } = await sb.from('sourcing_notes').insert({ opportunity_id: id, author_name: agentName, text });
   removeToast(toastId);
   if (error) { showToast('Failed to add note', 'error'); return; }
   showToast('Note added', 'success');
