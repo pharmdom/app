@@ -900,31 +900,66 @@ function _debounce(fn, wait) {
     _allPurchased = { nl, repl };
   }
 
-  /* ── PER-SECTION REVEAL (Load-more within a supplier column) ── */
-  function _renderRevealSection(items, revealKey, cardFn, isPurchased, isInquire) {
+/* ── PER-SECTION REVEAL (Load-more within a supplier column, DB-backed) ── */
+  let _cbRevealLoading = {};
+
+  function _renderRevealSection(items, revealKey, cardFn, isPurchased, isInquire, kindDone) {
     const shown = _cbRevealCounts[revealKey] || CB_REVEAL_STEP;
     let html = items.slice(0, shown).map(p=>cardFn(p,isPurchased,isInquire)).join('');
-    if (items.length > shown) {
-      const remaining = items.length - shown;
-      html += `<button class="cb-btn cb-btn-slate" style="width:100%;justify-content:center;margin-top:2px;" onclick="window.cbRevealMore('${escA(revealKey)}')">Show ${Math.min(remaining,CB_REVEAL_STEP)} more (${remaining} left)</button>`;
+    const remaining = items.length - shown;
+    const canRevealMore = remaining > 0 || !kindDone;
+    if (canRevealMore) {
+      const label = remaining > 0
+        ? `Show ${Math.min(remaining,CB_REVEAL_STEP)} more (${remaining} left)`
+        : `Load more…`;
+      html += `<button class="cb-btn cb-btn-slate cb-reveal-btn" style="width:100%;justify-content:center;margin-top:2px;" onclick="window.cbRevealMore('${escA(revealKey)}')">${label}</button>`;
     }
     return html;
   }
-  window.cbRevealMore = function(key) {
-    _cbRevealCounts[key] = (_cbRevealCounts[key]||CB_REVEAL_STEP) + CB_REVEAL_STEP;
-    window.renderCentralBasket({ appendOnly:true });
-  };
 
-  /* ── LOAD NEXT DB PAGE ── */
-  window.cbLoadMorePage = async function() {
-    const btn = document.getElementById('cbLoadMoreBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
-    const wantNL = _cbFilter !== 'replens', wantRepl = _cbFilter !== 'newline';
-    const tasks = [];
-    if (wantNL && !_cbNLDone)     tasks.push(_cbFetchNLPage(_cbNLPage).then(rows=>{ _cbLoadedNL = _cbLoadedNL.concat(rows); _cbNLPage++; }));
-    if (wantRepl && !_cbReplDone) tasks.push(_cbFetchReplPage(_cbReplPage).then(rows=>{ _cbLoadedRepl = _cbLoadedRepl.concat(rows); _cbReplPage++; }));
-    await Promise.all(tasks);
-    window.renderCentralBasket({ appendOnly:true });
+  window.cbColumnScroll = (function() {
+    let ticking = false;
+    return function(el) {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+        if (!nearBottom) return;
+        const btns = el.querySelectorAll('.cb-reveal-btn');
+        if (!btns.length) return;
+        btns[btns.length-1].click();
+      });
+    };
+  })();
+
+  window.cbRevealMore = async function(key) {
+    if (_cbRevealLoading[key]) return;
+    _cbRevealLoading[key] = true;
+    try {
+      const idx = key.lastIndexOf('::');
+      const sup = key.slice(0, idx);
+      const kind = key.slice(idx+2);
+      const loadedArr = kind==='nl' ? _cbLoadedNL : _cbLoadedRepl;
+      const supplierItems = loadedArr.filter(p => (p.supplier_name||'No Supplier') === sup);
+      const shown = _cbRevealCounts[key] || CB_REVEAL_STEP;
+      const done = kind==='nl' ? _cbNLDone : _cbReplDone;
+      if (shown >= supplierItems.length && !done) {
+        if (kind==='nl') {
+          const rows = await _cbFetchNLPage(_cbNLPage);
+          _cbLoadedNL = _cbLoadedNL.concat(rows);
+          _cbNLPage++;
+        } else {
+          const rows = await _cbFetchReplPage(_cbReplPage);
+          _cbLoadedRepl = _cbLoadedRepl.concat(rows);
+          _cbReplPage++;
+        }
+      }
+      _cbRevealCounts[key] = shown + CB_REVEAL_STEP;
+      await window.renderCentralBasket({ appendOnly:true });
+    } finally {
+      _cbRevealLoading[key] = false;
+    }
   };
 
   /* ── TABS ── */
@@ -1378,23 +1413,33 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
           <button class="cb-kanban-jump nl${!b.nl.length?' disabled':''}" onclick="window.cbJumpToSection('${nlSecId}')">New Lines <span>${b.nl.length}</span></button>
           <button class="cb-kanban-jump repl${!b.repl.length?' disabled':''}" onclick="window.cbJumpToSection('${replSecId}')">Replenishments <span>${b.repl.length}</span></button>
         </div>
-        <div class="cb-kanban-body">
+<div class="cb-kanban-body" data-supplier="${escH(sup)}" onscroll="window.cbColumnScroll(this)">
           ${b.nl.length ? `<div class="cb-kanban-subheader nl" id="${nlSecId}"><span>New Lines</span><span>${b.nl.length} · ${fmtGBP(nlVal)}</span></div>
-            ${_renderRevealSection(b.nl, sup+'::nl', _nlCard, isPurchased, isInquire)}` : ''}
+            ${_renderRevealSection(b.nl, sup+'::nl', _nlCard, isPurchased, isInquire, _cbNLDone)}` : ''}
           ${b.repl.length ? `<div class="cb-kanban-subheader repl" id="${replSecId}"><span>Replenishments</span><span>${b.repl.length} · ${fmtGBP(replVal)}</span></div>
-            ${_renderRevealSection(b.repl, sup+'::repl', _replCard, isPurchased, isInquire)}` : ''}
+            ${_renderRevealSection(b.repl, sup+'::repl', _replCard, isPurchased, isInquire, _cbReplDone)}` : ''}
         </div>
       </div>`;
     });
     kanbanHtml += '</div>';
 
-    if (!(_cbNLDone && _cbReplDone)) {
-      kanbanHtml += `<div style="flex-shrink:0;padding-top:10px;display:flex;justify-content:center;">
-        <button class="cb-btn cb-btn-slate" onclick="window.cbLoadMorePage()" id="cbLoadMoreBtn">Load more items</button>
-      </div>`;
-    }
+    const _cbScrollPositions = {};
+    body.querySelectorAll('.cb-kanban-body[data-supplier]').forEach(elBody => {
+      _cbScrollPositions[elBody.getAttribute('data-supplier')] = elBody.scrollTop;
+    });
+    const _cbKanbanScrollLeft = body.querySelector('.cb-kanban')?.scrollLeft || 0;
 
     body.innerHTML = kanbanHtml;
+
+    body.querySelectorAll('.cb-kanban-body[data-supplier]').forEach(elBody => {
+      const supKey = elBody.getAttribute('data-supplier');
+      if (Object.prototype.hasOwnProperty.call(_cbScrollPositions, supKey)) {
+        elBody.scrollTop = _cbScrollPositions[supKey];
+      }
+    });
+    const _cbKanbanEl = body.querySelector('.cb-kanban');
+    if (_cbKanbanEl) _cbKanbanEl.scrollLeft = _cbKanbanScrollLeft;
+
     _initKanbanHoverDefault(supplierNames);
   };
 
