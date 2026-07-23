@@ -29,10 +29,7 @@
     font-family: inherit; cursor: pointer; border: 1.5px solid #e2e8f0;
     background: #fff; color: #64748b; transition: all .15s;
   }
-  .cb-tab:hover { border-color: #94a3b8; color: #334155; }
-  .cb-tab.active-to-buy    { background: #0f172a; color: #fff; border-color: #0f172a; }
-  .cb-tab.active-purchased { background: #15803d; color: #fff; border-color: #15803d; }
-  .cb-tab.active-inquire   { background: #7c3aed; color: #fff; border-color: #7c3aed; }
+
 
   /* ── TOOLBAR ── */
   .cb-toolbar-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -489,28 +486,19 @@
 <div class="cb-page">
   <!-- Header -->
   <div class="cb-header">
-   <div class="cb-tabs">
-      <button class="cb-tab active-to-buy" id="cbTabToBuy"     onclick="window.setCbTab('tobuy')">To Purchase</button>
-      <button class="cb-tab"               id="cbTabInquire"   onclick="window.setCbTab('inquire')">Inquire</button>
-      <button class="cb-tab"               id="cbTabPurchased" onclick="window.setCbTab('purchased')">Purchased</button>
+<div class="cb-tabs">
+      <select id="cbTabSelect" class="cb-supplier-select" style="font-weight:700;font-size:12.5px;" onchange="window.setCbTab(this.value)">
+        <option value="tobuy">To Purchase</option>
+        <option value="inquire">Inquire</option>
+        <option value="purchased">Purchased</option>
+      </select>
       <div id="cbMoqBar" class="cb-moq-bar" style="margin-top:0; flex:1;"></div>
     </div>
     <div class="cb-toolbar-row">
       <span id="cbCount"     class="cb-chip">0 items</span>
       <span id="cbSuppliers" class="cb-chip" style="display:none;"></span>
       <span id="cbUnits"     class="cb-chip" style="display:none;flex-direction:column;line-height:1.3;"></span>
-      <div class="cb-type-wrap">
-        <button class="cb-type-btn" id="cbTypeBtn" onclick="window.toggleCbTypeMenu(event)">
-          <span id="cbTypeBtnLabel">All</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-        <div class="cb-type-menu" id="cbTypeMenu">
-          <div class="cb-type-opt selected" id="cbTypeOptAll"     onclick="window.setCbFilter('all')"><span class="cb-type-dot" style="background:#0f172a;"></span>All</div>
-          <div class="cb-type-opt"          id="cbTypeOptNewline" onclick="window.setCbFilter('newline')"><span class="cb-type-dot" style="background:#2563eb;"></span>New Lines</div>
-          <div class="cb-type-opt"          id="cbTypeOptReplens" onclick="window.setCbFilter('replens')"><span class="cb-type-dot" style="background:#7c3aed;"></span>Replenishments</div>
-        </div>
-      </div>
-      <div class="cb-search-wrap">
+<div class="cb-search-wrap">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="cbSearch" class="cb-search" placeholder="Search product, EAN, supplier…" oninput="window.renderCentralBasket()">
       </div>
@@ -780,9 +768,7 @@
   /* ── TABS ── */
 window.setCbTab = function(tab) {
     _cbTab=tab; _cbPage=1;
-    document.getElementById('cbTabToBuy').className    = 'cb-tab'+(tab==='tobuy'    ?' active-to-buy':'');
-    document.getElementById('cbTabPurchased').className = 'cb-tab'+(tab==='purchased'?' active-purchased':'');
-    document.getElementById('cbTabInquire').className   = 'cb-tab'+(tab==='inquire'  ?' active-inquire':'');
+    const sel=document.getElementById('cbTabSelect'); if (sel) sel.value=tab;
     document.getElementById('cbPdfBtn').style.display   = tab==='purchased'?'inline-flex':'none';
     document.getElementById('cbDateRangeWrap').style.display = tab==='purchased'?'flex':'none';
     if (tab!=='purchased' && _cbDateRange) { _cbDateRange=null; _updateDateRangeBtn(); }
@@ -1372,10 +1358,9 @@ function _nlCard(p,isPurchased,isInquire) {
     return `<div class="cb-card${isInquire?' inquire-card':''}" onclick="window.openCbDrawer('nl','${_safeJson(p)}')">
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px;">
         ${_avatar(p.image_url||'', p.product_name, tagCls)}
-        <div style="flex:1;min-width:0;">
+         <div style="flex:1;min-width:0;">
           <div class="cb-card-name" title="${escH(p.product_name||'')}">${escH(p.product_name||'—')}</div>
           <div class="cb-card-meta">
-            <span class="cb-card-sup">${escH(p.supplier_name||'—')}</span>
             <div style="display:flex;align-items:center;gap:5px;margin-left:auto;">
               ${qty>0?`<span class="cb-card-val" style="color:#64748b;font-weight:600;">${fmtVal(qty)} Units</span>`:''}
               ${total>0?`<span class="cb-card-val">${fmtGBP(total)}</span>`:''}
@@ -1395,10 +1380,9 @@ function _nlCard(p,isPurchased,isInquire) {
     return `<div class="cb-card${isInquire?' inquire-card':''}" onclick="window.openCbDrawer('repl','${_safeJson(p)}')">
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px;">
         ${_avatar(p.image_url||'', p.name, tagCls)}
-        <div style="flex:1;min-width:0;">
+<div style="flex:1;min-width:0;">
           <div class="cb-card-name" title="${escH(p.name||'')}">${escH(p.name||'—')}</div>
           <div class="cb-card-meta">
-            <span class="cb-card-sup">${escH(p.supplier_name||'—')}</span>
             <div style="display:flex;align-items:center;gap:5px;margin-left:auto;">
               ${qty>0?`<span class="cb-card-val" style="color:#64748b;font-weight:600;">${qty.toLocaleString()} Units</span>`:''}
               ${total>0?`<span class="cb-card-val">${fmtGBP(total)}</span>`:''}
