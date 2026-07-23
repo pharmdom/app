@@ -1244,30 +1244,41 @@ function renderDrawer(row) {
         </div>
       </div>`);
   }
-  if (activeTab === 'approvals') {
+if (activeTab === 'approvals') {
+    const REJECT_REASONS = ['Gated / Can never be sold','Profitable, but too little profit','Poor sales velocity / Very Competitive','Meets criteria, but not right now','Other'];
     const approvalItems = approvals.length
       ? [...approvals].sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map(a => {
           const isRej = a.status === 'rejected';
           return `<div class="approval-item ${isRej ? 'rejected-item' : 'approved-item'}">
             <div class="note-avatar" style="background:${isRej?'#fee2e2;color:#dc2626':'#d1fae5;color:#15803d'};width:28px;height:28px;font-size:10px;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">${getInitials(a.approver_name)}</div>
-            <span class="approval-name">${escHtml(a.approver_name)}</span>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+              <span class="approval-name">${escHtml(a.approver_name)}</span>
+              ${isRej && a.rejection_reason ? `<span style="font-size:11px;color:#be123c;font-weight:500">${escHtml(a.rejection_reason)}${a.rejection_note?' — '+escHtml(a.rejection_note):''}</span>` : ''}
+            </div>
             <span class="approval-status-tag ${isRej?'rejected':'approved'}">${isRej?'Rejected':'Approved'}</span>
             <span class="approval-date">${new Date(a.created_at).toLocaleDateString('en-GB')}</span>
           </div>`;
         }).join('')
       : '<p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">No approvals yet.</p>';
-    const usrOpts2 = users.map(u => `<option value="${escAttr(u.name)}">${escHtml(u.name)}</option>`).join('');
+    const reasonOpts = REJECT_REASONS.map(r => `<option value="${escAttr(r)}">${escHtml(r)}</option>`).join('');
     body = section('Decision History',
       `<div class="approval-list">${approvalItems}</div>
       <div class="approval-composer">
-        <div class="approval-composer-inner">
-          <span class="approval-composer-label">Decision by</span>
-          <select class="approval-user-select" id="approvalUser"><option value="">Select user…</option>${usrOpts2}</select>
-          <div class="approval-action-btns">
-            <button class="btn btn-success btn-sm" onclick="decideProduct('${escAttr(id)}','approved')">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Approve
-            </button>
-            <button class="btn btn-danger btn-sm" onclick="decideProduct('${escAttr(id)}','rejected')">
+        <div class="approval-composer-inner" style="flex-direction:column;align-items:stretch;gap:10px">
+          <button class="btn btn-success btn-sm" style="justify-content:center" onclick="decideProduct('${escAttr(id)}','approved')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Approve
+          </button>
+          <div style="border-top:1px solid #f1f5f9;padding-top:10px;display:flex;flex-direction:column;gap:8px">
+            <div class="form-group">
+              <label style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">Rejection Reason</label>
+              <select class="approval-user-select" id="rejectReasonSelect_${escAttr(id)}" onchange="onRejectReasonChange('${escAttr(id)}')">
+                <option value="">Select reason…</option>${reasonOpts}
+              </select>
+            </div>
+            <div id="rejectNoteWrap_${escAttr(id)}" style="display:none">
+              <textarea class="edit-input" id="rejectNoteInput_${escAttr(id)}" placeholder="Add notes…" rows="2" style="width:100%"></textarea>
+            </div>
+            <button class="btn btn-danger btn-sm" style="justify-content:center" onclick="decideProduct('${escAttr(id)}','rejected')">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject
             </button>
           </div>
@@ -1465,18 +1476,48 @@ function applyYNColors() {
   });
 }
 /* ══ APPROVE / REJECT ══ */
+function getCurrentAgentName() {
+  const u = window.currentUser;
+  if (!u) return '';
+  return ((u.firstName || '') + ' ' + (u.lastName || '')).trim();
+}
+function onRejectReasonChange(id) {
+  const sel = document.getElementById(`rejectReasonSelect_${id}`);
+  const noteWrap = document.getElementById(`rejectNoteWrap_${id}`);
+  if (!sel || !noteWrap) return;
+  noteWrap.style.display = sel.value === 'Other' ? 'block' : 'none';
+}
 async function decideProduct(id, decision) {
-  const selectedUser = document.getElementById('approvalUser')?.value;
-  if (!selectedUser) { showToast('Please select a user', 'error'); return; }
+  const agentName = getCurrentAgentName();
+  if (!agentName) { showToast('Unable to identify current user', 'error'); return; }
+
+  let rejection_reason = null, rejection_note = null;
+  if (decision === 'rejected') {
+    const reasonSel = document.getElementById(`rejectReasonSelect_${id}`);
+    rejection_reason = reasonSel ? reasonSel.value : '';
+    if (!rejection_reason) { showToast('Please select a rejection reason', 'error'); return; }
+    if (rejection_reason === 'Other') {
+      const noteEl = document.getElementById(`rejectNoteInput_${id}`);
+      rejection_note = noteEl ? noteEl.value.trim() : '';
+      if (!rejection_note) { showToast('Please add a note for "Other"', 'error'); return; }
+    }
+  }
+
   const toastId = showToast('Saving decision…', 'loading', 0);
-  await sb.from('sourcing_approvals').delete().eq('opportunity_id', id).eq('approver_name', selectedUser);
-  const { error } = await sb.from('sourcing_approvals').insert({ opportunity_id: id, approver_name: selectedUser, status: decision });
+  await sb.from('sourcing_approvals').delete().eq('opportunity_id', id).eq('approver_name', agentName);
+  const insertPayload = { opportunity_id: id, approver_name: agentName, status: decision };
+  if (decision === 'rejected') {
+    insertPayload.rejection_reason = rejection_reason;
+    insertPayload.rejection_note = rejection_note;
+  }
+  const { error } = await sb.from('sourcing_approvals').insert(insertPayload);
   removeToast(toastId);
   if (error) { showToast('Failed to save decision', 'error'); return; }
-  showToast(selectedUser + (decision === 'approved' ? ' approved' : ' rejected'), decision === 'approved' ? 'success' : 'error');
+  showToast(agentName + (decision === 'approved' ? ' approved' : ' rejected'), decision === 'approved' ? 'success' : 'error');
   activeTab = 'approvals';
   await refreshData();
 }
+   
 /* ══ NOTES ══ */
 async function addNote(id) {
   const selectedUser = document.getElementById('noteUser')?.value;
@@ -2015,6 +2056,7 @@ window.fillSupplierCode = fillSupplierCode;
 window.toggleSrcActionsMenu = toggleSrcActionsMenu;
 window.closeSrcActionsMenu = closeSrcActionsMenu;
 window.checkQtyPurchased = checkQtyPurchased;
+window.onRejectReasonChange = onRejectReasonChange;
 window.toggleDatePicker = toggleDatePicker;
 window.setDatePreset = setDatePreset;
 window.onCustomDateChange = onCustomDateChange;
