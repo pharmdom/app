@@ -1297,7 +1297,7 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
       const total   = b.nl.length + b.repl.length;
       const nlSecId = `cbSecNl_${idx}`, replSecId = `cbSecRepl_${idx}`;
 
-      kanbanHtml += `<div class="cb-kanban-col" data-supplier="${escH(sup)}">
+      kanbanHtml += `<div class="cb-kanban-col" data-supplier="${escH(sup)}" onmouseenter="window.cbHoverSupplier('${escA(sup)}')">
         <div class="cb-kanban-header" style="background:#f8fafc;color:#0f172a;">
           <span style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escH(sup)}</span>
           <span style="font-size:10px;opacity:.7;flex-shrink:0;margin-left:8px;">${total} Item${total!==1?'s':''} · ${fmtGBP(nlVal+replVal)}</span>
@@ -1315,46 +1315,28 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
       </div>`;
     });
 kanbanHtml += '</div>';
-    body.innerHTML = kanbanHtml;
-    _initKanbanScrollTracking();
+body.innerHTML = kanbanHtml;
+    _initKanbanHoverDefault(supplierNames);
   };
 
-  let _kanbanScrollBound = false;
-  function _initKanbanScrollTracking() {
-    const scroller = document.querySelector('.cb-kanban');
-    if (!scroller) return;
-    _updateActiveSupplierFromScroll(scroller);
-    if (_kanbanScrollBound) return;
-    _kanbanScrollBound = true;
-    let ticking = false;
-    scroller.addEventListener('scroll', () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        _updateActiveSupplierFromScroll(scroller);
-        ticking = false;
-      });
-    }, { passive: true });
-  }
 
-  function _updateActiveSupplierFromScroll(scroller) {
-    const cols = scroller.querySelectorAll('.cb-kanban-col');
-    if (!cols.length) return;
-    const scrollerRect = scroller.getBoundingClientRect();
-    let best = null, bestOverlap = -1;
-    cols.forEach(col => {
-      const r = col.getBoundingClientRect();
-      const overlap = Math.min(r.right, scrollerRect.right) - Math.max(r.left, scrollerRect.left);
-      if (overlap > bestOverlap) { bestOverlap = overlap; best = col; }
-    });
-    if (!best) return;
-    const sup = best.getAttribute('data-supplier') || '';
+window.cbHoverSupplier = function(sup) {
     if (sup !== _cbActiveKanbanSupplier) {
       _cbActiveKanbanSupplier = sup;
       _updateMoqBar();
     }
-  }
+  };
 
+  function _initKanbanHoverDefault(supplierNames) {
+    // Keep showing the previously hovered supplier if it still exists in
+    // this render; otherwise default to the first column so the MOQ bar
+    // isn't blank right after a re-render/filter change.
+    if (!supplierNames.includes(_cbActiveKanbanSupplier)) {
+      _cbActiveKanbanSupplier = supplierNames[0] || '';
+    }
+    _updateMoqBar();
+  }
+ 
 
 function _updateMoqBar() {
     const bar = document.getElementById('cbMoqBar');
