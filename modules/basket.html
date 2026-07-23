@@ -836,7 +836,7 @@ function _debounce(fn, wait) {
     return rows.filter(p=>!(p.sourcing_approvals||[]).some(a=>a.status==='rejected'));
   }
 
-  async function _cbFetchReplPage(pageIndex) {
+async function _cbFetchReplPage(pageIndex) {
     const from = pageIndex*CB_PAGE_SIZE, to = from+CB_PAGE_SIZE-1;
     let query = _cbApplyReplFilters(sb.from('replenishment_skus')
       .select('sku,name,ean,order_qty,cost_price,original_cost_price,days_left,urgency,image_url,supplier_name,action,actioned_at,uploaded_at,basket_added_at'));
@@ -846,6 +846,21 @@ function _debounce(fn, wait) {
     if (error) { console.warn('CB replens page:', error); return []; }
     const rows = data||[];
     _cbReplDone = rows.length < CB_PAGE_SIZE;
+    return rows;
+  }
+
+  /* Re-fetch as many pages as were already loaded, instead of resetting to page 0.
+     Keeps depth (and therefore reveal counts / scroll position) intact across
+     refreshes triggered by edits, tab-internal filter changes, etc. */
+  async function _cbRefillPages(fetchFn, priorPages, isNL) {
+    const pagesToFetch = Math.max(1, priorPages);
+    let rows = [];
+    for (let i = 0; i < pagesToFetch; i++) {
+      const pageRows = await fetchFn(i);
+      rows = rows.concat(pageRows);
+      if (isNL) _cbNLPage = i + 1; else _cbReplPage = i + 1;
+      if (isNL ? _cbNLDone : _cbReplDone) break;
+    }
     return rows;
   }
 
@@ -966,6 +981,7 @@ function _debounce(fn, wait) {
 window.setCbTab = function(tab) {
     _cbTab=tab; _cbPage=1;
     _cbRevealCounts = {};
+    _cbNLPage = 0; _cbReplPage = 0;
     const sel=document.getElementById('cbTabSelect'); if (sel) sel.value=tab;
     document.getElementById('cbPdfBtn').style.display = tab==='purchased'?'inline-flex':'none';
     window.renderCentralBasket();
@@ -1323,19 +1339,19 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
       body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-size:13px;gap:8px;">
         <div style="width:16px;height:16px;border:2.5px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin .65s linear infinite;"></div>Loading…</div>`;
 
-      await _loadCbSuppliers();
+await _loadCbSuppliers();
 
-      _cbNLPage = 0; _cbReplPage = 0;
+      const priorNLPages   = _cbNLPage;
+      const priorReplPages = _cbReplPage;
+
       _cbNLDone = !wantNL; _cbReplDone = !wantRepl;
       _cbLoadedNL = []; _cbLoadedRepl = [];
 
       const [nlRows, replRows] = await Promise.all([
-        wantNL   ? _cbFetchNLPage(0)   : Promise.resolve([]),
-        wantRepl ? _cbFetchReplPage(0) : Promise.resolve([]),
+        wantNL   ? _cbRefillPages(_cbFetchNLPage, priorNLPages, true)   : Promise.resolve([]),
+        wantRepl ? _cbRefillPages(_cbFetchReplPage, priorReplPages, false) : Promise.resolve([]),
       ]);
       _cbLoadedNL = nlRows; _cbLoadedRepl = replRows;
-      if (wantNL)   _cbNLPage = 1;
-      if (wantRepl) _cbReplPage = 1;
 
       await _cbFetchTotals();
     }
