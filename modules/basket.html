@@ -513,9 +513,6 @@
           <div class="cb-dr-cal" id="cbDrCal"></div>
         </div>
       </div>
-      <select id="cbSupplierFilter" class="cb-supplier-select" onchange="window.renderCentralBasket()">
-        <option value="">All Suppliers</option>
-      </select>
       <button class="cb-btn cb-btn-slate" id="cbPdfBtn" style="display:none;" onclick="window.openCbPdfModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       </button>
@@ -594,7 +591,8 @@
   let _catalogCache = null;
   let _allPurchased = { nl: [], repl: [] };
   const PAGE_SIZE   = 25;
-  let _cbSupplierList = [];
+  let _cbSupplierFilter = '';
+  let _cbActiveKanbanSupplier = '';
 
  let _cbDateRange  = null;   // { start:'YYYY-MM-DD', end:'YYYY-MM-DD', label, key }
   let _cbCalMonth   = new Date();
@@ -1318,7 +1316,7 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
       const total   = b.nl.length + b.repl.length;
       const nlSecId = `cbSecNl_${idx}`, replSecId = `cbSecRepl_${idx}`;
 
-      kanbanHtml += `<div class="cb-kanban-col">
+      kanbanHtml += `<div class="cb-kanban-col" data-supplier="${escH(sup)}">
         <div class="cb-kanban-header" style="background:#f8fafc;color:#0f172a;">
           <span style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escH(sup)}</span>
           <span style="font-size:10px;opacity:.7;flex-shrink:0;margin-left:8px;">${total} Item${total!==1?'s':''} · ${fmtGBP(nlVal+replVal)}</span>
@@ -1335,10 +1333,58 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
         </div>
       </div>`;
     });
-    kanbanHtml += '</div>';
+kanbanHtml += '</div>';
     body.innerHTML = kanbanHtml;
+    _initKanbanScrollTracking();
   };
 
+  let _kanbanScrollBound = false;
+  function _initKanbanScrollTracking() {
+    const scroller = document.querySelector('.cb-kanban');
+    if (!scroller) return;
+    _updateActiveSupplierFromScroll(scroller);
+    if (_kanbanScrollBound) return;
+    _kanbanScrollBound = true;
+    let ticking = false;
+    scroller.addEventListener('scroll', () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        _updateActiveSupplierFromScroll(scroller);
+        ticking = false;
+      });
+    }, { passive: true });
+  }
+
+  function _updateActiveSupplierFromScroll(scroller) {
+    const cols = scroller.querySelectorAll('.cb-kanban-col');
+    if (!cols.length) return;
+    const scrollerRect = scroller.getBoundingClientRect();
+    let best = null, bestOverlap = -1;
+    cols.forEach(col => {
+      const r = col.getBoundingClientRect();
+      const overlap = Math.min(r.right, scrollerRect.right) - Math.max(r.left, scrollerRect.left);
+      if (overlap > bestOverlap) { bestOverlap = overlap; best = col; }
+    });
+    if (!best) return;
+    const sup = best.getAttribute('data-supplier') || '';
+    if (sup !== _cbActiveKanbanSupplier) {
+      _cbActiveKanbanSupplier = sup;
+      _updateMoqBar();
+    }
+  }
+
+
+ function _updateMoqBar() {
+    const bar = document.getElementById('cbMoqBar');
+    if (!bar) return;
+    if (!_cbActiveKanbanSupplier) {
+      bar.innerHTML = '';
+      bar.style.display = 'none';
+      return;
+    }
+    const supplierProducts = [...filteredNL, ...filteredRepl].filter(p => (p.supplier_name||'') === _cbActiveKanbanSupplier);
+  
   /* ── CARD RENDERERS ── */
   function _safeJson(p) { return JSON.stringify(p).replace(/\\/g,'\\\\').replace(/"/g,'&quot;'); }
 
