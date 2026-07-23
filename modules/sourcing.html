@@ -830,7 +830,7 @@ async function refreshData() {
 async function fetchSourcing() {
   const { data, error } = await sb
     .from('sourcing')
-    .select(`*, sourcing_notes(id, author_name, text, created_at), sourcing_approvals(id, approver_name, status, created_at)`)
+    .select(`*, sourcing_notes(id, author_name, text, created_at), sourcing_approvals(id, approver_name, status, created_at, rejection_reason, rejection_note)`)
     .order('created_at', { ascending: false });
   if (error) { console.error(error); return []; }
   return data || [];
@@ -1260,26 +1260,32 @@ if (activeTab === 'approvals') {
           </div>`;
         }).join('')
       : '<p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">No approvals yet.</p>';
-    const reasonOpts = REJECT_REASONS.map(r => `<option value="${escAttr(r)}">${escHtml(r)}</option>`).join('');
+const reasonOpts = REJECT_REASONS.map(r => `<option value="${escAttr(r)}">${escHtml(r)}</option>`).join('');
     body = section('Decision History',
       `<div class="approval-list">${approvalItems}</div>
       <div class="approval-composer">
-        <div class="approval-composer-inner" style="flex-direction:column;align-items:stretch;gap:10px">
-          <button class="btn btn-success btn-sm" style="justify-content:center" onclick="decideProduct('${escAttr(id)}','approved')">
+        <div class="approval-composer-inner" id="approvalBtnsRow_${escAttr(id)}" style="display:flex;gap:8px">
+          <button class="btn btn-success btn-sm" style="flex:1;justify-content:center" onclick="decideProduct('${escAttr(id)}','approved')">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Approve
           </button>
-          <div style="border-top:1px solid #f1f5f9;padding-top:10px;display:flex;flex-direction:column;gap:8px">
-            <div class="form-group">
-              <label style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">Rejection Reason</label>
-              <select class="approval-user-select" id="rejectReasonSelect_${escAttr(id)}" onchange="onRejectReasonChange('${escAttr(id)}')">
-                <option value="">Select reason…</option>${reasonOpts}
-              </select>
-            </div>
-            <div id="rejectNoteWrap_${escAttr(id)}" style="display:none">
-              <textarea class="edit-input" id="rejectNoteInput_${escAttr(id)}" placeholder="Add notes…" rows="2" style="width:100%"></textarea>
-            </div>
-            <button class="btn btn-danger btn-sm" style="justify-content:center" onclick="decideProduct('${escAttr(id)}','rejected')">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject
+          <button class="btn btn-danger btn-sm" style="flex:1;justify-content:center" onclick="showRejectForm('${escAttr(id)}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject
+          </button>
+        </div>
+        <div id="rejectFormWrap_${escAttr(id)}" style="display:none;flex-direction:column;gap:8px;padding:10px 14px">
+          <div class="form-group">
+            <label style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">Rejection Reason</label>
+            <select class="approval-user-select" id="rejectReasonSelect_${escAttr(id)}" onchange="onRejectReasonChange('${escAttr(id)}')">
+              <option value="">Select reason…</option>${reasonOpts}
+            </select>
+          </div>
+          <div id="rejectNoteWrap_${escAttr(id)}" style="display:none">
+            <textarea class="edit-input" id="rejectNoteInput_${escAttr(id)}" placeholder="Add notes…" rows="2" style="width:100%"></textarea>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center" onclick="cancelRejectForm('${escAttr(id)}')">Cancel</button>
+            <button class="btn btn-danger btn-sm" style="flex:1;justify-content:center" onclick="decideProduct('${escAttr(id)}','rejected')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Confirm Reject
             </button>
           </div>
         </div>
@@ -1486,6 +1492,22 @@ function onRejectReasonChange(id) {
   const noteWrap = document.getElementById(`rejectNoteWrap_${id}`);
   if (!sel || !noteWrap) return;
   noteWrap.style.display = sel.value === 'Other' ? 'block' : 'none';
+}
+function showRejectForm(id) {
+  const btnsRow = document.getElementById(`approvalBtnsRow_${id}`);
+  const formWrap = document.getElementById(`rejectFormWrap_${id}`);
+  if (btnsRow) btnsRow.style.display = 'none';
+  if (formWrap) formWrap.style.display = 'flex';
+}
+function cancelRejectForm(id) {
+  const btnsRow = document.getElementById(`approvalBtnsRow_${id}`);
+  const formWrap = document.getElementById(`rejectFormWrap_${id}`);
+  if (formWrap) formWrap.style.display = 'none';
+  if (btnsRow) btnsRow.style.display = 'flex';
+  const sel = document.getElementById(`rejectReasonSelect_${id}`);
+  if (sel) sel.value = '';
+  const noteWrap = document.getElementById(`rejectNoteWrap_${id}`);
+  if (noteWrap) noteWrap.style.display = 'none';
 }
 async function decideProduct(id, decision) {
   const agentName = getCurrentAgentName();
@@ -2057,6 +2079,8 @@ window.toggleSrcActionsMenu = toggleSrcActionsMenu;
 window.closeSrcActionsMenu = closeSrcActionsMenu;
 window.checkQtyPurchased = checkQtyPurchased;
 window.onRejectReasonChange = onRejectReasonChange;
+window.showRejectForm = showRejectForm;
+window.cancelRejectForm = cancelRejectForm;
 window.toggleDatePicker = toggleDatePicker;
 window.setDatePreset = setDatePreset;
 window.onCustomDateChange = onCustomDateChange;
