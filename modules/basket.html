@@ -310,8 +310,21 @@
     font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
     color: #94a3b8; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
   }
-  .cb-sec-label::after { content: ''; flex: 1; height: 1px; background: #f1f5f9; }
+.cb-sec-label::after { content: ''; flex: 1; height: 1px; background: #f1f5f9; }
 
+  /* Price History (drawer) */
+  .cb-price-history-list {
+    display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px;
+    border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 8px 12px;
+  }
+  .cb-price-history-row {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; padding: 3px 0; border-bottom: 1px solid #f1f5f9;
+  }
+  .cb-price-history-row:last-child { border-bottom: none; }
+  .cb-price-history-date { color: #64748b; font-weight: 500; }
+  .cb-price-history-price { color: #0f172a; font-weight: 700; }
+ 
   /* Status badge in drawer */
   .cb-status-badge {
     display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
@@ -594,9 +607,10 @@
   let _cbSupplierFilter = '';
   let _cbActiveKanbanSupplier = '';
 
- let _cbFilteredNL = [];
+let _cbFilteredNL = [];
   let _cbFilteredRepl = [];
  let _cbSupplierList = [];
+ let _allPriceHistory = {};  // filled before PDF export: key `${type}::${id}` -> [{price,changed_at}]
 
  const CB_PAGE_SIZE = 100;      // rows fetched per DB page, per source table
  let _cbNLPage = 0, _cbReplPage = 0;
@@ -895,7 +909,60 @@ async function _cbFetchReplPage(pageIndex) {
     };
   }
 
-  /* ── DEDICATED FULL FETCH FOR PDF EXPORT ── */
+/* ── PRICE HISTORY ── */
+  async function _cbLogPriceChange(itemType, itemId, price) {
+    try {
+      await sb.from('cb_price_history').insert({ item_type: itemType, item_id: String(itemId), price });
+    } catch(e) { console.warn('CB price history log:', e); }
+  }
+
+  async function _cbFetchPriceHistory(itemType, itemId) {
+    try {
+      const { data, error } = await sb.from('cb_price_history')
+        .select('price,changed_at')
+        .eq('item_type', itemType).eq('item_id', String(itemId))
+        .order('changed_at', { ascending:false });
+      if (error) { console.warn('CB price history fetch:', error); return []; }
+      return data || [];
+    } catch(e) { console.warn('CB price history fetch:', e); return []; }
+  }
+
+  async function _cbFetchPriceHistoryMap(nlIds, replIds) {
+    const map = {};
+    try {
+      if (nlIds.length) {
+        const { data } = await sb.from('cb_price_history')
+          .select('item_id,price,changed_at').eq('item_type','nl').in('item_id', nlIds)
+          .order('changed_at', { ascending:true });
+        (data||[]).forEach(r => { const k='nl::'+r.item_id; (map[k]=map[k]||[]).push(r); });
+      }
+      if (replIds.length) {
+        const { data } = await sb.from('cb_price_history')
+          .select('item_id,price,changed_at').eq('item_type','repl').in('item_id', replIds)
+          .order('changed_at', { ascending:true });
+        (data||[]).forEach(r => { const k='repl::'+r.item_id; (map[k]=map[k]||[]).push(r); });
+      }
+    } catch(e) { console.warn('CB price history bulk fetch:', e); }
+    return map;
+  }
+
+  async function _renderPriceHistoryInto(itemType, itemId) {
+    const container = document.getElementById('cbPriceHistorySection');
+    if (!container) return;
+    const history = await _cbFetchPriceHistory(itemType, itemId);
+    if (!history.length) { container.innerHTML = ''; return; }
+    container.innerHTML = `
+      <div class="cb-sec-label">Price History</div>
+      <div class="cb-price-history-list">
+        ${history.map(h => `
+          <div class="cb-price-history-row">
+            <span class="cb-price-history-date">${fmtDate(h.changed_at)}</span>
+            <span class="cb-price-history-price">${fmtGBP(h.price)}</span>
+          </div>`).join('')}
+      </div>`;
+  }
+
+/* ── DEDICATED FULL FETCH FOR PDF EXPORT ── */
   async function _cbFetchAllPurchased() {
     let nl=[], repl=[];
     try {
@@ -913,6 +980,10 @@ async function _cbFetchReplPage(pageIndex) {
       repl = data||[];
     } catch(e) { console.warn('CB pdf repl fetch:', e); }
     _allPurchased = { nl, repl };
+    _allPriceHistory = await _cbFetchPriceHistoryMap(
+      nl.map(p=>p.opportunity_id),
+      repl.map(p=>p.sku)
+    );
   }
 
 /* ── PER-SECTION REVEAL (Load-more within a supplier column, DB-backed) ── */
@@ -1096,8 +1167,8 @@ const imgUrl = p.image_url || '';
       `<button class="cb-drawer-tab${_drawerTab===t.id?' active':''}" onclick="window.switchCbDrawerTab('${t.id}')">${t.icon}${t.label}</button>`
     ).join('');
 
-    /* ── Body ── */
-    if (_drawerTab==='details') _renderDetailsTab(type, p, isPurchased, isInquire);
+/* ── Body ── */
+    if (_drawerTab==='details') { _renderDetailsTab(type, p, isPurchased, isInquire); _renderPriceHistoryInto(type, type==='nl'?p.opportunity_id:p.sku); }
     else if (_drawerTab==='prices') _renderPricesTab();
 
     /* ── Actions ── */
@@ -1135,8 +1206,9 @@ function _renderDetailsTab(type, p, isPurchased, isInquire) {
           ${isPurchased?`<div class="cb-info-card">
             <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Qty Purchased</label>
             <div class="cb-info-val-static" style="color:#15803d;">${qtyPur>0?fmtVal(qtyPur)+' units':'—'}</div>
-          </div>`:''}
+         </div>`:''}
         </div>
+        <div id="cbPriceHistorySection"></div>
         <div class="cb-sec-label">Timeline</div>
         <div class="cb-info-grid">
           <div class="cb-info-card">
@@ -1169,6 +1241,7 @@ function _renderDetailsTab(type, p, isPurchased, isInquire) {
               onblur="window.cbUpdateReplCost('${escA(p.sku)}',this.value)" id="cbCostRepl_${escA(p.sku)}">
           </div>
         </div>
+        <div id="cbPriceHistorySection"></div>
         <div class="cb-sec-label">Timeline</div>
         <div class="cb-info-grid">
           <div class="cb-info-card">
@@ -1277,8 +1350,8 @@ function _renderDrawerActions(type, p, isPurchased, isInquire) {
       html = `<div class="cb-action-section">
         <div class="cb-action-label">Actions</div>
         <div class="cb-action-row">
-          <input type="number" id="cbDrawerNLQty" class="cb-qty-input" min="0" placeholder="Qty purchased…">
-          <button class="cb-btn cb-btn-green" onclick="window.cbMarkNewLinePurchased('${escA(p.opportunity_id)}')">
+          <input type="number" id="cbDrawerNLQty" class="cb-qty-input" min="1" step="1" placeholder="Qty purchased… (required)" oninput="window.cbValidateNLQtyInput()">
+          <button class="cb-btn cb-btn-green" id="cbMarkPurchasedBtn" disabled style="opacity:.5;cursor:not-allowed;" onclick="window.cbMarkNewLinePurchased('${escA(p.opportunity_id)}')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             Purchased
           </button>
@@ -1307,6 +1380,17 @@ function _renderDrawerActions(type, p, isPurchased, isInquire) {
     document.getElementById('cbDrawerActions').innerHTML = html;
   }
 
+
+window.cbValidateNLQtyInput = function() {
+    const input = document.getElementById('cbDrawerNLQty');
+    const btn = document.getElementById('cbMarkPurchasedBtn');
+    if (!input || !btn) return;
+    const qty = parseFloat(input.value);
+    const valid = !isNaN(qty) && qty > 0;
+    btn.disabled = !valid;
+    btn.style.opacity = valid ? '1' : '.5';
+    btn.style.cursor = valid ? 'pointer' : 'not-allowed';
+  };
 
 window.cbUpdateNLQty = async function(id, val) {
     const qty = val===''?null:parseFloat(val);
@@ -1661,20 +1745,26 @@ function _refreshHeroKpis() {
     }
   };
  
-  window.cbUpdateNLCost = async function(id, val) {
+window.cbUpdateNLCost = async function(id, val) {
     const cost = val===''?null:parseFloat(val);
+    const oldCost = _drawerItem ? parseFloat(_drawerItem.data.cost_of_unit) : NaN;
     try {
       await sb.from('sourcing').update({ cost_of_unit:cost, last_updated:new Date().toISOString() }).eq('opportunity_id',id);
+      const changed = cost!==null && !isNaN(cost) && (isNaN(oldCost) || oldCost!==cost);
+      if (changed) await _cbLogPriceChange('nl', id, cost);
 if (_drawerItem) { _drawerItem.data.cost_of_unit=cost; _renderCbDrawer(); }
       _cbToast('Cost updated','success');
       window.renderCentralBasket(true);
     } catch(e) { _cbToast('Failed to update cost','error'); }
   };
 
- window.cbUpdateReplCost = async function(sku, val) {
+window.cbUpdateReplCost = async function(sku, val) {
     const cost = val===''?null:parseFloat(val);
+    const oldCost = _drawerItem ? parseFloat(_drawerItem.data.original_cost_price) : NaN;
     try {
       await sb.from('replenishment_skus').update({ original_cost_price:cost }).eq('sku',sku);
+      const changed = cost!==null && !isNaN(cost) && (isNaN(oldCost) || oldCost!==cost);
+      if (changed) await _cbLogPriceChange('repl', sku, cost);
 if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer(); }
       _cbToast('Cost updated','success');
       window.renderCentralBasket(true);
@@ -1857,43 +1947,47 @@ window.generateCbPdf = async function() {
     // ── NL table ──
     let nlHtml = '';
     if (nl.length) {
-      nlHtml += `<h2>New Lines (${nl.length}) — ${fmtGBP(totalNLVal)}</h2>
-      <table><colgroup><col class="c-ean"><col class="c-product"><col class="c-supplier"><col class="c-date"><col class="c-date"><col class="c-qty"><col class="c-cost"><col class="c-total"></colgroup><thead><tr>
+nlHtml += `<h2>New Lines (${nl.length}) — ${fmtGBP(totalNLVal)}</h2>
+      <table><colgroup><col class="c-ean" style="width:11%"><col class="c-product" style="width:18%"><col class="c-supplier" style="width:13%"><col class="c-date" style="width:10%"><col class="c-date" style="width:10%"><col class="c-qty" style="width:6%"><col class="c-cost" style="width:8%"><col class="c-total" style="width:8%"><col class="c-history" style="width:16%"></colgroup><thead><tr>
         <th>EAN</th><th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th>
-        <th style="text-align:right">Qty</th><th style="text-align:right">Unit Cost</th><th style="text-align:right">Total</th>
+        <th style="text-align:right">Qty</th><th style="text-align:right">Unit Cost</th><th style="text-align:right">Total</th><th>Price History</th>
       </tr></thead><tbody>`;
       Object.entries(nlBySupplier).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([sup, items]) => {
         const supTotal = items.reduce((s,p)=>{const c=parseFloat(p.cost_of_unit)||0;const q=parseFloat(p.unit_quantity)||0;return s+c*q;},0);
         items.forEach(p => {
           const c=parseFloat(p.cost_of_unit)||0; const q=parseFloat(p.unit_quantity)||0;
           const nlEan = ((p.code||'').split(',')[0].split(':')[0].trim())||'—';
-          nlHtml += `<tr><td style="font-family:monospace;font-size:10px;">${escH(nlEan)}</td><td>${escH(p.product_name||'—')}</td><td>${escH(sup)}</td><td>${fmtDate(p.basket_added_at||p.last_updated||p.created_at)}</td><td>${fmtDate(p.purchased_at)}</td><td style="text-align:right;">${q.toLocaleString()}</td><td style="text-align:right;">${fmtGBP(c)}</td><td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td></tr>`;
+          const hist = _allPriceHistory['nl::'+p.opportunity_id] || [];
+          const histStr = hist.length ? hist.map(h=>`${fmtDate(h.changed_at)}: ${fmtGBP(h.price)}`).join(' → ') : '—';
+          nlHtml += `<tr><td style="font-family:monospace;font-size:10px;">${escH(nlEan)}</td><td>${escH(p.product_name||'—')}</td><td>${escH(sup)}</td><td>${fmtDate(p.basket_added_at||p.last_updated||p.created_at)}</td><td>${fmtDate(p.purchased_at)}</td><td style="text-align:right;">${q.toLocaleString()}</td><td style="text-align:right;">${fmtGBP(c)}</td><td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td><td style="font-size:9px;color:#475569;word-break:break-word;">${escH(histStr)}</td></tr>`;
         });
         const supQtyNL = items.reduce((s,p)=>{return s+(parseFloat(p.unit_quantity)||0);},0);
-        nlHtml += `<tr class="subtotal-row"><td>Subtotal — ${escH(sup)}</td><td></td><td></td><td></td><td></td><td class="sub-qty" style="text-align:right;">${supQtyNL.toLocaleString()}</td><td style="text-align:right;">&nbsp;</td><td style="text-align:right;">${fmtGBP(supTotal)}</td></tr>`;
+        nlHtml += `<tr class="subtotal-row"><td>Subtotal — ${escH(sup)}</td><td></td><td></td><td></td><td></td><td class="sub-qty" style="text-align:right;">${supQtyNL.toLocaleString()}</td><td style="text-align:right;">&nbsp;</td><td style="text-align:right;">${fmtGBP(supTotal)}</td><td></td></tr>`;
       });
-      nlHtml += `<tr class="total-row"><td>New Lines Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td style="text-align:right;">${fmtGBP(totalNLVal)}</td></tr></tbody></table>`;
+      nlHtml += `<tr class="total-row"><td>New Lines Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td style="text-align:right;">${fmtGBP(totalNLVal)}</td><td></td></tr></tbody></table>`;
     }
 
     // ── Repl table ──
     let replHtml = '';
     if (repl.length) {
-      replHtml += `<h2>Replenishments (${repl.length}) — ${fmtGBP(totalReplVal)}</h2>
-      <table><colgroup><col class="c-ean"><col class="c-product"><col class="c-supplier"><col class="c-date"><col class="c-date"><col class="c-qty"><col class="c-cost"><col class="c-cost"><col class="c-total"></colgroup><thead><tr>
+replHtml += `<h2>Replenishments (${repl.length}) — ${fmtGBP(totalReplVal)}</h2>
+      <table><colgroup><col class="c-ean" style="width:10%"><col class="c-product" style="width:16%"><col class="c-supplier" style="width:12%"><col class="c-date" style="width:9%"><col class="c-date" style="width:9%"><col class="c-qty" style="width:6%"><col class="c-cost" style="width:7%"><col class="c-cost" style="width:7%"><col class="c-total" style="width:8%"><col class="c-history" style="width:16%"></colgroup><thead><tr>
         <th>EAN</th><th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th>
-        <th style="text-align:right">Qty</th><th style="text-align:right">Orig. Cost</th><th style="text-align:right">Purchase Cost</th><th style="text-align:right">Total</th>
+        <th style="text-align:right">Qty</th><th style="text-align:right">Orig. Cost</th><th style="text-align:right">Purchase Cost</th><th style="text-align:right">Total</th><th>Price History</th>
       </tr></thead><tbody>`;
      Object.entries(replBySupplier).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([sup, items]) => {
         const supTotal = items.reduce((s,p)=>{const c=parseFloat(p.original_cost_price)||0;const q=parseInt(p.order_qty)||0;return s+c*q;},0);
         items.forEach(p => {
           const origC=parseFloat(p.cost_price)||0;
           const c=parseFloat(p.original_cost_price)||0; const q=parseInt(p.order_qty)||0;
-          replHtml += `<tr><td style="font-family:monospace;font-size:10px;">${escH(p.ean||'—')}</td><td>${escH(p.name||'—')}</td><td>${escH(sup)}</td><td>${fmtDate(p.basket_added_at)}</td><td>${fmtDate(p.actioned_at)}</td><td style="text-align:right;">${q.toLocaleString()}</td><td style="text-align:right;color:#94a3b8;">${origC>0?fmtGBP(origC):'—'}</td><td style="text-align:right;">${fmtGBP(c)}</td><td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td></tr>`;
+          const hist = _allPriceHistory['repl::'+p.sku] || [];
+          const histStr = hist.length ? hist.map(h=>`${fmtDate(h.changed_at)}: ${fmtGBP(h.price)}`).join(' → ') : '—';
+          replHtml += `<tr><td style="font-family:monospace;font-size:10px;">${escH(p.ean||'—')}</td><td>${escH(p.name||'—')}</td><td>${escH(sup)}</td><td>${fmtDate(p.basket_added_at)}</td><td>${fmtDate(p.actioned_at)}</td><td style="text-align:right;">${q.toLocaleString()}</td><td style="text-align:right;color:#94a3b8;">${origC>0?fmtGBP(origC):'—'}</td><td style="text-align:right;">${fmtGBP(c)}</td><td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td><td style="font-size:9px;color:#475569;word-break:break-word;">${escH(histStr)}</td></tr>`;
         });
         const supQtyRepl = items.reduce((s,p)=>{return s+(parseInt(p.order_qty)||0);},0);
-        replHtml += `<tr class="subtotal-row"><td>Subtotal — ${escH(sup)}</td><td></td><td></td><td></td><td></td><td class="sub-qty" style="text-align:right;">${supQtyRepl.toLocaleString()}</td><td style="text-align:right;">&nbsp;</td><td style="text-align:right;">&nbsp;</td><td style="text-align:right;">${fmtGBP(supTotal)}</td></tr>`;
+        replHtml += `<tr class="subtotal-row"><td>Subtotal — ${escH(sup)}</td><td></td><td></td><td></td><td></td><td class="sub-qty" style="text-align:right;">${supQtyRepl.toLocaleString()}</td><td style="text-align:right;">&nbsp;</td><td style="text-align:right;">&nbsp;</td><td style="text-align:right;">${fmtGBP(supTotal)}</td><td></td></tr>`;
       });
-      replHtml += `<tr class="total-row"><td>Replenishments Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td style="text-align:right;">${fmtGBP(totalReplVal)}</td></tr></tbody></table>`;
+      replHtml += `<tr class="total-row"><td>Replenishments Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td style="text-align:right;">${fmtGBP(totalReplVal)}</td><td></td></tr></tbody></table>`;
     }
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
