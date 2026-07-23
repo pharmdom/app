@@ -324,6 +324,9 @@
   .cb-price-history-row:last-child { border-bottom: none; }
   .cb-price-history-date { color: #64748b; font-weight: 500; }
   .cb-price-history-price { color: #0f172a; font-weight: 700; }
+  .cb-price-history-row.live-preview { opacity: .65; }
+  .cb-price-history-row.live-preview .cb-price-history-price { color: #2563eb; }
+  .cb-price-history-pending { font-size: 10px; font-style: italic; color: #94a3b8; margin-left: 4px; }
  
   /* Status badge in drawer */
   .cb-status-badge {
@@ -610,7 +613,9 @@
 let _cbFilteredNL = [];
   let _cbFilteredRepl = [];
  let _cbSupplierList = [];
- let _allPriceHistory = {};  // filled before PDF export: key `${type}::${id}` -> [{price,changed_at}]
+let _allPriceHistory = {};  // filled before PDF export: key `${type}::${id}` -> [{price,changed_at}]
+let _cbCostDebounceTimers = {};
+ let _cbCostBaseline = {};   // last *committed* cost, keyed 'nl::id' / 'repl::sku' — used to detect real changes
 
  const CB_PAGE_SIZE = 100;      // rows fetched per DB page, per source table
  let _cbNLPage = 0, _cbReplPage = 0;
@@ -946,6 +951,25 @@ async function _cbFetchReplPage(pageIndex) {
     return map;
   }
 
+function _cbPreviewPriceHistory(itemType, itemId, val) {
+    const container = document.getElementById('cbPriceHistorySection');
+    if (!container) return;
+    const cost = parseFloat(val);
+    if (isNaN(cost)) return;
+    let list = container.querySelector('.cb-price-history-list');
+    if (!list) {
+      container.innerHTML = `<div class="cb-sec-label">Price History</div><div class="cb-price-history-list"></div>`;
+      list = container.querySelector('.cb-price-history-list');
+    }
+    let previewRow = list.querySelector('.cb-price-history-row.live-preview');
+    if (!previewRow) {
+      previewRow = document.createElement('div');
+      previewRow.className = 'cb-price-history-row live-preview';
+      list.insertBefore(previewRow, list.firstChild);
+    }
+    previewRow.innerHTML = `<span class="cb-price-history-date">Today <span class="cb-price-history-pending">(typing…)</span></span><span class="cb-price-history-price">${fmtGBP(cost)}</span>`;
+  }
+
   async function _renderPriceHistoryInto(itemType, itemId) {
     const container = document.getElementById('cbPriceHistorySection');
     if (!container) return;
@@ -1188,6 +1212,7 @@ function _renderDetailsTab(type, p, isPurchased, isInquire) {
     if (type==='nl') {
       const cost=parseFloat(p.cost_of_unit); const qty=parseFloat(p.unit_quantity)||0;
       const qtyPur=parseFloat(p.qty_purchased)||0;
+      _cbCostBaseline['nl::'+p.opportunity_id] = isNaN(cost) ? null : cost;
       html = `
         <div class="cb-sec-label">Product Info</div>
         <div class="cb-info-grid">
@@ -1225,6 +1250,7 @@ function _renderDetailsTab(type, p, isPurchased, isInquire) {
       const dl=parseFloat(p.days_left)||0;
       const daysCls=dl<=0?'#dc2626':dl<7?'#dc2626':dl<20?'#92400e':'#15803d';
       const daysTxt=dl<=0?'Out of stock':dl+'d left';
+      _cbCostBaseline['repl::'+p.sku] = cost || null;
       html = `
         <div class="cb-sec-label">Product Info</div>
         <div class="cb-info-grid">
@@ -1730,12 +1756,15 @@ function _refreshHeroKpis() {
     const kpisEl = document.querySelector('#cbDrawerHero .cb-drawer-kpis');
     if (kpisEl) kpisEl.innerHTML = kpis;
   }
-  window.cbUpdateNLCostLive = function(id, val) {
+window.cbUpdateNLCostLive = function(id, val) {
     const cost = val===''?null:parseFloat(val);
     if (_drawerItem && !isNaN(cost)) {
       _drawerItem.data.cost_of_unit = cost;
       _refreshHeroKpis();
     }
+    _cbPreviewPriceHistory('nl', id, val);
+    clearTimeout(_cbCostDebounceTimers['nl::'+id]);
+    _cbCostDebounceTimers['nl::'+id] = setTimeout(()=>{ window.cbUpdateNLCost(id, val); }, 700);
   };
   window.cbUpdateReplCostLive = function(sku, val) {
     const cost = val===''?null:parseFloat(val);
@@ -1743,15 +1772,19 @@ function _refreshHeroKpis() {
       _drawerItem.data.original_cost_price = cost;
       _refreshHeroKpis();
     }
+    _cbPreviewPriceHistory('repl', sku, val);
+    clearTimeout(_cbCostDebounceTimers['repl::'+sku]);
+    _cbCostDebounceTimers['repl::'+sku] = setTimeout(()=>{ window.cbUpdateReplCost(sku, val); }, 700);
   };
  
 window.cbUpdateNLCost = async function(id, val) {
+    clearTimeout(_cbCostDebounceTimers['nl::'+id]);
     const cost = val===''?null:parseFloat(val);
-    const oldCost = _drawerItem ? parseFloat(_drawerItem.data.cost_of_unit) : NaN;
+    const oldCost = _cbCostBaseline['nl::'+id];
     try {
       await sb.from('sourcing').update({ cost_of_unit:cost, last_updated:new Date().toISOString() }).eq('opportunity_id',id);
-      const changed = cost!==null && !isNaN(cost) && (isNaN(oldCost) || oldCost!==cost);
-      if (changed) await _cbLogPriceChange('nl', id, cost);
+      const changed = cost!==null && !isNaN(cost) && (oldCost==null || oldCost!==cost);
+      if (changed) { await _cbLogPriceChange('nl', id, cost); _cbCostBaseline['nl::'+id] = cost; }
 if (_drawerItem) { _drawerItem.data.cost_of_unit=cost; _renderCbDrawer(); }
       _cbToast('Cost updated','success');
       window.renderCentralBasket(true);
@@ -1759,12 +1792,13 @@ if (_drawerItem) { _drawerItem.data.cost_of_unit=cost; _renderCbDrawer(); }
   };
 
 window.cbUpdateReplCost = async function(sku, val) {
+    clearTimeout(_cbCostDebounceTimers['repl::'+sku]);
     const cost = val===''?null:parseFloat(val);
-    const oldCost = _drawerItem ? parseFloat(_drawerItem.data.original_cost_price) : NaN;
+    const oldCost = _cbCostBaseline['repl::'+sku];
     try {
       await sb.from('replenishment_skus').update({ original_cost_price:cost }).eq('sku',sku);
-      const changed = cost!==null && !isNaN(cost) && (isNaN(oldCost) || oldCost!==cost);
-      if (changed) await _cbLogPriceChange('repl', sku, cost);
+      const changed = cost!==null && !isNaN(cost) && (oldCost==null || oldCost!==cost);
+      if (changed) { await _cbLogPriceChange('repl', sku, cost); _cbCostBaseline['repl::'+sku] = cost; }
 if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer(); }
       _cbToast('Cost updated','success');
       window.renderCentralBasket(true);
