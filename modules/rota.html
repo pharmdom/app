@@ -1515,18 +1515,10 @@ function checkConflict(){
 /* ══ SHIFT MODAL ════════════════════════════════════════════════════════════ */
 function openShiftModal(empId,date,time){
   if(!requireWrite()) return;
-  if(date&&isDateClosedForEmployee(date,empId)){
-    showConfirm(
-      'This day is marked as closed',
-      'Adding a shift here means this employee will not have holiday hours deducted for this closure. Continue?',
-      'Continue','confirm-btn-danger'
-    ).then(ok=>{ if(ok) _openShiftModalCore(empId,date,time); });
-    return;
-  }
   _openShiftModalCore(empId,date,time);
 }
 function _openShiftModalCore(empId,date,time){
-  S.editingId=null; S.shiftType='task'; S.conflictIds=[];
+  S.editingId=null; S.shiftType='task'; S.conflictIds=[]; S.closureOverrideConfirmed=false;
   const st=time?time.slice(0,5):'07:00';
   const sh=parseInt(st.split(':')[0]);
   const et=pad(Math.min(sh+2,H_END))+':00';
@@ -1543,11 +1535,12 @@ function _openShiftModalCore(empId,date,time){
   setTimeout(checkConflict,50);
 }
 
+
 function editShift(id){
   if(!requireWrite()) return;
   const shift=S.schedule.find(s=>s.id===String(id));
   if(!shift) return;
-  S.editingId=id; S.conflictIds=[];
+  S.editingId=id; S.conflictIds=[]; S.closureOverrideConfirmed=false;
   document.getElementById('empSelect').innerHTML=S.employees.map(e=>`<option value="${esc(e.id)}"${String(e.id)===String(shift.employeeId)?' selected':''}>${esc(e.name)}</option>`).join('');
   document.getElementById('taskSelect').innerHTML=S.tasks.map(t=>`<option value="${esc(t.id)}"${String(t.id)===String(shift.taskId)?' selected':''}>${esc(t.name)}</option>`).join('');
   document.getElementById('dateInput').value=shift.date;
@@ -1586,6 +1579,15 @@ async function saveShift(replaceConflicts){
   };
   if(!payload.employeeId||!payload.date||!payload.start||!payload.end){showToast('Please fill all required fields','error');return;}
   if(payload.start>=payload.end){showToast('End time must be after start time','error');return;}
+  if(!S.closureOverrideConfirmed && isDateClosedForEmployee(payload.date, payload.employeeId)){
+    const ok=await showConfirm(
+      'This day is marked as closed',
+      'Adding a shift here means this employee will not have holiday hours deducted for this closure. Continue?',
+      'Continue','confirm-btn-danger'
+    );
+    if(!ok) return;
+    S.closureOverrideConfirmed=true;
+  }
   const liveConflicts=getConflicts(payload.employeeId,payload.date,payload.start,payload.end,S.editingId);
   if(liveConflicts.length&&!replaceConflicts){checkConflict();return;}
   const isEdit=!!S.editingId,prev=[...S.schedule];
