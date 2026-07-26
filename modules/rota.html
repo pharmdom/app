@@ -1244,11 +1244,10 @@ function renderGrid() {
           </div>
         </td>`);
 
-      dates.forEach(date=>{
-        const closureForDate=S.closedDays.find(c=>c.date===date);
-        const closed=!!closureForDate && closureAppliesTo(closureForDate, emp.id);
+dates.forEach(date=>{
+        const closed=isDateClosedForEmployee(date, emp.id);
         const dayShifts=S.schedule.filter(s=>s.employeeId===String(emp.id)&&s.date===date).sort((a,b)=>a.start.localeCompare(b.start));
-        
+  
         if (isDayView) {
           f.push(`<td class="planner-td-day${closed?' is-closed':''}"><div class="day-cell-inner">`);
           if (closed) {
@@ -1516,7 +1515,7 @@ function checkConflict(){
 /* ══ SHIFT MODAL ════════════════════════════════════════════════════════════ */
 function openShiftModal(empId,date,time){
   if(!requireWrite()) return;
-  if(date&&isDateClosed(date)){
+  if(date&&isDateClosedForEmployee(date,empId)){
     showConfirm(
       'This day is marked as closed',
       'Adding a shift here means this employee will not have holiday hours deducted for this closure. Continue?',
@@ -1726,6 +1725,11 @@ function closureAppliesTo(closure, empId){
 
 function employeeHasShiftOn(empId, date){
   return S.schedule.some(s => String(s.employeeId)===String(empId) && s.date===date && s.type!=='break');
+}
+
+function isDateClosedForEmployee(date, empId){
+  const c = S.closedDays.find(x=>x.date===date);
+  return !!c && closureAppliesTo(c, empId) && !employeeHasShiftOn(empId, date);
 }
 
 function getEmployeeHolidaySummary(empId){
