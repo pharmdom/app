@@ -1515,7 +1515,17 @@ function checkConflict(){
 /* ══ SHIFT MODAL ════════════════════════════════════════════════════════════ */
 function openShiftModal(empId,date,time){
   if(!requireWrite()) return;
-  if(date&&isDateClosed(date)){showToast('This day is marked as closed','warn');return;}
+  if(date&&isDateClosed(date)){
+    showConfirm(
+      'This day is marked as closed',
+      'Adding a shift here means this employee will not have holiday hours deducted for this closure. Continue?',
+      'Continue','confirm-btn-danger'
+    ).then(ok=>{ if(ok) _openShiftModalCore(empId,date,time); });
+    return;
+  }
+  _openShiftModalCore(empId,date,time);
+}
+function _openShiftModalCore(empId,date,time){
   S.editingId=null; S.shiftType='task'; S.conflictIds=[];
   const st=time?time.slice(0,5):'07:00';
   const sh=parseInt(st.split(':')[0]);
@@ -1713,12 +1723,16 @@ function closureAppliesTo(closure, empId){
   return closure.scope !== 'specific' || (closure.employeeIds||[]).includes(String(empId));
 }
 
+function employeeHasShiftOn(empId, date){
+  return S.schedule.some(s => String(s.employeeId)===String(empId) && s.date===date && s.type!=='break');
+}
+
 function getEmployeeHolidaySummary(empId){
   const emp = S.employees.find(e=>String(e.id)===String(empId));
   const year = new Date().getFullYear();
   const totalAllowance = parseFloat((emp?.holidayHours||{})[year]) || 0;
   const yearClosures = S.closedDays
-    .filter(c => c.date.slice(0,4) === String(year) && closureAppliesTo(c, empId))
+    .filter(c => c.date.slice(0,4) === String(year) && closureAppliesTo(c, empId) && !employeeHasShiftOn(empId, c.date))
     .sort((a,b)=>a.date.localeCompare(b.date));
   const usedHours = yearClosures.reduce((s,c)=>s+(parseFloat(c.hours)||ROTA_DEFAULT_CLOSURE_HOURS), 0);
   return { year, totalAllowance, usedHours, balance: totalAllowance - usedHours, closures: yearClosures };
@@ -1891,6 +1905,20 @@ function renderClosedModal(){
     </div>`;
 }
 
+async function deleteShiftsForEmployeesOnDate(empIds, date){
+  const toDelete = S.schedule.filter(s => s.date===date && empIds.includes(String(s.employeeId)));
+  if (!toDelete.length) return;
+  const ids = toDelete.map(s=>s.id);
+  S.schedule = S.schedule.filter(s => !ids.includes(s.id));
+  try{
+    const { error } = await sb.from('rota_schedule').delete().in('id', ids);
+    if (error) throw error;
+  }catch(e){
+    console.error('deleteShiftsForEmployeesOnDate error:', e);
+    showToast('Failed to remove some existing shifts','error');
+  }
+}
+
 async function addClosed(){
   const date=document.getElementById('closedDateInput').value;
   const label=(document.getElementById('closedLabelInput').value||'').trim()||'Closed';
@@ -1901,6 +1929,22 @@ async function addClosed(){
   if(!date){showToast('Please select a date','error');return;}
   if(S.closedDays.some(c=>c.date===date)){showToast('Already marked as closed','warn');return;}
   if(scope==='specific' && !employeeIds.length){showToast('Select at least one employee','error');return;}
+
+  const affectedIds = scope==='specific' ? employeeIds : visibleEmployees().map(e=>e.id);
+  const conflictShifts = S.schedule.filter(s => s.date===date && s.type!=='break' && affectedIds.includes(String(s.employeeId)));
+  const conflictEmpIds = [...new Set(conflictShifts.map(s=>String(s.employeeId)))];
+
+  if (conflictEmpIds.length){
+    const names = conflictEmpIds.map(id => S.employees.find(e=>String(e.id)===id)?.name || 'Unknown').join(', ');
+    const ok = await showConfirm(
+      'Shifts already scheduled this day',
+      `${names} already ${conflictEmpIds.length===1?'has':'have'} a shift on this day. Marking it closed will delete their scheduled shift(s). Continue?`,
+      'Delete & Mark Closed','confirm-btn-danger'
+    );
+    if (!ok) return;
+    await deleteShiftsForEmployeesOnDate(conflictEmpIds, date);
+  }
+
   try{
     const { error } = await sb.from('rota_closures').insert({ date, label, hours, scope, employee_ids: employeeIds });
     if (error) throw error;
@@ -1912,6 +1956,7 @@ async function addClosed(){
     showToast('Failed to save closure','error');
   }
 }
+  
 async function removeClosed(date){
   try{
     const { error } = await sb.from('rota_closures').delete().eq('date', date);
