@@ -313,6 +313,37 @@ body { overflow: hidden; }
 .btn-add-closed { width: 100%; padding: 10px; background: #f59e0b; color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; }
 .btn-add-closed:hover { background: #d97706; }
 
+/* ── CLOSURE SCOPE / EMPLOYEE PICKER ── */
+.closed-scope-toggle { display: flex; gap: 6px; }
+.closed-scope-btn { flex: 1; padding: 9px 10px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #fff; color: #64748b; font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all .15s; white-space: nowrap; }
+.closed-scope-btn.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+.closed-emp-picker { display: flex; flex-direction: column; gap: 2px; max-height: 160px; overflow-y: auto; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 6px; }
+.closed-emp-opt { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 7px; font-size: 12.5px; color: #0f172a; cursor: pointer; }
+.closed-emp-opt:hover { background: #f8fafc; }
+.closed-emp-opt input { cursor: pointer; }
+
+/* ── DRAWER TABS ── */
+.drawer-tabs { display: flex; gap: 6px; padding: 10px 20px; border-bottom: 1px solid #f1f5f9; background: #fafafa; flex-shrink: 0; }
+.drawer-tab-btn { padding: 6px 14px; border-radius: 100px; border: 1.5px solid #e2e8f0; background: #fff; color: #64748b; font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all .15s; }
+.drawer-tab-btn:hover { border-color: #94a3b8; color: #334155; }
+.drawer-tab-btn.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+
+/* ── HOLIDAYS TAB ── */
+.holiday-summary-card { background: linear-gradient(135deg,#1e293b 0%,#0f172a 100%); border-radius: 14px; padding: 16px; margin-bottom: 18px; }
+.holiday-summary-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.holiday-summary-item { text-align: center; }
+.holiday-summary-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: rgba(255,255,255,.4); margin-bottom: 4px; }
+.holiday-summary-value { font-size: 19px; font-weight: 800; color: #fff; }
+.holiday-progress-track { height: 6px; background: rgba(255,255,255,.12); border-radius: 100px; overflow: hidden; }
+.holiday-progress-fill { height: 100%; border-radius: 100px; transition: width .3s; }
+.holiday-empty-note { font-size: 11.5px; color: rgba(255,255,255,.5); margin-top: 10px; text-align: center; }
+.holiday-closures-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; margin-bottom: 10px; }
+.holiday-closure-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid #f1f5f9; border-radius: 10px; margin-bottom: 6px; background: #fafafa; }
+.holiday-closure-date { font-size: 12.5px; font-weight: 700; color: #0f172a; }
+.holiday-closure-label { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+.holiday-closure-hours { font-size: 13px; font-weight: 800; color: #dc2626; flex-shrink: 0; }
+.holiday-disclaimer { font-size: 10.5px; color: #cbd5e1; text-align: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
+
 /* ── CALENDAR PICKER ── */
 .cal-popup { position: fixed; z-index: 2000; background: #fff; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.18); padding: 16px; opacity: 0; transform: translateY(-8px); transition: opacity .18s, transform .18s; pointer-events: none; }
 .cal-popup.visible { opacity: 1; transform: translateY(0); pointer-events: all; }
@@ -879,6 +910,7 @@ body { overflow: hidden; }
     </button>
     <div id="drawerEmpInfo"></div>
   </div>
+  <div class="drawer-tabs" id="drawerTabs"></div>
   <div class="drawer-body" id="drawerBody"></div>
 </div>
 
@@ -947,6 +979,12 @@ const IS_ADMIN = ['admin','administrator'].includes((CURRENT_USER.role||'').toLo
 
 
 const CAN_WRITE = IS_ADMIN || (CURRENT_USER.permissions || []).includes('rota_write');
+
+/* Default holiday hours charged per closure day — change this one number any time. */
+let ROTA_DEFAULT_CLOSURE_HOURS = 8;
+let CLOSURE_SCOPE = 'all';
+let CLOSURE_SELECTED_EMPS = [];
+
   
 /* ══ DEPARTMENT CONFIG ══════════════════════════════════════════════════════ */
 const DEPT_KEY_MAP = {
@@ -1025,7 +1063,7 @@ const S = {
   currentDate: isoDate(new Date()),
   view:'day', loaded:false,
   editingId:null, shiftType:'task',
-  drawerEmpId:null, expandedDays:{},
+  drawerEmpId:null, expandedDays:{}, drawerTab:'hours',
   pending: new Set(), conflictIds:[],
 };
 
@@ -1036,7 +1074,7 @@ async function init() {
     // Load employees, tasks, and schedule in parallel
     const [empRes, taskRes, schedRes] = await Promise.all([
       sb.from('users')
-        .select('user_id, first_name, last_name, status, permissions, role')
+        .select('user_id, first_name, last_name, status, permissions, role, holiday_hours')
         .eq('status', 'Active')
         .contains('permissions', ['rota']),
       sb.from('rota_tasks').select('*').order('id'),
@@ -1047,7 +1085,7 @@ async function init() {
     if (taskRes.error) throw taskRes.error;
     if (schedRes.error) throw schedRes.error;
 
-    S.employees = (empRes.data || []).map((u, i) => {
+S.employees = (empRes.data || []).map((u, i) => {
       const first = (u.first_name || '').trim();
       const last  = (u.last_name  || '').trim();
       return {
@@ -1055,7 +1093,8 @@ async function init() {
         name:       (first + ' ' + last).trim(),
         initials:   ((first[0] || '') + (last[0] || '')).toUpperCase(),
         department: u.role || '',
-        avatar:     ['#6366f1','#ef4444','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6'][i % 8]
+        avatar:     ['#6366f1','#ef4444','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6'][i % 8],
+        holidayHours: (u.holiday_hours && typeof u.holiday_hours === 'object') ? u.holiday_hours : {}
       };
     });
 
@@ -1077,8 +1116,21 @@ async function init() {
       type:       r.type || 'task'
     }));
 
-    S.workingDays     = [1,2,3,4,5];
-    S.closedDays      = JSON.parse(localStorage.getItem('rota_closedDays') || '[]');
+S.workingDays     = [1,2,3,4,5];
+    try {
+      const { data: closureRows, error: closureErr } = await sb.from('rota_closures').select('*').order('date', { ascending: true });
+      if (closureErr) throw closureErr;
+      S.closedDays = (closureRows || []).map(c => ({
+        date: String(c.date),
+        label: c.label || 'Closed',
+        hours: parseFloat(c.hours) || ROTA_DEFAULT_CLOSURE_HOURS,
+        scope: c.scope || 'all',
+        employeeIds: Array.isArray(c.employee_ids) ? c.employee_ids.map(String) : []
+      }));
+    } catch(e) {
+      console.error('Rota closures load error:', e);
+      S.closedDays = [];
+    }
     try {
       const { data: hidSetting } = await sb.from('app_settings').select('value').eq('key','rota_hidden_employees').single();
       S.hiddenEmployees = JSON.parse(hidSetting?.value || '[]');
@@ -1603,19 +1655,26 @@ document.getElementById('confirmOverlay').addEventListener('click',function(e){i
 function openDrawer(empId){
   const emp=S.employees.find(e=>String(e.id)===String(empId));
   if(!emp) return;
-  S.drawerEmpId=String(empId); S.expandedDays={};
+  S.drawerEmpId=String(empId); S.expandedDays={}; S.drawerTab='hours';
   const dk=getDeptKey(emp.department);
   document.getElementById('drawerEmpInfo').innerHTML=
     `<div class="drawer-emp-row">
       <div class="drawer-avatar drawer-av-${dk}">${esc(emp.initials)}</div>
       <div><div class="drawer-emp-name">${esc(emp.name)}</div><div class="drawer-emp-dept">${esc(emp.department)}</div></div>
     </div>`;
+  renderDrawerTabs();
   renderDrawerBody();
   document.getElementById('empDrawer').classList.add('open');
   document.getElementById('drawerOverlay').classList.add('visible');
 }
 
+
 function renderDrawerBody(){
+  if (S.drawerTab === 'holidays') { renderHolidaysTabBody(); return; }
+  renderHoursTabBody();
+}
+
+function renderHoursTabBody(){
   const empId=S.drawerEmpId; if(!empId) return;
   const tm=buildTaskMap(),dates=getDates();
   const empShifts=S.schedule.filter(s=>String(s.employeeId)===String(empId));
@@ -1642,6 +1701,85 @@ function renderDrawerBody(){
   }
   document.getElementById('drawerBody').innerHTML=f.join('');
 }
+
+/* ══ HOLIDAYS TAB ═══════════════════════════════════════════════════════════ */
+function canViewHolidaysTab(empId){
+  if (CAN_WRITE) return true;
+  const myId = String(CURRENT_USER.user_id || CURRENT_USER.id || '');
+  return !!myId && myId === String(empId);
+}
+
+function closureAppliesTo(closure, empId){
+  return closure.scope !== 'specific' || (closure.employeeIds||[]).includes(String(empId));
+}
+
+function getEmployeeHolidaySummary(empId){
+  const emp = S.employees.find(e=>String(e.id)===String(empId));
+  const year = new Date().getFullYear();
+  const totalAllowance = parseFloat((emp?.holidayHours||{})[year]) || 0;
+  const yearClosures = S.closedDays
+    .filter(c => c.date.slice(0,4) === String(year) && closureAppliesTo(c, empId))
+    .sort((a,b)=>a.date.localeCompare(b.date));
+  const usedHours = yearClosures.reduce((s,c)=>s+(parseFloat(c.hours)||ROTA_DEFAULT_CLOSURE_HOURS), 0);
+  return { year, totalAllowance, usedHours, balance: totalAllowance - usedHours, closures: yearClosures };
+}
+
+function renderDrawerTabs(){
+  const empId = S.drawerEmpId;
+  const showHolidays = canViewHolidaysTab(empId);
+  document.getElementById('drawerTabs').innerHTML = `
+    <button class="drawer-tab-btn ${S.drawerTab==='hours'?'active':''}" onclick="switchDrawerTab('hours')">Hours</button>
+    ${showHolidays ? `<button class="drawer-tab-btn ${S.drawerTab==='holidays'?'active':''}" onclick="switchDrawerTab('holidays')">Holidays</button>` : ''}
+  `;
+}
+
+function switchDrawerTab(tab){
+  S.drawerTab = tab;
+  renderDrawerTabs();
+  renderDrawerBody();
+}
+
+function renderHolidaysTabBody(){
+  const empId=S.drawerEmpId; if(!empId) return;
+  const summary = getEmployeeHolidaySummary(empId);
+  const pct = summary.totalAllowance>0 ? Math.min(100, Math.round((summary.usedHours/summary.totalAllowance)*100)) : 0;
+  const over = summary.balance < 0;
+  const closureRows = summary.closures.length
+    ? summary.closures.map(c=>`
+        <div class="holiday-closure-row">
+          <div>
+            <div class="holiday-closure-date">${fmtDate(c.date,{weekday:'short',month:'short',day:'numeric'})}</div>
+            <div class="holiday-closure-label">${esc(c.label||'Closed')}</div>
+          </div>
+          <div class="holiday-closure-hours">-${(parseFloat(c.hours)||ROTA_DEFAULT_CLOSURE_HOURS).toFixed(1)}h</div>
+        </div>`).join('')
+    : `<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No closures recorded for ${summary.year} yet</p>`;
+
+  document.getElementById('drawerBody').innerHTML = `
+    <div class="holiday-summary-card">
+      <div class="holiday-summary-row">
+        <div class="holiday-summary-item">
+          <div class="holiday-summary-label">Total ${summary.year}</div>
+          <div class="holiday-summary-value">${summary.totalAllowance.toFixed(1)}h</div>
+        </div>
+        <div class="holiday-summary-item">
+          <div class="holiday-summary-label">Used</div>
+          <div class="holiday-summary-value" style="color:#fbbf24;">${summary.usedHours.toFixed(1)}h</div>
+        </div>
+        <div class="holiday-summary-item">
+          <div class="holiday-summary-label">Balance</div>
+          <div class="holiday-summary-value" style="color:${over?'#f87171':'#4ade80'};">${summary.balance.toFixed(1)}h</div>
+        </div>
+      </div>
+      <div class="holiday-progress-track"><div class="holiday-progress-fill" style="width:${pct}%;background:${over?'#dc2626':'#f59e0b'};"></div></div>
+      ${summary.totalAllowance<=0 ? '<div class="holiday-empty-note">No holiday hours set for this year yet — add them in Team Management.</div>' : ''}
+    </div>
+    <div class="holiday-closures-label">Closures in ${summary.year}</div>
+    ${closureRows}
+    <div class="holiday-disclaimer">These hours are informational only and are never included in pay calculations.</div>
+  `;
+}
+      
 
 function shiftItemHTML(s,tm){
   const task=tm[String(s.taskId)],isBreak=s.type==='break',d=dur(s.start,s.end);
@@ -1698,9 +1836,30 @@ document.getElementById('teamModal').addEventListener('click',function(e){if(e.t
 /* ══ CLOSED DAYS MODAL ══════════════════════════════════════════════════════ */
 function openClosedModal(){if(!requireWrite()) return;renderClosedModal();document.getElementById('closedModal').classList.add('visible');}
 function closeClosedModal(){document.getElementById('closedModal').classList.remove('visible');}
+
+function closedSetScope(scope){
+  CLOSURE_SCOPE = scope;
+  document.getElementById('closedScopeAll').classList.toggle('active', scope==='all');
+  document.getElementById('closedScopeSpecific').classList.toggle('active', scope==='specific');
+  const picker = document.getElementById('closedEmpPicker');
+  if (picker) picker.style.display = scope==='specific' ? 'block' : 'none';
+}
+function closedToggleEmp(id, checked){
+  const idx=CLOSURE_SELECTED_EMPS.indexOf(id);
+  if (checked && idx===-1) CLOSURE_SELECTED_EMPS.push(id);
+  if (!checked && idx>-1) CLOSURE_SELECTED_EMPS.splice(idx,1);
+}
+
 function renderClosedModal(){
+  CLOSURE_SCOPE='all'; CLOSURE_SELECTED_EMPS=[];
+  const emps = visibleEmployees();
   const list=S.closedDays.length
-    ?S.closedDays.map(c=>`<div class="closed-day-row"><div><div class="closed-day-info">${fmtDate(c.date,{weekday:'short',month:'long',day:'numeric',year:'numeric'})}</div><div class="closed-day-label">${esc(c.label||'Closed')}</div></div><button class="remove-closed-btn" onclick="removeClosed('${c.date}')">Remove</button></div>`).join('')
+    ?S.closedDays.map(c=>{
+        const scopeLabel = c.scope==='specific'
+          ? `${(c.employeeIds||[]).length} employee${(c.employeeIds||[]).length!==1?'s':''}`
+          : 'All Employees';
+        return `<div class="closed-day-row"><div><div class="closed-day-info">${fmtDate(c.date,{weekday:'short',month:'long',day:'numeric',year:'numeric'})}</div><div class="closed-day-label">${esc(c.label||'Closed')} · ${(parseFloat(c.hours)||ROTA_DEFAULT_CLOSURE_HOURS)}h · ${scopeLabel}</div></div><button class="remove-closed-btn" onclick="removeClosed('${c.date}')">Remove</button></div>`;
+      }).join('')
     :'<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No closures set yet</p>';
   document.getElementById('closedModalBody').innerHTML=`
     ${list}
@@ -1710,24 +1869,62 @@ function renderClosedModal(){
         <input type="date" id="closedDateInput" value="${S.currentDate}">
         <input type="text" id="closedLabelInput" placeholder="Reason (e.g. Bank Holiday)">
       </div>
+      <div class="closed-form-row">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:5px;">Holiday Hours (per employee)</label>
+          <input type="number" id="closedHoursInput" min="0" step="0.5" value="${ROTA_DEFAULT_CLOSURE_HOURS}">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:5px;">Applies To</label>
+          <div class="closed-scope-toggle">
+            <button type="button" class="closed-scope-btn active" id="closedScopeAll" onclick="closedSetScope('all')">All Employees</button>
+            <button type="button" class="closed-scope-btn" id="closedScopeSpecific" onclick="closedSetScope('specific')">Specific</button>
+          </div>
+        </div>
+      </div>
+      <div id="closedEmpPicker" style="display:none;margin-bottom:12px;">
+        <div class="closed-emp-picker">
+          ${emps.map(e=>`<label class="closed-emp-opt"><input type="checkbox" onchange="closedToggleEmp('${esc(e.id)}', this.checked)"> ${esc(e.name)}</label>`).join('')}
+        </div>
+      </div>
       <button class="btn-add-closed" onclick="addClosed()">🔒 Mark as Closed</button>
     </div>`;
 }
-function addClosed(){
+
+async function addClosed(){
   const date=document.getElementById('closedDateInput').value;
   const label=(document.getElementById('closedLabelInput').value||'').trim()||'Closed';
+  const hoursVal=parseFloat(document.getElementById('closedHoursInput').value);
+  const hours=(!isNaN(hoursVal) && hoursVal>=0) ? hoursVal : ROTA_DEFAULT_CLOSURE_HOURS;
+  const scope=CLOSURE_SCOPE;
+  const employeeIds=scope==='specific' ? [...CLOSURE_SELECTED_EMPS] : [];
   if(!date){showToast('Please select a date','error');return;}
   if(S.closedDays.some(c=>c.date===date)){showToast('Already marked as closed','warn');return;}
-  S.closedDays.push({date,label}); S.closedDays.sort((a,b)=>a.date.localeCompare(b.date));
-  localStorage.setItem('rota_closedDays',JSON.stringify(S.closedDays));
-  renderGrid(); renderClosedModal(); showToast(`${fmtDate(date,{month:'short',day:'numeric'})} marked as closed`,'success');
+  if(scope==='specific' && !employeeIds.length){showToast('Select at least one employee','error');return;}
+  try{
+    const { error } = await sb.from('rota_closures').insert({ date, label, hours, scope, employee_ids: employeeIds });
+    if (error) throw error;
+    S.closedDays.push({date,label,hours,scope,employeeIds}); S.closedDays.sort((a,b)=>a.date.localeCompare(b.date));
+    renderGrid(); renderClosedModal(); if(S.drawerEmpId)renderDrawerBody();
+    showToast(`${fmtDate(date,{month:'short',day:'numeric'})} marked as closed`,'success');
+  }catch(e){
+    console.error('addClosed error:', e);
+    showToast('Failed to save closure','error');
+  }
 }
-function removeClosed(date){
-  S.closedDays=S.closedDays.filter(c=>c.date!==date);
-  localStorage.setItem('rota_closedDays',JSON.stringify(S.closedDays));
-  renderGrid(); renderClosedModal(); showToast('Closure removed','success');
+async function removeClosed(date){
+  try{
+    const { error } = await sb.from('rota_closures').delete().eq('date', date);
+    if (error) throw error;
+    S.closedDays=S.closedDays.filter(c=>c.date!==date);
+    renderGrid(); renderClosedModal(); if(S.drawerEmpId)renderDrawerBody();
+    showToast('Closure removed','success');
+  }catch(e){
+    console.error('removeClosed error:', e);
+    showToast('Failed to remove closure','error');
+  }
 }
-document.getElementById('closedModal').addEventListener('click',function(e){if(e.target===this)closeClosedModal();});
+  document.getElementById('closedModal').addEventListener('click',function(e){if(e.target===this)closeClosedModal();});
 
 /* ══ COPY / DUPLICATE MODAL ═════════════════════════════════════════════════ */
 const COPY = { step:1, srcRange:'week', srcDate:null, destDate:null, preview:[] };
@@ -2113,6 +2310,8 @@ window.openTeamModal=openTeamModal; window.closeTeamModal=closeTeamModal;
 window.toggleEmployeeVisibility=toggleEmployeeVisibility;
 window.openClosedModal=openClosedModal; window.closeClosedModal=closeClosedModal;
 window.addClosed=addClosed; window.removeClosed=removeClosed; window.closeConfirm=closeConfirm;
+window.closedSetScope=closedSetScope; window.closedToggleEmp=closedToggleEmp;
+window.switchDrawerTab=switchDrawerTab;
 window.toggleNavDrop=toggleNavDrop;
 window.openCopyModal=openCopyModal; window.closeCopyModal=closeCopyModal;
 window.buildCopyPreview=buildCopyPreview; window.toggleCopyRemove=toggleCopyRemove;
