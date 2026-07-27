@@ -1067,6 +1067,14 @@ for (let h = H_START; h <= H_END; h++) {
 function pad(n) { return String(n).padStart(2,'0'); }
 function pct(t) { const [h,m]=t.split(':').map(Number); return Math.max(0,Math.min(100,((h-H_START)*60+m)/TOTAL_MINS*100)); }
 function dur(s,e) { const [sh,sm]=s.split(':').map(Number),[eh,em]=e.split(':').map(Number); return ((eh*60+em)-(sh*60+sm))/60; }
+function fmtHM(hours) {
+  const neg = hours < 0;
+  const abs = Math.abs(hours);
+  let h = Math.floor(abs + 1e-6);
+  let m = Math.round((abs - h) * 60);
+  if (m === 60) { h += 1; m = 0; }
+  return (neg ? '-' : '') + h + 'h' + (m > 0 ? ' ' + m + 'm' : '');
+}
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtDate(d,opts) { return new Date(d+'T00:00').toLocaleDateString('en-GB',opts); }
 function isoDate(d) {
@@ -1724,7 +1732,7 @@ function renderHoursTabBody(){
       grandTotal+=total;
       f.push(`<div class="day-section">
         <div class="day-section-hdr" onclick="toggleDay('${date}')">
-          <div><span class="day-section-title">${fmtDate(date,{weekday:'short',month:'short',day:'numeric'})}</span><span class="day-hours-badge">${total.toFixed(1)}h</span></div>
+          <div><span class="day-section-title">${fmtDate(date,{weekday:'short',month:'short',day:'numeric'})}</span><span class="day-hours-badge">${fmtHM(total)}</span></div>
           <svg class="day-toggle-icon${exp?' open':''}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
         <div class="day-shifts${exp?' open':''}">${ds.map(s=>shiftItemHTML(s,tm)).join('')}</div>
@@ -1733,7 +1741,7 @@ function renderHoursTabBody(){
     if(!any) f.push('<p style="color:#94a3b8;font-size:13px;text-align:center;padding:20px 0">No shifts this period</p>');
   }
   if(grandTotal>0){
-    f.push(`<div class="hours-total-footer"><span>Total Hours</span><span class="hours-total-value">${grandTotal.toFixed(1)}h</span></div>`);
+    f.push(`<div class="hours-total-footer"><span>Total Hours</span><span class="hours-total-value">${fmtHM(grandTotal)}</span></div>`);
   }
   document.getElementById('drawerBody').innerHTML=f.join('');
 }
@@ -1799,7 +1807,7 @@ function renderHolidaysTabBody(){
             <div class="holiday-closure-date">${fmtDate(c.date,{weekday:'short',month:'short',day:'numeric'})}</div>
             <div class="holiday-closure-label">${esc(c.label||'Closed')}</div>
           </div>
-          <div class="holiday-closure-hours">-${(parseFloat(c.hours)||ROTA_DEFAULT_CLOSURE_HOURS).toFixed(1)}h</div>
+          <div class="holiday-closure-hours">-${fmtHM(parseFloat(c.hours)||ROTA_DEFAULT_CLOSURE_HOURS)}</div>
         </div>`).join('')
     : `<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No closures recorded for ${summary.year} yet</p>`;
 
@@ -1808,15 +1816,15 @@ function renderHolidaysTabBody(){
       <div class="holiday-summary-row">
         <div class="holiday-summary-item">
           <div class="holiday-summary-label">Total ${summary.year}</div>
-          <div class="holiday-summary-value">${summary.totalAllowance.toFixed(1)}h</div>
+          <div class="holiday-summary-value">${fmtHM(summary.totalAllowance)}</div>
         </div>
         <div class="holiday-summary-item">
           <div class="holiday-summary-label">Used</div>
-          <div class="holiday-summary-value" style="color:#fbbf24;">${summary.usedHours.toFixed(1)}h</div>
+          <div class="holiday-summary-value" style="color:#fbbf24;">${fmtHM(summary.usedHours)}</div>
         </div>
         <div class="holiday-summary-item">
           <div class="holiday-summary-label">Balance</div>
-          <div class="holiday-summary-value" style="color:${over?'#f87171':'#4ade80'};">${summary.balance.toFixed(1)}h</div>
+          <div class="holiday-summary-value" style="color:${over?'#f87171':'#4ade80'};">${fmtHM(summary.balance)}</div>
         </div>
       </div>
       <div class="holiday-progress-track"><div class="holiday-progress-fill" style="width:${pct}%;background:${over?'#dc2626':'#f59e0b'};"></div></div>
@@ -1839,7 +1847,7 @@ function shiftItemHTML(s,tm){
   return `<div class="shift-item" style="background:${bg};border-color:${border}">
     <div class="shift-bar" style="background:${color}"></div>
     <div style="flex:1;min-width:0"><div class="shift-item-name" style="color:${color}">${icon} ${esc(taskName)}</div><div class="shift-item-meta">${s.start} – ${s.end}</div></div>
-    <div class="shift-item-dur">${d.toFixed(1)}h</div>
+    <div class="shift-item-dur">${fmtHM(d)}</div>
   </div>`;
 }
 
