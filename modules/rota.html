@@ -310,6 +310,16 @@ body { overflow: hidden; }
 .closed-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
 .closed-form-row input { padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; width: 100%; }
 .closed-form-row input:focus { border-color: #f59e0b; }
+.closed-modal-tabs { display: flex; gap: 6px; padding: 12px 24px 0; flex-shrink: 0; }
+.closed-modal-tab-btn { padding: 7px 14px; border-radius: 100px; border: 1.5px solid #e2e8f0; background: #fff; color: #64748b; font-size: 12.5px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all .15s; }
+.closed-modal-tab-btn:hover { border-color: #94a3b8; color: #334155; }
+.closed-modal-tab-btn.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+.closed-holiday-filter { margin-bottom: 14px; }
+.closed-holiday-filter select { width: 100%; padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; }
+.closed-holiday-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border: 1px solid #ddd6fe; border-radius: 12px; margin-bottom: 10px; background: #f5f3ff; }
+.closed-holiday-emp { font-size: 13px; font-weight: 800; color: #5b21b6; }
+.hours-total-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; margin-top: 6px; border-top: 2px solid #f1f5f9; font-size: 12.5px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .5px; }
+.hours-total-value { font-size: 16px; font-weight: 800; color: #0f172a; text-transform: none; letter-spacing: normal; }
 .btn-add-closed { width: 100%; padding: 10px; background: #f59e0b; color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; }
 .btn-add-closed:hover { background: #d97706; }
 
@@ -932,6 +942,11 @@ body { overflow: hidden; }
       <div class="closed-modal-title">📅 Manage Closures</div>
       <button class="btn-cancel" onclick="closeClosedModal()">Close</button>
     </div>
+    <div class="closed-modal-tabs">
+      <button class="closed-modal-tab-btn active" id="closedTabAdd" onclick="setClosedModalTab('add')">Add</button>
+      <button class="closed-modal-tab-btn" id="closedTabHoliday" onclick="setClosedModalTab('holiday')">Holiday</button>
+      <button class="closed-modal-tab-btn" id="closedTabClosures" onclick="setClosedModalTab('closures')">Closures</button>
+    </div>
     <div class="closed-modal-body" id="closedModalBody"></div>
   </div>
 </div>
@@ -984,6 +999,8 @@ const CAN_WRITE = IS_ADMIN || (CURRENT_USER.permissions || []).includes('rota_wr
 let ROTA_DEFAULT_CLOSURE_HOURS = 8;
 let CLOSURE_SCOPE = 'all';
 let CLOSURE_SELECTED_EMPS = [];
+let CLOSED_MODAL_TAB = 'add';
+let CLOSED_HOLIDAY_FILTER_EMP = '';
 
   
 /* ══ DEPARTMENT CONFIG ══════════════════════════════════════════════════════ */
@@ -1691,16 +1708,18 @@ function renderHoursTabBody(){
   const tm=buildTaskMap(),dates=getDates();
   const empShifts=S.schedule.filter(s=>String(s.employeeId)===String(empId));
   const f=[];
+  let grandTotal=0;
   if(S.view==='day'){
     const dayShifts=empShifts.filter(s=>s.date===S.currentDate).sort((a,b)=>a.start.localeCompare(b.start));
     if(!dayShifts.length) f.push('<p style="color:#94a3b8;font-size:13px;text-align:center;padding:20px 0">No shifts scheduled today</p>');
-    else dayShifts.forEach(s=>f.push(shiftItemHTML(s,tm)));
+    else dayShifts.forEach(s=>{ f.push(shiftItemHTML(s,tm)); grandTotal+=dur(s.start,s.end); });
   }else{
     let any=false;
     dates.forEach(date=>{
       const ds=empShifts.filter(s=>s.date===date).sort((a,b)=>a.start.localeCompare(b.start));
       if(!ds.length) return; any=true;
       const total=ds.reduce((acc,s)=>acc+dur(s.start,s.end),0),exp=S.expandedDays[date];
+      grandTotal+=total;
       f.push(`<div class="day-section">
         <div class="day-section-hdr" onclick="toggleDay('${date}')">
           <div><span class="day-section-title">${fmtDate(date,{weekday:'short',month:'short',day:'numeric'})}</span><span class="day-hours-badge">${total.toFixed(1)}h</span></div>
@@ -1710,6 +1729,9 @@ function renderHoursTabBody(){
       </div>`);
     });
     if(!any) f.push('<p style="color:#94a3b8;font-size:13px;text-align:center;padding:20px 0">No shifts this period</p>');
+  }
+  if(grandTotal>0){
+    f.push(`<div class="hours-total-footer"><span>Total Hours</span><span class="hours-total-value">${grandTotal.toFixed(1)}h</span></div>`);
   }
   document.getElementById('drawerBody').innerHTML=f.join('');
 }
@@ -1855,8 +1877,27 @@ async function toggleEmployeeVisibility(id){
 document.getElementById('teamModal').addEventListener('click',function(e){if(e.target===this)closeTeamModal();});
 
 /* ══ CLOSED DAYS MODAL ══════════════════════════════════════════════════════ */
-function openClosedModal(){if(!requireWrite()) return;renderClosedModal();document.getElementById('closedModal').classList.add('visible');}
+function openClosedModal(){
+  if(!requireWrite()) return;
+  CLOSED_MODAL_TAB='add'; CLOSED_HOLIDAY_FILTER_EMP='';
+  document.querySelectorAll('.closed-modal-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('closedTabAdd').classList.add('active');
+  renderClosedModalBody();
+  document.getElementById('closedModal').classList.add('visible');
+}
 function closeClosedModal(){document.getElementById('closedModal').classList.remove('visible');}
+
+function setClosedModalTab(tab){
+  CLOSED_MODAL_TAB = tab;
+  document.getElementById('closedTabAdd').classList.toggle('active', tab==='add');
+  document.getElementById('closedTabHoliday').classList.toggle('active', tab==='holiday');
+  document.getElementById('closedTabClosures').classList.toggle('active', tab==='closures');
+  renderClosedModalBody();
+}
+function setClosedHolidayFilter(empId){
+  CLOSED_HOLIDAY_FILTER_EMP = empId;
+  renderClosedHolidayTab();
+}
 
 function closedSetScope(scope){
   CLOSURE_SCOPE = scope;
@@ -1871,20 +1912,17 @@ function closedToggleEmp(id, checked){
   if (!checked && idx>-1) CLOSURE_SELECTED_EMPS.splice(idx,1);
 }
 
-function renderClosedModal(){
+function renderClosedModalBody(){
+  if (CLOSED_MODAL_TAB==='holiday') { renderClosedHolidayTab(); return; }
+  if (CLOSED_MODAL_TAB==='closures') { renderClosedClosuresTab(); return; }
+  renderClosedAddTab();
+}
+
+function renderClosedAddTab(){
   CLOSURE_SCOPE='all'; CLOSURE_SELECTED_EMPS=[];
   const emps = visibleEmployees();
-  const list=S.closedDays.length
-    ?S.closedDays.map(c=>{
-        const scopeLabel = c.scope==='specific'
-          ? `${(c.employeeIds||[]).length} employee${(c.employeeIds||[]).length!==1?'s':''}`
-          : 'All Employees';
-        return `<div class="closed-day-row"><div><div class="closed-day-info">${fmtDate(c.date,{weekday:'short',month:'long',day:'numeric',year:'numeric'})}</div><div class="closed-day-label">${esc(c.label||'Closed')} · ${(parseFloat(c.hours)||ROTA_DEFAULT_CLOSURE_HOURS)}h · ${scopeLabel}</div></div><button class="remove-closed-btn" onclick="removeClosed('${c.date}')">Remove</button></div>`;
-      }).join('')
-    :'<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No closures set yet</p>';
   document.getElementById('closedModalBody').innerHTML=`
-    ${list}
-    <div class="add-closed-form">
+    <div class="add-closed-form" style="margin-top:0;border-top:none;padding-top:0;">
       <h4>Mark a Day as Closed</h4>
       <div class="closed-form-row">
         <input type="date" id="closedDateInput" value="${S.currentDate}">
@@ -1912,6 +1950,43 @@ function renderClosedModal(){
     </div>`;
 }
 
+function renderClosedHolidayTab(){
+  const holidayClosures = S.closedDays.filter(c=>c.scope==='specific');
+  const emps = visibleEmployees();
+  const filtered = CLOSED_HOLIDAY_FILTER_EMP
+    ? holidayClosures.filter(c=>(c.employeeIds||[]).includes(CLOSED_HOLIDAY_FILTER_EMP))
+    : holidayClosures;
+  const list = filtered.length
+    ? filtered.map(c=>{
+        const names = (c.employeeIds||[]).map(id=>S.employees.find(e=>String(e.id)===id)?.name || 'Unknown').join(', ');
+        return `<div class="closed-holiday-row">
+          <div>
+            <div class="closed-holiday-emp">${esc(names)}</div>
+            <div class="closed-day-info" style="margin-top:2px;">${fmtDate(c.date,{weekday:'short',month:'long',day:'numeric',year:'numeric'})}</div>
+            <div class="closed-day-label">${esc(c.label||'Closed')} · ${(parseFloat(c.hours)||ROTA_DEFAULT_CLOSURE_HOURS)}h</div>
+          </div>
+          <button class="remove-closed-btn" onclick="removeClosed('${c.date}')">Remove</button>
+        </div>`;
+      }).join('')
+    : `<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No holiday entries${CLOSED_HOLIDAY_FILTER_EMP?' for this employee':''} yet</p>`;
+  document.getElementById('closedModalBody').innerHTML = `
+    <div class="closed-holiday-filter">
+      <select onchange="setClosedHolidayFilter(this.value)">
+        <option value="">All Employees</option>
+        ${emps.map(e=>`<option value="${esc(e.id)}" ${CLOSED_HOLIDAY_FILTER_EMP===e.id?'selected':''}>${esc(e.name)}</option>`).join('')}
+      </select>
+    </div>
+    ${list}
+  `;
+}
+
+function renderClosedClosuresTab(){
+  const allClosures = S.closedDays.filter(c=>c.scope!=='specific');
+  const list = allClosures.length
+    ? allClosures.map(c=>`<div class="closed-day-row"><div><div class="closed-day-info">${fmtDate(c.date,{weekday:'short',month:'long',day:'numeric',year:'numeric'})}</div><div class="closed-day-label">${esc(c.label||'Closed')} · ${(parseFloat(c.hours)||ROTA_DEFAULT_CLOSURE_HOURS)}h · All Employees</div></div><button class="remove-closed-btn" onclick="removeClosed('${c.date}')">Remove</button></div>`).join('')
+    : '<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No closures set yet</p>';
+  document.getElementById('closedModalBody').innerHTML = list;
+}
 async function deleteShiftsForEmployeesOnDate(empIds, date){
   const toDelete = S.schedule.filter(s => s.date===date && empIds.includes(String(s.employeeId)));
   if (!toDelete.length) return;
@@ -1955,8 +2030,9 @@ async function addClosed(){
   try{
     const { error } = await sb.from('rota_closures').insert({ date, label, hours, scope, employee_ids: employeeIds });
     if (error) throw error;
-    S.closedDays.push({date,label,hours,scope,employeeIds}); S.closedDays.sort((a,b)=>a.date.localeCompare(b.date));
-    renderGrid(); renderClosedModal(); if(S.drawerEmpId)renderDrawerBody();
+S.closedDays.push({date,label,hours,scope,employeeIds}); S.closedDays.sort((a,b)=>a.date.localeCompare(b.date));
+    renderGrid(); if(S.drawerEmpId)renderDrawerBody();
+    setClosedModalTab(scope==='specific' ? 'holiday' : 'closures');
     showToast(`${fmtDate(date,{month:'short',day:'numeric'})} marked as closed`,'success');
   }catch(e){
     console.error('addClosed error:', e);
@@ -1969,7 +2045,7 @@ async function removeClosed(date){
     const { error } = await sb.from('rota_closures').delete().eq('date', date);
     if (error) throw error;
     S.closedDays=S.closedDays.filter(c=>c.date!==date);
-    renderGrid(); renderClosedModal(); if(S.drawerEmpId)renderDrawerBody();
+    renderGrid(); renderClosedModalBody(); if(S.drawerEmpId)renderDrawerBody();
     showToast('Closure removed','success');
   }catch(e){
     console.error('removeClosed error:', e);
@@ -2351,6 +2427,8 @@ function requireWrite() {
 }
   
 /* ══ GLOBALS ════════════════════════════════════════════════════════════════ */
+window.setClosedModalTab=setClosedModalTab;
+window.setClosedHolidayFilter=setClosedHolidayFilter;
 window.navigate=navigate; window.changeView=changeView; window.toggleCalendar=toggleCalendar;
 window.calNav=calNav; window.calSelectDate=calSelectDate;
 window.openShiftModal=openShiftModal; window.closeShiftModal=closeShiftModal;
