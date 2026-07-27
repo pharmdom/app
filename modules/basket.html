@@ -929,12 +929,24 @@ async function _cbFetchTabCounts(){
   }
 
 /* ── PRICE HISTORY ── */
-async function _cbLogPriceChange(itemType, itemId, price) {
+async function _cbLogPriceChange(itemType, itemId, oldPrice, newPrice) {
     try {
+      const { count } = await sb.from('cb_price_history')
+        .select('id', { count:'exact', head:true })
+        .eq('item_type', itemType).eq('item_id', String(itemId));
+
+      if ((!count || count===0) && oldPrice!=null && !isNaN(oldPrice)) {
+        const seedDate = _ymdLocal(new Date(Date.now()-86400000));
+        await sb.from('cb_price_history').upsert(
+          { item_type: itemType, item_id: String(itemId), price: oldPrice, price_date: seedDate, changed_at: new Date(Date.now()-86400000).toISOString() },
+          { onConflict: 'item_type,item_id,price_date' }
+        );
+      }
+
       const priceDate = _ymdLocal(new Date());
       await sb.from('cb_price_history')
         .upsert(
-          { item_type: itemType, item_id: String(itemId), price, price_date: priceDate, changed_at: new Date().toISOString() },
+          { item_type: itemType, item_id: String(itemId), price: newPrice, price_date: priceDate, changed_at: new Date().toISOString() },
           { onConflict: 'item_type,item_id,price_date' }
         );
     } catch(e) { console.warn('CB price history log:', e); }
@@ -1800,7 +1812,7 @@ window.cbUpdateNLCost = async function(id, val) {
     try {
       await sb.from('sourcing').update({ cost_of_unit:cost, last_updated:new Date().toISOString() }).eq('opportunity_id',id);
       const changed = cost!==null && !isNaN(cost) && (oldCost==null || oldCost!==cost);
-      if (changed) { await _cbLogPriceChange('nl', id, cost); _cbCostBaseline['nl::'+id] = cost; }
+      if (changed) { await _cbLogPriceChange('nl', id, oldCost, cost); _cbCostBaseline['nl::'+id] = cost; }
 if (_drawerItem) { _drawerItem.data.cost_of_unit=cost; _renderCbDrawer(); }
       _cbToast('Cost updated','success');
       window.renderCentralBasket(true);
@@ -1814,7 +1826,7 @@ window.cbUpdateReplCost = async function(sku, val) {
     try {
       await sb.from('replenishment_skus').update({ original_cost_price:cost }).eq('sku',sku);
       const changed = cost!==null && !isNaN(cost) && (oldCost==null || oldCost!==cost);
-      if (changed) { await _cbLogPriceChange('repl', sku, cost); _cbCostBaseline['repl::'+sku] = cost; }
+      if (changed) { await _cbLogPriceChange('repl', sku, oldCost, cost); _cbCostBaseline['repl::'+sku] = cost; }
 if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer(); }
       _cbToast('Cost updated','success');
       window.renderCentralBasket(true);
