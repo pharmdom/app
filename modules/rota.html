@@ -1137,7 +1137,8 @@ S.workingDays     = [1,2,3,4,5];
     try {
       const { data: closureRows, error: closureErr } = await sb.from('rota_closures').select('*').order('date', { ascending: true });
       if (closureErr) throw closureErr;
-      S.closedDays = (closureRows || []).map(c => ({
+S.closedDays = (closureRows || []).map(c => ({
+        id: c.id,
         date: String(c.date),
         label: c.label || 'Closed',
         hours: parseFloat(c.hours) || ROTA_DEFAULT_CLOSURE_HOURS,
@@ -1267,10 +1268,10 @@ dates.forEach(date=>{
   
         if (isDayView) {
           f.push(`<td class="planner-td-day${closed?' is-closed':''}"><div class="day-cell-inner">`);
-          if (closed) {
-            const ci=S.closedDays.find(c=>c.date===date);
+if (closed) {
+            const ci=getClosureForEmployee(date, emp.id);
             f.push(`<div class="closed-cell-overlay"><span class="closed-cell-label">🔒 ${esc(ci?.label||'Closed')}</span></div>`);
-          } else {
+} else {
             f.push('<div class="time-col-grid">');
             SLOTS.forEach((slot,i)=>{const h=i%2===0;f.push(`<div class="time-col${h?' hour':''}" onclick="openShiftModal('${esc(emp.id)}','${date}','${slot}')"></div>`);});
             f.push('</div>');
@@ -1297,7 +1298,7 @@ dates.forEach(date=>{
         } else {
           f.push(`<td class="planner-td-week${closed?' is-closed':''}">`);
           if (closed) {
-            const ci=S.closedDays.find(c=>c.date===date);
+            const ci=getClosureForEmployee(date, emp.id);
             f.push(`<div class="week-closed-pill">🔒 ${esc(ci?.label||'Closed')}</div>`);
           } else if (dayShifts.length>0) {
             f.push(`<div class="week-pills-col" onclick="openShiftModal('${esc(emp.id)}','${date}','07:00')">`);
@@ -1596,7 +1597,7 @@ async function saveShift(replaceConflicts){
   };
   if(!payload.employeeId||!payload.date||!payload.start||!payload.end){showToast('Please fill all required fields','error');return;}
   if(payload.start>=payload.end){showToast('End time must be after start time','error');return;}
-  if(!S.closureOverrideConfirmed && isDateClosedForEmployee(payload.date, payload.employeeId)){
+if(!S.closureOverrideConfirmed && isDateClosedForEmployee(payload.date, payload.employeeId)){
     const ok=await showConfirm(
       'This day is marked as closed',
       'Adding a shift here means this employee will not have holiday hours deducted for this closure. Continue?',
@@ -1604,6 +1605,7 @@ async function saveShift(replaceConflicts){
     );
     if(!ok) return;
     S.closureOverrideConfirmed=true;
+    await deleteSingleEmployeeClosuresFor(payload.employeeId, payload.date);
   }
   const liveConflicts=getConflicts(payload.employeeId,payload.date,payload.start,payload.end,S.editingId);
   if(liveConflicts.length&&!replaceConflicts){checkConflict();return;}
@@ -1752,8 +1754,11 @@ function employeeHasShiftOn(empId, date){
 }
 
 function isDateClosedForEmployee(date, empId){
-  const c = S.closedDays.find(x=>x.date===date);
-  return !!c && closureAppliesTo(c, empId) && !employeeHasShiftOn(empId, date);
+  const applicable = S.closedDays.some(c=>c.date===date && closureAppliesTo(c, empId));
+  return applicable && !employeeHasShiftOn(empId, date);
+}
+function getClosureForEmployee(date, empId){
+  return S.closedDays.find(c=>c.date===date && closureAppliesTo(c, empId));
 }
 
 function getEmployeeHolidaySummary(empId){
@@ -1965,7 +1970,7 @@ function renderClosedHolidayTab(){
             <div class="closed-day-info" style="margin-top:2px;">${fmtDate(c.date,{weekday:'short',month:'long',day:'numeric',year:'numeric'})}</div>
             <div class="closed-day-label">${esc(c.label||'Closed')} · ${(parseFloat(c.hours)||ROTA_DEFAULT_CLOSURE_HOURS)}h</div>
           </div>
-          <button class="remove-closed-btn" onclick="removeClosed('${c.date}')">Remove</button>
+          <button class="remove-closed-btn" onclick="removeClosed('${c.id}')">Remove</button>
         </div>`;
       }).join('')
     : `<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No holiday entries${CLOSED_HOLIDAY_FILTER_EMP?' for this employee':''} yet</p>`;
@@ -1983,10 +1988,46 @@ function renderClosedHolidayTab(){
 function renderClosedClosuresTab(){
   const allClosures = S.closedDays.filter(c=>c.scope!=='specific');
   const list = allClosures.length
-    ? allClosures.map(c=>`<div class="closed-day-row"><div><div class="closed-day-info">${fmtDate(c.date,{weekday:'short',month:'long',day:'numeric',year:'numeric'})}</div><div class="closed-day-label">${esc(c.label||'Closed')} · ${(parseFloat(c.hours)||ROTA_DEFAULT_CLOSURE_HOURS)}h · All Employees</div></div><button class="remove-closed-btn" onclick="removeClosed('${c.date}')">Remove</button></div>`).join('')
+    ? allClosures.map(c=>`<div class="closed-day-row"><div><div class="closed-day-info">${fmtDate(c.date,{weekday:'short',month:'long',day:'numeric',year:'numeric'})}</div><div class="closed-day-label">${esc(c.label||'Closed')} · ${(parseFloat(c.hours)||ROTA_DEFAULT_CLOSURE_HOURS)}h · All Employees</div></div><button class="remove-closed-btn" onclick="removeClosed('${c.id}')">Remove</button></div>`).join('')
     : '<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No closures set yet</p>';
   document.getElementById('closedModalBody').innerHTML = list;
 }
+async function deleteSingleEmployeeClosuresFor(empId, date){
+  const toRemove = S.closedDays.filter(c => c.date===date && c.scope==='specific' && (c.employeeIds||[]).length===1 && String(c.employeeIds[0])===String(empId));
+  if(!toRemove.length) return;
+  const ids = toRemove.map(c=>c.id);
+  S.closedDays = S.closedDays.filter(c=>!ids.includes(c.id));
+  try{
+    const { error } = await sb.from('rota_schedule').delete ? null : null;
+  }catch(e){}
+  try{
+    const { error } = await sb.from('rota_closures').delete().in('id', ids);
+    if(error) throw error;
+    renderGrid();
+  }catch(e){
+    console.error('deleteSingleEmployeeClosuresFor error:', e);
+  }
+}
+
+async function resolveClosureOverrides(date, overriddenIds){
+  const affectedClosures = S.closedDays.filter(c=>c.date===date && overriddenIds.some(id=>closureAppliesTo(c,id)));
+  for (const c of affectedClosures){
+    const stillCovered = c.scope==='all'
+      ? visibleEmployees().map(e=>e.id).filter(id=>!overriddenIds.includes(id))
+      : (c.employeeIds||[]).filter(id=>!overriddenIds.includes(id));
+
+    if (!stillCovered.length){
+      try{ await sb.from('rota_closures').delete().eq('id', c.id); }
+      catch(e){ console.error('resolveClosureOverrides delete error:', e); }
+      S.closedDays = S.closedDays.filter(x=>x.id!==c.id);
+    } else {
+      try{ await sb.from('rota_closures').update({ scope:'specific', employee_ids: stillCovered }).eq('id', c.id); }
+      catch(e){ console.error('resolveClosureOverrides update error:', e); }
+      c.scope='specific'; c.employeeIds=stillCovered;
+    }
+  }
+}
+
 async function deleteShiftsForEmployeesOnDate(empIds, date){
   const toDelete = S.schedule.filter(s => s.date===date && empIds.includes(String(s.employeeId)));
   if (!toDelete.length) return;
@@ -2008,11 +2049,22 @@ async function addClosed(){
   const hours=(!isNaN(hoursVal) && hoursVal>=0) ? hoursVal : ROTA_DEFAULT_CLOSURE_HOURS;
   const scope=CLOSURE_SCOPE;
   const employeeIds=scope==='specific' ? [...CLOSURE_SELECTED_EMPS] : [];
-  if(!date){showToast('Please select a date','error');return;}
-  if(S.closedDays.some(c=>c.date===date)){showToast('Already marked as closed','warn');return;}
+if(!date){showToast('Please select a date','error');return;}
   if(scope==='specific' && !employeeIds.length){showToast('Select at least one employee','error');return;}
 
   const affectedIds = scope==='specific' ? employeeIds : visibleEmployees().map(e=>e.id);
+const existingOnDate = S.closedDays.filter(c=>c.date===date);
+  const alreadyCoveredIds = affectedIds.filter(id => existingOnDate.some(c=>closureAppliesTo(c,id)));
+  if (alreadyCoveredIds.length){
+    const names = alreadyCoveredIds.map(id => S.employees.find(e=>String(e.id)===id)?.name || 'Unknown').join(', ');
+    const okClosure = await showConfirm(
+      'Closure already exists this day',
+      `${names} already ${alreadyCoveredIds.length===1?'has':'have'} a closure/holiday on this day. Creating this one will remove the existing entry for ${alreadyCoveredIds.length===1?'them':'them'}. Continue?`,
+      'Override & Continue','confirm-btn-danger'
+    );
+    if (!okClosure) return;
+    await resolveClosureOverrides(date, alreadyCoveredIds);
+  }
   const conflictShifts = S.schedule.filter(s => s.date===date && s.type!=='break' && affectedIds.includes(String(s.employeeId)));
   const conflictEmpIds = [...new Set(conflictShifts.map(s=>String(s.employeeId)))];
 
@@ -2027,10 +2079,10 @@ async function addClosed(){
     await deleteShiftsForEmployeesOnDate(conflictEmpIds, date);
   }
 
-  try{
-    const { error } = await sb.from('rota_closures').insert({ date, label, hours, scope, employee_ids: employeeIds });
+try{
+    const { data, error } = await sb.from('rota_closures').insert({ date, label, hours, scope, employee_ids: employeeIds }).select().single();
     if (error) throw error;
-S.closedDays.push({date,label,hours,scope,employeeIds}); S.closedDays.sort((a,b)=>a.date.localeCompare(b.date));
+    S.closedDays.push({id:data.id, date,label,hours,scope,employeeIds}); S.closedDays.sort((a,b)=>a.date.localeCompare(b.date));
     renderGrid(); if(S.drawerEmpId)renderDrawerBody();
     setClosedModalTab(scope==='specific' ? 'holiday' : 'closures');
     showToast(`${fmtDate(date,{month:'short',day:'numeric'})} marked as closed`,'success');
@@ -2040,11 +2092,11 @@ S.closedDays.push({date,label,hours,scope,employeeIds}); S.closedDays.sort((a,b)
   }
 }
   
-async function removeClosed(date){
+async function removeClosed(id){
   try{
-    const { error } = await sb.from('rota_closures').delete().eq('date', date);
+    const { error } = await sb.from('rota_closures').delete().eq('id', id);
     if (error) throw error;
-    S.closedDays=S.closedDays.filter(c=>c.date!==date);
+    S.closedDays=S.closedDays.filter(c=>String(c.id)!==String(id));
     renderGrid(); renderClosedModalBody(); if(S.drawerEmpId)renderDrawerBody();
     showToast('Closure removed','success');
   }catch(e){
