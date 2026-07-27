@@ -223,8 +223,24 @@
     }
     .summary-kpi-value { font-size: 20px; font-weight: 700; color: #fff; }
     .summary-kpi-value.green  { color: #4ade80; }
-    .summary-kpi-value.yellow { color: #fbbf24; }
-
+.summary-kpi-value.yellow { color: #fbbf24; }
+    .myhol-summary-card { background: linear-gradient(135deg,#1e293b 0%,#0f172a 100%); border-radius: 14px; padding: 16px; margin-bottom: 18px; }
+    .myhol-summary-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .myhol-summary-item { text-align: center; }
+    .myhol-summary-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: rgba(255,255,255,.4); margin-bottom: 4px; }
+    .myhol-summary-value { font-size: 19px; font-weight: 800; color: #fff; }
+    .myhol-progress-track { height: 6px; background: rgba(255,255,255,.12); border-radius: 100px; overflow: hidden; }
+    .myhol-progress-fill { height: 100%; border-radius: 100px; transition: width .3s; }
+    .myhol-empty-note { font-size: 11.5px; color: rgba(255,255,255,.5); margin-top: 10px; text-align: center; }
+    .myhol-closures-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; margin-bottom: 10px; }
+    .myhol-closure-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid #f1f5f9; border-radius: 10px; margin-bottom: 6px; background: #fafafa; }
+    .myhol-closure-date { font-size: 12.5px; font-weight: 700; color: #0f172a; }
+    .myhol-closure-label { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+    .myhol-closure-hours { font-size: 13px; font-weight: 800; color: #dc2626; flex-shrink: 0; }
+    .myhol-badge { font-size: 9.5px; font-weight: 700; padding: 2px 7px; border-radius: 100px; white-space: nowrap; flex-shrink: 0; }
+    .myhol-badge.personal { background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+    .myhol-badge.company { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .myhol-disclaimer { font-size: 10.5px; color: #cbd5e1; text-align: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
     /* ── EMPLOYEE LIST ── */
     .emp-list {
       display: flex; flex-direction: column; gap: 1px;
@@ -961,6 +977,8 @@
 
   let myRecords    = [];
   let myViewFilter = 'all';
+  let myClosures   = [];
+  let myHolidayHours = {};
 
   async function init() {
     await loadData();
@@ -1000,16 +1018,27 @@
     showPageLoading();
     try {
       // Two separate queries — no FK so no join
-const [shiftsRes, usersRes] = await Promise.all([
+const [shiftsRes, usersRes, closuresRes] = await Promise.all([
         sb.from('rota_schedule')
           .select('id, employee_id, date, start_time, end_time, type, paid, hourly_rate, bonus, bonus_note')
           .order('date', { ascending: true }),
         sb.from('users')
-          .select('user_id, first_name, last_name, role')
+          .select('user_id, first_name, last_name, role, holiday_hours'),
+        sb.from('rota_closures').select('*')
       ]);
 
       if (shiftsRes.error) throw shiftsRes.error;
       if (usersRes.error) throw usersRes.error;
+      if (closuresRes.error) throw closuresRes.error;
+
+      const myUserRow = (usersRes.data||[]).find(u=>String(u.user_id)===String(currentUser.userId));
+      myHolidayHours = (myUserRow && myUserRow.holiday_hours && typeof myUserRow.holiday_hours==='object') ? myUserRow.holiday_hours : {};
+      myClosures = (closuresRes.data||[]).map(c=>({
+        id: c.id, date: String(c.date), label: c.label || 'Closed',
+        hours: parseFloat(c.hours) || 8,
+        scope: c.scope || 'all',
+        employeeIds: Array.isArray(c.employee_ids) ? c.employee_ids.map(String) : []
+      }));
 
       // Build user lookup map
      const userMap = {};
@@ -1162,8 +1191,11 @@ function showEmployeeUI() {
         <button class="emp-tab-btn ${myViewFilter==='month'?'emp-tab-active':''}" onclick="setMyViewFilter('month')">
           This Month ${monthRecs.length ? '<span class="emp-tab-badge">'+monthRecs.length+'</span>' : ''}
         </button>
-        <button class="emp-tab-btn ${myViewFilter==='history'?'emp-tab-active':''}" onclick="setMyViewFilter('history')">
+            <button class="emp-tab-btn ${myViewFilter==='history'?'emp-tab-active':''}" onclick="setMyViewFilter('history')">
           Payment History
+        </button>
+        <button class="emp-tab-btn ${myViewFilter==='holidays'?'emp-tab-active':''}" onclick="setMyViewFilter('holidays')">
+          Holidays
         </button>
       </div>
       <div id="empViewContent"></div>
@@ -1174,6 +1206,7 @@ function showEmployeeUI() {
   function renderEmployeeTab(weekRecs, monthRecs, paidRecs, pendRecs) {
     const content = document.getElementById('empViewContent');
     if (!content) return;
+    if (myViewFilter === 'holidays') { renderMyHolidaysTab(content); return; }
     let recs = myViewFilter === 'month' ? monthRecs : myViewFilter === 'history' ? paidRecs : [...myRecords];
     if (!recs.length) { content.innerHTML = '<div class="empty-state" style="margin-top:0"><p>No records for this period.</p></div>'; return; }
 
@@ -1235,8 +1268,54 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
     content.innerHTML = html;
   }
 
+function renderMyHolidaysTab(content){
+  const summary = getMyHolidaySummary();
+  const pct = summary.totalAllowance>0 ? Math.min(100, Math.round((summary.usedHours/summary.totalAllowance)*100)) : 0;
+  const over = summary.balance < 0;
+  const closureRows = summary.closures.length
+    ? summary.closures.map(c=>{
+        const isPersonal = c.scope==='specific';
+        const d = new Date(c.date);
+        return `<div class="myhol-closure-row">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div>
+              <div class="myhol-closure-date">${d.toLocaleDateString('en-GB',{weekday:'short',month:'short',day:'numeric'})}</div>
+              <div class="myhol-closure-label">${escHtml(c.label||'Closed')}</div>
+            </div>
+            <span class="myhol-badge ${isPersonal?'personal':'company'}">${isPersonal?'Personal':'Company'}</span>
+          </div>
+          <div class="myhol-closure-hours">-${fmtHM(c.hours)}</div>
+        </div>`;
+      }).join('')
+    : `<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No holiday entries for ${summary.year} yet</p>`;
+
+  content.innerHTML = `
+    <div class="myhol-summary-card">
+      <div class="myhol-summary-row">
+        <div class="myhol-summary-item">
+          <div class="myhol-summary-label">Total ${summary.year}</div>
+          <div class="myhol-summary-value">${fmtHM(summary.totalAllowance)}</div>
+        </div>
+        <div class="myhol-summary-item">
+          <div class="myhol-summary-label">Used</div>
+          <div class="myhol-summary-value" style="color:#fbbf24;">${fmtHM(summary.usedHours)}</div>
+        </div>
+        <div class="myhol-summary-item">
+          <div class="myhol-summary-label">Balance</div>
+          <div class="myhol-summary-value" style="color:${over?'#f87171':'#4ade80'};">${fmtHM(summary.balance)}</div>
+        </div>
+      </div>
+      <div class="myhol-progress-track"><div class="myhol-progress-fill" style="width:${pct}%;background:${over?'#dc2626':'#f59e0b'};"></div></div>
+      ${summary.totalAllowance<=0 ? '<div class="myhol-empty-note">No holiday hours set for this year yet — contact your manager.</div>' : ''}
+    </div>
+    <div class="myhol-closures-label">Closures in ${summary.year}</div>
+    ${closureRows}
+    <div class="myhol-disclaimer">These hours are informational only and are never included in your pay.</div>
+  `;
+}
+
 function employeeWeekRow(week) {
-    const isPaid   = week.paid === 'Yes';
+  const isPaid   = week.paid === 'Yes';
     const hasBonus = week.bonus > 0;
     const badge = isPaid
       ? `<span style="font-size:11px;font-weight:600;color:#15803d;background:#dcfce7;padding:3px 9px;border-radius:6px;border:1px solid #bbf7d0;">Paid</span>`
@@ -1641,6 +1720,41 @@ function employeeWeekRow(week) {
       });
     }
 
+// ── HOLIDAYS / CLOSURES SUMMARY (informational only, never part of pay) ──
+    const periodClosures = getClosuresForPeriod(mode, weeks, monthGroups);
+    if (periodClosures.length) {
+      y += 3;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(...MUTED);
+      doc.text('HOLIDAYS & CLOSURES (not included in pay)', ml, y);
+      y += 4;
+      doc.setDrawColor(...BORDER);
+      doc.setLineWidth(0.3);
+      doc.line(ml, y, pw - mr, y);
+      y += 5;
+      periodClosures.forEach(c=>{
+        if (y > ph - 60) { doc.addPage(); y = mt; }
+        const d = new Date(c.date);
+        const dLabel = d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+        const tag = c.scope==='specific' ? 'Personal' : 'Company';
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(8);
+        doc.setTextColor(...DARK);
+        doc.text(dLabel, ml + 2, y + 4.5);
+        doc.setTextColor(...MUTED);
+        doc.text(`${c.label||'Closed'} (${tag})`, ml + 34, y + 4.5);
+        doc.setFont('helvetica','bold');
+        doc.setTextColor(220,38,38);
+        doc.text(`-${fmtHM(c.hours)}`, pw - mr, y + 4.5, { align:'right' });
+        doc.setDrawColor(...BORDER);
+        doc.setLineWidth(0.2);
+        doc.line(ml, y + 6, pw - mr, y + 6);
+        y += 6;
+      });
+      y += 4;
+    }
+
     y += 4;
 
     // ── NET PAY TOTAL BOX ──
@@ -1705,6 +1819,31 @@ function employeeWeekRow(week) {
   });
 
   /* ── WEEK GROUPING ── */
+function closureAppliesToMe(c){
+    return c.scope!=='specific' || c.employeeIds.includes(String(currentUser.userId||''));
+  }
+  function myShiftOn(date){
+    return myRecords.some(r=>r.date===date);
+  }
+  function getMyHolidaySummary(){
+    const year = new Date().getFullYear();
+    const totalAllowance = parseFloat(myHolidayHours[year]) || 0;
+    const yearClosures = myClosures
+      .filter(c => c.date.slice(0,4)===String(year) && closureAppliesToMe(c) && !myShiftOn(c.date))
+      .sort((a,b)=>a.date.localeCompare(b.date));
+    const usedHours = yearClosures.reduce((s,c)=>s+c.hours,0);
+    return { year, totalAllowance, usedHours, balance: totalAllowance-usedHours, closures: yearClosures };
+  }
+  function getClosuresForPeriod(mode, weeks, monthGroups){
+    const mine = myClosures.filter(c=>closureAppliesToMe(c) && !myShiftOn(c.date));
+    if (mode==='week') {
+      const weekKeys = weeks.map(w=>w.weekKey);
+      return mine.filter(c=>weekKeys.includes(getWeekKey(c.date).key)).sort((a,b)=>a.date.localeCompare(b.date));
+    }
+    const mk = monthGroups[0]?.mk;
+    return mine.filter(c=>c.date.slice(0,7)===mk).sort((a,b)=>a.date.localeCompare(b.date));
+  }
+
   function getWeekKey(dateStr) {
     const d = new Date(dateStr);
     const day = d.getDay();
