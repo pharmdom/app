@@ -104,7 +104,7 @@
 .cb-kanban-col {
     display: flex; flex-direction: column; min-height: 0; overflow: hidden;
     border-radius: 12px; border: 1px solid #e2e8f0; background: #fff;
-    flex: 0 0 325px; width: 325px; transition: box-shadow .2s;
+    flex: 0 0 355px; width: 355px; transition: box-shadow .2s;
   }
   .cb-kanban-col.cb-moq-met { box-shadow: 0 0 0 1.5px #22c55e, 0 0 14px rgba(34,197,94,.3); }
   .cb-kanban-moq-track { height: 4px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
@@ -135,11 +135,12 @@
   .cb-kanban-subheader.nl   { background: #eff6ff; color: #1d4ed8; }
   .cb-kanban-subheader.repl { background: #f5f3ff; color: #7c3aed; }
   .cb-kanban-subheader span { font-weight: 600; opacity: .75; text-transform: none; letter-spacing: 0; }
-  .cb-kanban-header {
+.cb-kanban-header {
     padding: 9px 12px; font-size: 11px; font-weight: 700;
     text-transform: uppercase; letter-spacing: .6px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; flex-direction: column; justify-content: center;
     border-bottom: 1px solid #e2e8f0;
+    height: 58px;
   }
   .cb-kanban-header.nl   { background: #eff6ff; color: #1d4ed8; }
   .cb-kanban-header.repl { background: #f5f3ff; color: #7c3aed; }
@@ -1226,17 +1227,19 @@ const imgUrl = p.image_url || '';
       </div>`;
 
     /* ── Tabs ── */
-    const tabs = [
+const tabs = [
       { id:'details', label:'Details',    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>' },
       { id:'prices',  label:'Catalog Prices', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
     ];
+    if (type==='repl') tabs.push({ id:'notes', label:'Notes', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="15" y2="11"/></svg>' });
     document.getElementById('cbDrawerTabs').innerHTML = tabs.map(t=>
       `<button class="cb-drawer-tab${_drawerTab===t.id?' active':''}" onclick="window.switchCbDrawerTab('${t.id}')">${t.icon}${t.label}</button>`
     ).join('');
 
 /* ── Body ── */
-    if (_drawerTab==='details') { _renderDetailsTab(type, p, isPurchased, isInquire); _renderPriceHistoryInto(type, type==='nl'?p.opportunity_id:p.sku); }
+if (_drawerTab==='details') { _renderDetailsTab(type, p, isPurchased, isInquire); _renderPriceHistoryInto(type, type==='nl'?p.opportunity_id:p.sku); }
     else if (_drawerTab==='prices') _renderPricesTab();
+    else if (_drawerTab==='notes') _renderNotesTab(p);
 
     /* ── Actions ── */
     _renderDrawerActions(type, p, isPurchased, isInquire);
@@ -1379,12 +1382,29 @@ function _renderDetailsTab(type, p, isPurchased, isInquire) {
             </tbody>
           </table>
         </div>
-        <div style="margin-top:10px;padding:10px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;color:#15803d;font-weight:600;">
+<div style="margin-top:10px;padding:10px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;color:#15803d;font-weight:600;">
           Best price: ${fmtGBP(bestCost)} · ${matches.length} supplier${matches.length!==1?'s':''} match this EAN
         </div>
       </div>`;
     document.getElementById('cbDrawerBody').innerHTML = html;
   }
+
+  function _renderNotesTab(p) {
+    document.getElementById('cbDrawerBody').innerHTML = `
+      <div class="cb-sec-label">Notes</div>
+      <textarea id="cbReplNotes" class="cb-edit-input" style="min-height:160px;resize:vertical;font-family:inherit;line-height:1.5;" placeholder="Add notes about this product…">${escH(p.note||'')}</textarea>
+      <button class="cb-btn cb-btn-green" style="margin-top:10px;" onclick="window.cbSaveReplNotes('${escA(p.sku)}')">Save Notes</button>
+    `;
+  }
+  window.cbSaveReplNotes = async function(sku) {
+    const val = document.getElementById('cbReplNotes')?.value || '';
+    try {
+      await sb.from('replenishment_skus').update({ note: val }).eq('sku', sku);
+      if (_drawerItem) _drawerItem.data.note = val;
+      _cbToast('Notes saved','success');
+    } catch(e) { _cbToast('Failed to save notes','error'); }
+  };
+
 function _renderDrawerActions(type, p, isPurchased, isInquire) {
     let html = '';
     if (isPurchased) {
@@ -1574,7 +1594,7 @@ const supplierNames = Object.keys(supplierBuckets);
       const nlSecId = `cbSecNl_${idx}`, replSecId = `cbSecRepl_${idx}`;
 
 const supObj = _cbSupplierList.find(s=>s.name===sup);
-      const supMoq = supObj?.moq||0;
+      const supMoq = _cbTab==='tobuy' ? (supObj?.moq||0) : 0;
       const supVal = nlVal+replVal;
       const moqMet = supMoq>0 && supVal>=supMoq;
       const moqPct = supMoq>0 ? Math.min(100, Math.round((supVal/supMoq)*100)) : 0;
@@ -1584,7 +1604,7 @@ const supObj = _cbSupplierList.find(s=>s.name===sup);
           <div style="display:flex;align-items:center;gap:7px;justify-content:space-between;margin-bottom:${supMoq>0?'7px':'0'};">
             <div style="display:flex;align-items:center;gap:7px;min-width:0;">
               ${_cbSupplierAvatar(sup)}
-              <span style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escH(sup)}</span>
+              <span style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escH(sup.split(' ')[0])}</span>
             </div>
             <span style="font-size:10px;opacity:.7;flex-shrink:0;">${total} Item${total!==1?'s':''}</span>
           </div>
