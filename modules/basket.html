@@ -101,11 +101,15 @@
   .cb-kanban::-webkit-scrollbar { height: 6px; }
   .cb-kanban::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
   @media (max-width: 600px) { .cb-kanban { gap: 10px; } }
-  .cb-kanban-col {
+.cb-kanban-col {
     display: flex; flex-direction: column; min-height: 0; overflow: hidden;
     border-radius: 12px; border: 1px solid #e2e8f0; background: #fff;
-    flex: 0 0 300px; width: 300px;
+    flex: 0 0 325px; width: 325px; transition: box-shadow .2s;
   }
+  .cb-kanban-col.cb-moq-met { box-shadow: 0 0 0 1.5px #22c55e, 0 0 14px rgba(34,197,94,.3); }
+  .cb-kanban-moq-track { height: 4px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
+  .cb-kanban-moq-fill { height: 100%; border-radius: 99px; transition: width .3s; }
+  .cb-supplier-avatar { width: 22px; height: 22px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 800; color: #fff; flex-shrink: 0; }
   .cb-kanban-subnav {
     display: flex; gap: 6px; padding: 8px 10px; border-bottom: 1px solid #f1f5f9;
     background: #fff; flex-shrink: 0;
@@ -422,6 +426,12 @@
 
 
  /* ── PRODUCT AVATAR ── */
+.cb-tabbar { display:flex; gap:6px; flex-wrap:wrap; }
+  .cb-tab-btn { display:inline-flex; align-items:center; gap:7px; padding:7px 14px; border-radius:9px; border:1.5px solid #e2e8f0; background:#fff; color:#64748b; font-size:12.5px; font-weight:700; font-family:inherit; cursor:pointer; transition:all .15s; white-space:nowrap; }
+  .cb-tab-btn:hover { border-color:#94a3b8; color:#334155; }
+  .cb-tab-btn.active { background:#0f172a; color:#fff; border-color:#0f172a; }
+  .cb-tab-count { font-size:10.5px; font-weight:800; padding:1px 6px; border-radius:100px; background:rgba(0,0,0,.08); }
+  .cb-tab-btn.active .cb-tab-count { background:rgba(255,255,255,.2); }
   .cb-avatar {
     width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
     overflow: hidden; position: relative;
@@ -503,12 +513,11 @@
   <!-- Header -->
   <div class="cb-header">
 <div class="cb-tabs">
-      <select id="cbTabSelect" class="cb-supplier-select" style="font-weight:700;font-size:12.5px;" onchange="window.setCbTab(this.value)">
-        <option value="tobuy">To Purchase</option>
-        <option value="inquire">Inquire</option>
-        <option value="purchased">Purchased</option>
-      </select>
-      <div id="cbMoqBar" class="cb-moq-bar" style="margin-top:0; flex:1;"></div>
+      <div class="cb-tabbar" id="cbTabBar">
+        <button class="cb-tab-btn active" id="cbTabToBuy" onclick="window.setCbTab('tobuy')">To Purchase <span class="cb-tab-count">0</span></button>
+        <button class="cb-tab-btn" id="cbTabInquire" onclick="window.setCbTab('inquire')">Inquire <span class="cb-tab-count">0</span></button>
+        <button class="cb-tab-btn" id="cbTabPurchased" onclick="window.setCbTab('purchased')">Purchased</button>
+      </div>
     </div>
     <div class="cb-toolbar-row">
       <span id="cbCount"     class="cb-chip">0 items</span>
@@ -567,20 +576,8 @@
       <select class="cb-form-select" id="cbPdfSupplier" multiple style="height:110px;margin-bottom:12px;">
         <option value="__all__" selected>All Suppliers</option>
       </select>
-      <label class="cb-form-label">Period</label>
-      <select class="cb-form-select" id="cbPdfPeriod">
-        <option value="all">All Purchases</option>
-        <option value="month">By Month</option>
-        <option value="week">By Week</option>
-      </select>
-      <div id="cbPdfMonthWrap" style="display:none;">
-        <label class="cb-form-label">Select Month</label>
-        <select class="cb-form-select" id="cbPdfMonth"></select>
-      </div>
-      <div id="cbPdfWeekWrap" style="display:none;">
-        <label class="cb-form-label">Select Week</label>
-        <select class="cb-form-select" id="cbPdfWeek"></select>
-      </div>
+<label class="cb-form-label">Period (from active date filter)</label>
+      <div class="cb-form-select" style="background:#f8fafc;color:#0f172a;font-weight:600;" id="cbPdfPeriodDisplayText">All Time</div>
     </div>
     <div class="cb-modal-footer">
       <button class="cb-btn cb-btn-slate" onclick="window.closeCbPdfModal()">Cancel</button>
@@ -608,8 +605,8 @@
   let _allPurchased = { nl: [], repl: [] };
   const PAGE_SIZE   = 25;
   let _cbSupplierFilter = '';
-  let _cbActiveKanbanSupplier = '';
-
+let _cbTabCounts = { tobuy:0, inquire:0 };
+ 
 let _cbFilteredNL = [];
   let _cbFilteredRepl = [];
  let _cbSupplierList = [];
@@ -883,8 +880,25 @@ async function _cbFetchReplPage(pageIndex) {
     return rows;
   }
 
+async function _cbFetchTabCounts(){
+    try {
+      const [nlToBuy, replToBuy, nlInquire, replInquire] = await Promise.all([
+        sb.from('sourcing').select('opportunity_id', {count:'exact', head:true}).eq('approved',true).eq('purchased',false).not('inquire','is',true),
+        sb.from('replenishment_skus').select('sku', {count:'exact', head:true}).eq('action','basket'),
+        sb.from('sourcing').select('opportunity_id', {count:'exact', head:true}).eq('approved',true).eq('purchased',false).eq('inquire',true),
+        sb.from('replenishment_skus').select('sku', {count:'exact', head:true}).eq('action','inquire'),
+      ]);
+      _cbTabCounts.tobuy = (nlToBuy.count||0) + (replToBuy.count||0);
+      _cbTabCounts.inquire = (nlInquire.count||0) + (replInquire.count||0);
+    } catch(e) { console.warn('CB tab counts:', e); }
+    const tb=document.getElementById('cbTabToBuy')?.querySelector('.cb-tab-count');
+    const iq=document.getElementById('cbTabInquire')?.querySelector('.cb-tab-count');
+    if (tb) tb.textContent = _cbTabCounts.tobuy;
+    if (iq) iq.textContent = _cbTabCounts.inquire;
+  }
+
   /* ── AGGREGATE TOTALS (unpaginated, minimal columns) ── */
-  async function _cbFetchTotals() {
+ async function _cbFetchTotals() {
     const wantNL = _cbFilter !== 'replens', wantRepl = _cbFilter !== 'newline';
     let nlRows=[], replRows=[];
     if (wantNL) {
@@ -991,8 +1005,18 @@ function _cbPreviewPriceHistory(itemType, itemId, val) {
       </div>`;
   }
 
-/* ── DEDICATED FULL FETCH FOR PDF EXPORT ── */
-  async function _cbFetchAllPurchased() {
+function _cbPriceTrend(histArr, currentCost){
+    if (!histArr || histArr.length < 2) return { color:null, arrow:'' };
+    const prev = parseFloat(histArr[histArr.length-2].price);
+    if (isNaN(prev) || isNaN(currentCost)) return { color:null, arrow:'' };
+    if (currentCost < prev) return { color:'#15803d', arrow:'▼' };
+    if (currentCost > prev) return { color:'#dc2626', arrow:'▲' };
+    return { color:null, arrow:'' };
+  }
+
+  /* ── DEDICATED FULL FETCH FOR PDF EXPORT ── */
+ 
+ async function _cbFetchAllPurchased() {
     let nl=[], repl=[];
     try {
       const { data } = await sb.from('sourcing')
@@ -1082,7 +1106,9 @@ window.setCbTab = function(tab) {
     _cbTab=tab; _cbPage=1;
     _cbRevealCounts = {};
     _cbNLPage = 0; _cbReplPage = 0;
-    const sel=document.getElementById('cbTabSelect'); if (sel) sel.value=tab;
+    document.getElementById('cbTabToBuy').classList.toggle('active', tab==='tobuy');
+    document.getElementById('cbTabInquire').classList.toggle('active', tab==='inquire');
+    document.getElementById('cbTabPurchased').classList.toggle('active', tab==='purchased');
     document.getElementById('cbPdfBtn').style.display = tab==='purchased'?'inline-flex':'none';
     window.renderCentralBasket();
   };
@@ -1468,7 +1494,8 @@ await _loadCbSuppliers();
       ]);
       _cbLoadedNL = nlRows; _cbLoadedRepl = replRows;
 
-      await _cbFetchTotals();
+await _cbFetchTotals();
+      _cbFetchTabCounts();
     }
 
     const newlines = _cbLoadedNL;
@@ -1513,18 +1540,17 @@ await _loadCbSuppliers();
     function _nlRecency(p) { return p.basket_added_at || p.last_updated || p.created_at || ''; }
     function _replRecency(p) { return p.basket_added_at || p.actioned_at || p.uploaded_at || ''; }
 
-    const supplierNames = Object.keys(supplierBuckets);
+const supplierNames = Object.keys(supplierBuckets);
     supplierNames.forEach(name => {
       supplierBuckets[name].nl.sort((a,b) => (_nlRecency(b)||'').localeCompare(_nlRecency(a)||''));
       supplierBuckets[name].repl.sort((a,b) => (_replRecency(b)||'').localeCompare(_replRecency(a)||''));
     });
     supplierNames.sort((a,b) => {
-      const bucketMax = (name) => Math.max(
-        ...supplierBuckets[name].nl.map(p=>new Date(_nlRecency(p)||0).getTime()),
-        ...supplierBuckets[name].repl.map(p=>new Date(_replRecency(p)||0).getTime()),
-        0
-      );
-      return bucketMax(b) - bucketMax(a);
+      const supA=_cbSupplierList.find(s=>s.name===a), supB=_cbSupplierList.find(s=>s.name===b);
+      const moqA=supA?.moq||0, moqB=supB?.moq||0;
+      const pctA = moqA>0 ? _cbSupplierValue(supplierBuckets,a)/moqA : -1;
+      const pctB = moqB>0 ? _cbSupplierValue(supplierBuckets,b)/moqB : -1;
+      return pctB - pctA;
     });
 
     let kanbanHtml = '<div class="cb-kanban">';
@@ -1535,10 +1561,28 @@ await _loadCbSuppliers();
       const total   = b.nl.length + b.repl.length;
       const nlSecId = `cbSecNl_${idx}`, replSecId = `cbSecRepl_${idx}`;
 
-      kanbanHtml += `<div class="cb-kanban-col" data-supplier="${escH(sup)}" onmouseenter="window.cbHoverSupplier('${escA(sup)}')">
+const supObj = _cbSupplierList.find(s=>s.name===sup);
+      const supMoq = supObj?.moq||0;
+      const supVal = nlVal+replVal;
+      const moqMet = supMoq>0 && supVal>=supMoq;
+      const moqPct = supMoq>0 ? Math.min(100, Math.round((supVal/supMoq)*100)) : 0;
+
+      kanbanHtml += `<div class="cb-kanban-col${moqMet?' cb-moq-met':''}" data-supplier="${escH(sup)}">
         <div class="cb-kanban-header" style="background:#f8fafc;color:#0f172a;">
-          <span style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escH(sup)}</span>
-          <span style="font-size:10px;opacity:.7;flex-shrink:0;margin-left:8px;">${total} Item${total!==1?'s':''} · ${fmtGBP(nlVal+replVal)}</span>
+          <div style="display:flex;align-items:center;gap:7px;justify-content:space-between;margin-bottom:${supMoq>0?'7px':'0'};">
+            <div style="display:flex;align-items:center;gap:7px;min-width:0;">
+              ${_cbSupplierAvatar(sup)}
+              <span style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escH(sup)}</span>
+            </div>
+            <span style="font-size:10px;opacity:.7;flex-shrink:0;">${total} Item${total!==1?'s':''}</span>
+          </div>
+          ${supMoq>0 ? `<div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+              <span style="font-size:9.5px;color:#94a3b8;">MOQ ${fmtGBP(supMoq)} · ${fmtGBP(supVal)}</span>
+              <span style="font-size:9.5px;font-weight:700;color:${moqMet?'#15803d':'#92400e'};">${moqMet?'✓ Met':moqPct+'%'}</span>
+            </div>
+            <div class="cb-kanban-moq-track"><div class="cb-kanban-moq-fill" style="width:${moqPct}%;background:${moqMet?'#22c55e':'#f59e0b'};"></div></div>
+          </div>` : `<div style="font-size:9.5px;color:#94a3b8;">${fmtGBP(supVal)}</div>`}
         </div>
         <div class="cb-kanban-subnav">
           <button class="cb-kanban-jump nl${!b.nl.length?' disabled':''}" onclick="window.cbJumpToSection('${nlSecId}')">New Lines <span>${b.nl.length}</span></button>
@@ -1568,63 +1612,30 @@ await _loadCbSuppliers();
         elBody.scrollTop = _cbScrollPositions[supKey];
       }
     });
-    const _cbKanbanEl = body.querySelector('.cb-kanban');
+const _cbKanbanEl = body.querySelector('.cb-kanban');
     if (_cbKanbanEl) _cbKanbanEl.scrollLeft = _cbKanbanScrollLeft;
-
-    _initKanbanHoverDefault(supplierNames);
   };
 
 
-window.cbHoverSupplier = function(sup) {
-    if (sup !== _cbActiveKanbanSupplier) {
-      _cbActiveKanbanSupplier = sup;
-      _updateMoqBar();
-    }
-  };
-
-  function _initKanbanHoverDefault(supplierNames) {
-    // Keep showing the previously hovered supplier if it still exists in
-    // this render; otherwise default to the first column so the MOQ bar
-    // isn't blank right after a re-render/filter change.
-    if (!supplierNames.includes(_cbActiveKanbanSupplier)) {
-      _cbActiveKanbanSupplier = supplierNames[0] || '';
-    }
-    _updateMoqBar();
-  }
- 
-
-function _updateMoqBar() {
-    const bar = document.getElementById('cbMoqBar');
-    if (!bar) return;
-    if (_cbTab!=='tobuy' || !_cbActiveKanbanSupplier) {
-      bar.style.display = 'none';
-      return;
-    }
-    const sName = _cbActiveKanbanSupplier;
-    const totalValue = (_cbTotals.bySupplier && _cbTotals.bySupplier[sName]) || 0;
-    const sup = _cbSupplierList.find(s=>s.name===sName);
-    const moq = sup?.moq||0;
-    if (moq<=0 || totalValue<=0) { bar.style.display='none'; return; }
-    const met=totalValue>=moq; const pct=Math.min(100,Math.round((totalValue/moq)*100));
-    bar.style.display='flex';
-    bar.innerHTML=`
-      <div style="flex:1;min-width:0;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-          <span style="font-size:11px;font-weight:700;color:#475569;">MOQ — ${escH(sName)}</span>
-          <span style="font-size:10.5px;color:#94a3b8;">MOQ ${fmtGBP(moq)} · Basket ${fmtGBP(totalValue)}</span>
-          <span style="font-size:11px;font-weight:700;color:${met?'#15803d':'#92400e'};">${met?'✓ Met':`${pct}% — ${fmtGBP(moq-totalValue)} to go`}</span>
-        </div>
-        <div style="height:5px;background:#e2e8f0;border-radius:99px;overflow:hidden;">
-          <div style="height:100%;width:${pct}%;background:${met?'#22c55e':'#f59e0b'};border-radius:99px;transition:width .3s;"></div>
-        </div>
-      </div>`;
+function _cbSupplierValue(supplierBuckets, name){
+    const b = supplierBuckets[name];
+    const nlVal = b.nl.reduce((s,p)=>{const c=parseFloat(p.cost_of_unit)||0;const q=parseFloat(p.unit_quantity)||0;return s+c*q;},0);
+    const replVal = b.repl.reduce((s,p)=>{const c=parseFloat(p.original_cost_price)||0;const q=parseInt(p.order_qty)||0;return s+c*q;},0);
+    return nlVal+replVal;
   }
 
 /* ── CARD RENDERERS ── */
   function _safeJson(p) { return JSON.stringify(p).replace(/\\/g,'\\\\').replace(/"/g,'&quot;'); }
 
+const CB_AVATAR_COLORS = ['#6366f1','#ef4444','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#0ea5e9'];
+ function _cbSupplierAvatar(name){
+   let hash=0; for (let i=0;i<name.length;i++) hash=(hash*31+name.charCodeAt(i))|0;
+   const color = CB_AVATAR_COLORS[Math.abs(hash)%CB_AVATAR_COLORS.length];
+   const ini = (name||'?').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+   return `<div class="cb-supplier-avatar" style="background:${color};">${escH(ini)}</div>`;
+ }
  function _avatar(imgUrl, name, cls) {
-    const ini = (name||'?').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+  const ini = (name||'?').split(' ').filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
     return `<div class="cb-avatar ${cls}">${imgUrl?`<img src="${escA(imgUrl)}" alt="" onerror="this.style.display='none'">`:''}${escH(ini)}</div>`;
   }
 
@@ -1895,32 +1906,11 @@ if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer();
   };
 
 /* ── PDF ── */
-  window.openCbPdfModal = async function() {
+window.openCbPdfModal = async function() {
     _cbToast('Loading purchase history…','success');
     await _cbFetchAllPurchased();
     const { nl, repl } = _allPurchased;
-    const allDates = [
-      ...nl.map(p=>p.purchased_at||p.last_updated||p.created_at).filter(Boolean),
-      ...repl.map(p=>p.actioned_at).filter(Boolean),
-    ].map(d=>new Date(d));
 
-    // Months
-    const monthSet = new Set(allDates.map(d=>d.toISOString().slice(0,7)));
-    const monthSel = document.getElementById('cbPdfMonth');
-    monthSel.innerHTML=[...monthSet].sort().reverse()
-      .map(m=>`<option value="${m}">${new Date(m+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</option>`).join('');
-
-    // Weeks
-    const weekMap = {};
-    allDates.forEach(d=>{
-      const key=weekLabel(d); const iso=d.toISOString().slice(0,10);
-      if (!weekMap[key]||iso<weekMap[key]) weekMap[key]=iso;
-    });
-    const weekSel=document.getElementById('cbPdfWeek');
-    weekSel.innerHTML=Object.entries(weekMap).sort((a,b)=>b[1].localeCompare(a[1]))
-      .map(([label,iso])=>`<option value="${iso}">${label}</option>`).join('');
-
-    // Populate supplier select
     const allSuppliers = [...new Set([
       ...nl.map(p=>p.supplier_name).filter(Boolean),
       ...repl.map(p=>p.supplier_name).filter(Boolean),
@@ -1929,9 +1919,7 @@ if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer();
     supSel.innerHTML = `<option value="__all__" selected>All Suppliers</option>`
       + allSuppliers.map(s=>`<option value="${escA(s)}">${escH(s)}</option>`).join('');
 
-    document.getElementById('cbPdfPeriod').value='all';
-    document.getElementById('cbPdfMonthWrap').style.display='none';
-    document.getElementById('cbPdfWeekWrap').style.display='none';
+    document.getElementById('cbPdfPeriodDisplayText').textContent = _cbDateRange ? _cbDateRange.label : 'All Time';
     document.getElementById('cbPdfModal').classList.add('open');
   };
 
@@ -1939,25 +1927,13 @@ if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer();
     document.getElementById('cbPdfModal').classList.remove('open');
   };
 
-  document.getElementById('cbPdfPeriod').addEventListener('change', function() {
-    document.getElementById('cbPdfMonthWrap').style.display = this.value==='month'?'block':'none';
-    document.getElementById('cbPdfWeekWrap').style.display  = this.value==='week' ?'block':'none';
-  });
-
 window.generateCbPdf = async function() {
-    const period = document.getElementById('cbPdfPeriod').value;
     let { nl, repl } = _allPurchased;
 
-    if (period === 'month') {
-      const m = document.getElementById('cbPdfMonth').value;
-      nl   = nl.filter(p => (p.purchased_at||'').startsWith(m));
-      repl = repl.filter(p => (p.actioned_at||'').startsWith(m));
-    } else if (period === 'week') {
-      const wkIso  = document.getElementById('cbPdfWeek').value;
-      const wkDate = new Date(wkIso);
-      const wkEnd  = new Date(wkDate); wkEnd.setDate(wkDate.getDate() + 6);
-      nl   = nl.filter(p  => { const d = new Date(p.purchased_at||0); return d >= wkDate && d <= wkEnd; });
-      repl = repl.filter(p => { const d = new Date(p.actioned_at||0); return d >= wkDate && d <= wkEnd; });
+    if (_cbDateRange) {
+      const { start, end } = _cbDateRange;
+      nl   = nl.filter(p => { const d=(p.purchased_at||'').slice(0,10); return d && d>=start && d<=end; });
+      repl = repl.filter(p => { const d=(p.actioned_at||'').slice(0,10); return d && d>=start && d<=end; });
     }
 
     // ── Supplier filter ──
@@ -1973,9 +1949,7 @@ window.generateCbPdf = async function() {
     const totalReplVal = repl.reduce((s,p)  => { const c=parseFloat(p.original_cost_price)||0;  const q=parseInt(p.order_qty)||0;       return s+c*q; }, 0);
     const grandTotal   = totalNLVal + totalReplVal;
 
-    const periodLabel = period==='all' ? 'All Purchases'
-      : period==='month' ? document.getElementById('cbPdfMonth').options[document.getElementById('cbPdfMonth').selectedIndex]?.text
-      : document.getElementById('cbPdfWeek').options[document.getElementById('cbPdfWeek').selectedIndex]?.text;
+    const periodLabel = _cbDateRange ? _cbDateRange.label : 'All Time';
 
     // ── Group by supplier ──
     const nlBySupplier = {};
@@ -1983,55 +1957,44 @@ window.generateCbPdf = async function() {
     const replBySupplier = {};
     repl.forEach(p => { const s=p.supplier_name||'Unknown'; if(!replBySupplier[s]) replBySupplier[s]=[]; replBySupplier[s].push(p); });
 
-    // ── NL table ──
-    let nlHtml = '';
-    if (nl.length) {
-nlHtml += `<h2>New Lines (${nl.length}) — ${fmtGBP(totalNLVal)}</h2>
-      <table><colgroup><col class="c-ean" style="width:11%"><col class="c-product" style="width:18%"><col class="c-supplier" style="width:13%"><col class="c-date" style="width:10%"><col class="c-date" style="width:10%"><col class="c-qty" style="width:6%"><col class="c-cost" style="width:8%"><col class="c-total" style="width:8%"><col class="c-history" style="width:16%"></colgroup><thead><tr>
-        <th>EAN</th><th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th>
-        <th style="text-align:right">Qty</th><th style="text-align:right">Unit Cost</th><th style="text-align:right">Total</th><th>Price History</th>
-      </tr></thead><tbody>`;
-      Object.entries(nlBySupplier).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([sup, items]) => {
-        const supTotal = items.reduce((s,p)=>{const c=parseFloat(p.cost_of_unit)||0;const q=parseFloat(p.unit_quantity)||0;return s+c*q;},0);
-        items.forEach(p => {
-          const c=parseFloat(p.cost_of_unit)||0; const q=parseFloat(p.unit_quantity)||0;
-          const nlEan = ((p.code||'').split(',')[0].split(':')[0].trim())||'—';
-          const hist = _allPriceHistory['nl::'+p.opportunity_id] || [];
-          const histStr = hist.length ? hist.map(h=>`${fmtDate(h.changed_at)}: ${fmtGBP(h.price)}`).join(' → ') : '—';
-          nlHtml += `<tr><td style="font-family:monospace;font-size:10px;">${escH(nlEan)}</td><td>${escH(p.product_name||'—')}</td><td>${escH(sup)}</td><td>${fmtDate(p.basket_added_at||p.last_updated||p.created_at)}</td><td>${fmtDate(p.purchased_at)}</td><td style="text-align:right;">${q.toLocaleString()}</td><td style="text-align:right;">${fmtGBP(c)}</td><td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td><td style="font-size:9px;color:#475569;word-break:break-word;">${escH(histStr)}</td></tr>`;
-        });
-        const supQtyNL = items.reduce((s,p)=>{return s+(parseFloat(p.unit_quantity)||0);},0);
-        nlHtml += `<tr class="subtotal-row"><td>Subtotal — ${escH(sup)}</td><td></td><td></td><td></td><td></td><td class="sub-qty" style="text-align:right;">${supQtyNL.toLocaleString()}</td><td style="text-align:right;">&nbsp;</td><td style="text-align:right;">${fmtGBP(supTotal)}</td><td></td></tr>`;
-      });
-      nlHtml += `<tr class="total-row"><td>New Lines Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td style="text-align:right;">${fmtGBP(totalNLVal)}</td><td></td></tr></tbody></table>`;
+  // ── Build row helper (used by embedded interactive script) ──
+    function rowHtml(p, type, sup) {
+      const isNL = type==='nl';
+      const c = isNL ? (parseFloat(p.cost_of_unit)||0) : (parseFloat(p.original_cost_price)||0);
+      const q = isNL ? (parseFloat(p.unit_quantity)||0) : (parseInt(p.order_qty)||0);
+      const ean = isNL ? (((p.code||'').split(',')[0].split(':')[0].trim())||'—') : (p.ean||'—');
+      const name = isNL ? (p.product_name||'—') : (p.name||'—');
+      const added = isNL ? fmtDate(p.basket_added_at||p.last_updated||p.created_at) : fmtDate(p.basket_added_at);
+      const when = isNL ? fmtDate(p.purchased_at) : fmtDate(p.actioned_at);
+      const hist = _allPriceHistory[(isNL?'nl::':'repl::')+(isNL?p.opportunity_id:p.sku)] || [];
+      const histStr = hist.length ? hist.map(h=>`${fmtDate(h.changed_at)}: ${fmtGBP(h.price)}`).join(' → ') : '—';
+      const trend = _cbPriceTrend(hist, c);
+      const origC = isNL ? null : (parseFloat(p.cost_price)||0);
+      const costCell = trend.color
+        ? `<span style="color:${trend.color};font-weight:700;">${trend.arrow} ${fmtGBP(c)}</span>`
+        : fmtGBP(c);
+      return `<tr data-sup="${escA(sup)}" data-date="${escA(when!=='—'?(isNL?p.purchased_at:p.actioned_at):'')}">
+        <td style="font-family:monospace;font-size:10px;">${escH(ean)}</td><td>${escH(name)}</td><td>${escH(sup)}</td><td>${added}</td><td>${when}</td>
+        <td style="text-align:right;">${q.toLocaleString()}</td>
+        ${isNL?'':`<td style="text-align:right;color:#94a3b8;">${origC>0?fmtGBP(origC):'—'}</td>`}
+        <td style="text-align:right;">${costCell}</td>
+        <td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td>
+        <td style="font-size:9px;color:#475569;word-break:break-word;">${escH(histStr)}</td>
+      </tr>`;
     }
-
-    // ── Repl table ──
-    let replHtml = '';
-    if (repl.length) {
-replHtml += `<h2>Replenishments (${repl.length}) — ${fmtGBP(totalReplVal)}</h2>
-      <table><colgroup><col class="c-ean" style="width:10%"><col class="c-product" style="width:16%"><col class="c-supplier" style="width:12%"><col class="c-date" style="width:9%"><col class="c-date" style="width:9%"><col class="c-qty" style="width:6%"><col class="c-cost" style="width:7%"><col class="c-cost" style="width:7%"><col class="c-total" style="width:8%"><col class="c-history" style="width:16%"></colgroup><thead><tr>
-        <th>EAN</th><th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th>
-        <th style="text-align:right">Qty</th><th style="text-align:right">Orig. Cost</th><th style="text-align:right">Purchase Cost</th><th style="text-align:right">Total</th><th>Price History</th>
-      </tr></thead><tbody>`;
-     Object.entries(replBySupplier).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([sup, items]) => {
-        const supTotal = items.reduce((s,p)=>{const c=parseFloat(p.original_cost_price)||0;const q=parseInt(p.order_qty)||0;return s+c*q;},0);
-        items.forEach(p => {
-          const origC=parseFloat(p.cost_price)||0;
-          const c=parseFloat(p.original_cost_price)||0; const q=parseInt(p.order_qty)||0;
-          const hist = _allPriceHistory['repl::'+p.sku] || [];
-          const histStr = hist.length ? hist.map(h=>`${fmtDate(h.changed_at)}: ${fmtGBP(h.price)}`).join(' → ') : '—';
-          replHtml += `<tr><td style="font-family:monospace;font-size:10px;">${escH(p.ean||'—')}</td><td>${escH(p.name||'—')}</td><td>${escH(sup)}</td><td>${fmtDate(p.basket_added_at)}</td><td>${fmtDate(p.actioned_at)}</td><td style="text-align:right;">${q.toLocaleString()}</td><td style="text-align:right;color:#94a3b8;">${origC>0?fmtGBP(origC):'—'}</td><td style="text-align:right;">${fmtGBP(c)}</td><td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td><td style="font-size:9px;color:#475569;word-break:break-word;">${escH(histStr)}</td></tr>`;
-        });
-        const supQtyRepl = items.reduce((s,p)=>{return s+(parseInt(p.order_qty)||0);},0);
-        replHtml += `<tr class="subtotal-row"><td>Subtotal — ${escH(sup)}</td><td></td><td></td><td></td><td></td><td class="sub-qty" style="text-align:right;">${supQtyRepl.toLocaleString()}</td><td style="text-align:right;">&nbsp;</td><td style="text-align:right;">&nbsp;</td><td style="text-align:right;">${fmtGBP(supTotal)}</td><td></td></tr>`;
-      });
-      replHtml += `<tr class="total-row"><td>Replenishments Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td style="text-align:right;">${fmtGBP(totalReplVal)}</td><td></td></tr></tbody></table>`;
-    }
-
+    const nlRowsHtml   = nl.map(p=>rowHtml(p,'nl', p.supplier_name||'Unknown')).join('');
+    const replRowsHtml = repl.map(p=>rowHtml(p,'repl', p.supplier_name||'Unknown')).join('');
+    const allSupplierNames = [...new Set([...nl.map(p=>p.supplier_name).filter(Boolean),...repl.map(p=>p.supplier_name).filter(Boolean)])].sort();
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
     <title>Purchase Summary — ${escH(periodLabel)}</title>
     <style>
+      .cbi-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:18px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;}
+      .cbi-toolbar input,.cbi-toolbar select{padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12.5px;font-family:inherit;}
+      .cbi-toolbar input[type=text]{min-width:180px;}
+      .cbi-preset{padding:6px 11px;border:1.5px solid #e2e8f0;border-radius:100px;font-size:11.5px;font-weight:600;cursor:pointer;background:#fff;}
+      .cbi-preset.active{background:#0f172a;color:#fff;border-color:#0f172a;}
+      .cbi-print-btn{margin-left:auto;padding:8px 16px;border:none;border-radius:9px;background:#2563eb;color:#fff;font-weight:700;font-size:12.5px;cursor:pointer;}
+      @media print{.cbi-toolbar{display:none;}}
       *{box-sizing:border-box;margin:0;padding:0;}
       body{font-family:'Inter',Arial,sans-serif;font-size:11px;color:#0f172a;background:#fff;padding:32px;}
       .brand{display:flex;align-items:center;gap:12px;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #0f172a;}
@@ -2072,27 +2035,98 @@ replHtml += `<h2>Replenishments (${repl.length}) — ${fmtGBP(totalReplVal)}</h2
       <div><div class="brand-name">Pharm &amp; Dom</div><div class="brand-sub">Procurement Purchase Summary</div></div>
     </div>
     <h1>Purchase Summary</h1>
-    <div class="period">${escH(periodLabel)} · Generated ${fmtDateTime(new Date().toISOString())}</div>
-    <div class="summary-chips">
-      <div class="chip"><div class="chip-label">New Lines</div><div class="chip-val">${nl.length} item${nl.length!==1?'s':''}</div></div>
-      <div class="chip"><div class="chip-label">Replenishments</div><div class="chip-val">${repl.length} item${repl.length!==1?'s':''}</div></div>
-      <div class="chip"><div class="chip-label">NL Total Value</div><div class="chip-val green">${fmtGBP(totalNLVal)}</div></div>
-      <div class="chip"><div class="chip-label">Repl Total Value</div><div class="chip-val green">${fmtGBP(totalReplVal)}</div></div>
+    <div class="period" id="cbiPeriodLabel">${escH(periodLabel)} · Generated ${fmtDateTime(new Date().toISOString())}</div>
+
+    <div class="cbi-toolbar">
+      <input type="text" id="cbiSearch" placeholder="Search EAN or product…">
+      <select id="cbiSupplier"><option value="">All Suppliers</option>${allSupplierNames.map(s=>`<option value="${escA(s)}">${escH(s)}</option>`).join('')}</select>
+      <span class="cbi-preset active" data-key="all">All Time</span>
+      <span class="cbi-preset" data-key="today">Today</span>
+      <span class="cbi-preset" data-key="thisweek">This Week</span>
+      <span class="cbi-preset" data-key="thismonth">This Month</span>
+      <span class="cbi-preset" data-key="lastmonth">Last Month</span>
+      <span class="cbi-preset" data-key="custom">Custom:</span>
+      <input type="date" id="cbiFrom"> <input type="date" id="cbiTo">
+      <button class="cbi-print-btn" onclick="window.print()">🖨 Print / Save as PDF</button>
     </div>
-    ${nlHtml}${replHtml}
-    <div class="grand-total">
-      <div class="grand-total-label">Grand Total · ${nl.length+repl.length} items</div>
-      <div class="grand-total-val">${fmtGBP(grandTotal)}</div>
-    </div>
+
+    <div class="summary-chips" id="cbiChips"></div>
+    <div id="cbiTables"></div>
+    <div class="grand-total" id="cbiGrandTotal"></div>
     <div class="footer"><span>Pharm &amp; Dom · Internal Use Only</span><span>Generated ${fmtDateTime(new Date().toISOString())}</span></div>
+
+    <script>
+      const ALL_NL   = ${JSON.stringify(nl.map(p=>({...p, __row: rowHtml(p,'nl', p.supplier_name||'Unknown')})))};
+      const ALL_REPL = ${JSON.stringify(repl.map(p=>({...p, __row: rowHtml(p,'repl', p.supplier_name||'Unknown')})))};
+      function fmtGBPi(v){ const n=parseFloat(v); return isNaN(n)?'—':'£'+n.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+      function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+      function presetRange(key){
+        const now=new Date(),y=now.getFullYear(),m=now.getMonth(),d=now.getDate();
+        if(key==='today') return {start:ymd(new Date(y,m,d)),end:ymd(new Date(y,m,d))};
+        if(key==='thisweek'){const dow=(now.getDay()+6)%7;return {start:ymd(new Date(y,m,d-dow)),end:ymd(new Date(y,m,d-dow+6))};}
+        if(key==='thismonth') return {start:ymd(new Date(y,m,1)),end:ymd(new Date(y,m+1,0))};
+        if(key==='lastmonth') return {start:ymd(new Date(y,m-1,1)),end:ymd(new Date(y,m,0))};
+        return null;
+      }
+      let activeRange=null, activeSup='', activeSearch='';
+      document.querySelectorAll('.cbi-preset').forEach(el=>el.addEventListener('click',()=>{
+        document.querySelectorAll('.cbi-preset').forEach(x=>x.classList.remove('active'));
+        el.classList.add('active');
+        const key=el.dataset.key;
+        activeRange = key==='all' ? null : key==='custom' ? null : presetRange(key);
+        render();
+      }));
+      document.getElementById('cbiFrom').addEventListener('change', useCustom);
+      document.getElementById('cbiTo').addEventListener('change', useCustom);
+      function useCustom(){
+        const f=document.getElementById('cbiFrom').value, t=document.getElementById('cbiTo').value;
+        if(f&&t){ document.querySelectorAll('.cbi-preset').forEach(x=>x.classList.remove('active')); document.querySelector('.cbi-preset[data-key=custom]').classList.add('active'); activeRange={start:f,end:t}; render(); }
+      }
+      document.getElementById('cbiSupplier').addEventListener('change', e=>{ activeSup=e.target.value; render(); });
+      document.getElementById('cbiSearch').addEventListener('input', e=>{ activeSearch=e.target.value.toLowerCase(); render(); });
+
+      function matches(p, isNL){
+        if (activeSup && (p.supplier_name||'')!==activeSup) return false;
+        if (activeSearch){
+          const ean = isNL ? ((p.code||'').split(',')[0].split(':')[0].trim()) : (p.ean||'');
+          const name = isNL ? (p.product_name||'') : (p.name||'');
+          if (!ean.toLowerCase().includes(activeSearch) && !name.toLowerCase().includes(activeSearch)) return false;
+        }
+        if (activeRange){
+          const d = (isNL ? p.purchased_at : p.actioned_at || '').slice(0,10);
+          if (!d || d<activeRange.start || d>activeRange.end) return false;
+        }
+        return true;
+      }
+      function render(){
+        const nl = ALL_NL.filter(p=>matches(p,true));
+        const repl = ALL_REPL.filter(p=>matches(p,false));
+        const totalNLVal = nl.reduce((s,p)=>s+(parseFloat(p.cost_of_unit)||0)*(parseFloat(p.unit_quantity)||0),0);
+        const totalReplVal = repl.reduce((s,p)=>s+(parseFloat(p.original_cost_price)||0)*(parseInt(p.order_qty)||0),0);
+        document.getElementById('cbiChips').innerHTML = \`
+          <div class="chip"><div class="chip-label">New Lines</div><div class="chip-val">\${nl.length} item\${nl.length!==1?'s':''}</div></div>
+          <div class="chip"><div class="chip-label">Replenishments</div><div class="chip-val">\${repl.length} item\${repl.length!==1?'s':''}</div></div>
+          <div class="chip"><div class="chip-label">NL Total Value</div><div class="chip-val green">\${fmtGBPi(totalNLVal)}</div></div>
+          <div class="chip"><div class="chip-label">Repl Total Value</div><div class="chip-val green">\${fmtGBPi(totalReplVal)}</div></div>\`;
+        let tables='';
+        if(nl.length){
+          tables += \`<h2>New Lines (\${nl.length}) — \${fmtGBPi(totalNLVal)}</h2><table><thead><tr><th>EAN</th><th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Cost</th><th style="text-align:right">Total</th><th>Price History</th></tr></thead><tbody>\${nl.map(p=>p.__row).join('')}</tbody></table>\`;
+        }
+        if(repl.length){
+          tables += \`<h2>Replenishments (\${repl.length}) — \${fmtGBPi(totalReplVal)}</h2><table><thead><tr><th>EAN</th><th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th><th style="text-align:right">Qty</th><th style="text-align:right">Orig. Cost</th><th style="text-align:right">Purchase Cost</th><th style="text-align:right">Total</th><th>Price History</th></tr></thead><tbody>\${repl.map(p=>p.__row).join('')}</tbody></table>\`;
+        }
+        document.getElementById('cbiTables').innerHTML = tables || '<p style="color:#94a3b8;text-align:center;padding:30px;">No items match these filters.</p>';
+        document.getElementById('cbiGrandTotal').innerHTML = \`<div class="grand-total-label">Grand Total · \${nl.length+repl.length} items</div><div class="grand-total-val">\${fmtGBPi(totalNLVal+totalReplVal)}</div>\`;
+      }
+      render();
+    </script>
     </body></html>`;
 
     const win = window.open('','_blank');
     win.document.write(html);
     win.document.close();
-    win.addEventListener('load', () => { win.print(); });
     window.closeCbPdfModal();
-    _cbToast('Opening print dialog…','success');
+    _cbToast('Opening interactive summary…','success');
   };
 
   /* ── TOAST ── */
@@ -2104,8 +2138,9 @@ replHtml += `<h2>Replenishments (${repl.length}) — ${fmtGBP(totalReplVal)}</h2
     t.textContent=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000);
   }
 
-  /* ── INIT ── */
+/* ── INIT ── */
   _updateTypeDropdown();
   window.renderCentralBasket(true);
+  _cbFetchTabCounts();
 })();
 </script>
