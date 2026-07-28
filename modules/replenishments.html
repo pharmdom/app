@@ -1069,9 +1069,9 @@ async function loadSuppliers() {
 // ── DB: previously seen SKUs ──
 async function loadSeenSkus() {
   try {
-    const { data } = await sb.from('replenishment_skus').select('sku,action,note');
+    const { data } = await sb.from('replenishment_skus').select('sku,action,note,actioned_at');
     const seen = {};
-    (data || []).forEach(r => { seen[r.sku] = { action: r.action, note: r.note }; });
+    (data || []).forEach(r => { seen[r.sku] = { action: r.action, note: r.note, actioned_at: r.actioned_at }; });
     return seen;
   } catch(e) { return {}; }
 }
@@ -1114,7 +1114,9 @@ async function saveActionToDB(sku, action, note) {
 async function clearNonRejectedFromDB() {
   if (!sb) return;
   try {
-    await sb.from('replenishment_skus').delete().or('action.is.null,action.neq.rej');
+    const cutoff = new Date(Date.now() - 60*24*60*60*1000).toISOString();
+    await sb.from('replenishment_skus').delete()
+      .or(`action.is.null,action.neq.rej,and(action.eq.rej,actioned_at.lt.${cutoff})`);
   } catch(e) { console.warn('DB clear error', e); }
 }
 
@@ -1201,8 +1203,11 @@ async function processFiles() {
 
   const [, seenSkus] = await Promise.all([loadPriceContext(), loadSeenSkus()]);
 
+const REJECT_EXPIRY_MS = 60 * 24 * 60 * 60 * 1000;
   const rejectedSkus = new Set(
-    Object.entries(seenSkus).filter(([, v]) => v.action === 'rej').map(([k]) => k)
+    Object.entries(seenSkus).filter(([, v]) =>
+      v.action === 'rej' && v.actioned_at && (Date.now() - new Date(v.actioned_at).getTime()) < REJECT_EXPIRY_MS
+    ).map(([k]) => k)
   );
   
 const purchasedSkus = new Set(); // purchased SKUs always re-enter the queue on new upload
