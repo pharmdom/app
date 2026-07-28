@@ -807,11 +807,18 @@ image_url: cat.image_url || '',
       image_url: r.image_url,
       product_id: r.product_id,
     }));
-    const BATCH = 500;
+const BATCH = 500;
+    let failedCount = 0;
+    let firstError = null;
     for (let i = 0; i < payload.length; i += BATCH) {
-      await sb.from('inventory_skus').upsert(payload.slice(i, i + BATCH), { onConflict: 'sku' });
+      const { error } = await sb.from('inventory_skus').upsert(payload.slice(i, i + BATCH), { onConflict: 'sku' });
+      if (error) { failedCount += payload.slice(i, i + BATCH).length; if (!firstError) firstError = error; }
     }
-    toast(`Processed ${rows.length} Main Line SKUs`, 'success');
+    if (firstError) {
+      toast(`Save failed for ${failedCount} of ${rows.length} SKUs: ${firstError.message}`, 'error');
+    } else {
+      toast(`Processed ${rows.length} Main Line SKUs`, 'success');
+    }
   } catch(e) {
     toast('Save failed: ' + e.message, 'error');
   }
