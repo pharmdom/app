@@ -1983,12 +1983,6 @@ window.generateCbPdf = async function() {
 
     const periodLabel = _cbDateRange ? _cbDateRange.label : 'All Time';
 
-    // ── Group by supplier ──
-    const nlBySupplier = {};
-    nl.forEach(p => { const s=p.supplier_name||'Unknown'; if(!nlBySupplier[s]) nlBySupplier[s]=[]; nlBySupplier[s].push(p); });
-    const replBySupplier = {};
-    repl.forEach(p => { const s=p.supplier_name||'Unknown'; if(!replBySupplier[s]) replBySupplier[s]=[]; replBySupplier[s].push(p); });
-
   // ── Build row helper (used by embedded interactive script) ──
     function rowHtml(p, type, sup) {
       const isNL = type==='nl';
@@ -2040,8 +2034,8 @@ window.generateCbPdf = async function() {
       .chip-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:3px;}
       .chip-val{font-size:15px;font-weight:700;color:#0f172a;}
       .chip-val.green{color:#15803d;}
-      h2{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin:24px 0 8px;padding-top:16px;border-top:2px solid #e2e8f0;}
-      table{width:100%;border-collapse:collapse;margin-bottom:16px;table-layout:fixed;}
+      h2{font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#0f172a;margin:28px 0 10px;padding-top:18px;border-top:2px solid #0f172a;}
+      h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin:14px 0 6px;}      table{width:100%;border-collapse:collapse;margin-bottom:16px;table-layout:fixed;}
       col.c-ean{width:16%;}
       col.c-product{width:24%;}
       col.c-supplier{width:18%;}
@@ -2140,13 +2134,20 @@ window.generateCbPdf = async function() {
           <div class="chip"><div class="chip-label">Replenishments</div><div class="chip-val">\${repl.length} item\${repl.length!==1?'s':''}</div></div>
           <div class="chip"><div class="chip-label">NL Total Value</div><div class="chip-val green">\${fmtGBPi(totalNLVal)}</div></div>
           <div class="chip"><div class="chip-label">Repl Total Value</div><div class="chip-val green">\${fmtGBPi(totalReplVal)}</div></div>\`;
+       const nlTh   = '<thead><tr><th>EAN</th><th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Cost</th><th style="text-align:right">Total</th><th>Price History</th></tr></thead>';
+        const replTh = '<thead><tr><th>EAN</th><th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th><th style="text-align:right">Qty</th><th style="text-align:right">Orig. Cost</th><th style="text-align:right">Purchase Cost</th><th style="text-align:right">Total</th><th>Price History</th></tr></thead>';
+        const supplierNames = [...new Set([...nl.map(p=>p.supplier_name||'Unknown'), ...repl.map(p=>p.supplier_name||'Unknown')])].sort();
         let tables='';
-        if(nl.length){
-          tables += \`<h2>New Lines (\${nl.length}) — \${fmtGBPi(totalNLVal)}</h2><table><thead><tr><th>EAN</th><th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Cost</th><th style="text-align:right">Total</th><th>Price History</th></tr></thead><tbody>\${nl.map(p=>p.__row).join('')}</tbody></table>\`;
-        }
-        if(repl.length){
-          tables += \`<h2>Replenishments (\${repl.length}) — \${fmtGBPi(totalReplVal)}</h2><table><thead><tr><th>EAN</th><th>Product</th><th>Supplier</th><th>Added to Basket</th><th>When Purchased</th><th style="text-align:right">Qty</th><th style="text-align:right">Orig. Cost</th><th style="text-align:right">Purchase Cost</th><th style="text-align:right">Total</th><th>Price History</th></tr></thead><tbody>\${repl.map(p=>p.__row).join('')}</tbody></table>\`;
-        }
+        supplierNames.forEach(sup=>{
+          const supNL = nl.filter(p=>(p.supplier_name||'Unknown')===sup);
+          const supRepl = repl.filter(p=>(p.supplier_name||'Unknown')===sup);
+          if (!supNL.length && !supRepl.length) return;
+          const supNLVal = supNL.reduce((s,p)=>s+(parseFloat(p.cost_of_unit)||0)*(parseFloat(p.unit_quantity)||0),0);
+          const supReplVal = supRepl.reduce((s,p)=>s+(parseFloat(p.original_cost_price)||0)*(parseInt(p.order_qty)||0),0);
+          tables += \`<h2>\${sup} — \${fmtGBPi(supNLVal+supReplVal)}</h2>\`;
+          if (supNL.length) tables += \`<h3>New Lines (\${supNL.length}) — \${fmtGBPi(supNLVal)}</h3><table>\${nlTh}<tbody>\${supNL.map(p=>p.__row).join('')}</tbody></table>\`;
+          if (supRepl.length) tables += \`<h3>Replenishments (\${supRepl.length}) — \${fmtGBPi(supReplVal)}</h3><table>\${replTh}<tbody>\${supRepl.map(p=>p.__row).join('')}</tbody></table>\`;
+        });
         document.getElementById('cbiTables').innerHTML = tables || '<p style="color:#94a3b8;text-align:center;padding:30px;">No items match these filters.</p>';
         document.getElementById('cbiGrandTotal').innerHTML = \`<div class="grand-total-label">Grand Total · \${nl.length+repl.length} items</div><div class="grand-total-val">\${fmtGBPi(totalNLVal+totalReplVal)}</div>\`;
       }
