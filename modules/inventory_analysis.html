@@ -752,12 +752,12 @@ async function processInventoryFiles() {
     const sku = (r.sku_code || '').trim();
     if (!sku) return;
     const tags = (r.tags || '').toLowerCase();
-    catalogMap[sku] = {
+catalogMap[sku] = {
       name: r.product_title || sku,
       price: parseFloat(r.sales_price) || 0,
       cost_price: parseFloat(r.cost_price) || 0,
       image_url: r.image_url || '',
-      product_id: r.product_id || '',
+      product_id: r.product_id || null,
       is_main_line: tags.includes('main line'),
     };
   });
@@ -779,7 +779,8 @@ async function processInventoryFiles() {
   });
 
   const allSkus = new Set([...Object.keys(catalogMap), ...Object.keys(salesMap)]);
-  const rows = [...allSkus].map(sku => {
+  const dedupedSkus = [...new Set([...allSkus].map(s => s.trim()))];
+  const rows = dedupedSkus.map(sku => {
     const cat = catalogMap[sku] || {};
     const sale = salesMap[sku] || {};
     return {
@@ -787,8 +788,8 @@ async function processInventoryFiles() {
       name: cat.name || sale.name_fallback || sku,
       price: cat.price || sale.price_fallback || 0,
       cost_price: cat.cost_price || sale.cost_fallback || 0,
-      image_url: cat.image_url || '',
-      product_id: cat.product_id || '',
+image_url: cat.image_url || '',
+      product_id: cat.product_id || null,
       available: sale.available !== undefined ? sale.available : 0,
       total_sold: sale.total_sold || 0,
       is_main_line: cat.is_main_line !== undefined ? cat.is_main_line : true,
