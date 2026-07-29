@@ -810,15 +810,26 @@ function smOpenDrawer(staff) {
   const statusColor = isActive ? 'color:#15803d;' : 'color:#dc2626;';
 
   // Build module access grouped by group
-  const modGroupsHtml = SM_MODULE_GROUPS.map(g => {
+const modGroupsHtml = SM_MODULE_GROUPS.map(g => {
     const groupMods = g.modules.map(m => {
       const on = perms.includes(m.key);
       return `<span class="${on?'sm-mod-on':'sm-mod-off'}">${on?'<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}${m.label}</span>`;
     }).join('');
-    const activeCount = g.modules.filter(m => perms.includes(m.key)).length;
+    const rotaLevels = [
+      { key:'rota', label:'Rota' },
+      { key:'rota_write', label:'Rota Write' },
+      { key:'rota_write_primeCutOff', label:'PRIME Cut Off' },
+    ];
+    const rotaPills = g.id === 'others' ? rotaLevels.map(m => {
+      const on = perms.includes(m.key);
+      return `<span class="${on?'sm-mod-on':'sm-mod-off'}">${on?'<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':''}${m.label}</span>`;
+    }).join('') : '';
+    const rotaActiveCount = g.id === 'others' ? rotaLevels.filter(m => perms.includes(m.key)).length : 0;
+    const activeCount = g.modules.filter(m => perms.includes(m.key)).length + rotaActiveCount;
+    const totalCount = g.modules.length + (g.id === 'others' ? rotaLevels.length : 0);
     return `<div class="sm-drawer-mod-group">
-      <div class="sm-drawer-mod-group-label">${g.label} <span style="color:#cbd5e1;font-weight:400;">${activeCount}/${g.modules.length}</span></div>
-      <div class="sm-drawer-mod-pills">${groupMods}</div>
+      <div class="sm-drawer-mod-group-label">${g.label} <span style="color:#cbd5e1;font-weight:400;">${activeCount}/${totalCount}</span></div>
+      <div class="sm-drawer-mod-pills">${groupMods}${rotaPills}</div>
     </div>`;
   }).join('');
 
