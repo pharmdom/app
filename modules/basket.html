@@ -675,9 +675,14 @@ function monthLabel(d) {
     return map;
   }
 
+function _cbReplDisplayCost(p) {
+    const oc = parseFloat(p.original_cost_price);
+    return (!isNaN(oc) && oc > 0) ? oc : (parseFloat(p.cost_price) || 0);
+  }
+
   function _cbReplCost(p) {
     const tracked = _cbLastReplCost[p.sku];
-    return (tracked != null && !isNaN(tracked)) ? parseFloat(tracked) : (parseFloat(p.original_cost_price) || 0);
+    return (tracked != null && !isNaN(tracked)) ? parseFloat(tracked) : _cbReplDisplayCost(p);
   }
 
 function _debounce(fn, wait) {
@@ -935,7 +940,7 @@ async function _cbFetchTabCounts(){
     }
     const items = [
       ...nlRows.map(p=>({units:parseFloat(p.unit_quantity)||0, cost:parseFloat(p.cost_of_unit)||0, supplier:p.supplier_name||''})),
-      ...replRows.map(p=>({units:parseFloat(p.order_qty)||0, cost:parseFloat(p.original_cost_price)||0, supplier:p.supplier_name||''})),
+      ...replRows.map(p=>({units:parseFloat(p.order_qty)||0, cost:_cbReplDisplayCost(p), supplier:p.supplier_name||''})),
     ];
     const bySupplier = {};
     items.forEach(i=>{ const k=i.supplier||'No Supplier'; bySupplier[k]=(bySupplier[k]||0)+i.units*i.cost; });
@@ -1217,7 +1222,7 @@ window.setCbFilter = function(f) { _cbFilter=f; _cbPage=1; _updateTypeDropdown()
             <div class="cb-kpi"><div class="cb-kpi-label">Qty</div><div class="cb-kpi-val">${fmtVal(p.unit_quantity)}</div></div>
             <div class="cb-kpi"><div class="cb-kpi-label">Total</div><div class="cb-kpi-val">${total>0?fmtGBP(total):'—'}</div></div>`;
 } else {
-      const origCost=parseFloat(p.cost_price)||0; const cost=parseFloat(p.original_cost_price)||0; const qty=parseInt(p.order_qty)||0;
+      const origCost=parseFloat(p.cost_price)||0; const cost=_cbReplDisplayCost(p); const qty=parseInt(p.order_qty)||0;
       const total=cost*qty; const dl=parseFloat(p.days_left)||0;
       kpis=`<div class="cb-kpi"><div class="cb-kpi-label">Orig. Cost</div><div class="cb-kpi-val" style="color:rgba(255,255,255,.55);font-size:13px;">${origCost>0?'£'+origCost.toFixed(2):'—'}</div></div>
             <div class="cb-kpi"><div class="cb-kpi-label">Total Value</div><div class="cb-kpi-val">${total>0?fmtGBP(total):'—'}</div></div>
@@ -1314,8 +1319,8 @@ ${isPurchased?`<div class="cb-info-card">
             <div class="cb-info-val-static">${fmtDate(p.purchased_at)}</div>
           </div>`:''}
         </div>`;
-    } else {
-      const cost=parseFloat(p.original_cost_price)||0; const qty=parseInt(p.order_qty)||0;
+} else {
+      const cost=_cbReplDisplayCost(p); const qty=parseInt(p.order_qty)||0;
       const dl=parseFloat(p.days_left)||0;
       const daysCls=dl<=0?'#dc2626':dl<7?'#dc2626':dl<20?'#92400e':'#15803d';
       const daysTxt=dl<=0?'Out of stock':dl+'d left';
@@ -1721,8 +1726,8 @@ function _nlCard(p,isPurchased,isInquire) {
     </div>`;
   }
 
-  function _replCard(p,isPurchased,isInquire) {
-    const cost=parseFloat(p.original_cost_price)||0; const qty=parseInt(p.order_qty)||0;
+function _replCard(p,isPurchased,isInquire) {
+    const cost=_cbReplDisplayCost(p); const qty=parseInt(p.order_qty)||0;
     const total=cost*qty;
     const tagCls=isPurchased?'pur':isInquire?'inq':'repl';
     const tagTxt=isPurchased?'Purchased':isInquire?'Inquire':'Replenishment';
@@ -1767,8 +1772,8 @@ function _nlCard(p,isPurchased,isInquire) {
     </div>`;
   }
 
-  function _replListCard(p,isPurchased,isInquire) {
-    const cost=parseFloat(p.original_cost_price)||0; const qty=parseInt(p.order_qty)||0;
+function _replListCard(p,isPurchased,isInquire) {
+    const cost=_cbReplDisplayCost(p); const qty=parseInt(p.order_qty)||0;
     const total=cost*qty; const dl=parseFloat(p.days_left)||0;
     const daysCls=dl<=0?'#dc2626':dl<7?'#dc2626':dl<20?'#92400e':'#15803d';
     const daysTxt=dl<=0?'Out of stock':dl+'d left';
@@ -1822,7 +1827,7 @@ function _refreshHeroKpis() {
             <div class="cb-kpi"><div class="cb-kpi-label">Qty</div><div class="cb-kpi-val">${fmtVal(p.unit_quantity)}</div></div>
             <div class="cb-kpi"><div class="cb-kpi-label">Total</div><div class="cb-kpi-val">${total>0?fmtGBP(total):'—'}</div></div>`;
     } else {
-      const origCost=parseFloat(p.cost_price)||0; const cost=parseFloat(p.original_cost_price)||0; const qty=parseInt(p.order_qty)||0;
+      const origCost=parseFloat(p.cost_price)||0; const cost=_cbReplDisplayCost(p); const qty=parseInt(p.order_qty)||0;
       const total=cost*qty; const dl=parseFloat(p.days_left)||0;
       kpis=`<div class="cb-kpi"><div class="cb-kpi-label">Orig. Cost</div><div class="cb-kpi-val" style="color:rgba(255,255,255,.55);font-size:13px;">${origCost>0?'£'+origCost.toFixed(2):'—'}</div></div>
             <div class="cb-kpi"><div class="cb-kpi-label">Total Value</div><div class="cb-kpi-val">${total>0?fmtGBP(total):'—'}</div></div>
@@ -2004,9 +2009,9 @@ window.generateCbPdf = async function() {
       repl = repl.filter(p => selectedSups.includes(p.supplier_name||''));
     }
 
-    function _cbPdfReplCost(p) {
+function _cbPdfReplCost(p) {
       const hist = _allPriceHistory['repl::'+p.sku] || [];
-      return hist.length ? (parseFloat(hist[hist.length-1].price)||0) : (parseFloat(p.original_cost_price)||0);
+      return hist.length ? (parseFloat(hist[hist.length-1].price)||0) : _cbReplDisplayCost(p);
     }
 
     const totalNLVal   = nl.reduce((s,p)   => { const c=parseFloat(p.cost_of_unit)||0; const q=parseFloat(p.unit_quantity)||0; return s+c*q; }, 0);
