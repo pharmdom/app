@@ -320,10 +320,13 @@
           </div>
         </div>
 
-        <div class="sm-form-section" id="smHolidaySection" style="display:none;">
-          <div class="sm-section-label">Holiday Hours</div>
+<div class="sm-form-section" id="smHolidaySection" style="display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div class="sm-section-label" style="margin-bottom:0;">Holiday Hours</div>
+            <button type="button" class="sm-switch" id="smHolidayToggle" onclick="smToggleHolidayEntry()" title="Enable adding holiday hours"></button>
+          </div>
           <div id="smHolidayList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
+          <div id="smHolidayAddRow" style="display:none;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
             <div>
               <label class="sm-label">Year</label>
               <input id="smHolidayYear" class="pd-input" type="number" placeholder="2026" min="2000" max="2100">
@@ -447,7 +450,18 @@
 .sm-drawer-mod-group { margin-bottom:14px; }
 .sm-drawer-mod-group-label { font-size:10px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
 .sm-drawer-mod-pills { display:flex; gap:5px; flex-wrap:wrap; }
-
+/* ── Toggle switch component (Rota hierarchy + Holiday Hours) ── */
+.sm-switch { position:relative; width:38px; height:22px; border-radius:100px; background:#e2e8f0; border:none; cursor:pointer; flex-shrink:0; transition:background .18s; padding:0; }
+.sm-switch::after { content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:transform .18s; }
+.sm-switch.active { background:#2563eb; }
+.sm-switch.active::after { transform:translateX(16px); }
+.sm-switch-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 12px; border:1px solid #e2e8f0; border-radius:9px; background:#fff; transition:opacity .15s; }
+.sm-switch-row.nested-1 { margin-left:22px; border-left:2px solid #dbeafe; }
+.sm-switch-row.nested-2 { margin-left:44px; border-left:2px solid #ede9fe; }
+.sm-switch-row.disabled { opacity:.45; pointer-events:none; background:#f8fafc; }
+.sm-switch-label { font-size:12px; font-weight:600; color:#334155; display:flex; flex-direction:column; gap:1px; }
+.sm-switch-label small { font-size:10.5px; font-weight:500; color:#94a3b8; }
+  
 .sm-form-section { margin-bottom:18px; }
 .sm-section-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#94a3b8; margin-bottom:10px; }
 .sm-label { display:block; font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; }
@@ -617,7 +631,6 @@ const SM_MODULE_GROUPS = [
     icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="12" y1="8" x2="12" y2="16"/></svg>',
     modules: [
       { key:'invoices',      label:'Invoices' },
-      { key:'rota',          label:'Rota' },
       { key:'paycheck',      label:'Paycheck' },
       { key:'intelligence',  label:'Intelligence' },
       { key:'packaging',     label:'Packaging' },
@@ -915,8 +928,52 @@ function smBuildModuleGroups() {
       </div>
       <div class="sm-mod-group-body" id="group-${g.id}">
         ${g.modules.map(m => `<button type="button" class="sm-mod-toggle" data-mod="${m.key}" onclick="smToggleMod(this,'${g.id}')">${m.label}</button>`).join('')}
+        ${g.id === 'others' ? smRotaWidgetHtml() : ''}
       </div>
     </div>`).join('');
+}
+function smRotaWidgetHtml() {
+  return `
+    <div class="sm-rota-widget" style="grid-column:1/-1;display:flex;flex-direction:column;gap:6px;margin-top:2px;">
+      <div class="sm-switch-row" id="rowRota">
+        <div class="sm-switch-label">Rota<small>View the rota &amp; schedule</small></div>
+        <button type="button" class="sm-switch sm-mod-toggle" data-mod="rota" id="swRota" onclick="smToggleRotaLevel('rota')"></button>
+      </div>
+      <div class="sm-switch-row nested-1" id="rowRotaWrite">
+        <div class="sm-switch-label">Write<small>Add, edit &amp; delete shifts</small></div>
+        <button type="button" class="sm-switch sm-mod-toggle" data-mod="rota_write" id="swRotaWrite" onclick="smToggleRotaLevel('rota_write')"></button>
+      </div>
+      <div class="sm-switch-row nested-2" id="rowRotaCutoff">
+        <div class="sm-switch-label">PRIME Cut Off<small>Create &amp; manage cut off times</small></div>
+        <button type="button" class="sm-switch sm-mod-toggle" data-mod="rota_write_primeCutOff" id="swRotaCutoff" onclick="smToggleRotaLevel('rota_write_primeCutOff')"></button>
+      </div>
+    </div>`;
+}
+function smSyncRotaWidgetState() {
+  const rotaOn = document.getElementById('swRota')?.classList.contains('active');
+  const writeOn = document.getElementById('swRotaWrite')?.classList.contains('active');
+  document.getElementById('rowRotaWrite')?.classList.toggle('disabled', !rotaOn);
+  document.getElementById('rowRotaCutoff')?.classList.toggle('disabled', !(rotaOn && writeOn));
+}
+function smToggleRotaLevel(level) {
+  const idMap = { rota:'swRota', rota_write:'swRotaWrite', rota_write_primeCutOff:'swRotaCutoff' };
+  const el = document.getElementById(idMap[level]);
+  if (!el) return;
+  const turningOn = !el.classList.contains('active');
+  el.classList.toggle('active', turningOn);
+  if (level === 'rota' && !turningOn) {
+    document.getElementById('swRotaWrite')?.classList.remove('active');
+    document.getElementById('swRotaCutoff')?.classList.remove('active');
+  }
+  if (level === 'rota_write') {
+    if (!turningOn) document.getElementById('swRotaCutoff')?.classList.remove('active');
+    if (turningOn) document.getElementById('swRota')?.classList.add('active');
+  }
+  if (level === 'rota_write_primeCutOff' && turningOn) {
+    document.getElementById('swRota')?.classList.add('active');
+    document.getElementById('swRotaWrite')?.classList.add('active');
+  }
+  smSyncRotaWidgetState();
 }
 
 function smToggleMod(btn, groupId) {
@@ -949,8 +1006,14 @@ function smGroupSelectAll(id) {
   const group = SM_MODULE_GROUPS.find(g => g.id === id);
   if (!group) return;
   const btns = group.modules.map(m => document.querySelector(`[data-mod="${m.key}"]`)).filter(Boolean);
+  if (id === 'others') { const w = document.getElementById('swRota'); if (w) btns.push(w); }
   const allActive = btns.every(b => b.classList.contains('active'));
   btns.forEach(b => b.classList.toggle('active', !allActive));
+  if (id === 'others') {
+    document.getElementById('swRotaWrite')?.classList.toggle('active', !allActive);
+    document.getElementById('swRotaCutoff')?.classList.toggle('active', !allActive);
+    smSyncRotaWidgetState();
+  }
   smUpdateGroupCount(id);
   // Open the group if selecting
   if (!allActive) {
@@ -979,9 +1042,10 @@ function smOpenAddModal() {
   document.getElementById('smStatus').value = 'Active';
   document.getElementById('smHourlyRate').value = '';
   document.getElementById('smEmailHint').style.display = 'none';
-  document.querySelectorAll('.sm-mod-toggle').forEach(b => b.classList.remove('active'));
+document.querySelectorAll('.sm-mod-toggle').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.pd-input').forEach(i => i.classList.remove('error','warn'));
   SM_MODULE_GROUPS.forEach(g => smUpdateGroupCount(g.id));
+  smSyncRotaWidgetState();
   smEditHolidayHours = {};
   document.getElementById('smHolidaySection').style.display = 'none';
   document.getElementById('smModal').style.display = 'flex';
@@ -1008,8 +1072,12 @@ document.getElementById('smHourlyRate').value = staff.hourlyRate || '';
   document.querySelectorAll('.sm-mod-toggle').forEach(b => b.classList.toggle('active', perms.includes(b.dataset.mod)));
   document.querySelectorAll('.pd-input').forEach(i => i.classList.remove('error','warn'));
   SM_MODULE_GROUPS.forEach(g => smUpdateGroupCount(g.id));
+  smSyncRotaWidgetState();
   smEditHolidayHours = Object.assign({}, staff.holidayHours || {});
   document.getElementById('smHolidaySection').style.display = '';
+  const smHasHolidayEntries = Object.keys(smEditHolidayHours).length > 0;
+  document.getElementById('smHolidayToggle').classList.toggle('active', smHasHolidayEntries);
+  document.getElementById('smHolidayAddRow').style.display = smHasHolidayEntries ? 'grid' : 'none';
   smRenderHolidayList();
   document.getElementById('smModal').style.display = 'flex';
 }
@@ -1043,6 +1111,13 @@ function smAddHolidayYear() {
 function smRemoveHolidayYear(year) {
   delete smEditHolidayHours[year];
   smRenderHolidayList();
+}
+function smToggleHolidayEntry() {
+  const btn = document.getElementById('smHolidayToggle');
+  const row = document.getElementById('smHolidayAddRow');
+  const on = !btn.classList.contains('active');
+  btn.classList.toggle('active', on);
+  row.style.display = on ? 'grid' : 'none';
 }
 async function smSaveStaff() {
   const isEdit = !!document.getElementById('smEditId').value;
@@ -1172,7 +1247,9 @@ window.smGroupSelectAll = smGroupSelectAll;
 window.smToggleMod = smToggleMod;
 window.smAddHolidayYear = smAddHolidayYear;
 window.smRemoveHolidayYear = smRemoveHolidayYear;
-
+window.smToggleHolidayEntry = smToggleHolidayEntry;
+window.smToggleRotaLevel = smToggleRotaLevel;
+window.smSyncRotaWidgetState = smSyncRotaWidgetState;
 })();
 
 
