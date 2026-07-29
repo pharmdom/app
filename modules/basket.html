@@ -932,15 +932,20 @@ async function _cbFetchTabCounts(){
         nlRows = (data||[]).filter(p=>!(p.sourcing_approvals||[]).some(a=>a.status==='rejected'));
       } catch(e) { console.warn('CB totals nl:', e); }
     }
-    if (wantRepl) {
+if (wantRepl) {
       try {
-        const { data } = await _cbApplyReplFilters(sb.from('replenishment_skus').select('supplier_name,order_qty,original_cost_price'));
+        const { data } = await _cbApplyReplFilters(sb.from('replenishment_skus').select('sku,supplier_name,order_qty,original_cost_price,cost_price'));
         replRows = data||[];
       } catch(e) { console.warn('CB totals repl:', e); }
     }
+    const totalsReplCostMap = await _cbBuildLastReplCostMap(replRows.map(p=>p.sku));
     const items = [
       ...nlRows.map(p=>({units:parseFloat(p.unit_quantity)||0, cost:parseFloat(p.cost_of_unit)||0, supplier:p.supplier_name||''})),
-      ...replRows.map(p=>({units:parseFloat(p.order_qty)||0, cost:_cbReplDisplayCost(p), supplier:p.supplier_name||''})),
+      ...replRows.map(p=>{
+        const tracked = totalsReplCostMap[p.sku];
+        const cost = (tracked!=null && !isNaN(tracked)) ? parseFloat(tracked) : _cbReplDisplayCost(p);
+        return {units:parseFloat(p.order_qty)||0, cost, supplier:p.supplier_name||''};
+      }),
     ];
     const bySupplier = {};
     items.forEach(i=>{ const k=i.supplier||'No Supplier'; bySupplier[k]=(bySupplier[k]||0)+i.units*i.cost; });
