@@ -612,6 +612,7 @@ let _cbFilteredNL = [];
   let _cbFilteredRepl = [];
  let _cbSupplierList = [];
 let _allPriceHistory = {};  // filled before PDF export: key `${type}::${id}` -> [{price,changed_at}]
+let _cbLastReplCost = {};   // last *logged* price per repl sku, from cb_price_history — used for kanban/MOQ totals
 let _cbCostDebounceTimers = {};
  let _cbCostBaseline = {};   // last *committed* cost, keyed 'nl::id' / 'repl::sku' — used to detect real changes
 
@@ -659,6 +660,24 @@ const CB_REVEAL_STEP = 15;
 
 function monthLabel(d) {
     return new Date(d).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  }
+
+  async function _cbBuildLastReplCostMap(skus) {
+    const uniqueSkus = [...new Set((skus||[]).filter(Boolean))];
+    if (!uniqueSkus.length) return {};
+    const map = {};
+    try {
+      const { data } = await sb.from('cb_price_history')
+        .select('item_id,price,changed_at').eq('item_type','repl').in('item_id', uniqueSkus)
+        .order('changed_at', { ascending:true });
+      (data||[]).forEach(r => { map[r.item_id] = r.price; });
+    } catch(e) { console.warn('CB last repl cost fetch:', e); }
+    return map;
+  }
+
+  function _cbReplCost(p) {
+    const tracked = _cbLastReplCost[p.sku];
+    return (tracked != null && !isNaN(tracked)) ? parseFloat(tracked) : (parseFloat(p.original_cost_price) || 0);
   }
 
 function _debounce(fn, wait) {
@@ -1274,10 +1293,14 @@ function _renderDetailsTab(type, p, isPurchased, isInquire) {
              oninput="window.cbUpdateNLCostLive('${escA(p.opportunity_id)}',this.value)"
              onblur="window.cbUpdateNLCost('${escA(p.opportunity_id)}',this.value)" id="cbCostNL_${escA(p.opportunity_id)}">
           </div>
-          ${isPurchased?`<div class="cb-info-card">
+${isPurchased?`<div class="cb-info-card">
             <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Qty Purchased</label>
             <div class="cb-info-val-static" style="color:#15803d;">${qtyPur>0?fmtVal(qtyPur)+' units':'—'}</div>
          </div>`:''}
+          <div class="cb-info-card">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><line x1="7" y1="8" x2="7" y2="12"/><line x1="10" y1="8" x2="10" y2="12"/><line x1="14" y1="8" x2="14" y2="12"/><line x1="17" y1="8" x2="17" y2="12"/></svg>EAN</label>
+            <div class="cb-info-val-static">${escH((p.code||'').split(',')[0].split(':')[0].trim()) || '—'}</div>
+          </div>
         </div>
         <div id="cbPriceHistorySection"></div>
         <div class="cb-sec-label">Timeline</div>
@@ -1311,6 +1334,10 @@ function _renderDetailsTab(type, p, isPurchased, isInquire) {
             <input type="number" class="cb-edit-input" value="${cost>0?cost.toFixed(2):''}" placeholder="£0.00" step="0.01" min="0"
             oninput="window.cbUpdateReplCostLive('${escA(p.sku)}',this.value)"
               onblur="window.cbUpdateReplCost('${escA(p.sku)}',this.value)" id="cbCostRepl_${escA(p.sku)}">
+          </div>
+          <div class="cb-info-card">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><line x1="7" y1="8" x2="7" y2="12"/><line x1="10" y1="8" x2="10" y2="12"/><line x1="14" y1="8" x2="14" y2="12"/><line x1="17" y1="8" x2="17" y2="12"/></svg>EAN</label>
+            <div class="cb-info-val-static">${escH(p.ean||'') || '—'}</div>
           </div>
         </div>
         <div id="cbPriceHistorySection"></div>
@@ -1525,7 +1552,7 @@ await _loadCbSuppliers();
         wantRepl ? _cbRefillPages(_cbFetchReplPage, priorReplPages, false) : Promise.resolve([]),
       ]);
       _cbLoadedNL = nlRows; _cbLoadedRepl = replRows;
-
+      _cbLastReplCost = await _cbBuildLastReplCostMap(replRows.map(p=>p.sku));
 await _cbFetchTotals();
       _cbFetchTabCounts();
     }
@@ -1589,7 +1616,7 @@ const supplierNames = Object.keys(supplierBuckets);
     supplierNames.forEach((sup, idx) => {
       const b = supplierBuckets[sup];
       const nlVal   = b.nl.reduce((s,p)=>{const c=parseFloat(p.cost_of_unit)||0;const q=parseFloat(p.unit_quantity)||0;return s+c*q;},0);
-      const replVal = b.repl.reduce((s,p)=>{const c=parseFloat(p.original_cost_price)||0;const q=parseInt(p.order_qty)||0;return s+c*q;},0);
+      const replVal = b.repl.reduce((s,p)=>{const c=_cbReplCost(p);const q=parseInt(p.order_qty)||0;return s+c*q;},0);
       const total   = b.nl.length + b.repl.length;
       const nlSecId = `cbSecNl_${idx}`, replSecId = `cbSecRepl_${idx}`;
 
@@ -1652,7 +1679,7 @@ const _cbKanbanEl = body.querySelector('.cb-kanban');
 function _cbSupplierValue(supplierBuckets, name){
     const b = supplierBuckets[name];
     const nlVal = b.nl.reduce((s,p)=>{const c=parseFloat(p.cost_of_unit)||0;const q=parseFloat(p.unit_quantity)||0;return s+c*q;},0);
-    const replVal = b.repl.reduce((s,p)=>{const c=parseFloat(p.original_cost_price)||0;const q=parseInt(p.order_qty)||0;return s+c*q;},0);
+    const replVal = b.repl.reduce((s,p)=>{const c=_cbReplCost(p);const q=parseInt(p.order_qty)||0;return s+c*q;},0);
     return nlVal+replVal;
   }
 
