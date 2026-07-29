@@ -976,12 +976,13 @@
   const isAdmin     = currentUser.role === 'Admin';
   const myName      = ((currentUser.firstName || '') + ' ' + (currentUser.lastName || '')).trim();
 
-  let allData         = [];
+let allData         = [];
   let employees       = {};
   let uniqueEmployees = [];
   let filteredEmps    = [];
   let drawerEmpId     = null;
   let drawerFilter    = 'all';
+  let allHolidayHoursMap = {};
   let activeDateRange    = 'all';
   let activeStatusFilter = 'all';
   let customFrom = null;
@@ -1045,6 +1046,10 @@ const [shiftsRes, usersRes, closuresRes] = await Promise.all([
 
       const myUserRow = (usersRes.data||[]).find(u=>String(u.user_id)===String(currentUser.userId));
       myHolidayHours = (myUserRow && myUserRow.holiday_hours && typeof myUserRow.holiday_hours==='object') ? myUserRow.holiday_hours : {};
+      allHolidayHoursMap = {};
+      (usersRes.data||[]).forEach(u=>{
+        allHolidayHoursMap[String(u.user_id)] = (u.holiday_hours && typeof u.holiday_hours==='object') ? u.holiday_hours : {};
+      });
       myClosures = (closuresRes.data||[]).map(c=>({
         id: c.id, date: String(c.date), label: c.label || 'Closed',
         hours: parseFloat(c.hours) || 8,
@@ -1848,6 +1853,68 @@ function closureAppliesToMe(c){
     const usedHours = yearClosures.reduce((s,c)=>s+c.hours,0);
     return { year, totalAllowance, usedHours, balance: totalAllowance-usedHours, closures: yearClosures };
   }
+  function closureAppliesToEmp(c, empId){
+    return c.scope!=='specific' || c.employeeIds.includes(String(empId));
+  }
+  function empHasShiftOn(empId, date){
+    return allData.some(r=>String(r.employeeId)===String(empId) && r.date===date);
+  }
+  function getEmployeeHolidaySummaryAdmin(empId){
+    const year = new Date().getFullYear();
+    const hh = (employees[empId] && employees[empId].holidayHours) || {};
+    const totalAllowance = parseFloat(hh[year]) || 0;
+    const yearClosures = myClosures
+      .filter(c => c.date.slice(0,4)===String(year) && closureAppliesToEmp(c, empId) && !empHasShiftOn(empId, c.date))
+      .sort((a,b)=>a.date.localeCompare(b.date));
+    const usedHours = yearClosures.reduce((s,c)=>s+c.hours,0);
+    return { year, totalAllowance, usedHours, balance: totalAllowance-usedHours, closures: yearClosures };
+  }
+  function renderDrawerHolidayTab(empId){
+    const summary = getEmployeeHolidaySummaryAdmin(empId);
+    const pct = summary.totalAllowance>0 ? Math.min(100, Math.round((summary.usedHours/summary.totalAllowance)*100)) : 0;
+    const over = summary.balance < 0;
+    const closureRows = summary.closures.length
+      ? summary.closures.map(c=>{
+          const isPersonal = c.scope==='specific';
+          const d = new Date(c.date);
+          return `<div class="myhol-closure-row">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div>
+                <div class="myhol-closure-date">${d.toLocaleDateString('en-GB',{weekday:'short',month:'short',day:'numeric'})}</div>
+                <div class="myhol-closure-label">${escHtml(c.label||'Closed')}</div>
+              </div>
+              <span class="myhol-badge ${isPersonal?'personal':'company'}">${isPersonal?'Personal':'Company'}</span>
+            </div>
+            <div class="myhol-closure-hours">-${fmtHM(c.hours)}</div>
+          </div>`;
+        }).join('')
+      : `<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No holiday entries for ${summary.year} yet</p>`;
+    document.getElementById('drawerBody').innerHTML = `
+      <div class="myhol-summary-card">
+        <div class="myhol-balance-row">
+          <div>
+            <div class="myhol-balance-label">Holiday Balance ${summary.year}</div>
+            <div class="myhol-balance-value" style="color:${over?'#dc2626':'#0f172a'};">${fmtHM(summary.balance)}</div>
+          </div>
+          <div class="myhol-balance-chips">
+            <div class="myhol-mini-chip">
+              <span class="myhol-mini-label">Total</span>
+              <span class="myhol-mini-value">${fmtHM(summary.totalAllowance)}</span>
+            </div>
+            <div class="myhol-mini-chip">
+              <span class="myhol-mini-label">Used</span>
+              <span class="myhol-mini-value" style="color:#b45309;">${fmtHM(summary.usedHours)}</span>
+            </div>
+          </div>
+        </div>
+        <div class="myhol-progress-track"><div class="myhol-progress-fill" style="width:${pct}%;background:${over?'#dc2626':'#f59e0b'};"></div></div>
+        ${summary.totalAllowance<=0 ? '<div class="myhol-empty-note">No holiday hours set for this employee this year yet.</div>' : ''}
+      </div>
+      <div class="myhol-closures-label">Closures in ${summary.year}</div>
+      ${closureRows}
+      <div class="myhol-disclaimer">These hours are informational only and are never included in pay calculations.</div>
+    `;
+  }
   function getClosuresForPeriod(mode, weeks, monthGroups){
     const mine = myClosures.filter(c=>closureAppliesToMe(c) && !myShiftOn(c.date));
     if (mode==='week') {
@@ -1894,13 +1961,13 @@ return Object.values(weeks).sort((a,b) => b.weekKey.localeCompare(a.weekKey)).ma
     });
   }
 
-  function buildEmployeeMap() {
+function buildEmployeeMap() {
     employees = {};
     const seen = new Set();
     uniqueEmployees = [];
     allData.forEach(r => {
       if (!r.employeeId) return;
-      if (!employees[r.employeeId]) employees[r.employeeId] = { id: r.employeeId, name: r.employeeName, records: [] };
+      if (!employees[r.employeeId]) employees[r.employeeId] = { id: r.employeeId, name: r.employeeName, records: [], holidayHours: allHolidayHoursMap[r.employeeId] || {} };
       employees[r.employeeId].records.push(r);
       if (!seen.has(r.employeeId)) {
         seen.add(r.employeeId);
@@ -2082,15 +2149,16 @@ function empRow(emp) {
         '</div>' +
       '</div>';
 
-    document.getElementById('drawerFilterBar').innerHTML =
+document.getElementById('drawerFilterBar').innerHTML =
       '<span class="drawer-filter-label">Show</span>' +
       '<button class="drawer-tab-btn '+(drawerFilter==='all'?'active':'')+'" onclick="setDrawerFilter(\'all\')">All ('+empWeeks.length+')</button>' +
       '<button class="drawer-tab-btn yellow '+(drawerFilter==='pending'?'active':'')+'" onclick="setDrawerFilter(\'pending\')">Pending ('+pendCount+')</button>' +
-      '<button class="drawer-tab-btn green '+(drawerFilter==='paid'?'active':'')+'" onclick="setDrawerFilter(\'paid\')">Paid ('+paidCount+')</button>';
+      '<button class="drawer-tab-btn green '+(drawerFilter==='paid'?'active':'')+'" onclick="setDrawerFilter(\'paid\')">Paid ('+paidCount+')</button>' +
+      '<button class="drawer-tab-btn '+(drawerFilter==='holiday'?'active':'')+'" onclick="setDrawerFilter(\'holiday\')">Holiday</button>';
 
+   if (drawerFilter === 'holiday') { renderDrawerHolidayTab(emp.id); return; }
     const allWeeks = groupByWeek(emp.records);
     const weeks    = drawerFilter === 'all' ? allWeeks : drawerFilter === 'pending' ? allWeeks.filter(w => w.paid !== 'Yes') : allWeeks.filter(w => w.paid === 'Yes');
-
     if (drawerFilter === 'all') {
       const pendWeeks = allWeeks.filter(w => w.paid !== 'Yes');
       const paidWeeks = allWeeks.filter(w => w.paid === 'Yes');
