@@ -461,7 +461,24 @@
 .sm-switch-row.disabled { opacity:.45; pointer-events:none; background:#f8fafc; }
 .sm-switch-label { font-size:12px; font-weight:600; color:#334155; display:flex; flex-direction:column; gap:1px; }
 .sm-switch-label small { font-size:10.5px; font-weight:500; color:#94a3b8; }
-  
+.sm-rota-header {
+  display:flex; align-items:center; gap:8px; padding:8px 10px;
+  border:1px solid #e2e8f0; border-radius:9px; background:#f8fafc;
+  cursor:pointer; user-select:none; transition:background .15s;
+}
+.sm-rota-header:hover { background:#f1f5f9; }
+.sm-rota-header.open { border-radius:9px 9px 0 0; border-bottom:none; background:#f1f5f9; }
+.sm-rota-header-title { font-size:12px; font-weight:700; color:#334155; flex:1; }
+.sm-rota-summary { font-size:10.5px; font-weight:600; padding:2px 8px; border-radius:100px; background:#f1f5f9; color:#94a3b8; }
+.sm-rota-summary.on { background:#eff6ff; color:#1d4ed8; }
+.sm-rota-chevron { width:14px; height:14px; color:#94a3b8; transition:transform .2s; flex-shrink:0; }
+.sm-rota-chevron.open { transform:rotate(90deg); }
+.sm-rota-body {
+  display:none; flex-direction:column; gap:6px;
+  padding:10px; border:1px solid #e2e8f0; border-top:none;
+  border-radius:0 0 9px 9px; background:#fff;
+}
+.sm-rota-body.open { display:flex; }  
 .sm-form-section { margin-bottom:18px; }
 .sm-section-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#94a3b8; margin-bottom:10px; }
 .sm-label { display:block; font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; }
@@ -945,26 +962,57 @@ function smBuildModuleGroups() {
 }
 function smRotaWidgetHtml() {
   return `
-    <div class="sm-rota-widget" style="grid-column:1/-1;display:flex;flex-direction:column;gap:6px;margin-top:2px;">
-      <div class="sm-switch-row" id="rowRota">
-        <div class="sm-switch-label">Rota<small>View the rota &amp; schedule</small></div>
-        <button type="button" class="sm-switch sm-mod-toggle" data-mod="rota" id="swRota" onclick="smToggleRotaLevel('rota')"></button>
+    <div class="sm-rota-widget" style="grid-column:1/-1;margin-top:2px;">
+      <div class="sm-rota-header" id="rotaSectionHeader" onclick="smToggleRotaSection()">
+        <div class="sm-rota-header-title">Rota Access</div>
+        <span class="sm-rota-summary" id="rotaSummaryBadge">Not set</span>
+        <svg class="sm-rota-chevron" id="rotaSectionChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </div>
-      <div class="sm-switch-row nested-1" id="rowRotaWrite">
-        <div class="sm-switch-label">Write<small>Add, edit &amp; delete shifts</small></div>
-        <button type="button" class="sm-switch sm-mod-toggle" data-mod="rota_write" id="swRotaWrite" onclick="smToggleRotaLevel('rota_write')"></button>
-      </div>
-      <div class="sm-switch-row nested-2" id="rowRotaCutoff">
-        <div class="sm-switch-label">PRIME Cut Off<small>Create &amp; manage cut off times</small></div>
-        <button type="button" class="sm-switch sm-mod-toggle" data-mod="rota_write_primeCutOff" id="swRotaCutoff" onclick="smToggleRotaLevel('rota_write_primeCutOff')"></button>
+      <div class="sm-rota-body" id="rotaSectionBody">
+        <div class="sm-switch-row" id="rowRota">
+          <div class="sm-switch-label">Rota<small>View the rota &amp; schedule</small></div>
+          <button type="button" class="sm-switch sm-mod-toggle" data-mod="rota" id="swRota" onclick="smToggleRotaLevel('rota')"></button>
+        </div>
+        <div class="sm-switch-row nested-1" id="rowRotaWrite">
+          <div class="sm-switch-label">Write<small>Add, edit &amp; delete shifts</small></div>
+          <button type="button" class="sm-switch sm-mod-toggle" data-mod="rota_write" id="swRotaWrite" onclick="smToggleRotaLevel('rota_write')"></button>
+        </div>
+        <div class="sm-switch-row nested-2" id="rowRotaCutoff">
+          <div class="sm-switch-label">PRIME Cut Off<small>Create &amp; manage cut off times</small></div>
+          <button type="button" class="sm-switch sm-mod-toggle" data-mod="rota_write_primeCutOff" id="swRotaCutoff" onclick="smToggleRotaLevel('rota_write_primeCutOff')"></button>
+        </div>
       </div>
     </div>`;
 }
 function smSyncRotaWidgetState() {
   const rotaOn = document.getElementById('swRota')?.classList.contains('active');
   const writeOn = document.getElementById('swRotaWrite')?.classList.contains('active');
+  const cutoffOn = document.getElementById('swRotaCutoff')?.classList.contains('active');
   document.getElementById('rowRotaWrite')?.classList.toggle('disabled', !rotaOn);
   document.getElementById('rowRotaCutoff')?.classList.toggle('disabled', !(rotaOn && writeOn));
+  const badge = document.getElementById('rotaSummaryBadge');
+  if (badge) {
+    let text = 'Not set';
+    if (cutoffOn) text = 'Full access';
+    else if (writeOn) text = 'Write access';
+    else if (rotaOn) text = 'View only';
+    badge.textContent = text;
+    badge.classList.toggle('on', rotaOn);
+  }
+}
+function smToggleRotaSection() {
+  const body = document.getElementById('rotaSectionBody');
+  const chevron = document.getElementById('rotaSectionChevron');
+  const header = document.getElementById('rotaSectionHeader');
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  chevron.classList.toggle('open', !isOpen);
+  header.classList.toggle('open', !isOpen);
+}
+function smCollapseRotaSection() {
+  document.getElementById('rotaSectionBody')?.classList.remove('open');
+  document.getElementById('rotaSectionChevron')?.classList.remove('open');
+  document.getElementById('rotaSectionHeader')?.classList.remove('open');
 }
 function smToggleRotaLevel(level) {
   const idMap = { rota:'swRota', rota_write:'swRotaWrite', rota_write_primeCutOff:'swRotaCutoff' };
@@ -1057,11 +1105,11 @@ document.querySelectorAll('.sm-mod-toggle').forEach(b => b.classList.remove('act
   document.querySelectorAll('.pd-input').forEach(i => i.classList.remove('error','warn'));
   SM_MODULE_GROUPS.forEach(g => smUpdateGroupCount(g.id));
   smSyncRotaWidgetState();
+  smCollapseRotaSection();
   smEditHolidayHours = {};
   document.getElementById('smHolidaySection').style.display = 'none';
   document.getElementById('smModal').style.display = 'flex';
 }
-
 function smOpenEditModal(staff) {
   document.getElementById('smModalTitle').textContent = 'Edit Staff Member';
   document.getElementById('smModalSub').textContent = 'Emails sent on role or status changes';
@@ -1084,6 +1132,7 @@ document.getElementById('smHourlyRate').value = staff.hourlyRate || '';
   document.querySelectorAll('.pd-input').forEach(i => i.classList.remove('error','warn'));
   SM_MODULE_GROUPS.forEach(g => smUpdateGroupCount(g.id));
   smSyncRotaWidgetState();
+  smCollapseRotaSection();
   smEditHolidayHours = Object.assign({}, staff.holidayHours || {});
   document.getElementById('smHolidaySection').style.display = '';
   const smHasHolidayEntries = Object.keys(smEditHolidayHours).length > 0;
@@ -1261,6 +1310,8 @@ window.smRemoveHolidayYear = smRemoveHolidayYear;
 window.smToggleHolidayEntry = smToggleHolidayEntry;
 window.smToggleRotaLevel = smToggleRotaLevel;
 window.smSyncRotaWidgetState = smSyncRotaWidgetState;
+window.smToggleRotaSection = smToggleRotaSection;
+window.smCollapseRotaSection = smCollapseRotaSection;
 })();
 
 
