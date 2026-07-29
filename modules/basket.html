@@ -1042,9 +1042,15 @@ function _cbPreviewPriceHistory(itemType, itemId, val) {
       </div>`;
   }
 
-function _cbPriceTrend(histArr, currentCost){
-    if (!histArr || histArr.length < 2) return { color:null, arrow:'' };
-    const prev = parseFloat(histArr[histArr.length-2].price);
+function _cbPriceTrend(histArr, currentCost, fallbackOriginal){
+    let prev;
+    if (histArr && histArr.length >= 2) {
+      prev = parseFloat(histArr[histArr.length-2].price);
+    } else if (histArr && histArr.length === 1 && fallbackOriginal != null && !isNaN(parseFloat(fallbackOriginal))) {
+      prev = parseFloat(fallbackOriginal);
+    } else {
+      return { color:null, arrow:'' };
+    }
     if (isNaN(prev) || isNaN(currentCost)) return { color:null, arrow:'' };
     if (currentCost < prev) return { color:'#15803d', arrow:'▼' };
     if (currentCost > prev) return { color:'#dc2626', arrow:'▲' };
@@ -2031,8 +2037,8 @@ function _cbPdfReplCost(p) {
       const when = isNL ? fmtDate(p.purchased_at) : fmtDate(p.actioned_at);
       const hist = _allPriceHistory[(isNL?'nl::':'repl::')+(isNL?p.opportunity_id:p.sku)] || [];
       const histStr = hist.length ? hist.map(h=>`${fmtDate(h.changed_at)}: ${fmtGBP(h.price)}`).join(' → ') : '—';
-      const trend = _cbPriceTrend(hist, c);
       const origC = isNL ? null : (parseFloat(p.cost_price)||0);
+      const trend = _cbPriceTrend(hist, c, isNL ? null : origC);
       const costCell = trend.color
         ? `<span style="color:${trend.color};font-weight:700;">${trend.arrow} ${fmtGBP(c)}</span>`
         : fmtGBP(c);
