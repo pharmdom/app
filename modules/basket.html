@@ -2004,8 +2004,13 @@ window.generateCbPdf = async function() {
       repl = repl.filter(p => selectedSups.includes(p.supplier_name||''));
     }
 
+    function _cbPdfReplCost(p) {
+      const hist = _allPriceHistory['repl::'+p.sku] || [];
+      return hist.length ? (parseFloat(hist[hist.length-1].price)||0) : (parseFloat(p.original_cost_price)||0);
+    }
+
     const totalNLVal   = nl.reduce((s,p)   => { const c=parseFloat(p.cost_of_unit)||0; const q=parseFloat(p.unit_quantity)||0; return s+c*q; }, 0);
-    const totalReplVal = repl.reduce((s,p)  => { const c=parseFloat(p.original_cost_price)||0;  const q=parseInt(p.order_qty)||0;       return s+c*q; }, 0);
+    const totalReplVal = repl.reduce((s,p)  => { const c=_cbPdfReplCost(p);  const q=parseInt(p.order_qty)||0;       return s+c*q; }, 0);
     const grandTotal   = totalNLVal + totalReplVal;
 
     const periodLabel = _cbDateRange ? _cbDateRange.label : 'All Time';
@@ -2013,7 +2018,7 @@ window.generateCbPdf = async function() {
   // ── Build row helper (used by embedded interactive script) ──
     function rowHtml(p, type, sup) {
       const isNL = type==='nl';
-      const c = isNL ? (parseFloat(p.cost_of_unit)||0) : (parseFloat(p.original_cost_price)||0);
+      const c = isNL ? (parseFloat(p.cost_of_unit)||0) : _cbPdfReplCost(p);
       const q = isNL ? (parseFloat(p.unit_quantity)||0) : (parseInt(p.order_qty)||0);
       const ean = isNL ? (((p.code||'').split(',')[0].split(':')[0].trim())||'—') : (p.ean||'—');
       const name = isNL ? (p.product_name||'—') : (p.name||'—');
@@ -2110,7 +2115,7 @@ window.generateCbPdf = async function() {
 
     <script>
       const ALL_NL   = ${JSON.stringify(nl.map(p=>({...p, __row: rowHtml(p,'nl', p.supplier_name||'Unknown')})))};
-      const ALL_REPL = ${JSON.stringify(repl.map(p=>({...p, __row: rowHtml(p,'repl', p.supplier_name||'Unknown')})))};
+      const ALL_REPL = ${JSON.stringify(repl.map(p=>({...p, __row: rowHtml(p,'repl', p.supplier_name||'Unknown'), __cost: _cbPdfReplCost(p)})))};
       function fmtGBPi(v){ const n=parseFloat(v); return isNaN(n)?'—':'£'+n.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); }
       function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
       function presetRange(key){
@@ -2155,7 +2160,7 @@ window.generateCbPdf = async function() {
         const nl = ALL_NL.filter(p=>matches(p,true));
         const repl = ALL_REPL.filter(p=>matches(p,false));
         const totalNLVal = nl.reduce((s,p)=>s+(parseFloat(p.cost_of_unit)||0)*(parseFloat(p.unit_quantity)||0),0);
-        const totalReplVal = repl.reduce((s,p)=>s+(parseFloat(p.original_cost_price)||0)*(parseInt(p.order_qty)||0),0);
+        const totalReplVal = repl.reduce((s,p)=>s+(parseFloat(p.__cost)||0)*(parseInt(p.order_qty)||0),0);
         document.getElementById('cbiChips').innerHTML = \`
           <div class="chip"><div class="chip-label">New Lines</div><div class="chip-val">\${nl.length} item\${nl.length!==1?'s':''}</div></div>
           <div class="chip"><div class="chip-label">Replenishments</div><div class="chip-val">\${repl.length} item\${repl.length!==1?'s':''}</div></div>
@@ -2170,7 +2175,7 @@ window.generateCbPdf = async function() {
           const supRepl = repl.filter(p=>(p.supplier_name||'Unknown')===sup);
           if (!supNL.length && !supRepl.length) return;
           const supNLVal = supNL.reduce((s,p)=>s+(parseFloat(p.cost_of_unit)||0)*(parseFloat(p.unit_quantity)||0),0);
-          const supReplVal = supRepl.reduce((s,p)=>s+(parseFloat(p.original_cost_price)||0)*(parseInt(p.order_qty)||0),0);
+          const supReplVal = supRepl.reduce((s,p)=>s+(parseFloat(p.__cost)||0)*(parseInt(p.order_qty)||0),0);
           tables += \`<h2>\${sup} — \${fmtGBPi(supNLVal+supReplVal)}</h2>\`;
           if (supNL.length) tables += \`<h3>New Lines (\${supNL.length}) — \${fmtGBPi(supNLVal)}</h3><table>\${nlTh}<tbody>\${supNL.map(p=>p.__row).join('')}</tbody></table>\`;
           if (supRepl.length) tables += \`<h3>Replenishments (\${supRepl.length}) — \${fmtGBPi(supReplVal)}</h3><table>\${replTh}<tbody>\${supRepl.map(p=>p.__row).join('')}</tbody></table>\`;
