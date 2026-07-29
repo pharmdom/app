@@ -105,7 +105,18 @@ body { overflow: hidden; }
 .day-col-header .day-date { font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 2px; }
 .today-dot-header { display: block; width: 6px; height: 6px; border-radius: 50%; background: #22c55e; margin: 0 auto 3px; box-shadow: 0 0 0 3px rgba(34,197,94,.15); }
 .closed-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 700; color: #d97706; background: #fef3c7; border-radius: 100px; padding: 1px 6px; margin-bottom: 3px; }
-
+.prime-cutoff-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 700; color: #1d4ed8; background: #eff6ff; border-radius: 100px; padding: 1px 6px; margin-bottom: 3px; }
+.pco-field-label { font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 5px; }
+.pco-field-wrap { margin-bottom: 16px; }
+.pco-field-wrap input[type=date], .pco-field-wrap select { width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; }
+.pco-save-btn { width: 100%; padding: 11px; border: none; border-radius: 10px; background: #0f172a; color: #fff; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; }
+.pco-save-btn:hover { background: #1e293b; }
+.pco-save-btn:disabled { opacity: .5; cursor: default; }
+.pco-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.pco-icon-btn { width: 28px; height: 28px; border: 1.5px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; }
+.pco-icon-btn:hover { border-color: #94a3b8; color: #0f172a; }
+.pco-icon-btn.danger:hover { border-color: #fca5a5; color: #dc2626; background: #fef2f2; }
+  
 .time-header-row { display: flex; height: 28px; border-top: 1px solid #f1f5f9; overflow: hidden; }
 .time-header-slot { flex: 1; position: relative; border-right: 1px solid #e2e8f0; font-size: 8.5px; color: #94a3b8; font-weight: 600; }
 .time-header-slot.hour { border-right-color: #cbd5e1; }
@@ -764,6 +775,10 @@ body { overflow: hidden; }
         <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="nav-dropdown-menu" id="navDropMenu">
+        <a class="nav-dropdown-item" id="navPrimeCutOffItem" onclick="openPrimeCutOffModal()" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          PRIME Cut Off
+        </a>
         <a class="nav-dropdown-item active" onclick="loadModule('rota')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           Rota
@@ -936,6 +951,19 @@ body { overflow: hidden; }
 </div>
 
 <!-- CLOSED DAYS MODAL -->
+<div class="closed-modal-overlay" id="primeCutOffModal">
+  <div class="closed-modal-box" style="height:520px;">
+    <div class="closed-modal-header">
+      <div class="closed-modal-title">⏱ PRIME Cut Off</div>
+      <button onclick="closePrimeCutOffModal()" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:20px;line-height:1;">&times;</button>
+    </div>
+    <div class="closed-modal-tabs">
+      <button class="closed-modal-tab-btn active" id="pcoTabCreate" onclick="setPrimeCutOffTab('create')">Create</button>
+      <button class="closed-modal-tab-btn" id="pcoTabCreated" onclick="setPrimeCutOffTab('created')">Created</button>
+    </div>
+    <div class="closed-modal-body" id="primeCutOffModalBody"></div>
+  </div>
+</div>
 <div class="closed-modal-overlay" id="closedModal">
   <div class="closed-modal-box">
     <div class="closed-modal-header">
@@ -994,7 +1022,8 @@ const IS_ADMIN = ['admin','administrator'].includes((CURRENT_USER.role||'').toLo
 
 
 const CAN_WRITE = IS_ADMIN || (CURRENT_USER.permissions || []).includes('rota_write');
-
+const CAN_WRITE_PRIME_CUTOFF = IS_ADMIN || (CURRENT_USER.permissions || []).includes('rota_write_primeCutOff');
+  
 /* Default holiday hours charged per closure day — change this one number any time. */
 let ROTA_DEFAULT_CLOSURE_HOURS = 8;
 let CLOSURE_SCOPE = 'all';
@@ -1084,7 +1113,7 @@ function isoDate(d) {
 /* ══ STATE ══════════════════════════════════════════════════════════════════ */
 const S = {
   employees:[], tasks:[], schedule:[], workingDays:[1,2,3,4,5],
-  closedDays:[], hiddenEmployees:[],
+  closedDays:[], hiddenEmployees:[], primeCutoffs:[],
   currentDate: isoDate(new Date()),
   view:'day', loaded:false,
   editingId:null, shiftType:'task',
@@ -1142,7 +1171,7 @@ S.employees = (empRes.data || []).map((u, i) => {
     }));
 
 S.workingDays     = [1,2,3,4,5];
-    try {
+try {
       const { data: closureRows, error: closureErr } = await sb.from('rota_closures').select('*').order('date', { ascending: true });
       if (closureErr) throw closureErr;
 S.closedDays = (closureRows || []).map(c => ({
@@ -1156,6 +1185,14 @@ S.closedDays = (closureRows || []).map(c => ({
     } catch(e) {
       console.error('Rota closures load error:', e);
       S.closedDays = [];
+    }
+    try {
+      const { data: cutoffRows, error: cutoffErr } = await sb.from('rota_prime_cutoffs').select('*').order('date', { ascending: true });
+      if (cutoffErr) throw cutoffErr;
+      S.primeCutoffs = (cutoffRows || []).map(c => ({ id: c.id, date: String(c.date), time: String(c.cutoff_time).slice(0,5) }));
+    } catch(e) {
+      console.error('PRIME Cut Off load error:', e);
+      S.primeCutoffs = [];
     }
     try {
       const { data: hidSetting } = await sb.from('app_settings').select('value').eq('key','rota_hidden_employees').single();
@@ -1235,14 +1272,14 @@ function renderGrid() {
     const closed=isDateClosed(date), isToday=date===todayStr&&!isDayView;
     f.push(`<th class="planner-th-day${closed?' is-closed':''}${isToday?' is-today':''}">`);
     if (!isDayView) {
-      const ci=S.closedDays.find(c=>c.date===date);
+      const pc=S.primeCutoffs.find(c=>c.date===date);
       f.push(`<div class="day-col-header">
         <div class="day-name">${fmtDate(date,{weekday:'short'})}</div>
         ${isToday?'<span class="today-dot-header"></span>':''}
         <div class="day-date">${fmtDate(date,{month:'short',day:'numeric'})}</div>
-        ${closed?`<div><span class="closed-badge">🔒 ${esc(ci?.label||'Closed')}</span></div>`:''}
+        ${pc?`<div><span class="prime-cutoff-badge">⏱ PRIME Cut Off ${esc(pc.time)}</span></div>`:''}
       </div>`);
-    } else {
+    } else {  
       f.push('<div class="time-header-row">');
       SLOTS.forEach((s,i)=>{const h=i%2===0;f.push(`<div class="time-header-slot${h?' hour':''}">${h?`<span>${s}</span>`:''}</div>`);});
       f.push('</div>');
@@ -1278,7 +1315,13 @@ dates.forEach(date=>{
           f.push(`<td class="planner-td-day${closed?' is-closed':''}"><div class="day-cell-inner">`);
 if (closed) {
             const ci=getClosureForEmployee(date, emp.id);
-            f.push(`<div class="closed-cell-overlay"><span class="closed-cell-label">🔒 ${esc(ci?.label||'Closed')}</span></div>`);
+            f.push(`<div class="closed-cell-overlay"><div class="shift-block" style="position:relative;top:0;bottom:0;width:96%;background:#fef2f2;border-color:#dc2626;">
+                <div class="shift-accent" style="background:#dc2626"></div>
+                <div class="shift-content">
+                  <div class="shift-label-row"><span class="shift-icon" style="color:#dc2626">${getTaskIcon('holiday')}</span><span class="shift-name" style="color:#dc2626">${esc(ci?.label||'Holiday')}</span></div>
+                  <div class="shift-time">${fmtHM ? fmtHM(parseFloat(ci?.hours)||ROTA_DEFAULT_CLOSURE_HOURS) : (parseFloat(ci?.hours)||ROTA_DEFAULT_CLOSURE_HOURS)+'h'}</div>
+                </div>
+              </div></div>`);
 } else {
             f.push('<div class="time-col-grid">');
             SLOTS.forEach((slot,i)=>{const h=i%2===0;f.push(`<div class="time-col${h?' hour':''}" onclick="openShiftModal('${esc(emp.id)}','${date}','${slot}')"></div>`);});
@@ -1307,7 +1350,12 @@ if (closed) {
           f.push(`<td class="planner-td-week${closed?' is-closed':''}">`);
           if (closed) {
             const ci=getClosureForEmployee(date, emp.id);
-            f.push(`<div class="week-closed-pill">🔒 ${esc(ci?.label||'Closed')}</div>`);
+            f.push(`<div class="week-closed-pill" style="display:block;background:#fef2f2;border:1px solid #dc2626;border-radius:7px;padding:0;">
+              <div class="shift-content" style="padding:5px 8px;">
+                <div class="shift-label-row"><span class="shift-icon" style="color:#dc2626">${getTaskIcon('holiday')}</span><span class="shift-name" style="color:#dc2626">${esc(ci?.label||'Holiday')}</span></div>
+                <div class="shift-time">${fmtHM ? fmtHM(parseFloat(ci?.hours)||ROTA_DEFAULT_CLOSURE_HOURS) : (parseFloat(ci?.hours)||ROTA_DEFAULT_CLOSURE_HOURS)+'h'}</div>
+              </div>
+            </div>`);
           } else if (dayShifts.length>0) {
             f.push(`<div class="week-pills-col" onclick="openShiftModal('${esc(emp.id)}','${date}','07:00')">`);
             dayShifts.forEach(shift=>{
@@ -2467,6 +2515,129 @@ function showToast(msg,type){
 }
 
 /* ══ NAV DROPDOWN ═══════════════════════════════════════════════════════════ */
+let PCO_EDIT_ID = null;
+
+function requireWritePrimeCutOff() {
+  if (!CAN_WRITE_PRIME_CUTOFF) { showToast('You do not have permission to manage PRIME Cut Off', 'warn'); return false; }
+  return true;
+}
+
+function pcoTimeOptions(selected) {
+  const opts = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      const val = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+      opts.push(`<option value="${val}" ${val===selected?'selected':''}>${val}</option>`);
+    }
+  }
+  return opts.join('');
+}
+
+function openPrimeCutOffModal() {
+  if (!requireWritePrimeCutOff()) return;
+  PCO_EDIT_ID = null;
+  document.getElementById('primeCutOffModal').classList.add('visible');
+  setPrimeCutOffTab('create');
+}
+function closePrimeCutOffModal() {
+  document.getElementById('primeCutOffModal').classList.remove('visible');
+  PCO_EDIT_ID = null;
+}
+function setPrimeCutOffTab(tab) {
+  document.getElementById('pcoTabCreate').classList.toggle('active', tab==='create');
+  document.getElementById('pcoTabCreated').classList.toggle('active', tab==='created');
+  if (tab==='create') renderPcoCreateTab(); else renderPcoCreatedTab();
+}
+
+function renderPcoCreateTab(prefillDate, prefillTime) {
+  const body = document.getElementById('primeCutOffModalBody');
+  const today = isoDate(new Date());
+  body.innerHTML = `
+    <div class="pco-field-wrap">
+      <label class="pco-field-label">Date</label>
+      <input type="date" id="pcoDateInput" value="${esc(prefillDate||today)}">
+    </div>
+    <div class="pco-field-wrap">
+      <label class="pco-field-label">Cut Off Time</label>
+      <select id="pcoTimeInput">${pcoTimeOptions(prefillTime||'12:00')}</select>
+    </div>
+    <button class="pco-save-btn" id="pcoSaveBtn" onclick="savePrimeCutOff()">${PCO_EDIT_ID?'Update':'Save'} PRIME Cut Off</button>
+  `;
+}
+
+function renderPcoCreatedTab() {
+  const body = document.getElementById('primeCutOffModalBody');
+  const rows = [...S.primeCutoffs].sort((a,b)=>a.date.localeCompare(b.date));
+  body.innerHTML = rows.length ? rows.map(c => `
+    <div class="closed-day-row">
+      <div>
+        <div class="closed-day-info">${fmtDate(c.date,{weekday:'short',month:'long',day:'numeric',year:'numeric'})}</div>
+        <div class="closed-day-label">Cut off at ${esc(c.time)}</div>
+      </div>
+      <div class="pco-row-actions">
+        <button class="pco-icon-btn" onclick="editPrimeCutOff('${c.id}')" title="Edit">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+        </button>
+        <button class="pco-icon-btn danger" onclick="deletePrimeCutOff('${c.id}')" title="Delete">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
+    </div>`).join('') : `<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No PRIME Cut Off dates created yet</p>`;
+}
+
+function editPrimeCutOff(id) {
+  const pc = S.primeCutoffs.find(c=>String(c.id)===String(id));
+  if (!pc) return;
+  PCO_EDIT_ID = id;
+  setPrimeCutOffTab('create');
+  document.getElementById('pcoTabCreate').classList.add('active');
+  document.getElementById('pcoTabCreated').classList.remove('active');
+  renderPcoCreateTab(pc.date, pc.time);
+}
+
+async function savePrimeCutOff() {
+  if (!requireWritePrimeCutOff()) return;
+  const date = document.getElementById('pcoDateInput').value;
+  const time = document.getElementById('pcoTimeInput').value;
+  if (!date || !time) { showToast('Please select both a date and a time', 'error'); return; }
+  const btn = document.getElementById('pcoSaveBtn');
+  btn.disabled = true;
+  try {
+    const { data, error } = await sb.from('rota_prime_cutoffs')
+      .upsert({ date, cutoff_time: time }, { onConflict: 'date' })
+      .select().single();
+    if (error) throw error;
+    S.primeCutoffs = S.primeCutoffs.filter(c=>c.date!==date);
+    S.primeCutoffs.push({ id: data.id, date: String(data.date), time: String(data.cutoff_time).slice(0,5) });
+    S.primeCutoffs.sort((a,b)=>a.date.localeCompare(b.date));
+    showToast('PRIME Cut Off saved','success');
+    PCO_EDIT_ID = null;
+    render();
+    setPrimeCutOffTab('created');
+  } catch(e) {
+    console.error('Save PRIME Cut Off error:', e);
+    showToast('Failed to save PRIME Cut Off','error');
+    btn.disabled = false;
+  }
+}
+
+async function deletePrimeCutOff(id) {
+  if (!requireWritePrimeCutOff()) return;
+  const ok = await showConfirm('Delete this PRIME Cut Off?','This will remove the cut off time for that day.','Delete','confirm-btn-danger');
+  if (!ok) return;
+  try {
+    const { error } = await sb.from('rota_prime_cutoffs').delete().eq('id', id);
+    if (error) throw error;
+    S.primeCutoffs = S.primeCutoffs.filter(c=>String(c.id)!==String(id));
+    showToast('PRIME Cut Off removed','success');
+    render();
+    renderPcoCreatedTab();
+  } catch(e) {
+    console.error('Delete PRIME Cut Off error:', e);
+    showToast('Failed to delete','error');
+  }
+}
+
 function toggleNavDrop(e) {
   e.stopPropagation();
   const btn=document.getElementById('navDropBtn'), menu=document.getElementById('navDropMenu');
@@ -2503,6 +2674,11 @@ window.addClosed=addClosed; window.removeClosed=removeClosed; window.closeConfir
 window.closedSetScope=closedSetScope; window.closedToggleEmp=closedToggleEmp;
 window.switchDrawerTab=switchDrawerTab;
 window.toggleNavDrop=toggleNavDrop;
+window.openPrimeCutOffModal=openPrimeCutOffModal; window.closePrimeCutOffModal=closePrimeCutOffModal;
+window.setPrimeCutOffTab=setPrimeCutOffTab; window.savePrimeCutOff=savePrimeCutOff;
+window.editPrimeCutOff=editPrimeCutOff; window.deletePrimeCutOff=deletePrimeCutOff;
+const _pcoNavItem = document.getElementById('navPrimeCutOffItem');
+if (_pcoNavItem) _pcoNavItem.style.display = CAN_WRITE_PRIME_CUTOFF ? 'flex' : 'none';
 window.openCopyModal=openCopyModal; window.closeCopyModal=closeCopyModal;
 window.buildCopyPreview=buildCopyPreview; window.toggleCopyRemove=toggleCopyRemove;
 window.confirmCopy=confirmCopy; window.renderCopyModal=renderCopyModal;
