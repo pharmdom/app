@@ -395,7 +395,6 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 'use strict';
 const SB_URL='https://mbmgcqknbajwndiveewf.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ibWdjcWtuYmFqd25kaXZlZXdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MjM5NDYsImV4cCI6MjA5NTI5OTk0Nn0.PtMnPnh8FjfS9Qla-D17Jfk-0ArgtKLTRrE52edAVdU';
-const PAYCHECK_URL='https://script.google.com/macros/s/AKfycbzCkuKZM3fseUWhmx6fMF2kImY2f0owG35Q_ctttdwj7siAoT0-FYChbesTzf9RQ5rQ0w/exec';
 let sb=null;
 const s=document.createElement('script');
 s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
@@ -603,14 +602,43 @@ async function loadRota(){
   ]);
   D.rotaSched=sched;D.rotaUsers=users;
 }
+function getPaycheckWeekKey(dateStr){
+  const d=new Date(dateStr);
+  const day=d.getDay();
+  const diffToMon=day===0?6:day-1;
+  const mon=new Date(d);mon.setDate(d.getDate()-diffToMon);
+  return mon.toISOString().slice(0,10);
+}
 async function loadPaycheck(){
   try{
-    const r=await fetch(PAYCHECK_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getPaycheck'})});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const d=await r.json();
-    D.paycheck=(d.rows||[]).map(r=>({date:String(r[0]||''),empId:String(r[1]||''),name:String(r[2]||''),hours:parseFloat(r[3])||0,rate:parseFloat(r[4])||0,pay:parseFloat(r[5])||0,paid:String(r[6]||'No').trim()}));
+    const[shiftsRes,usersRes]=await Promise.all([
+      fetchAll('rota_schedule','id,employee_id,date,start_time,end_time,type,paid,hourly_rate,bonus,bonus_note',null,'id'),
+      fetchAll('users','user_id,first_name,last_name',null,'user_id'),
+    ]);
+    const userMap={};
+    usersRes.forEach(u=>{userMap[String(u.user_id)]=((u.first_name||'')+' '+(u.last_name||'')).trim();});
+    const now=new Date();
+    const todayStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+    const currentWeekKey=getPaycheckWeekKey(todayStr);
+    const timeToMins=t=>{if(!t)return 0;const[h,m]=String(t).slice(0,5).split(':').map(Number);return h*60+m;};
+    D.paycheck=shiftsRes
+      .filter(r=>r.type!=='break'&&getPaycheckWeekKey(r.date)<=currentWeekKey)
+      .map(r=>{
+        const hours=Math.max(0,(timeToMins(r.end_time)-timeToMins(r.start_time))/60);
+        const rate=parseFloat(r.hourly_rate||0);
+        const bonus=parseFloat(r.bonus||0);
+        return{
+          date:String(r.date),
+          empId:String(r.employee_id),
+          name:userMap[String(r.employee_id)]||'Unknown',
+          hours:parseFloat(hours.toFixed(4)),
+          rate,
+          pay:parseFloat((hours*rate+bonus).toFixed(2)),
+          paid:r.paid?'Yes':'No',
+        };
+      });
     D.paycheckError=false;
-}catch(e){
+  }catch(e){
     console.error('[Paycheck fetch error]',e);
     D.paycheckError=true;
     if(!D.paycheck)D.paycheck=[];
