@@ -440,6 +440,12 @@ function ukMidnightForYMD(y,m,d){
   var offsetHours=parseInt(tp.hour);var offsetMs=offsetHours*3600000;
   return new Date(naiveUTC.getTime()-offsetMs);
 }
+function getSourcingFilterCutoff(filter){
+  if(filter==='today')return ukMidnight();
+  if(filter==='7d'){const d=new Date(ukMidnight());d.setUTCDate(d.getUTCDate()-6);return d;}
+  if(filter==='30d'){const d=new Date(ukMidnight());d.setUTCDate(d.getUTCDate()-29);return d;}
+  return null;
+}
 function calendarLastMonthBounds(){
   const fmt=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'});
   const parts=fmt.formatToParts(new Date());const p={};parts.forEach(x=>p[x.type]=x.value);
@@ -1116,21 +1122,32 @@ function ovOpenVeeqoDrawer(){
       Open Veeqo Report
     </button>`);
 }
+let _sourcingFilter='30d';
 function ovOpenSourcingDrawer(){
-  const s=D.sourcing||[];
+  _sourcingFilter='30d';
+  ovOpenDrawer('Sourcing','Pipeline','',`
+    <div class="rev-tabs" id="sourcingTabs">
+      <button class="rev-tab" onclick="ovSetSourcingFilter('today')" data-f="today">Today</button>
+      <button class="rev-tab" onclick="ovSetSourcingFilter('7d')" data-f="7d">Last 7 Days</button>
+      <button class="rev-tab active" onclick="ovSetSourcingFilter('30d')" data-f="30d">Last 30 Days</button>
+      <button class="rev-tab" onclick="ovSetSourcingFilter('all')" data-f="all">All Time</button>
+    </div>
+    <div id="sourcingDrawerContent"></div>`);
+  renderSourcingDrawerContent('30d');
+}
+function ovSetSourcingFilter(filter){
+  _sourcingFilter=filter;
+  document.querySelectorAll('#sourcingTabs .rev-tab').forEach(b=>b.classList.toggle('active',b.dataset.f===filter));
+  renderSourcingDrawerContent(filter);
+}
+function renderSourcingDrawerContent(filter){
+  const all=D.sourcing||[];
+  const cutoff=getSourcingFilterCutoff(filter);
+  const s=cutoff?all.filter(p=>p.created_at&&new Date(p.created_at)>=cutoff):all;
   const byOldest=(a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0);
   const needApproval=s.filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected')).sort(byOldest);
   const awaitPurchase=s.filter(p=>p.approved&&!p.purchased).sort(byOldest);
   const purchased=s.filter(p=>p.purchased);
-  const list=(items,empty)=>items.length?items.slice(0,8).map(p=>{
-    const days=p.created_at?Math.floor((Date.now()-new Date(p.created_at).getTime())/86400000):null;
-    const ageTag=days!==null&&days>=7?`<span style="margin-left:6px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd)">${days}d</span>`:'';
-    const costTxt=parseFloat(p.total_cost)>0?fmtGBP(p.total_cost):'';
-    return `<div class="drw-card"><div style="display:flex;justify-content:space-between;align-items:center">
-      <div class="drw-card-t">${esc(p.product_name||'—')}${ageTag}</div>
-      ${costTxt?`<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text2)">${costTxt}</span>`:''}
-    </div><div class="drw-card-s">${esc(p.supplier_name||'—')}${p.agent?' · '+esc(p.agent):''} · ${fmtDateShort(p.created_at)}</div></div>`;
-  }).join(''):`<div style="padding:8px 0;font-size:12px;color:var(--text4)">${empty}</div>`;
   const bySupplier={};
   s.forEach(p=>{const k=p.supplier_name||'Unknown';bySupplier[k]=(bySupplier[k]||0)+1;});
   const topSuppliers=Object.entries(bySupplier).sort((a,b)=>b[1]-a[1]).slice(0,5)
@@ -1145,7 +1162,10 @@ function ovOpenSourcingDrawer(){
     : null;
   const pendingValue=needApproval.reduce((sum,p)=>sum+(parseFloat(p.total_cost)||0),0);
   const awaitingPurchaseValue=awaitPurchase.reduce((sum,p)=>sum+(parseFloat(p.total_cost)||0),0);
-ovOpenDrawer('Sourcing','Pipeline',`${D.sourcingTotal||s.length} products total`,`
+  const body=document.getElementById('sourcingDrawerContent');
+  if(!body)return;
+  body.innerHTML=`
+    <div style="font-size:11px;color:var(--text3);margin:0 0 14px">${s.length} products submitted in range</div>
     <div class="drw-sec-lbl">Summary</div>
     <div class="drw-row"><div class="drw-row-k">Pending Approval Value</div><div class="drw-row-v" style="color:var(--amber)">${fmtGBP(pendingValue)}</div></div>
     <div class="drw-row"><div class="drw-row-k">Awaiting Purchase Value</div><div class="drw-row-v" style="color:var(--cyan)">${fmtGBP(awaitingPurchaseValue)}</div></div>
@@ -1154,8 +1174,8 @@ ovOpenDrawer('Sourcing','Pipeline',`${D.sourcingTotal||s.length} products total`
     <div class="drw-sec-lbl">Top Agents in Pipeline</div>${topAgents||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No data</div>'}
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('sourcing')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      Go to Sourcing
-    </button>`);
+      Open Sourcing Module
+    </button>`;
 }
 function ovOpenFaultsDrawer(){
   const f=D.faults||[];
@@ -1420,6 +1440,7 @@ document.addEventListener('keydown',e=>{
 /* ── EXPOSE GLOBALS ── */
 window.ovOpenVeeqoDrawer=ovOpenVeeqoDrawer;
 window.ovOpenSourcingDrawer=ovOpenSourcingDrawer;
+window.ovSetSourcingFilter=ovSetSourcingFilter;
 window.ovOpenFaultsDrawer=ovOpenFaultsDrawer;
 window.ovOpenFBADrawer=ovOpenFBADrawer;
 window.ovOpenCatalogDrawer=ovOpenCatalogDrawer;
