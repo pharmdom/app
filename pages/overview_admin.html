@@ -839,7 +839,14 @@ function drawSparkline(id,vals,keys,color,xLabelFn){
 function renderPacking(){
   const counts=D.packingToday||[];
   const stats=D.packingStatsToday||[];
-  const totalPacks=counts.reduce((s,c)=>s+(parseInt(c.count)||0),0);
+  // Each row is a CUMULATIVE snapshot per packer per half-hour, not a per-slot delta.
+  // The correct "total today" is the latest snapshot per packer, summed — not every row summed.
+  const latestPerPacker={};
+  counts.forEach(c=>{
+    const existing=latestPerPacker[c.packer_name];
+    if(!existing||c.time_slot>existing.time_slot)latestPerPacker[c.packer_name]=c;
+  });
+  const totalPacks=Object.values(latestPerPacker).reduce((s,c)=>s+(parseInt(c.count)||0),0);
   const slots=[...new Set(counts.map(c=>c.time_slot))].sort();
   const latestSlot=slots[slots.length-1];
   const activeNow=latestSlot?new Set(counts.filter(c=>c.time_slot===latestSlot&&(parseInt(c.count)||0)>0).map(c=>c.packer_name)).size:0;
