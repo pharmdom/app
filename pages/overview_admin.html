@@ -614,15 +614,13 @@ async function loadPacking(){
 async function init(){
   if(!sb)return;
   pStart();
-  _hadFetchError=false;
-  try{
-    await Promise.all([
-      loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
-      loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
-    ]);
-    renderAll();
-    if(_hadFetchError)toast('Some data may be incomplete — will retry shortly','error');
-  }catch(e){console.error('Overview init error:',e);toast('Some data failed to load','error');}
+  const results=await Promise.allSettled([
+    loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
+    loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
+  ]);
+  const failed=results.filter(r=>r.status==='rejected');
+  if(failed.length){failed.forEach(f=>console.error('Overview load error:',f.reason));toast('Some data failed to load','error');}
+  renderAll();
   pDone();
 }
 function renderAll(){
@@ -1035,16 +1033,14 @@ function ovCloseDrawer(){
 /* ── SILENT REFRESH ── */
 async function silentRefresh(){
   if(!sb)return;
-  _hadFetchError=false;
-  try{
-    await Promise.all([
-      loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
-      loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
-    ]);
-    renderHero();renderAttention();renderRevenue();renderPacking();renderFunnel();renderDonut();
-    renderCatalogKpis();renderFBAStages();renderPaycheck();renderFaults();renderRota();renderSyncBadge();
-    if(_hadFetchError)toast('Some data may be incomplete — will retry shortly','error');
-  }catch(e){console.error('Silent refresh error:',e);}
+  const results=await Promise.allSettled([
+    loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
+    loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
+  ]);
+  const failed=results.filter(r=>r.status==='rejected');
+  if(failed.length)failed.forEach(f=>console.error('Silent refresh load error:',f.reason));
+  renderHero();renderAttention();renderRevenue();renderPacking();renderFunnel();renderDonut();
+  renderCatalogKpis();renderFBAStages();renderPaycheck();renderFaults();renderRota();renderSyncBadge();
 }
 /* ── DRAWERS ── */
 function ovOpenVeeqoDrawer(){
