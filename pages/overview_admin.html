@@ -313,14 +313,14 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
         <div class="pulse-card" onclick="ovOpenPackingDrawer()">
           <div class="pulse-hdr">
             <div>
-              <div class="pulse-title">Packing Activity — Today</div>
+              <div class="pulse-title">Packing Activity (WH) - Hourly Checkpoints</div>
               <div class="pulse-sub" id="ovPackSub">Loading…</div>
             </div>
             <div class="pulse-link">Expand <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
           </div>
           <div class="mkpi-row">
             <div class="mkpi"><div class="mkpi-lbl">Packs Today</div><div class="mkpi-val" id="ovPackTotal">—</div></div>
-            <div class="mkpi"><div class="mkpi-lbl">Active Now</div><div class="mkpi-val" id="ovPackActive">—</div></div>
+            <div class="mkpi"><div class="mkpi-lbl">Active - Last Check</div><div class="mkpi-val" id="ovPackActive">—</div></div>
             <div class="mkpi"><div class="mkpi-lbl">Avg / Hour</div><div class="mkpi-val" id="ovPackPph">—</div></div>
             <div class="mkpi"><div class="mkpi-lbl">Top Packer</div><div class="mkpi-val" id="ovPackTop" style="font-size:12.5px">—</div></div>
           </div>
@@ -852,7 +852,7 @@ function renderPacking(){
   const activeNow=latestSlot?new Set(counts.filter(c=>c.time_slot===latestSlot&&(parseInt(c.count)||0)>0).map(c=>c.packer_name)).size:0;
   const avgPph=stats.length?(stats.reduce((s,r)=>s+(parseFloat(r.packs_per_hour)||0),0)/stats.length):0;
   const topPacker=stats.slice().sort((a,b)=>(b.total_packs||0)-(a.total_packs||0))[0];
-  document.getElementById('ovPackSub').textContent=stats.length?`${stats.length} packer${stats.length!==1?'s':''} active today`:'No activity yet';
+  document.getElementById('ovPackSub').textContent=stats.length?`${stats.length} packer${stats.length!==1?'s':''} · updated on the hour & half-hour`:'No activity yet';
   document.getElementById('ovPackTotal').textContent=totalPacks.toLocaleString();
   document.getElementById('ovPackActive').textContent=activeNow;
   document.getElementById('ovPackPph').textContent=avgPph?avgPph.toFixed(1):'—';
@@ -1210,7 +1210,7 @@ function ovOpenPackingDrawer(){
     </div>
     <div class="drw-card-s" style="margin-top:3px">${(parseFloat(p.packs_per_hour)||0).toFixed(1)} packs/hr</div>
     </div>`).join('');
-  ovOpenDrawer('Packing','Today',`${stats.length} packer${stats.length!==1?'s':''} today`,`
+  ovOpenDrawer('Packing','Hourly & half-hourly checkpoints',`${stats.length} packer${stats.length!==1?'s':''} tracked today`,`
     <div class="drw-sec-lbl">By Packer (${stats.length})</div>
     ${rows||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No packing activity recorded today</div>'}
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('packing')">
