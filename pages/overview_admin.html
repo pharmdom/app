@@ -798,9 +798,9 @@ function renderRevenue(){
   const buckets={};
   for(let i=29;i>=0;i--){const d=new Date(midnight);d.setUTCDate(d.getUTCDate()-i);buckets[d.toISOString().split('T')[0]]=0;}
   orders.forEach(o=>{if(!o.created_at)return;const k=new Date(o.created_at).toISOString().split('T')[0];if(k in buckets)buckets[k]+=parseFloat(o.total_price||0);});
-  requestAnimationFrame(()=>drawSparkline('ovSparkline',Object.values(buckets),Object.keys(buckets),'var(--green)'));
+  requestAnimationFrame(()=>drawSparkline('ovSparkline',Object.values(buckets),Object.keys(buckets),'var(--green)',null,'currency'));
 }
-function drawSparkline(id,vals,keys,color,xLabelFn){
+function drawSparkline(id,vals,keys,color,xLabelFn,unit){
   const svg=document.getElementById(id);if(!svg)return;
   const W=svg.parentElement.getBoundingClientRect().width||svg.parentElement.offsetWidth||500,H=90,pL=36,pR=8,pT=8,pB=20;
   const cW=W-pL-pR,cH=H-pT-pB,n=vals.length;
@@ -813,7 +813,9 @@ function drawSparkline(id,vals,keys,color,xLabelFn){
   [0,0.5,1].forEach(f=>{
     const y=pT+cH-(cH*f);
     const rawVal=maxV*f;
-    const label=maxV>=10000?'£'+(rawVal/1000).toFixed(rawVal/1000<10?1:0)+'k':maxV>=1000?'£'+(rawVal/1000).toFixed(1)+'k':(color==='var(--accent)'?rawVal.toFixed(0):'£'+rawVal.toFixed(0));
+    const label=unit==='count'
+      ? (maxV>=1000?(rawVal/1000).toFixed(1)+'k':rawVal.toFixed(0))
+      : (maxV>=10000?'£'+(rawVal/1000).toFixed(rawVal/1000<10?1:0)+'k':maxV>=1000?'£'+(rawVal/1000).toFixed(1)+'k':'£'+rawVal.toFixed(0));
     grid+=`<line x1="${pL}" y1="${y.toFixed(1)}" x2="${(pL+cW).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border2)" stroke-width="1" stroke-dasharray="3,3"/>`;
     grid+=`<text x="${(pL-5).toFixed(1)}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--text4)" font-family="var(--mono)">${label}</text>`;
   });
@@ -860,7 +862,7 @@ function renderPacking(){
   const bucket={};
   counts.forEach(c=>{bucket[c.time_slot]=(bucket[c.time_slot]||0)+(parseInt(c.count)||0);});
   const vals=slots.map(sl=>bucket[sl]||0);
-  requestAnimationFrame(()=>drawSparkline('ovPackSparkline',vals,slots,'var(--accent)',k=>k));
+  requestAnimationFrame(()=>drawSparkline('ovPackSparkline',vals,slots,'var(--accent)',k=>k,'count'));
 }
 /* ── SOURCING FUNNEL ── */
 function renderFunnel(){
