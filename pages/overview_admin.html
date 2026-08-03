@@ -427,19 +427,21 @@ function ukHourNow(){
 }
 function utcDateStr(d){return (d||new Date()).toISOString().slice(0,10);}
 /* ── PAGINATED FETCH — no caps, ever. Pages in batches of 1000 until exhausted. ── */
+let _hadFetchError=false;
 async function fetchAll(table,cols,build,orderCol,pageSize){
   pageSize=pageSize||1000;
-  let all=[],from=0;
+  let all=[],lastVal=null;
   while(true){
     let q=sb.from(table).select(cols);
     if(build)q=build(q);
-    q=q.order(orderCol,{ascending:true}).range(from,from+pageSize-1);
+    if(lastVal!==null)q=q.gt(orderCol,lastVal);
+    q=q.order(orderCol,{ascending:true}).limit(pageSize);
     const{data,error}=await q;
-    if(error){console.error('[fetchAll '+table+']',error);break;}
+    if(error){console.error('[fetchAll '+table+']',error);_hadFetchError=true;break;}
     if(!data||!data.length)break;
     all=all.concat(data);
+    lastVal=data[data.length-1][orderCol];
     if(data.length<pageSize)break;
-    from+=pageSize;
   }
   return all;
 }
@@ -578,12 +580,14 @@ async function loadPacking(){
 async function init(){
   if(!sb)return;
   pStart();
+  _hadFetchError=false;
   try{
     await Promise.all([
       loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
       loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
     ]);
     renderAll();
+    if(_hadFetchError)toast('Some data may be incomplete — will retry shortly','error');
   }catch(e){console.error('Overview init error:',e);toast('Some data failed to load','error');}
   pDone();
 }
@@ -996,6 +1000,7 @@ function ovCloseDrawer(){
 /* ── SILENT REFRESH ── */
 async function silentRefresh(){
   if(!sb)return;
+  _hadFetchError=false;
   try{
     await Promise.all([
       loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
@@ -1003,6 +1008,7 @@ async function silentRefresh(){
     ]);
     renderHero();renderAttention();renderRevenue();renderPacking();renderFunnel();renderDonut();
     renderCatalogKpis();renderFBAStages();renderPaycheck();renderFaults();renderRota();renderSyncBadge();
+    if(_hadFetchError)toast('Some data may be incomplete — will retry shortly','error');
   }catch(e){console.error('Silent refresh error:',e);}
 }
 /* ── DRAWERS ── */
