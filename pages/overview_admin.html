@@ -536,7 +536,7 @@ async function loadLastMonthVeeqo(){
 }
 async function loadSourcing(){
   const[rows,totalC,unapprovedC,approvedC,purchasedC]=await Promise.all([
-    fetchAll('sourcing','opportunity_id,product_name,supplier_name,approved,purchased,created_at,sourcing_approvals(status)',null,'opportunity_id'),
+    fetchAll('sourcing','opportunity_id,product_name,supplier_name,agent,total_cost,approved,approved_by,approval_timestamp,purchased,purchased_at,created_at,sourcing_approvals(status)',null,'opportunity_id'),
     sb.from('sourcing').select('*',{count:'exact',head:true}),
     sb.from('sourcing').select('*',{count:'exact',head:true}).eq('approved',false).is('approved_by',null),
     sb.from('sourcing').select('*',{count:'exact',head:true}).eq('approved',true),
@@ -712,9 +712,15 @@ function buildAttnItems(){
   const replen=D.replen||[];
   const open=D.veeqoOpen||[];
   const needApproval=sourcing.filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected'));
-  const needApprovalCount=D.sourcingNeedApproval??needApproval.length;
-  if(needApprovalCount>0)items.push({sev:'warn',t:`${needApprovalCount} sourcing product${needApprovalCount!==1?'s':''} need your approval`,s:'Agents have submitted products awaiting your decision',meta:'Sourcing',tag:{cls:'bg-warn',txt:'Sourcing'},fn:'ovOpenSourcingDrawer()'});
-  const blocked=open.filter(o=>['awaiting_payment','payment_pending'].includes((o.status||'').toLowerCase()));
+const needApprovalCount=D.sourcingNeedApproval??needApproval.length;
+if(needApprovalCount>0){
+  const oldestDays=needApproval.length?Math.floor((Date.now()-Math.min(...needApproval.map(p=>p.created_at?new Date(p.created_at).getTime():Date.now())))/86400000):0;
+  const isStale=oldestDays>=7;
+  const pendingValue=needApproval.reduce((sum,p)=>sum+(parseFloat(p.total_cost)||0),0);
+  const valueNote=pendingValue>0?` · ${fmtGBP(pendingValue)} pending`:'';
+  items.push({sev:isStale?'crit':'warn',t:`${needApprovalCount} sourcing product${needApprovalCount!==1?'s':''} need your approval`,s:(isStale?`Oldest has been waiting ${oldestDays} days — review needed`:'Agents have submitted products awaiting your decision')+valueNote,meta:'Sourcing',tag:{cls:isStale?'bg-crit':'bg-warn',txt:'Sourcing'},fn:'ovOpenSourcingDrawer()'});
+}
+const blocked=open.filter(o=>['awaiting_payment','payment_pending'].includes((o.status||'').toLowerCase()));
   if(blocked.length)items.push({sev:'crit',t:`${blocked.length} order${blocked.length!==1?'s':''} blocked — payment required`,s:'These orders cannot be fulfilled until payment clears',meta:'Current',tag:{cls:'bg-crit',txt:'Critical'},fn:'ovOpenVeeqoDrawer()'});
   const openFaults=faults.filter(f=>!f.resolved);
   const openFaultsCount=D.faultsOpenCount??openFaults.length;
@@ -865,12 +871,20 @@ function renderPacking(){
   requestAnimationFrame(()=>drawSparkline('ovPackSparkline',vals,slots,'var(--accent)',k=>k,'count'));
 }
 /* ── SOURCING FUNNEL ── */
+function getPendingSourcingItems(){
+  const s=D.sourcing||[];
+  return s.filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected'));
+}
+function getAwaitingPurchaseSourcingItems(){
+  return (D.sourcing||[]).filter(p=>p.approved&&!p.purchased);
+}
 function renderFunnel(){
   const s=D.sourcing||[];
   const total=D.sourcingTotal||s.length;
   const approved=D.sourcingApprovedCount??s.filter(p=>p.approved).length;
   const purchased=D.sourcingPurchasedCount??s.filter(p=>p.purchased).length;
-  const pending=D.sourcingNeedApproval??s.filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected')).length;
+  const pendingItems=getPendingSourcingItems();
+  const pending=D.sourcingNeedApproval??pendingItems.length;
   const rows=[
     {lbl:'Submitted',n:total,color:'var(--accent)',pct:100},
     {lbl:'Pending',n:pending,color:'var(--amber)',pct:total?pending/total*100:0},
@@ -878,20 +892,43 @@ function renderFunnel(){
     {lbl:'Purchased',n:purchased,color:'var(--green)',pct:total?purchased/total*100:0},
   ];
   const el=document.getElementById('ovFunnel');
+  const now=Date.now();
+  const ages=pendingItems.map(p=>p.created_at?(now-new Date(p.created_at).getTime())/86400000:0);
+  const under3=ages.filter(a=>a<3).length;
+  const over7=ages.filter(a=>a>=7).length;
+  const agingLine=pendingItems.length
+    ? `${under3} pending &lt;3d · ${over7?`<span style="color:var(--red);font-weight:700">${over7} pending 7d+</span>`:'0 pending 7d+'}`
+    : '';
+// approved already includes purchased items (purchased ⊆ approved), so don't subtract purchased separately
+  const rejected=(D.sourcingTotal||0)-(D.sourcingApprovedCount||0)-(D.sourcingNeedApproval||0);
+  const rejRate=total?((rejected/total)*100).toFixed(0):0;
+  const approvedRate=total?((approved/total)*100).toFixed(0):0;
+  const pendingValue=pendingItems.reduce((sum,p)=>sum+(parseFloat(p.total_cost)||0),0);
+  const awaitingPurchaseItems=getAwaitingPurchaseSourcingItems();
+  const awaitingPurchaseValue=awaitingPurchaseItems.reduce((sum,p)=>sum+(parseFloat(p.total_cost)||0),0);
   const fills=el.querySelectorAll('.funnel-fill');
   const nums=el.querySelectorAll('.funnel-n');
-  if(fills.length===rows.length){
+  if(fills.length===rows.length&&el.dataset.hasExtras==='1'){
     rows.forEach((r,i)=>{fills[i].style.width=r.pct.toFixed(1)+'%';nums[i].textContent=r.n;});
+    const agingEl=el.querySelector('.funnel-aging');if(agingEl)agingEl.innerHTML=agingLine;
+    const rateEl=el.querySelector('.funnel-rate');if(rateEl)rateEl.textContent=`${approvedRate}% approved · ${rejRate}% rejected`;
     return;
   }
+  el.dataset.hasExtras='1';
   el.innerHTML=rows.map(r=>`
     <div class="funnel-row">
       <div class="funnel-lbl">${esc(r.lbl)}</div>
       <div class="funnel-track"><div class="funnel-fill" style="width:0%;background:${r.color}" data-pct="${r.pct.toFixed(1)}"></div></div>
       <div class="funnel-n">${r.n}</div>
-    </div>`).join('');
+    </div>`).join('')
+    +(pendingValue>0?`<div class="funnel-value" style="font-size:10px;color:var(--amber);font-weight:700;margin-top:6px">${fmtGBP(pendingValue)} awaiting your approval</div>`:'')
+    +(awaitingPurchaseValue>0?`<div class="funnel-value2" style="font-size:10px;color:var(--cyan);font-weight:700;margin-top:2px">${fmtGBP(awaitingPurchaseValue)} approved, not yet purchased</div>`:'')
+    +(agingLine?`<div class="funnel-aging" style="font-size:10px;color:var(--text3);margin-top:4px">${agingLine}</div>`:'')
+    +`<div class="funnel-rate" style="font-size:10px;color:var(--text3);margin-top:2px">${approvedRate}% approved · ${rejRate}% rejected</div>`;
   requestAnimationFrame(()=>el.querySelectorAll('.funnel-fill').forEach(f=>f.style.width=f.dataset.pct+'%'));
 }
+  
+  
 /* ── REPLENISHMENTS DONUT ── */
 function renderDonut(){
   const d=D.replen||[];
@@ -1081,14 +1118,43 @@ function ovOpenVeeqoDrawer(){
 }
 function ovOpenSourcingDrawer(){
   const s=D.sourcing||[];
-  const needApproval=s.filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected'));
-  const awaitPurchase=s.filter(p=>p.approved&&!p.purchased);
+  const byOldest=(a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0);
+  const needApproval=s.filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected')).sort(byOldest);
+  const awaitPurchase=s.filter(p=>p.approved&&!p.purchased).sort(byOldest);
   const purchased=s.filter(p=>p.purchased);
-  const list=(items,empty)=>items.length?items.slice(0,8).map(p=>`<div class="drw-card"><div class="drw-card-t">${esc(p.product_name||'—')}</div><div class="drw-card-s">${esc(p.supplier_name||'—')} · ${fmtDateShort(p.created_at)}</div></div>`).join(''):`<div style="padding:8px 0;font-size:12px;color:var(--text4)">${empty}</div>`;
+  const list=(items,empty)=>items.length?items.slice(0,8).map(p=>{
+    const days=p.created_at?Math.floor((Date.now()-new Date(p.created_at).getTime())/86400000):null;
+    const ageTag=days!==null&&days>=7?`<span style="margin-left:6px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd)">${days}d</span>`:'';
+    const costTxt=parseFloat(p.total_cost)>0?fmtGBP(p.total_cost):'';
+    return `<div class="drw-card"><div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="drw-card-t">${esc(p.product_name||'—')}${ageTag}</div>
+      ${costTxt?`<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text2)">${costTxt}</span>`:''}
+    </div><div class="drw-card-s">${esc(p.supplier_name||'—')}${p.agent?' · '+esc(p.agent):''} · ${fmtDateShort(p.created_at)}</div></div>`;
+  }).join(''):`<div style="padding:8px 0;font-size:12px;color:var(--text4)">${empty}</div>`;
+  const bySupplier={};
+  s.forEach(p=>{const k=p.supplier_name||'Unknown';bySupplier[k]=(bySupplier[k]||0)+1;});
+  const topSuppliers=Object.entries(bySupplier).sort((a,b)=>b[1]-a[1]).slice(0,5)
+    .map(([name,n])=>`<div class="drw-row"><div class="drw-row-k">${esc(name)}</div><div class="drw-row-v">${n}</div></div>`).join('');
+  const byAgent={};
+  s.forEach(p=>{const k=p.agent||'Unknown';if(!byAgent[k])byAgent[k]={count:0,value:0};byAgent[k].count++;byAgent[k].value+=parseFloat(p.total_cost)||0;});
+  const topAgents=Object.entries(byAgent).sort((a,b)=>b[1].count-a[1].count).slice(0,5)
+    .map(([name,v])=>`<div class="drw-row"><div class="drw-row-k">${esc(name)}</div><div class="drw-row-v">${v.count} · ${fmtGBP(v.value)}</div></div>`).join('');
+  const purchasedWithBothDates=purchased.filter(p=>p.approval_timestamp&&p.purchased_at);
+  const avgDaysToPurchase=purchasedWithBothDates.length
+    ? (purchasedWithBothDates.reduce((sum,p)=>sum+(new Date(p.purchased_at)-new Date(p.approval_timestamp))/86400000,0)/purchasedWithBothDates.length).toFixed(1)
+    : null;
+  const pendingValue=needApproval.reduce((sum,p)=>sum+(parseFloat(p.total_cost)||0),0);
+  const awaitingPurchaseValue=awaitPurchase.reduce((sum,p)=>sum+(parseFloat(p.total_cost)||0),0);
   ovOpenDrawer('Sourcing','Pipeline',`${D.sourcingTotal||s.length} products total`,`
-    <div class="drw-sec-lbl">Needs Your Approval (${needApproval.length})</div>${list(needApproval,'All reviewed')}
+    <div class="drw-sec-lbl">Summary</div>
+    <div class="drw-row"><div class="drw-row-k">Pending Approval Value</div><div class="drw-row-v" style="color:var(--amber)">${fmtGBP(pendingValue)}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Awaiting Purchase Value</div><div class="drw-row-v" style="color:var(--cyan)">${fmtGBP(awaitingPurchaseValue)}</div></div>
+    ${avgDaysToPurchase!==null?`<div class="drw-row"><div class="drw-row-k">Avg. Approval → Purchase</div><div class="drw-row-v">${avgDaysToPurchase} days</div></div>`:''}
+    <div class="drw-sec-lbl">Needs Your Approval — Oldest First (${needApproval.length})</div>${list(needApproval,'All reviewed')}
     <div class="drw-sec-lbl">Approved — Awaiting Purchase (${awaitPurchase.length})</div>${list(awaitPurchase,'None pending purchase')}
     <div class="drw-sec-lbl">Purchased (${purchased.length})</div>${list(purchased,'No purchases yet')}
+    <div class="drw-sec-lbl">Top Suppliers in Pipeline</div>${topSuppliers||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No data</div>'}
+    <div class="drw-sec-lbl">Top Agents in Pipeline</div>${topAgents||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No data</div>'}
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('sourcing')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       Open Sourcing Module
