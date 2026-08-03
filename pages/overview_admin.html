@@ -967,14 +967,18 @@ function renderFunnel(){
 function renderDonut(){
   const d=D.replen||[];
   const pur=d.filter(r=>r.action==='pur').length;
+  const basket=d.filter(r=>r.action==='basket').length;
   const na=d.filter(r=>r.action==='na').length;
   const rej=d.filter(r=>r.action==='rej').length;
+  const def=d.filter(r=>r.action==='def').length;
   const pend=d.filter(r=>!r.action).length;
   const total=d.length||1;
   const slices=[
     {lbl:'Purchased',val:pur,color:'var(--green)'},
+    {lbl:'Basket',val:basket,color:'var(--cyan)'},
     {lbl:'N/A',val:na,color:'var(--amber)'},
     {lbl:'Rejected',val:rej,color:'var(--red)'},
+    {lbl:'Deferred',val:def,color:'var(--purple)'},
     {lbl:'Pending',val:pend,color:'var(--text4)'},
   ].filter(s=>s.val>0);
   const cx=38,cy=38,r=30,circ=2*Math.PI*r;
@@ -1147,7 +1151,7 @@ function ovOpenVeeqoDrawer(){
     <div class="drw-sec-lbl">Recent Orders</div>${recRows}
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('reports')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 10h8M8 14h4"/></svg>
-      Open Veeqo Report
+      Go to Veeqo Report
     </button>`);
 }
 let _sourcingFilter='30d';
@@ -1202,7 +1206,7 @@ function renderSourcingDrawerContent(filter){
     <div class="drw-sec-lbl">Top Agents in Pipeline</div>${topAgents||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No data</div>'}
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('sourcing')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      Open Sourcing Module
+      Go to Sourcing
     </button>`;
 }
 function ovOpenFaultsDrawer(){
@@ -1311,7 +1315,7 @@ function ovOpenPaycheckDrawer(){
     ${empRows||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No payroll data</div>'}
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('paycheck')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-      Open Paycheck Module
+      Goto Payroll
     </button>`);
 }
 function ovOpenPackingDrawer(){
@@ -1435,8 +1439,10 @@ async function renderRevenueModalContent(filter){
 function ovOpenReplenishModal(){
   const d=D.replen||[];
   const pur=d.filter(r=>r.action==='pur');
+  const basket=d.filter(r=>r.action==='basket');
   const na=d.filter(r=>r.action==='na');
   const rej=d.filter(r=>r.action==='rej');
+  const def=d.filter(r=>r.action==='def');
   const pend=d.filter(r=>!r.action);
   const crit=pend.filter(r=>r.urgency==='C');
   const order=pend.filter(r=>r.urgency==='R');
@@ -1447,11 +1453,13 @@ function ovOpenReplenishModal(){
     <td style="text-align:right;font-family:var(--mono);font-size:11px">${r.order_qty||'—'}</td>
   </tr>`).join('');
   ovOpenModal('Replenishments — This Week',`${d.length} SKUs · ${pend.length} pending`,`
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
       <div class="mkpi"><div class="mkpi-lbl">Purchased</div><div class="mkpi-val green">${pur.length}</div></div>
+      <div class="mkpi"><div class="mkpi-lbl">Basket</div><div class="mkpi-val" style="color:var(--cyan)">${basket.length}</div></div>
       <div class="mkpi"><div class="mkpi-lbl">Pending</div><div class="mkpi-val amber">${pend.length}</div></div>
       <div class="mkpi"><div class="mkpi-lbl">N/A</div><div class="mkpi-val">${na.length}</div></div>
       <div class="mkpi"><div class="mkpi-lbl">Rejected</div><div class="mkpi-val red">${rej.length}</div></div>
+      <div class="mkpi"><div class="mkpi-lbl">Deferred</div><div class="mkpi-val" style="color:var(--purple)">${def.length}</div></div>
     </div>
     ${crit.length?`<div style="background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r);padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:var(--red);font-weight:600">⚠ ${crit.length} critical SKU${crit.length!==1?'s':''} — out of stock or under 7 days cover</div>`:''}
     ${crit.length||order.length?`<div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:8px">Needs Action</div>
