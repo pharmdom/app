@@ -366,12 +366,11 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
           <div class="bottom-title">Catalog</div>
           <div class="pulse-link">View <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
         </div>
-        <div class="mkpi-row">
+<div class="mkpi-row">
           <div class="mkpi"><div class="mkpi-lbl">Total SKUs</div><div class="mkpi-val" id="ovCatTotal">—</div></div>
           <div class="mkpi"><div class="mkpi-lbl">Approved</div><div class="mkpi-val green" id="ovCatApproved">—</div></div>
         </div>
-        <div id="ovCatInsights"></div>
-        <div id="ovCatSuppliers"></div>
+        <div id="ovCatDetails"></div>
       </div>
     </div>
   </div>
@@ -1006,21 +1005,30 @@ function renderDonut(){
 function renderCatalogKpis(){
   document.getElementById('ovCatTotal').textContent=(D.catTotal||0).toLocaleString();
   document.getElementById('ovCatApproved').textContent=(D.catApproved||0).toLocaleString();
-  const total=D.catTotal||0;
-  const approvedRate=total?((D.catApproved||0)/total*100):0;
-  const insightsEl=document.getElementById('ovCatInsights');
-  if(insightsEl)insightsEl.innerHTML=`
-    <div style="height:5px;background:var(--surface3);border-radius:99px;overflow:hidden;margin-top:2px">
-      <div style="height:100%;width:${approvedRate.toFixed(1)}%;background:var(--green);border-radius:99px;transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
+  const detailsEl=document.getElementById('ovCatDetails');
+  if(!detailsEl)return;
+  const staleColor=D.catStaleSupplierDays>=30?'var(--red)':'var(--amber)';
+  const staleBg=D.catStaleSupplierDays>=30?'var(--red-bg)':'var(--amber-bg)';
+  const staleBd=D.catStaleSupplierDays>=30?'var(--red-bd)':'var(--amber-bd)';
+  detailsEl.innerHTML=`
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:8px 11px">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);margin-bottom:3px">New This Week</div>
+        <div style="font-size:15px;font-weight:800;color:var(--text);font-family:var(--mono)">${(D.catNewThisWeek||0).toLocaleString()}</div>
+      </div>
+      <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:8px 11px">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);margin-bottom:3px">Total Suppliers</div>
+        <div style="font-size:15px;font-weight:800;color:var(--text);font-family:var(--mono)">${(D.suppTotal||0).toLocaleString()}</div>
+      </div>
     </div>
-    <div style="font-size:10px;color:var(--text4);margin-top:5px;font-weight:600">${approvedRate.toFixed(0)}% approved · ${(D.catNewThisWeek||0)} new this week</div>`;
-  const suppEl=document.getElementById('ovCatSuppliers');
-  const avgPerSupplier=D.suppTotal?(total/D.suppTotal).toFixed(1):'—';
-  if(suppEl)suppEl.innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border2);margin-top:6px">
-      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4)">Suppliers</span>
-      <span style="font-size:11px;font-weight:700;color:var(--text2)">${(D.suppTotal||0)} total <span style="color:var(--text4);font-weight:500">· ~${avgPerSupplier} SKUs/supplier</span></span>
-    </div>`;
+    ${D.catStaleSupplier?`
+    <div style="margin-top:8px;background:${staleBg};border:1px solid ${staleBd};border-radius:var(--r);padding:9px 12px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:${staleColor};margin-bottom:3px">Least Recently Updated</div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+        <span style="font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(D.catStaleSupplier)}</span>
+        <span style="font-size:12px;font-weight:800;color:${staleColor};font-family:var(--mono);flex-shrink:0">${D.catStaleSupplierDays}d</span>
+      </div>
+    </div>`:''}`;
 }
 /* ── FBA STAGES ── */
 function renderFBAStages(){
