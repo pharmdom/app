@@ -429,26 +429,17 @@ function utcDateStr(d){return (d||new Date()).toISOString().slice(0,10);}
 /* ── PAGINATED FETCH — no caps, ever. Pages in batches of 1000 until exhausted. ── */
 async function fetchAll(table,cols,build,orderCol,pageSize){
   pageSize=pageSize||1000;
-  let all=[],cursor=null;
+  let all=[],from=0;
   while(true){
-    let data=null,error=null;
-    for(let attempt=0;attempt<3;attempt++){
-      let q=sb.from(table).select(cols);
-      if(build)q=build(q);
-      if(cursor!==null)q=q.gt(orderCol,cursor);
-      q=q.order(orderCol,{ascending:true}).limit(pageSize);
-      const res=await q;
-      data=res.data;error=res.error;
-      if(!error)break;
-      if(error.code!=='57014'||attempt===2)break;
-      console.warn('[fetchAll '+table+'] timeout, retrying ('+(attempt+1)+'/2)…');
-      await new Promise(r=>setTimeout(r,500*(attempt+1)));
-    }
-    if(error){console.error('[fetchAll '+table+']',error);throw new Error('fetchAll:'+table+':'+(error.message||error.code||'error'));}
+    let q=sb.from(table).select(cols);
+    if(build)q=build(q);
+    q=q.order(orderCol,{ascending:true}).range(from,from+pageSize-1);
+    const{data,error}=await q;
+    if(error){console.error('[fetchAll '+table+']',error);break;}
     if(!data||!data.length)break;
     all=all.concat(data);
     if(data.length<pageSize)break;
-    cursor=data[data.length-1][orderCol];
+    from+=pageSize;
   }
   return all;
 }
@@ -484,7 +475,7 @@ async function loadVeeqo(){
     fetchAll('veeqo_orders','order_id,total_price',
       q=>q.gte('created_at',ago60.toISOString()).lt('created_at',ago30.toISOString()),'order_id'),
     fetchAll('veeqo_orders','order_id,order_number,status,total_price,created_at,channel,deliver_to_name',
-      q=>q.in('status',['awaiting_fulfillment','awaiting_payment','payment_pending','awaiting_stock','on_hold']).gte('created_at',ago60.toISOString()),'order_id'),
+      q=>q.in('status',['awaiting_fulfillment','awaiting_payment','payment_pending','awaiting_stock','on_hold']),'order_id'),
     sb.from('veeqo_orders').select('updated_at').order('updated_at',{ascending:false}).limit(1),
   ]);
   D.veeqoToday=today;
@@ -570,10 +561,9 @@ async function loadPaycheck(){
     const d=await r.json();
     D.paycheck=(d.rows||[]).map(r=>({date:String(r[0]||''),empId:String(r[1]||''),name:String(r[2]||''),hours:parseFloat(r[3])||0,rate:parseFloat(r[4])||0,pay:parseFloat(r[5])||0,paid:String(r[6]||'No').trim()}));
     D.paycheckError=false;
-}catch(e){
+  }catch(e){
     console.error('[Paycheck fetch error]',e);
-    D.paycheckError=true;
-    if(!D.paycheck)D.paycheck=[];
+    D.paycheck=[];D.paycheckError=true;
   }
 }
 async function loadPacking(){
@@ -588,13 +578,13 @@ async function loadPacking(){
 async function init(){
   if(!sb)return;
   pStart();
-  const results=await Promise.allSettled([
-    loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
-    loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
-  ]);
-  const failed=results.filter(r=>r.status==='rejected');
-  if(failed.length){failed.forEach(f=>console.error('Overview load error:',f.reason));toast('Some data failed to load','error');}
-  renderAll();
+  try{
+    await Promise.all([
+      loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
+      loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
+    ]);
+    renderAll();
+  }catch(e){console.error('Overview init error:',e);toast('Some data failed to load','error');}
   pDone();
 }
 function renderAll(){
@@ -639,7 +629,7 @@ function renderHero(){
       icon:'<rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 10h8M8 14h4"/>',onclick:'ovOpenVeeqoDrawer()'},
     {cls:'sc-amber',label:'Ready to Ship',val:ready.length,sub:ready.length?`Oldest: ${fmtAge(oldestReadyHrs)}`:'No backlog',
       badge:(oldestReadyHrs>48||ready.length>10)?{cls:'bg-crit',txt:'Backlog aging'}:ready.length>5?{cls:'bg-warn',txt:'Backlog building'}:ready.length>0?{cls:'bg-warn',txt:'Action needed'}:{cls:'bg-good',txt:'Clear'},
-      icon:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',onclick:'ovOpenAgingDrawer()'},
+      icon:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',onclick:'ovOpenVeeqoDrawer()'},
     {cls:'sc-red',label:'Awaiting Pay',val:blocked.length,sub:'',
       badge:blocked.length>0?{cls:'bg-crit',txt:'⚠ Needs action'}:{cls:'bg-good',txt:'All clear'},
       icon:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',onclick:'ovOpenVeeqoDrawer()'},
@@ -941,7 +931,7 @@ function renderRota(){
 /* ── PAYCHECK ── */
 function renderPaycheck(){
   const el=document.getElementById('ovPayWidget');
-  if(D.paycheckError&&!(D.paycheck&&D.paycheck.length)){
+  if(D.paycheckError){
     el.innerHTML=`<div style="padding:16px 0;text-align:center;font-size:12px;color:var(--text4)">Payroll data unavailable — check connection</div>`;
     return;
   }
@@ -1006,14 +996,14 @@ function ovCloseDrawer(){
 /* ── SILENT REFRESH ── */
 async function silentRefresh(){
   if(!sb)return;
-  const results=await Promise.allSettled([
-    loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
-    loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
-  ]);
-  const failed=results.filter(r=>r.status==='rejected');
-  if(failed.length)failed.forEach(f=>console.error('Silent refresh load error:',f.reason));
-  renderHero();renderAttention();renderRevenue();renderPacking();renderFunnel();renderDonut();
-  renderCatalogKpis();renderFBAStages();renderPaycheck();renderFaults();renderRota();renderSyncBadge();
+  try{
+    await Promise.all([
+      loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
+      loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
+    ]);
+    renderHero();renderAttention();renderRevenue();renderPacking();renderFunnel();renderDonut();
+    renderCatalogKpis();renderFBAStages();renderPaycheck();renderFaults();renderRota();renderSyncBadge();
+  }catch(e){console.error('Silent refresh error:',e);}
 }
 /* ── DRAWERS ── */
 function ovOpenVeeqoDrawer(){
@@ -1030,30 +1020,6 @@ function ovOpenVeeqoDrawer(){
   ovOpenDrawer("Today's Orders",`${t.length} orders`,fmtGBP(t.reduce((s,o)=>s+parseFloat(o.total_price||0),0))+' revenue',`
     <div class="drw-sec-lbl">By Status</div>${statRows}
     <div class="drw-sec-lbl">Recent Orders</div>${recRows}
-<button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('reports')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 10h8M8 14h4"/></svg>
-      Open Veeqo Report
-    </button>`);
-}
-function ovOpenAgingDrawer(){
-  const open=D.veeqoOpen||[];
-  const ready=open.filter(o=>o.status==='awaiting_fulfillment');
-  const cutoff=Date.now()-48*3600000;
-  const aging=ready.filter(o=>o.created_at&&new Date(o.created_at).getTime()<cutoff)
-    .sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-  const rows=aging.map(o=>{
-    const hrs=Math.floor((Date.now()-new Date(o.created_at).getTime())/3600000);
-    return`<div class="drw-card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div class="drw-card-t">#${esc(o.order_number||o.order_id||'—')}${o.is_amazon_prime?'<span style="margin-left:6px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd)">Prime</span>':''}</div>
-        <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--red)">${fmtAge(hrs)} old</span>
-      </div>
-      <div class="drw-card-s" style="margin-top:3px;display:flex;gap:6px"><span>${esc(o.deliver_to_name||'—')}</span><span>·</span><span>${esc(o.channel||'—')}</span><span>·</span><span>${fmtGBP(o.total_price)}</span></div>
-    </div>`;
-  }).join('');
-  ovOpenDrawer('Ready to Ship','Orders Aging > 2 Days',`${aging.length} of ${ready.length} ready orders`,`
-    <div class="drw-sec-lbl">Older than 48h (${aging.length})</div>
-    ${rows||'<div style="padding:8px 0;font-size:12px;font-weight:600;color:var(--green)">✓ No orders older than 2 days</div>'}
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('reports')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 10h8M8 14h4"/></svg>
       Open Veeqo Report
@@ -1289,7 +1255,6 @@ document.addEventListener('keydown',e=>{
 });
 /* ── EXPOSE GLOBALS ── */
 window.ovOpenVeeqoDrawer=ovOpenVeeqoDrawer;
-window.ovOpenAgingDrawer=ovOpenAgingDrawer;
 window.ovOpenSourcingDrawer=ovOpenSourcingDrawer;
 window.ovOpenFaultsDrawer=ovOpenFaultsDrawer;
 window.ovOpenFBADrawer=ovOpenFBADrawer;
