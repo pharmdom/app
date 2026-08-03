@@ -1446,14 +1446,19 @@ function ovOpenReplenishModal(){
   const pend=d.filter(r=>!r.action);
   const crit=pend.filter(r=>r.urgency==='C');
   const order=pend.filter(r=>r.urgency==='R');
+  const skuValue=r=>(parseFloat(r.cost_price)||0)*(parseFloat(r.order_qty)||0);
+  const basketValue=basket.reduce((s,r)=>s+skuValue(r),0);
+  const pendValue=pend.reduce((s,r)=>s+skuValue(r),0);
+  const purValue=pur.reduce((s,r)=>s+skuValue(r),0);
   const makeRows=items=>items.slice(0,8).map(r=>`<tr>
-    <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.name||r.sku||'—')}</td>
+    <td style="font-weight:600;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.name||r.sku||'—')}</td>
     <td style="text-align:center"><span class="sbadge ${r.urgency==='C'?'sb-red':r.urgency==='R'?'sb-amber':'sb-green'}">${r.urgency==='C'?'Critical':r.urgency==='R'?'Order':'OK'}</span></td>
     <td style="text-align:right;font-family:var(--mono);font-size:11px">${r.days_left!=null?r.days_left+'d':'—'}</td>
     <td style="text-align:right;font-family:var(--mono);font-size:11px">${r.order_qty||'—'}</td>
+    <td style="text-align:right;font-family:var(--mono);font-size:11px;font-weight:700">${skuValue(r)>0?fmtGBP(skuValue(r)):'—'}</td>
   </tr>`).join('');
   ovOpenModal('Replenishments — This Week',`${d.length} SKUs · ${pend.length} pending`,`
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
       <div class="mkpi"><div class="mkpi-lbl">Purchased</div><div class="mkpi-val green">${pur.length}</div></div>
       <div class="mkpi"><div class="mkpi-lbl">Basket</div><div class="mkpi-val" style="color:var(--cyan)">${basket.length}</div></div>
       <div class="mkpi"><div class="mkpi-lbl">Pending</div><div class="mkpi-val amber">${pend.length}</div></div>
@@ -1461,9 +1466,14 @@ function ovOpenReplenishModal(){
       <div class="mkpi"><div class="mkpi-lbl">Rejected</div><div class="mkpi-val red">${rej.length}</div></div>
       <div class="mkpi"><div class="mkpi-lbl">Deferred</div><div class="mkpi-val" style="color:var(--purple)">${def.length}</div></div>
     </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+      <div class="mkpi"><div class="mkpi-lbl">Pending Value</div><div class="mkpi-val amber">${fmtGBP(pendValue)}</div></div>
+      <div class="mkpi"><div class="mkpi-lbl">Basket Value</div><div class="mkpi-val" style="color:var(--cyan)">${fmtGBP(basketValue)}</div></div>
+      <div class="mkpi"><div class="mkpi-lbl">Purchased Value</div><div class="mkpi-val green">${fmtGBP(purValue)}</div></div>
+    </div>
     ${crit.length?`<div style="background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--r);padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:var(--red);font-weight:600">⚠ ${crit.length} critical SKU${crit.length!==1?'s':''} — out of stock or under 7 days cover</div>`:''}
     ${crit.length||order.length?`<div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:8px">Needs Action</div>
-    <table class="mini-tbl"><thead><tr><th>Product</th><th style="text-align:center">Urgency</th><th style="text-align:right">Days</th><th style="text-align:right">Order Qty</th></tr></thead><tbody>${makeRows([...crit,...order])}</tbody></table>`:''}
+    <table class="mini-tbl"><thead><tr><th>Product</th><th style="text-align:center">Urgency</th><th style="text-align:right">Days</th><th style="text-align:right">Qty</th><th style="text-align:right">Value</th></tr></thead><tbody>${makeRows([...crit,...order])}</tbody></table>`:''}
     <button class="drw-nav" style="margin-top:16px" onclick="ovCloseModal();window.loadModule&&loadModule('replenishments')">Open Replenishments Module</button>`);
 }
 /* ── KEYBOARD ── */
