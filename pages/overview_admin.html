@@ -429,13 +429,14 @@ function utcDateStr(d){return (d||new Date()).toISOString().slice(0,10);}
 /* ── PAGINATED FETCH — no caps, ever. Pages in batches of 1000 until exhausted. ── */
 async function fetchAll(table,cols,build,orderCol,pageSize){
   pageSize=pageSize||1000;
-  let all=[],from=0;
+  let all=[],cursor=null;
   while(true){
     let data=null,error=null;
     for(let attempt=0;attempt<3;attempt++){
       let q=sb.from(table).select(cols);
       if(build)q=build(q);
-      q=q.order(orderCol,{ascending:true}).range(from,from+pageSize-1);
+      if(cursor!==null)q=q.gt(orderCol,cursor);
+      q=q.order(orderCol,{ascending:true}).limit(pageSize);
       const res=await q;
       data=res.data;error=res.error;
       if(!error)break;
@@ -447,7 +448,7 @@ async function fetchAll(table,cols,build,orderCol,pageSize){
     if(!data||!data.length)break;
     all=all.concat(data);
     if(data.length<pageSize)break;
-    from+=pageSize;
+    cursor=data[data.length-1][orderCol];
   }
   return all;
 }
