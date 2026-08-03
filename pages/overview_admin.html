@@ -431,10 +431,18 @@ async function fetchAll(table,cols,build,orderCol,pageSize){
   pageSize=pageSize||1000;
   let all=[],from=0;
   while(true){
-    let q=sb.from(table).select(cols);
-    if(build)q=build(q);
-    q=q.order(orderCol,{ascending:true}).range(from,from+pageSize-1);
-    const{data,error}=await q;
+    let data=null,error=null;
+    for(let attempt=0;attempt<3;attempt++){
+      let q=sb.from(table).select(cols);
+      if(build)q=build(q);
+      q=q.order(orderCol,{ascending:true}).range(from,from+pageSize-1);
+      const res=await q;
+      data=res.data;error=res.error;
+      if(!error)break;
+      if(error.code!=='57014'||attempt===2)break;
+      console.warn('[fetchAll '+table+'] timeout, retrying ('+(attempt+1)+'/2)…');
+      await new Promise(r=>setTimeout(r,500*(attempt+1)));
+    }
     if(error){console.error('[fetchAll '+table+']',error);throw new Error('fetchAll:'+table+':'+(error.message||error.code||'error'));}
     if(!data||!data.length)break;
     all=all.concat(data);
