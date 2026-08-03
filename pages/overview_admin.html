@@ -541,7 +541,7 @@ async function loadSourcing(){
 }
 async function loadCatalog(){
   const[rows,suppC]=await Promise.all([
-    fetchAll('catalog','id,status,created_at',null,'id'),
+    fetchAll('catalog','id,status,created_at,last_updated,supplier_name',null,'id'),
     sb.from('suppliers').select('*',{count:'exact',head:true}),
   ]);
   const approved=rows.filter(r=>r.status==='Approved').length;
@@ -550,13 +550,25 @@ async function loadCatalog(){
   const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
   const newThisWeek=rows.filter(r=>r.created_at&&new Date(r.created_at)>=weekAgo).length;
   const now=Date.now();
-  const oldestPendingDays=pendingItems.length?Math.floor((now-Math.min(...pendingItems.map(r=>r.created_at?new Date(r.created_at).getTime():now)))/86400000):0;
+  const bySupplierLastUpdate={};
+  rows.forEach(r=>{
+    const k=r.supplier_name||'Unknown';
+    const t=r.last_updated?new Date(r.last_updated).getTime():(r.created_at?new Date(r.created_at).getTime():0);
+    if(!t)return;
+    if(!bySupplierLastUpdate[k]||t>bySupplierLastUpdate[k])bySupplierLastUpdate[k]=t;
+  });
+  let staleSupplier=null,staleSupplierDays=0;
+  Object.entries(bySupplierLastUpdate).forEach(([name,t])=>{
+    const days=Math.floor((now-t)/86400000);
+    if(!staleSupplier||days>staleSupplierDays){staleSupplier=name;staleSupplierDays=days;}
+  });
   D.catTotal=rows.length;
   D.catApproved=approved;
   D.catRejected=rejected;
   D.catPending=pendingItems.length;
   D.catNewThisWeek=newThisWeek;
-  D.catOldestPendingDays=oldestPendingDays;
+  D.catStaleSupplier=staleSupplier;
+  D.catStaleSupplierDays=staleSupplierDays;
   D.suppTotal=suppC.count||0;
 }
 async function loadReplenishments(){
@@ -1001,7 +1013,7 @@ function renderCatalogKpis(){
     <div style="height:5px;background:var(--surface3);border-radius:99px;overflow:hidden;margin-top:2px">
       <div style="height:100%;width:${approvedRate.toFixed(1)}%;background:var(--green);border-radius:99px;transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
     </div>
-    <div style="font-size:10px;color:var(--text4);margin-top:5px;font-weight:600">${approvedRate.toFixed(0)}% approved · ${(D.catNewThisWeek||0)} new this week${D.catOldestPendingDays?` · oldest pending ${D.catOldestPendingDays}d`:''}</div>`;
+    <div style="font-size:10px;color:var(--text4);margin-top:5px;font-weight:600">${approvedRate.toFixed(0)}% approved · ${(D.catNewThisWeek||0)} new this week</div>`;
   const suppEl=document.getElementById('ovCatSuppliers');
   const avgPerSupplier=D.suppTotal?(total/D.suppTotal).toFixed(1):'—';
   if(suppEl)suppEl.innerHTML=`
@@ -1271,12 +1283,12 @@ function ovOpenCatalogDrawer(){
     <div style="margin-top:8px;margin-bottom:16px;height:6px;background:var(--surface3);border-radius:99px;overflow:hidden">
       <div style="height:100%;width:${pct.toFixed(1)}%;background:var(--green);border-radius:99px;transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
     </div>
-    <div class="drw-sec-lbl">Activity</div>
+   <div class="drw-sec-lbl">Activity</div>
     <div class="drw-row"><div class="drw-row-k">New This Week</div><div class="drw-row-v">${(D.catNewThisWeek||0).toLocaleString()}</div></div>
-    ${D.catOldestPendingDays?`<div class="drw-row"><div class="drw-row-k">Oldest Pending Review</div><div class="drw-row-v" style="color:${D.catOldestPendingDays>=14?'var(--red)':'var(--text2)'}">${D.catOldestPendingDays} days</div></div>`:''}
     <div class="drw-sec-lbl">Suppliers</div>
     <div class="drw-row"><div class="drw-row-k">Total Suppliers</div><div class="drw-row-v">${suppTotal.toLocaleString()}</div></div>
     <div class="drw-row"><div class="drw-row-k">Avg SKUs / Supplier</div><div class="drw-row-v">${avgPerSupplier}</div></div>
+    ${D.catStaleSupplier?`<div class="drw-row"><div class="drw-row-k">Least Recently Updated</div><div class="drw-row-v" style="color:${D.catStaleSupplierDays>=30?'var(--red)':'var(--text2)'}">${esc(D.catStaleSupplier)} · ${D.catStaleSupplierDays}d</div></div>`:''}
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('suppliers')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
       Open Suppliers & Catalog
