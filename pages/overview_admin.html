@@ -429,17 +429,26 @@ function utcDateStr(d){return (d||new Date()).toISOString().slice(0,10);}
 /* ── PAGINATED FETCH — no caps, ever. Pages in batches of 1000 until exhausted. ── */
 async function fetchAll(table,cols,build,orderCol,pageSize){
   pageSize=pageSize||1000;
-  let all=[],from=0;
+  let all=[],cursor=null;
   while(true){
-    let q=sb.from(table).select(cols);
-    if(build)q=build(q);
-    q=q.order(orderCol,{ascending:true}).range(from,from+pageSize-1);
-    const{data,error}=await q;
-    if(error){console.error('[fetchAll '+table+']',error);break;}
+    let data=null,error=null;
+    for(let attempt=0;attempt<3;attempt++){
+      let q=sb.from(table).select(cols);
+      if(build)q=build(q);
+      if(cursor!==null)q=q.gt(orderCol,cursor);
+      q=q.order(orderCol,{ascending:true}).limit(pageSize);
+      const res=await q;
+      data=res.data;error=res.error;
+      if(!error)break;
+      if(error.code!=='57014'||attempt===2)break;
+      console.warn('[fetchAll '+table+'] timeout, retrying ('+(attempt+1)+'/2)…');
+      await new Promise(r=>setTimeout(r,500*(attempt+1)));
+    }
+    if(error){console.error('[fetchAll '+table+']',error);throw new Error('fetchAll:'+table+':'+(error.message||error.code||'error'));}
     if(!data||!data.length)break;
     all=all.concat(data);
     if(data.length<pageSize)break;
-    from+=pageSize;
+    cursor=data[data.length-1][orderCol];
   }
   return all;
 }
@@ -561,9 +570,10 @@ async function loadPaycheck(){
     const d=await r.json();
     D.paycheck=(d.rows||[]).map(r=>({date:String(r[0]||''),empId:String(r[1]||''),name:String(r[2]||''),hours:parseFloat(r[3])||0,rate:parseFloat(r[4])||0,pay:parseFloat(r[5])||0,paid:String(r[6]||'No').trim()}));
     D.paycheckError=false;
-  }catch(e){
+}catch(e){
     console.error('[Paycheck fetch error]',e);
-    D.paycheck=[];D.paycheckError=true;
+    D.paycheckError=true;
+    if(!D.paycheck)D.paycheck=[];
   }
 }
 async function loadPacking(){
@@ -578,13 +588,13 @@ async function loadPacking(){
 async function init(){
   if(!sb)return;
   pStart();
-  try{
-    await Promise.all([
-      loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
-      loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
-    ]);
-    renderAll();
-  }catch(e){console.error('Overview init error:',e);toast('Some data failed to load','error');}
+  const results=await Promise.allSettled([
+    loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
+    loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
+  ]);
+  const failed=results.filter(r=>r.status==='rejected');
+  if(failed.length){failed.forEach(f=>console.error('Overview load error:',f.reason));toast('Some data failed to load','error');}
+  renderAll();
   pDone();
 }
 function renderAll(){
@@ -931,7 +941,7 @@ function renderRota(){
 /* ── PAYCHECK ── */
 function renderPaycheck(){
   const el=document.getElementById('ovPayWidget');
-  if(D.paycheckError){
+  if(D.paycheckError&&!(D.paycheck&&D.paycheck.length)){
     el.innerHTML=`<div style="padding:16px 0;text-align:center;font-size:12px;color:var(--text4)">Payroll data unavailable — check connection</div>`;
     return;
   }
@@ -996,14 +1006,14 @@ function ovCloseDrawer(){
 /* ── SILENT REFRESH ── */
 async function silentRefresh(){
   if(!sb)return;
-  try{
-    await Promise.all([
-      loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
-      loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
-    ]);
-    renderHero();renderAttention();renderRevenue();renderPacking();renderFunnel();renderDonut();
-    renderCatalogKpis();renderFBAStages();renderPaycheck();renderFaults();renderRota();renderSyncBadge();
-  }catch(e){console.error('Silent refresh error:',e);}
+  const results=await Promise.allSettled([
+    loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
+    loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
+  ]);
+  const failed=results.filter(r=>r.status==='rejected');
+  if(failed.length)failed.forEach(f=>console.error('Silent refresh load error:',f.reason));
+  renderHero();renderAttention();renderRevenue();renderPacking();renderFunnel();renderDonut();
+  renderCatalogKpis();renderFBAStages();renderPaycheck();renderFaults();renderRota();renderSyncBadge();
 }
 /* ── DRAWERS ── */
 function ovOpenVeeqoDrawer(){
