@@ -299,7 +299,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
             <div class="pulse-link">Expand <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
           </div>
           <div class="mkpi-row">
-            <div class="mkpi"><div class="mkpi-lbl">30d Total</div><div class="mkpi-val green" id="ovRevTotal">—</div><div class="mkpi-delta" id="ovRevDelta"></div></div>
+            <div class="mkpi"><div class="mkpi-lbl">Order Value (30d)</div><div class="mkpi-val green" id="ovRevTotal">—</div><div class="mkpi-delta" id="ovRevDelta"></div></div>
             <div class="mkpi"><div class="mkpi-lbl">Today</div><div class="mkpi-val" id="ovRevToday">—</div></div>
             <div class="mkpi"><div class="mkpi-lbl">Orders</div><div class="mkpi-val" id="ovRevOrders">—</div></div>
             <div class="mkpi"><div class="mkpi-lbl">Shipped</div><div class="mkpi-val green" id="ovRevShipped">—</div></div>
@@ -751,7 +751,8 @@ function renderRevenue(){
     deltaEl.className='mkpi-delta '+(pct>=0?'up':'down');
   }else{deltaEl.textContent='';}
   const totalOrderCount=D.veeqo30Count||orders.length;
-  document.getElementById('ovRevSub').textContent=`${totalOrderCount} orders · avg ${fmtGBP(totalOrderCount?total30/totalOrderCount:0)} per order`;
+  const pendingAmt=orders.filter(o=>['awaiting_payment','payment_pending'].includes((o.status||'').toLowerCase())).reduce((s,o)=>s+parseFloat(o.total_price||0),0);
+  document.getElementById('ovRevSub').textContent=`${totalOrderCount} orders · avg ${fmtGBP(totalOrderCount?total30/totalOrderCount:0)} per order`+(pendingAmt>0?` · ${fmtGBP(pendingAmt)} pending payment`:'');
   const midnight=ukMidnight();
   const buckets={};
   for(let i=29;i>=0;i--){const d=new Date(midnight);d.setUTCDate(d.getUTCDate()-i);buckets[d.toISOString().split('T')[0]]=0;}
