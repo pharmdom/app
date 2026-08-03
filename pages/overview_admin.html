@@ -113,6 +113,10 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .mkpi-delta{font-size:9.5px;font-weight:700;margin-top:3px;}
 .mkpi-delta.up{color:var(--green);}
 .mkpi-delta.down{color:var(--red);}
+.rev-tabs{display:flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:99px;padding:3px;margin-bottom:16px;width:fit-content;}
+.rev-tab{border:none;background:transparent;padding:6px 14px;border-radius:99px;font-family:var(--font);font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.rev-tab:hover{color:var(--text2);}
+.rev-tab.active{background:var(--accent);color:#fff;box-shadow:var(--sh-sm);}
 .spark-wrap{height:90px;margin-top:10px;}
 .funnel{display:flex;flex-direction:column;gap:6px;}
 .funnel-row{display:flex;align-items:center;gap:10px;}
@@ -424,6 +428,25 @@ function ukHourNow(){
   const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',hour12:false}).formatToParts(new Date());
   return parseInt(parts.find(p=>p.type==='hour').value,10);
 }
+function ukHourOfDate(d){
+  const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',hour12:false}).formatToParts(d);
+  return parseInt(parts.find(p=>p.type==='hour').value,10);
+}
+function ukMidnightForYMD(y,m,d){
+  var ymdStr=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0')+'T00:00:00';
+  var naiveUTC=new Date(ymdStr+'Z');
+  var testFmt=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',hour12:false});
+  var testParts=testFmt.formatToParts(naiveUTC);var tp={};testParts.forEach(function(x){tp[x.type]=x.value;});
+  var offsetHours=parseInt(tp.hour);var offsetMs=offsetHours*3600000;
+  return new Date(naiveUTC.getTime()-offsetMs);
+}
+function calendarLastMonthBounds(){
+  const fmt=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'});
+  const parts=fmt.formatToParts(new Date());const p={};parts.forEach(x=>p[x.type]=x.value);
+  const y=parseInt(p.year),m=parseInt(p.month);
+  let lm=m-1,ly=y;if(lm===0){lm=12;ly=y-1;}
+  return{start:ukMidnightForYMD(ly,lm,1),end:ukMidnightForYMD(y,m,1)};
+}
 function utcDateStr(d){return (d||new Date()).toISOString().slice(0,10);}
 /* ── PAGINATED FETCH — no caps, ever. Pages in batches of 1000 until exhausted. ── */
 let _hadFetchError=false;
@@ -491,6 +514,18 @@ async function loadLineItems(){
   const ago30=new Date(midnight);ago30.setUTCDate(ago30.getUTCDate()-29);
   D.lineItems30=await fetchAll('veeqo_order_line_items','line_item_id,order_id,sku,product_title,quantity,price_per_unit,created_at',
     q=>q.gte('created_at',ago30.toISOString()),'line_item_id');
+}
+async function loadLastMonthVeeqo(){
+  if(D.veeqoLastMonth)return;
+  const{start,end}=calendarLastMonthBounds();
+  const[orders,lineItems]=await Promise.all([
+    fetchAll('veeqo_orders','order_id,order_number,status,total_price,is_amazon_prime,created_at,channel,deliver_to_name',
+      q=>q.gte('created_at',start.toISOString()).lt('created_at',end.toISOString()),'order_id'),
+    fetchAll('veeqo_order_line_items','line_item_id,order_id,sku,product_title,quantity,price_per_unit,created_at',
+      q=>q.gte('created_at',start.toISOString()).lt('created_at',end.toISOString()),'line_item_id'),
+  ]);
+  D.veeqoLastMonth=orders;
+  D.lineItemsLastMonth=lineItems;
 }
 async function loadSourcing(){
   const[rows,totalC,unapprovedC,approvedC,purchasedC]=await Promise.all([
@@ -1180,39 +1215,86 @@ function ovOpenModal(title,sub,html){
   document.getElementById('ovModalOverlay').classList.add('open');
 }
 function ovCloseModal(){document.getElementById('ovModalOverlay').classList.remove('open');}
+let _revFilter='30d';
+async function getRevenueFilterData(filter){
+  const all=D.veeqo30||[],allLI=D.lineItems30||[];
+  if(filter==='today'){
+    const midnight=ukMidnight();
+    return{orders:all.filter(o=>o.created_at&&new Date(o.created_at)>=midnight),
+      lineItems:allLI.filter(li=>li.created_at&&new Date(li.created_at)>=midnight),
+      granularity:'hour',label:'Today'};
+  }
+  if(filter==='7d'){
+    const ago7=new Date(ukMidnight());ago7.setUTCDate(ago7.getUTCDate()-6);
+    return{orders:all.filter(o=>o.created_at&&new Date(o.created_at)>=ago7),
+      lineItems:allLI.filter(li=>li.created_at&&new Date(li.created_at)>=ago7),
+      granularity:'day',label:'Last 7 Days'};
+  }
+  if(filter==='month'){
+    await loadLastMonthVeeqo();
+    return{orders:D.veeqoLastMonth||[],lineItems:D.lineItemsLastMonth||[],granularity:'day',label:'Last Calendar Month'};
+  }
+  return{orders:all,lineItems:allLI,granularity:'day',label:'Last 30 Days'};
+}
 function ovOpenRevenueModal(){
-  const orders=D.veeqo30||[];
+  _revFilter='30d';
+  ovOpenModal('Revenue','',`
+    <div class="rev-tabs" id="revTabs">
+      <button class="rev-tab" onclick="ovSetRevenueFilter('today')" data-f="today">Today</button>
+      <button class="rev-tab" onclick="ovSetRevenueFilter('7d')" data-f="7d">Last 7 Days</button>
+      <button class="rev-tab active" onclick="ovSetRevenueFilter('30d')" data-f="30d">Last 30 Days</button>
+      <button class="rev-tab" onclick="ovSetRevenueFilter('month')" data-f="month">Last Month</button>
+    </div>
+    <div id="revModalContent"><div class="shimmer" style="height:220px"></div></div>`);
+  renderRevenueModalContent('30d');
+}
+async function ovSetRevenueFilter(filter){
+  _revFilter=filter;
+  document.querySelectorAll('#revTabs .rev-tab').forEach(b=>b.classList.toggle('active',b.dataset.f===filter));
+  const body=document.getElementById('revModalContent');
+  if(body)body.innerHTML='<div class="shimmer" style="height:220px"></div>';
+  await renderRevenueModalContent(filter);
+}
+async function renderRevenueModalContent(filter){
+  const{orders,lineItems,granularity,label}=await getRevenueFilterData(filter);
+  if(_revFilter!==filter)return;
   const total=orders.reduce((s,o)=>s+parseFloat(o.total_price||0),0);
   const avg=orders.length?total/orders.length:0;
-  const midnight=ukMidnight();
-  const buckets={};
-  for(let i=29;i>=0;i--){const d=new Date(midnight);d.setUTCDate(d.getUTCDate()-i);buckets[d.toISOString().split('T')[0]]=0;}
-  orders.forEach(o=>{if(!o.created_at)return;const k=new Date(o.created_at).toISOString().split('T')[0];if(k in buckets)buckets[k]+=parseFloat(o.total_price||0);});
-  const keys=Object.keys(buckets).sort();
-  const vals=keys.map(k=>buckets[k]);
-  const maxV=Math.max(...vals)||1;
-  const W=580,H=150,pL=50,pR=10,pT=10,pB=22,cW=W-pL-pR,cH=H-pT-pB,n=keys.length;
+  let keys=[],vals=[];
+  if(granularity==='hour'){
+    const buckets={};for(let h=0;h<24;h++)buckets[String(h).padStart(2,'0')]=0;
+    orders.forEach(o=>{if(!o.created_at)return;const h=String(ukHourOfDate(new Date(o.created_at))).padStart(2,'0');buckets[h]+=parseFloat(o.total_price||0);});
+    keys=Object.keys(buckets);vals=keys.map(k=>buckets[k]);
+  }else{
+    const buckets={};
+    orders.forEach(o=>{if(!o.created_at)return;const k=new Date(o.created_at).toISOString().split('T')[0];buckets[k]=(buckets[k]||0)+parseFloat(o.total_price||0);});
+    keys=Object.keys(buckets).sort();vals=keys.map(k=>buckets[k]);
+  }
+  const W=580,H=150,pL=50,pR=10,pT=10,pB=22,cW=W-pL-pR,cH=H-pT-pB,n=Math.max(keys.length,1);
+  const maxV=Math.max(...vals,1);
   const pts=vals.map((v,i)=>[pL+(n>1?i*cW/(n-1):0),pT+cH-(v/maxV*cH)]);
-  const pathD='M '+pts.map(p=>p[0]+','+p[1]).join(' L ');
+  const pathD=pts.length?'M '+pts.map(p=>p[0]+','+p[1]).join(' L '):`M ${pL},${pT+cH}`;
   const areaD=pathD+` L ${pL+cW},${pT+cH} L ${pL},${pT+cH} Z`;
   let grid='';[0,.5,1].forEach(f=>{const y=pT+cH-(cH*f);grid+=`<line x1="${pL}" y1="${y}" x2="${pL+cW}" y2="${y}" stroke="var(--border2)" stroke-width="1"/><text x="${pL-4}" y="${y+4}" text-anchor="end" font-size="9" fill="var(--text4)" font-family="var(--mono)">£${(maxV*f/1000).toFixed(0)}k</text>`;});
   const step=Math.max(1,Math.floor(n/6));
-  let xL='';keys.forEach((k,i)=>{if(i%step!==0&&i!==n-1)return;const x=pL+(n>1?i*cW/(n-1):0);xL+=`<text x="${x}" y="${H-3}" text-anchor="middle" font-size="8.5" fill="var(--text4)">${k.slice(8)}</text>`;});
+  let xL='';keys.forEach((k,i)=>{if(i%step!==0&&i!==n-1)return;const x=pL+(n>1?i*cW/(n-1):0);const lbl=granularity==='hour'?k+':00':k.slice(8);xL+=`<text x="${x}" y="${H-3}" text-anchor="middle" font-size="8.5" fill="var(--text4)">${lbl}</text>`;});
   const ch={};orders.forEach(o=>{const c=o.channel||'Unknown';ch[c]=(ch[c]||0)+1;});
-  const chRows=Object.entries(ch).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`<tr><td>${esc(c)}</td><td style="text-align:right;font-family:var(--mono);font-weight:700">${n}</td><td style="text-align:right;color:var(--text3)">${Math.round(n/orders.length*100)}%</td></tr>`).join('');
-  const li=D.lineItems30||[];
+  const chRows=Object.entries(ch).sort((a,b)=>b[1]-a[1]).map(([c,cnt])=>`<tr><td>${esc(c)}</td><td style="text-align:right;font-family:var(--mono);font-weight:700">${cnt}</td><td style="text-align:right;color:var(--text3)">${orders.length?Math.round(cnt/orders.length*100):0}%</td></tr>`).join('');
   const prodAgg={};
-  li.forEach(row=>{
+  lineItems.forEach(row=>{
     const key=row.product_title||row.sku||'Unknown';
     if(!prodAgg[key])prodAgg[key]={revenue:0,units:0};
     prodAgg[key].revenue+=(parseFloat(row.quantity)||0)*(parseFloat(row.price_per_unit)||0);
     prodAgg[key].units+=(parseFloat(row.quantity)||0);
   });
-  const topProducts=Object.entries(prodAgg).sort((a,b)=>b[1].revenue-a[1].revenue).slice(0,5);
-  const topRows=topProducts.map(([name,v])=>`<tr><td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</td><td style="text-align:right;font-family:var(--mono)">${v.units.toLocaleString()}</td><td style="text-align:right;font-family:var(--mono);font-weight:700">${fmtGBP(v.revenue)}</td></tr>`).join('');
-  ovOpenModal('Revenue — Last 30 Days',`${orders.length} orders · avg ${fmtGBP(avg)}`,`
+  const topRows=Object.entries(prodAgg).sort((a,b)=>b[1].revenue-a[1].revenue).slice(0,5)
+    .map(([name,v])=>`<tr><td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</td><td style="text-align:right;font-family:var(--mono)">${v.units.toLocaleString()}</td><td style="text-align:right;font-family:var(--mono);font-weight:700">${fmtGBP(v.revenue)}</td></tr>`).join('');
+  const body=document.getElementById('revModalContent');
+  if(!body)return;
+  body.innerHTML=`
+    <div style="font-size:11px;color:var(--text3);margin:-8px 0 14px">${label} · ${orders.length} orders</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px">
-      <div class="mkpi"><div class="mkpi-lbl">Total Revenue</div><div class="mkpi-val green">${fmtGBP(total)}</div></div>
+      <div class="mkpi"><div class="mkpi-lbl">Order Value</div><div class="mkpi-val green">${fmtGBP(total)}</div></div>
       <div class="mkpi"><div class="mkpi-lbl">Total Orders</div><div class="mkpi-val">${orders.length.toLocaleString()}</div></div>
       <div class="mkpi"><div class="mkpi-lbl">Avg Order Value</div><div class="mkpi-val">${fmtGBP(avg)}</div></div>
     </div>
@@ -1223,8 +1305,8 @@ function ovOpenRevenueModal(){
     <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:8px">Top 5 Products</div>
     <table class="mini-tbl"><thead><tr><th>Product</th><th style="text-align:right">Units</th><th style="text-align:right">Revenue</th></tr></thead><tbody>${topRows||'<tr><td colspan="3" style="text-align:center;color:var(--text4);padding:14px">No line item data</td></tr>'}</tbody></table>
     <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin:16px 0 8px">By Channel</div>
-    <table class="mini-tbl"><thead><tr><th>Channel</th><th style="text-align:right">Orders</th><th style="text-align:right">Share</th></tr></thead><tbody>${chRows}</tbody></table>
-    <button class="drw-nav" onclick="ovCloseModal();window.loadModule&&loadModule('reports')">Open Full Veeqo Report</button>`);
+    <table class="mini-tbl"><thead><tr><th>Channel</th><th style="text-align:right">Orders</th><th style="text-align:right">Share</th></tr></thead><tbody>${chRows||'<tr><td colspan="3" style="text-align:center;color:var(--text4);padding:14px">No orders in this range</td></tr>'}</tbody></table>
+    <button class="drw-nav" onclick="ovCloseModal();window.loadModule&&loadModule('reports')">Open Full Veeqo Report</button>`;
 }
 function ovOpenReplenishModal(){
   const d=D.replen||[];
@@ -1269,6 +1351,7 @@ window.ovOpenRotaDrawer=ovOpenRotaDrawer;
 window.ovOpenPaycheckDrawer=ovOpenPaycheckDrawer;
 window.ovOpenPackingDrawer=ovOpenPackingDrawer;
 window.ovOpenRevenueModal=ovOpenRevenueModal;
+window.ovSetRevenueFilter=ovSetRevenueFilter;
 window.ovOpenReplenishModal=ovOpenReplenishModal;
 window.ovCloseDrawer=ovCloseDrawer;
 window.ovCloseModal=ovCloseModal;
