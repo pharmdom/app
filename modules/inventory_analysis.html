@@ -191,6 +191,11 @@ table.ia-table{width:100%;border-collapse:collapse;table-layout:fixed;background
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload Files
       </button>
+      <label class="nav-btn" style="cursor:default;gap:6px;">
+        Period
+        <input type="number" id="periodDaysInput" min="1" style="width:44px;border:none;background:transparent;font:inherit;color:inherit;padding:0;outline:none;" value="30">
+        days
+      </label>
       <button class="nav-btn" onclick="confirmReset()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
         Reset
@@ -303,16 +308,17 @@ table.ia-table{width:100%;border-collapse:collapse;table-layout:fixed;background
 
 const sb = window.sb;
 
-// ---- status thresholds (weeks of cover = available / total_sold) ----
-// Matches the reference static sell-through report exactly:
-//   strong   : cover < 7.4
-//   moderate : cover < 13.8
-//   slow     : cover < 50
-//   offload  : cover >= 50
+// ---- status thresholds (sell-through % — matches the static dashboard exactly) ----
+//   strong   : st >= 50
+//   moderate : st >= 28
+//   slow     : st >= 11
+//   offload  : st < 11
 //   nosale   : total_sold === 0
-const COVER_STRONG_MAX = 7.4;
-const COVER_MODERATE_MAX = 13.8;
-const COVER_SLOW_MAX = 50;
+const ST_STRONG_MIN = 50;
+const ST_MODERATE_MIN = 28;
+const ST_SLOW_MIN = 11;
+
+let salesPeriodDays = parseInt(localStorage.getItem('ia_sales_period_days')) || 30;
 
 let ALL = [];
 let acts = {};        // sku -> true when "actioned" (price drop applied)
@@ -334,13 +340,13 @@ function computeRow(x){
   const total = x.total_qty_sold || (sold + kits);
   const handled = total + stock;
   const st = handled ? (total/handled*100) : 0;
-  const cover = total > 0 ? (stock/total) : null;
+  const cover = total > 0 ? (stock/(total/salesPeriodDays*7)) : null;
 
   let status;
   if (total === 0) status = 'nosale';
-  else if (cover < COVER_STRONG_MAX) status = 'strong';
-  else if (cover < COVER_MODERATE_MAX) status = 'moderate';
-  else if (cover < COVER_SLOW_MAX) status = 'slow';
+  else if (st >= ST_STRONG_MIN) status = 'strong';
+  else if (st >= ST_MODERATE_MIN) status = 'moderate';
+  else if (st >= ST_SLOW_MIN) status = 'slow';
   else status = 'offload';
   if (x.status_override) status = x.status_override;
 
@@ -632,6 +638,16 @@ function confirmReset(){
   });
 }
 window.confirmReset=confirmReset;
+
+const periodInput = document.getElementById('periodDaysInput');
+periodInput.value = salesPeriodDays;
+periodInput.onchange = () => {
+  const v = parseInt(periodInput.value);
+  salesPeriodDays = (v && v > 0) ? v : 30;
+  periodInput.value = salesPeriodDays;
+  localStorage.setItem('ia_sales_period_days', salesPeriodDays);
+  if (ALL.length) render();
+};
 
 function openConfirm(title,msg,fn){
   document.getElementById('confirmTitle').textContent=title;
