@@ -176,6 +176,10 @@ table.ia-table{width:100%;border-collapse:collapse;table-layout:fixed;background
   <div class="modal-box">
     <h3 id="confirmTitle">Confirm</h3>
     <p id="confirmMsg">Are you sure?</p>
+    <label id="confirmCheckboxRow" style="display:none;align-items:center;gap:8px;font-size:12.5px;color:var(--text2);margin-bottom:18px;cursor:pointer;">
+      <input type="checkbox" id="confirmCheckbox" style="width:14px;height:14px;">
+      Also delete all inventory data (full reset — everything, not just actions)
+    </label>
     <div class="modal-actions">
       <button class="mbtn mbtn-secondary" onclick="closeConfirm()">Cancel</button>
       <button class="mbtn mbtn-danger" onclick="doConfirm()">Confirm</button>
@@ -626,15 +630,26 @@ function updateStatsBanner(withStatus){
 }
 
 function confirmReset(){
-  openConfirm('Reset all actions?','This clears every "Price drop" action. Inventory data stays — only the actioned flags are cleared.',async()=>{
+  openConfirm('Reset all actions?','This clears every "Price drop" action. Check the box below if you want to wipe all inventory data instead.',async()=>{
+    const wipeAll=document.getElementById('confirmCheckbox').checked;
     closeConfirm();
     try{
-      await sb.from('inventory_skus').update({ action:null, actioned_at:null }).neq('sku','');
-      acts={}; page=0;
-      await restoreFromDB();
-      toast('Actions cleared','info');
+      if(wipeAll){
+        const {error}=await sb.from('inventory_skus').delete().neq('sku','');
+        if(error) throw error;
+        acts={}; ALL=[]; page=0;
+        document.getElementById('contentArea').style.display='none';
+        document.getElementById('invStatsBanner').style.display='none';
+        document.getElementById('emptyState').style.display='flex';
+        toast('All inventory data deleted','info');
+      } else {
+        await sb.from('inventory_skus').update({ action:null, actioned_at:null }).neq('sku','');
+        acts={}; page=0;
+        await restoreFromDB();
+        toast('Actions cleared','info');
+      }
     } catch(e){ toast('Reset failed: '+e.message,'error'); }
-  });
+  }, true);
 }
 window.confirmReset=confirmReset;
 
@@ -648,9 +663,12 @@ periodInput.onchange = () => {
   if (ALL.length) render();
 };
 
-function openConfirm(title,msg,fn){
+function openConfirm(title,msg,fn,showCheckbox){
   document.getElementById('confirmTitle').textContent=title;
   document.getElementById('confirmMsg').textContent=msg;
+  const cb=document.getElementById('confirmCheckbox');
+  cb.checked=false;
+  document.getElementById('confirmCheckboxRow').style.display=showCheckbox?'flex':'none';
   confirmFn=fn;
   document.getElementById('confirmOverlay').classList.add('open');
 }
