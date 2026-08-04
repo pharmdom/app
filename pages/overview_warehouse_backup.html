@@ -285,7 +285,7 @@ const SB_URL='https://mbmgcqknbajwndiveewf.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ibWdjcWtuYmFqd25kaXZlZXdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MjM5NDYsImV4cCI6MjA5NTI5OTk0Nn0.PtMnPnh8FjfS9Qla-D17Jfk-0ArgtKLTRrE52edAVdU';
 let sb=null;
 const D={};
-let _refreshTimer=null;
+
 const scr=document.createElement('script');
 scr.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
 scr.onload=()=>{sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:false}});init();};
@@ -300,8 +300,8 @@ function getCurrentUser(){
 }
 const ME=getCurrentUser();
 const ME_ID=ME?ME.user_id:null;
-const ME_NAME=ME?((ME.firstName||'')+' '+(ME.lastName||'')).trim():'';
-const ME_FIRST=ME?(ME.firstName||'').split(' ')[0]:'';
+const ME_FIRST=ME?(ME.firstName||'').trim():'';
+const ME_LAST=ME?(ME.lastName||'').trim():'';
 /* ── UTILS ── */
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const fmtGBP=v=>'£'+(parseFloat(v)||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -396,19 +396,64 @@ async function loadMyRota(){
   D.myRotaNextWeek=await fetchAll('rota_schedule','id,date,start_time,end_time,type',
     q=>q.eq('employee_id',ME_ID).gte('date',nStart.toISOString().slice(0,10)).lt('date',nEnd.toISOString().slice(0,10)),'id');
 }
+/* ── NAME MATCHING — tiered, most precise first ──
+ * Tier 1: full name ("James Smith") — exact person, no ambiguity.
+ * Tier 2: first name + last initial ("James S"), or first initial + last name ("J Smith")
+ *         — disambiguates when two staff share a first OR last name.
+ * Tier 3: bare first name or last name alone — last resort, broadest match.
+ * Each tier is only used if the previous tier returned nothing.
+ */
+function nameFilterTier1(col){
+  if(ME_FIRST&&ME_LAST)return `${col}.ilike.%${ME_FIRST}% ${ME_LAST}%`;
+  return null;
+}
+function nameFilterTier2(col){
+  const parts=[];
+  if(ME_FIRST&&ME_LAST){
+    parts.push(`${col}.ilike.%${ME_FIRST}% ${ME_LAST[0]}%`); // "James S..."
+    parts.push(`${col}.ilike.%${ME_FIRST[0]}% ${ME_LAST}%`); // "J Smith"
+  }
+  return parts.length?parts.join(','):null;
+}
+function nameFilterTier3(col){
+  const parts=[];
+  if(ME_FIRST)parts.push(`${col}.ilike.%${ME_FIRST}%`);
+  if(ME_LAST)parts.push(`${col}.ilike.%${ME_LAST}%`);
+  return parts.length?parts.join(','):null;
+}
+async function fetchByNameTiered(table,cols,dateCol,dateVal,nameCol,orderCol){
+  const tiers=[nameFilterTier1(nameCol),nameFilterTier2(nameCol),nameFilterTier3(nameCol)];
+  for(const filter of tiers){
+    if(!filter)continue;
+    const rows=await fetchAll(table,cols,q=>q.eq(dateCol,dateVal).or(filter),orderCol);
+    if(rows.length)return rows;
+  }
+  return [];
+}
+async function fetchByNameTieredRange(table,cols,dateCol,dateFrom,nameCol,orderCol){
+  const tiers=[nameFilterTier1(nameCol),nameFilterTier2(nameCol),nameFilterTier3(nameCol)];
+  for(const filter of tiers){
+    if(!filter)continue;
+    const rows=await fetchAll(table,cols,q=>q.gte(dateCol,dateFrom).or(filter),orderCol);
+    if(rows.length)return rows;
+  }
+  return [];
+}
 async function loadMyPacking(){
-  if(!ME_NAME)return;
+  if(!ME_FIRST&&!ME_LAST)return;
   const todayStr=utcDateStr();
   const[counts,todayStat]=await Promise.all([
-    fetchAll('manus_packing_counts','date,time_slot,count',q=>q.eq('date',todayStr).ilike('packer_name',ME_NAME),'time_slot'),
-    fetchAll('manus_packing_week_stats','date,total_packs,packs_per_hour',q=>q.eq('date',todayStr).ilike('name',ME_NAME),'date'),
+    fetchByNameTiered('manus_packing_counts','date,time_slot,count,packer_name',
+      'date',todayStr,'packer_name','time_slot'),
+    fetchByNameTiered('manus_packing_week_stats','date,total_packs,packs_per_hour,name',
+      'date',todayStr,'name','date'),
   ]);
   D.myPackingToday=counts;
   D.myPackingStatToday=todayStat[0]||null;
   const ago7=new Date();ago7.setDate(ago7.getDate()-6);
   const ago7Str=utcDateStr(ago7);
-  D.myPacking7d=await fetchAll('manus_packing_week_stats','date,total_packs,packs_per_hour',
-    q=>q.gte('date',ago7Str).ilike('name',ME_NAME),'date');
+  D.myPacking7d=await fetchByNameTieredRange('manus_packing_week_stats','date,total_packs,packs_per_hour,name',
+    'date',ago7Str,'name','date');
 }
 async function loadMyPay(){
   if(!ME_ID){D.myPay=[];return;}
@@ -754,14 +799,6 @@ function whOpenPayDrawer(){
       Open Payroll
     </button>`);
 }
-/* ── SILENT REFRESH ── */
-async function silentRefresh(){
-  if(!sb)return;
-  const results=await Promise.allSettled([loadMyRota(),loadMyPacking(),loadMyPay()]);
-  const failed=results.filter(r=>r.status==='rejected');
-  if(failed.length)failed.forEach(f=>console.error('[WH silent refresh]',f.reason));
-  renderAll();
-}
 /* ── KEYBOARD ── */
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&document.getElementById('whDrawer').classList.contains('open'))whCloseDrawer();
@@ -772,13 +809,6 @@ window.whOpenRotaDrawer=whOpenRotaDrawer;
 window.whOpenPackingDrawer=whOpenPackingDrawer;
 window.whOpenPackingTrendDrawer=whOpenPackingTrendDrawer;
 window.whOpenPayDrawer=whOpenPayDrawer;
-/* ── AUTO REFRESH — only while page is visible ── */
-function startAutoRefresh(){if(!_refreshTimer)_refreshTimer=setInterval(()=>silentRefresh(),60000);}
-function stopAutoRefresh(){clearInterval(_refreshTimer);_refreshTimer=null;}
-document.addEventListener('visibilitychange',()=>{
-  if(document.hidden)stopAutoRefresh();
-  else{silentRefresh();startAutoRefresh();}
-});
-if(!document.hidden)startAutoRefresh();
+/* No auto-refresh — data loads once on page open; user reloads to get fresh data. */
 })();
 </script>
