@@ -320,24 +320,41 @@ function ukHourNow(){
   const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',hour12:false}).formatToParts(new Date());
   return parseInt(parts.find(p=>p.type==='hour').value,10);
 }
+function ukTodayStr(){
+  const p={};new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).forEach(x=>p[x.type]=x.value);
+  return `${p.year}-${p.month}-${p.day}`;
+}
+function addDaysUK(dateStr,days){
+  const[y,m,d]=dateStr.split('-').map(Number);
+  const dt=new Date(Date.UTC(y,m-1,d));
+  dt.setUTCDate(dt.getUTCDate()+days);
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}-${String(dt.getUTCDate()).padStart(2,'0')}`;
+}
+function twoMonthCutoffUK(){
+  const[y,m]=ukTodayStr().split('-').map(Number);
+  let py=y,pm=m-1;
+  if(pm===0){pm=12;py=y-1;}
+  return `${py}-${String(pm).padStart(2,'0')}-01`;
+}
+function dowOfDateStr(dateStr){
+  const[y,m,d]=dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y,m-1,d)).getUTCDay();
+}
 function utcDateStr(d){return (d||new Date()).toISOString().slice(0,10);}
 function timeToMins(t){if(!t)return 0;const[h,m]=String(t).slice(0,5).split(':').map(Number);return h*60+m;}
 function getWeekKey(dateStr){
-  const d=new Date(dateStr);
-  const day=d.getDay();
-  const diffToMon=day===0?6:day-1;
-  const mon=new Date(d);mon.setDate(d.getDate()-diffToMon);
-  return mon.toISOString().slice(0,10);
+  const dow=dowOfDateStr(dateStr);
+  const diffToMon=dow===0?6:dow-1;
+  return addDaysUK(dateStr,-diffToMon);
 }
 function weekBounds(offsetWeeks){
   offsetWeeks=offsetWeeks||0;
-  const today=new Date();
-  const dow=today.getDay();
-  const off=dow===0?-6:1-dow;
-  const start=new Date(today);start.setDate(today.getDate()+off+offsetWeeks*7);start.setHours(0,0,0,0);
-  const end=new Date(start);end.setDate(start.getDate()+7);
-  const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  return{start,end,startStr:fmt(start),endStr:fmt(end)};
+  const todayStr=ukTodayStr();
+  const dow=dowOfDateStr(todayStr);
+  const off=(dow===0?-6:1-dow)+offsetWeeks*7;
+  const startStr=addDaysUK(todayStr,off);
+  const endStr=addDaysUK(startStr,7);
+  return{startStr,endStr};
 }
 /* ── PAGINATED FETCH — no caps ── */
 async function fetchAll(table,cols,build,orderCol,pageSize){
@@ -387,14 +404,16 @@ setInterval(updateClock,1000);updateClock();
 /* ── LOADERS — all scoped to ME only ── */
 async function loadMyRota(){
   if(!ME_ID)return;
-  const{start,end}=weekBounds(0);
-  const startStr=start.toISOString().slice(0,10);
-  const endStr=end.toISOString().slice(0,10);
-  D.myRotaThisWeek=await fetchAll('rota_schedule','id,date,start_time,end_time,type',
-    q=>q.eq('employee_id',ME_ID).gte('date',startStr).lt('date',endStr),'id');
-  const{start:nStart,end:nEnd}=weekBounds(1);
-  D.myRotaNextWeek=await fetchAll('rota_schedule','id,date,start_time,end_time,type',
-    q=>q.eq('employee_id',ME_ID).gte('date',nStart.toISOString().slice(0,10)).lt('date',nEnd.toISOString().slice(0,10)),'id');
+  D.myRotaAll=await fetchAll('rota_schedule','id,date,start_time,end_time,type',
+    q=>q.eq('employee_id',ME_ID).gte('date',twoMonthCutoffUK()),'id');
+}
+function myRotaThisWeek(){
+  const{startStr,endStr}=weekBounds(0);
+  return(D.myRotaAll||[]).filter(r=>r.date>=startStr&&r.date<endStr);
+}
+function myRotaNextWeek(){
+  const{startStr,endStr}=weekBounds(1);
+  return(D.myRotaAll||[]).filter(r=>r.date>=startStr&&r.date<endStr);
 }
 /* ── NAME MATCHING — tiered, most precise first ──
  * Tier 1: full name ("James Smith") — exact person, no ambiguity.
@@ -441,7 +460,7 @@ async function fetchByNameTieredRange(table,cols,dateCol,dateFrom,nameCol,orderC
 }
 async function loadMyPacking(){
   if(!ME_FIRST&&!ME_LAST)return;
-  const todayStr=utcDateStr();
+  const todayStr=ukTodayStr();
   const[counts,todayStat]=await Promise.all([
     fetchByNameTiered('manus_packing_counts','date,time_slot,count,packer_name',
       'date',todayStr,'packer_name','time_slot'),
@@ -458,7 +477,7 @@ async function loadMyPacking(){
 async function loadMyPay(){
   if(!ME_ID){D.myPay=[];return;}
   const rows=await fetchAll('rota_schedule','id,date,start_time,end_time,type,paid,hourly_rate,bonus',
-    q=>q.eq('employee_id',ME_ID),'id');
+    q=>q.eq('employee_id',ME_ID).gte('date',twoMonthCutoffUK()),'id');
   D.myPay=rows
     .filter(r=>r.type!=='break')
     .map(r=>{
@@ -489,7 +508,7 @@ function renderAll(){
 /* ── HERO ── */
 function renderHero(){
   const todayStr=utcDateStr();
-  const rota=D.myRotaThisWeek||[];
+  const rota=myRotaThisWeek();
   const todayShift=rota.find(r=>r.date===todayStr&&r.type!=='break');
   const nowMins=(function(){const p=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date());const h=parseInt(p.find(x=>x.type==='hour').value),m=parseInt(p.find(x=>x.type==='minute').value);return h*60+m;})();
   let shiftVal='Off today',shiftBadge={cls:'bg-neutral',txt:'No shift'};
@@ -549,7 +568,7 @@ function buildQueueItems(){
   const items=[];
   const todayStr=utcDateStr();
   const hr=ukHourNow();
-  const rota=D.myRotaThisWeek||[];
+  const rota=myRotaThisWeek();
   const todayShift=rota.find(r=>r.date===todayStr&&r.type!=='break');
   const counts=D.myPackingToday||[];
   const packsToday=counts.length?Math.max(...counts.map(c=>parseInt(c.count)||0)):0;
@@ -569,7 +588,7 @@ function buildQueueItems(){
     const total=pastUnpaidWeeks.reduce((s,k)=>s+unpaidWeeks[k],0);
     items.push({sev:'warn',t:`Pay pending for ${pastUnpaidWeeks.length} past week${pastUnpaidWeeks.length!==1?'s':''}`,s:`${fmtGBP(total)} outstanding from previous week${pastUnpaidWeeks.length!==1?'s':''}`,meta:'Pay',tag:{cls:'sb-amber',txt:'Pay'},fn:'whOpenPayDrawer()'});
   }
-  const nextWeek=D.myRotaNextWeek||[];
+  const nextWeek=myRotaNextWeek();
   if(nextWeek.filter(r=>r.type!=='break').length===0&&hr>=16){
     items.push({sev:'info',t:'No shifts scheduled for next week yet',s:'Check with your manager if this looks wrong',meta:'Rota',tag:{cls:'sb-amber',txt:'Rota'},fn:'whOpenRotaDrawer()'});
   }
@@ -606,13 +625,12 @@ function renderQueue(){
 }
 /* ── ROTA WIDGET ── */
 function renderRota(){
-  const rota=D.myRotaThisWeek||[];
-  const todayStr=utcDateStr();
-  const{start}=weekBounds(0);
+  const rota=myRotaThisWeek();
+  const todayStr=ukTodayStr();
+  const{startStr}=weekBounds(0);
   const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const rows=days.map((lbl,i)=>{
-    const d=new Date(start);d.setDate(start.getDate()+i);
-    const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const ds=addDaysUK(startStr,i);
     const shift=rota.find(r=>r.date===ds&&r.type!=='break');
     return{lbl,ds,shift,isToday:ds===todayStr};
   });
@@ -667,7 +685,7 @@ function renderPacking(){
 /* ── PAY WIDGET ── */
 function renderPay(){
   const rows=D.myPay||[];
-  const todayStr=utcDateStr();
+  const todayStr=ukTodayStr();
   const currentWeekKey=getWeekKey(todayStr);
   const thisWeek=rows.filter(r=>r.weekKey===currentWeekKey);
   const payAmt=thisWeek.reduce((s,r)=>s+r.pay,0);
@@ -708,7 +726,7 @@ function renderTrend(){
     </div>`;
 }
 function renderUpcoming(){
-  const rota=(D.myRotaNextWeek||[]).filter(r=>r.type!=='break').sort((a,b)=>a.date.localeCompare(b.date));
+  const rota=myRotaNextWeek().filter(r=>r.type!=='break').sort((a,b)=>a.date.localeCompare(b.date));
   document.getElementById('whUpcomingWidget').innerHTML=rota.length?
     rota.slice(0,4).map(r=>{
       const d=new Date(r.date);
@@ -731,8 +749,8 @@ function whCloseDrawer(){
   document.getElementById('whDrawer').classList.remove('open');
 }
 function whOpenRotaDrawer(){
-  const thisWeek=(D.myRotaThisWeek||[]).filter(r=>r.type!=='break').sort((a,b)=>a.date.localeCompare(b.date));
-  const nextWeek=(D.myRotaNextWeek||[]).filter(r=>r.type!=='break').sort((a,b)=>a.date.localeCompare(b.date));
+  const thisWeek=myRotaThisWeek().filter(r=>r.type!=='break').sort((a,b)=>a.date.localeCompare(b.date));
+  const nextWeek=myRotaNextWeek().filter(r=>r.type!=='break').sort((a,b)=>a.date.localeCompare(b.date));
   const rowsFor=arr=>arr.length?arr.map(r=>{
     const d=new Date(r.date);
     const lbl=d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'});
