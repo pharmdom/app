@@ -253,7 +253,7 @@ table.ia-table{width:100%;border-collapse:collapse;table-layout:fixed;background
           </div>
         </div>
         <div class="upload-card-footer">
-          <div class="upload-rules">Both files must be uploaded to process. Items tagged "Main Line" or "Clearance Line" are included. Re-uploading refreshes stock and sales figures; actions already taken are preserved.</div>
+          <div class="upload-rules">Both files must be uploaded to process. Items tagged "Clearance Line" are excluded. Re-uploading refreshes stock and sales figures; actions already taken are preserved.</div>
           <button class="nav-btn primary" id="processInvBtn" onclick="processInventoryFiles()" disabled style="margin-top:10px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             Process Files
@@ -455,7 +455,7 @@ return {
       total_sold:sale.total_sold||0,
       is_clearance:cat.is_clearance===true,
     };
-  });
+  }).filter(r=>!r.is_clearance);
 
   try{
     const payload=rows.map(r=>({
@@ -469,7 +469,7 @@ return {
       if(error){ failedCount+=payload.slice(i,i+BATCH).length; if(!firstError) firstError=error; }
     }
     if(firstError) toast(`Save failed for ${failedCount} of ${rows.length} SKUs: ${firstError.message}`,'error');
-    else toast(`Processed ${rows.length} SKUs (Main Line + Clearance Line)`,'success');
+    else toast(`Processed ${rows.length} SKUs (Clearance Line excluded)`,'success');
   } catch(e){ toast('Save failed: '+e.message,'error'); }
 
   rawCatalogFile=null; rawSalesFile=null;
