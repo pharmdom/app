@@ -1844,10 +1844,12 @@ await _cbFetchTotals();
     function _nlRecency(p) { return p.basket_added_at || p.last_updated || p.created_at || ''; }
     function _replRecency(p) { return p.basket_added_at || p.actioned_at || p.uploaded_at || ''; }
 
-const supplierNames = Object.keys(supplierBuckets);
+function _nlLineValue(p) { return (parseFloat(p.cost_of_unit)||0) * (parseFloat(p.unit_quantity)||0); }
+    function _replLineValue(p) { return _cbReplCost(p) * (parseInt(p.order_qty)||0); }
+    const supplierNames = Object.keys(supplierBuckets);
     supplierNames.forEach(name => {
-      supplierBuckets[name].nl.sort((a,b) => (_nlRecency(b)||'').localeCompare(_nlRecency(a)||''));
-      supplierBuckets[name].repl.sort((a,b) => (_replRecency(b)||'').localeCompare(_replRecency(a)||''));
+      supplierBuckets[name].nl.sort((a,b) => _nlLineValue(b) - _nlLineValue(a));
+      supplierBuckets[name].repl.sort((a,b) => _replLineValue(b) - _replLineValue(a));
     });
     supplierNames.sort((a,b) => {
       const supA=_cbSupplierList.find(s=>s.name===a), supB=_cbSupplierList.find(s=>s.name===b);
