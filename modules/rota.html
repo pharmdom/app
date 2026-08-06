@@ -342,6 +342,17 @@ body { overflow: hidden; }
 .closed-emp-opt { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 7px; font-size: 12.5px; color: #0f172a; cursor: pointer; }
 .closed-emp-opt:hover { background: #f8fafc; }
 .closed-emp-opt input { cursor: pointer; }
+/* ── HOLIDAY TYPE SELECTOR ── */
+.holiday-type-row { display: flex; gap: 8px; margin-bottom: 4px; }
+.holiday-type-card { flex: 1; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px 10px; text-align: center; background: #fff; transition: all .15s; }
+.holiday-type-card.active { border-color: #0f172a; background: #0f172a; }
+.holiday-type-card.active .holiday-type-icon { color: #fbbf24; }
+.holiday-type-card.active .holiday-type-label { color: #fff; }
+.holiday-type-card.active .holiday-type-sub { color: rgba(255,255,255,.55); }
+.holiday-type-card.disabled { opacity: .45; cursor: not-allowed; background: #f8fafc; }
+.holiday-type-icon { display: flex; align-items: center; justify-content: center; margin-bottom: 6px; color: #64748b; }
+.holiday-type-label { font-size: 12.5px; font-weight: 800; color: #0f172a; }
+.holiday-type-sub { font-size: 10px; color: #94a3b8; margin-top: 2px; }
 
 /* ── DRAWER TABS ── */
 .drawer-tabs { display: flex; gap: 6px; padding: 10px 20px; border-bottom: 1px solid #f1f5f9; background: #fafafa; flex-shrink: 0; }
@@ -656,8 +667,8 @@ body { overflow: hidden; }
             </div>
             <div class="guide-action-card" onclick="closeGuide();setTimeout(function(){openClosedModal()},300)">
               <div class="guide-action-card-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="10" y1="14" x2="14" y2="14"/></svg></div>
-              <div class="guide-action-card-title">Manage Closures</div>
-              <div class="guide-action-card-desc">Mark specific days as closed — for bank holidays, shutdown days, or any closure. Closed days show a striped background and a lock badge on the grid.</div>
+              <div class="guide-action-card-title">Manage Holiday</div>
+              <div class="guide-action-card-desc">Mark specific employees as on holiday for a given day. Holiday days show a striped background on the grid.</div>
             </div>
           </div>
         </div>
@@ -769,9 +780,9 @@ body { overflow: hidden; }
   <div class="planner-header">
 
     <div class="nav-dropdown-wrap">
-      <button class="nav-dropdown-btn" id="navDropBtn" onclick="toggleNavDrop(event)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-        Pages
+<button class="nav-dropdown-btn" id="navDropBtn" onclick="toggleNavDrop(event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+        More
         <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="nav-dropdown-menu" id="navDropMenu">
@@ -786,6 +797,15 @@ body { overflow: hidden; }
         <a class="nav-dropdown-item" onclick="loadModule('paycheck')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           Paycheck
+        </a>
+        <div style="height:1px;background:#f1f5f9;margin:5px 4px;"></div>
+        <a class="nav-dropdown-item" onclick="openClosedModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+          Holiday
+        </a>
+        <a class="nav-dropdown-item" onclick="openTeamModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Team
         </a>
       </div>
     </div>
@@ -807,14 +827,6 @@ body { overflow: hidden; }
     <option value="2weeks">2 Weeks</option>
   </select>
       
-      <button class="planner-closed-btn" onclick="openClosedModal()">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-        <span>Closures</span>
-      </button>
-      <button class="planner-team-btn" onclick="openTeamModal()">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <span>Team</span>
-      </button>
       <!-- Copy button -->
       <button class="planner-team-btn" onclick="openCopyModal()" title="Copy / Duplicate Period">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -962,14 +974,13 @@ body { overflow: hidden; }
 </div>
 <div class="closed-modal-overlay" id="closedModal">
   <div class="closed-modal-box">
-    <div class="closed-modal-header">
-      <div class="closed-modal-title">📅 Manage Closures</div>
+<div class="closed-modal-header">
+      <div class="closed-modal-title">🌴 Manage Holiday</div>
       <button class="btn-cancel" onclick="closeClosedModal()">Close</button>
     </div>
     <div class="closed-modal-tabs">
       <button class="closed-modal-tab-btn active" id="closedTabAdd" onclick="setClosedModalTab('add')">Add</button>
       <button class="closed-modal-tab-btn" id="closedTabHoliday" onclick="setClosedModalTab('holiday')">Holiday</button>
-      <button class="closed-modal-tab-btn" id="closedTabClosures" onclick="setClosedModalTab('closures')">Closures</button>
     </div>
     <div class="closed-modal-body" id="closedModalBody"></div>
   </div>
@@ -1646,9 +1657,9 @@ async function saveShift(replaceConflicts){
   if(!payload.employeeId||!payload.date||!payload.start||!payload.end){showToast('Please fill all required fields','error');return;}
   if(payload.start>=payload.end){showToast('End time must be after start time','error');return;}
 if(!S.closureOverrideConfirmed && isDateClosedForEmployee(payload.date, payload.employeeId)){
-    const ok=await showConfirm(
-      'This day is marked as closed',
-      'Adding a shift here means this employee will not have holiday hours deducted for this closure. Continue?',
+   const ok=await showConfirm(
+      'This day is marked as Holiday',
+      'Adding a shift here means this employee will not have holiday hours deducted for this day off. Continue?',
       'Continue','confirm-btn-danger'
     );
     if(!ok) return;
@@ -1944,7 +1955,6 @@ function setClosedModalTab(tab){
   CLOSED_MODAL_TAB = tab;
   document.getElementById('closedTabAdd').classList.toggle('active', tab==='add');
   document.getElementById('closedTabHoliday').classList.toggle('active', tab==='holiday');
-  document.getElementById('closedTabClosures').classList.toggle('active', tab==='closures');
   renderClosedModalBody();
 }
 function setClosedHolidayFilter(empId){
@@ -1972,34 +1982,38 @@ function renderClosedModalBody(){
 }
 
 function renderClosedAddTab(){
-  CLOSURE_SCOPE='all'; CLOSURE_SELECTED_EMPS=[];
+  CLOSURE_SCOPE='specific'; CLOSURE_SELECTED_EMPS=[];
   const emps = visibleEmployees();
   document.getElementById('closedModalBody').innerHTML=`
     <div class="add-closed-form" style="margin-top:0;border-top:none;padding-top:0;">
-      <h4>Mark a Day as Closed</h4>
-      <div class="closed-form-row">
+      <div class="copy-section-label">Type</div>
+      <div class="holiday-type-row">
+        <div class="holiday-type-card active" title="Holiday">
+          <div class="holiday-type-icon">${getTaskIcon('holiday')}</div>
+          <div class="holiday-type-label">Holiday</div>
+          <div class="holiday-type-sub">Personal time off</div>
+        </div>
+        <div class="holiday-type-card disabled" title="Coming soon">
+          <div class="holiday-type-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+          <div class="holiday-type-label">Closure</div>
+          <div class="holiday-type-sub">Coming soon</div>
+        </div>
+      </div>
+      <div class="copy-section-label" style="margin-top:16px;">Holiday Details</div>
+      <div class="closed-form-row" style="grid-template-columns:1fr;">
         <input type="date" id="closedDateInput" value="${S.currentDate}">
-        <input type="text" id="closedLabelInput" placeholder="Reason (e.g. Bank Holiday)">
       </div>
-      <div class="closed-form-row">
-        <div>
-          <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:5px;">Holiday Hours (per employee)</label>
-          <input type="number" id="closedHoursInput" min="0" step="0.5" value="${ROTA_DEFAULT_CLOSURE_HOURS}">
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:5px;">Applies To</label>
-          <div class="closed-scope-toggle">
-            <button type="button" class="closed-scope-btn active" id="closedScopeAll" onclick="closedSetScope('all')">All Employees</button>
-            <button type="button" class="closed-scope-btn" id="closedScopeSpecific" onclick="closedSetScope('specific')">Specific</button>
-          </div>
-        </div>
-      </div>
-      <div id="closedEmpPicker" style="display:none;margin-bottom:12px;">
-        <div class="closed-emp-picker">
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:5px;">Employees</label>
+        <div class="closed-emp-picker" id="closedEmpPicker">
           ${emps.map(e=>`<label class="closed-emp-opt"><input type="checkbox" onchange="closedToggleEmp('${esc(e.id)}', this.checked)"> ${esc(e.name)}</label>`).join('')}
         </div>
       </div>
-      <button class="btn-add-closed" onclick="addClosed()">🔒 Mark as Closed</button>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:5px;">Holiday Hours (per employee)</label>
+        <input type="number" id="closedHoursInput" min="0" step="0.5" value="${ROTA_DEFAULT_CLOSURE_HOURS}">
+      </div>
+      <button class="btn-add-closed" onclick="addClosed()">🌴 Mark as Holiday</button>
     </div>`;
 }
 
@@ -2092,22 +2106,21 @@ async function deleteShiftsForEmployeesOnDate(empIds, date){
 
 async function addClosed(){
   const date=document.getElementById('closedDateInput').value;
-  const label=(document.getElementById('closedLabelInput').value||'').trim()||'Closed';
+  const label='Holiday';
   const hoursVal=parseFloat(document.getElementById('closedHoursInput').value);
   const hours=(!isNaN(hoursVal) && hoursVal>=0) ? hoursVal : ROTA_DEFAULT_CLOSURE_HOURS;
-  const scope=CLOSURE_SCOPE;
-  const employeeIds=scope==='specific' ? [...CLOSURE_SELECTED_EMPS] : [];
+  const scope='specific';
+  const employeeIds=[...CLOSURE_SELECTED_EMPS];
 if(!date){showToast('Please select a date','error');return;}
-  if(scope==='specific' && !employeeIds.length){showToast('Select at least one employee','error');return;}
-
-  const affectedIds = scope==='specific' ? employeeIds : visibleEmployees().map(e=>e.id);
+  if(!employeeIds.length){showToast('Select at least one employee','error');return;}
+  const affectedIds = employeeIds;
 const existingOnDate = S.closedDays.filter(c=>c.date===date);
   const alreadyCoveredIds = affectedIds.filter(id => existingOnDate.some(c=>closureAppliesTo(c,id)));
   if (alreadyCoveredIds.length){
     const names = alreadyCoveredIds.map(id => S.employees.find(e=>String(e.id)===id)?.name || 'Unknown').join(', ');
-    const okClosure = await showConfirm(
-      'Closure already exists this day',
-      `${names} already ${alreadyCoveredIds.length===1?'has':'have'} a closure/holiday on this day. Creating this one will remove the existing entry for ${alreadyCoveredIds.length===1?'them':'them'}. Continue?`,
+const okClosure = await showConfirm(
+      'Holiday already exists this day',
+      `${names} already ${alreadyCoveredIds.length===1?'has':'have'} a holiday on this day. Creating this one will remove the existing entry for ${alreadyCoveredIds.length===1?'them':'them'}. Continue?`,
       'Override & Continue','confirm-btn-danger'
     );
     if (!okClosure) return;
@@ -2118,10 +2131,10 @@ const existingOnDate = S.closedDays.filter(c=>c.date===date);
 
   if (conflictEmpIds.length){
     const names = conflictEmpIds.map(id => S.employees.find(e=>String(e.id)===id)?.name || 'Unknown').join(', ');
-    const ok = await showConfirm(
+const ok = await showConfirm(
       'Shifts already scheduled this day',
-      `${names} already ${conflictEmpIds.length===1?'has':'have'} a shift on this day. Marking it closed will delete their scheduled shift(s). Continue?`,
-      'Delete & Mark Closed','confirm-btn-danger'
+      `${names} already ${conflictEmpIds.length===1?'has':'have'} a shift on this day. Marking it as Holiday will delete their scheduled shift(s). Continue?`,
+      'Delete & Mark Holiday','confirm-btn-danger'
     );
     if (!ok) return;
     await deleteShiftsForEmployeesOnDate(conflictEmpIds, date);
@@ -2132,14 +2145,13 @@ try{
     if (error) throw error;
     S.closedDays.push({id:data.id, date,label,hours,scope,employeeIds}); S.closedDays.sort((a,b)=>a.date.localeCompare(b.date));
     renderGrid(); if(S.drawerEmpId)renderDrawerBody();
-    setClosedModalTab(scope==='specific' ? 'holiday' : 'closures');
-    showToast(`${fmtDate(date,{month:'short',day:'numeric'})} marked as closed`,'success');
+setClosedModalTab('holiday');
+    showToast(`${fmtDate(date,{month:'short',day:'numeric'})} marked as Holiday`,'success');
   }catch(e){
     console.error('addClosed error:', e);
-    showToast('Failed to save closure','error');
+    showToast('Failed to save holiday','error');
   }
 }
-  
 async function removeClosed(id){
   try{
     const { error } = await sb.from('rota_closures').delete().eq('id', id);
@@ -2721,16 +2733,10 @@ requestAnimationFrame(init);
       position:'right',
       fallback:'.planner-grid-card'
     },
-    {
-      target:'.planner-team-btn',
-      title:'Team &amp; Visibility',
-      desc:'Open the Team panel to show or hide individual employees from the grid. Hidden employees are never deleted — their shifts are preserved and they reappear when you show them again.',
-      position:'bottom'
-    },
-    {
-      target:'.planner-closed-btn',
-      title:'Closures',
-      desc:'Mark specific days as closed for bank holidays or shutdown days. Closed days show a striped background and a lock badge. Clicking a cell on a closed day shows a warning instead of opening the shift modal.',
+{
+      target:'.nav-dropdown-wrap',
+      title:'Team &amp; Holiday',
+      desc:'Open the <strong>More</strong> menu to manage your team\'s visibility or mark holiday for specific employees. Hidden employees are never deleted — they reappear once you show them again. Holiday days show a striped background on the grid.',
       position:'bottom'
     }
   ];
