@@ -507,18 +507,32 @@
     margin-top: 8px; padding-top: 8px; border-top: 1px solid #f1f5f9;
   }
   .cb-dr-cal-range { font-size: 10.5px; color: #64748b; font-weight: 600; }
- 
+
+ .cb-note-item { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:11px 14px; margin-bottom:8px; }
+.cb-note-meta { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+.cb-note-avatar { width:26px; height:26px; border-radius:50%; background:#dbeafe; color:#1d4ed8; display:flex; align-items:center; justify-content:center; font-size:9.5px; font-weight:700; flex-shrink:0; }
+.cb-note-author { font-size:12px; font-weight:600; color:#334155; }
+.cb-note-date { font-size:10.5px; color:#94a3b8; margin-left:auto; }
+.cb-note-text { font-size:12.5px; color:#475569; line-height:1.55; }
+.cb-note-composer { border:1.5px solid #e2e8f0; border-radius:10px; overflow:hidden; margin-top:10px; }
+.cb-note-composer:focus-within { border-color:#2563eb; }
+.cb-note-textarea { width:100%; border:none; outline:none; resize:none; padding:10px 12px; font-size:12.5px; font-family:inherit; color:#0f172a; min-height:56px; }
+.cb-note-composer-bottom { display:flex; justify-content:flex-end; padding:8px 12px; border-top:1px solid #f1f5f9; background:#fafafa; }
 </style>
 
 <div class="cb-page">
   <!-- Header -->
   <div class="cb-header">
-<div class="cb-tabs">
+<div class="cb-tabs" style="justify-content:space-between;">
       <div class="cb-tabbar" id="cbTabBar">
         <button class="cb-tab-btn active" id="cbTabToBuy" onclick="window.setCbTab('tobuy')">To Purchase <span class="cb-tab-count">0</span></button>
         <button class="cb-tab-btn" id="cbTabInquire" onclick="window.setCbTab('inquire')">Inquire <span class="cb-tab-count">0</span></button>
         <button class="cb-tab-btn" id="cbTabPurchased" onclick="window.setCbTab('purchased')">Purchased</button>
       </div>
+      <button class="cb-btn cb-btn-green" style="flex-shrink:0;" onclick="window.openCbAddModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add to Basket
+      </button>
     </div>
     <div class="cb-toolbar-row">
       <span id="cbCount"     class="cb-chip">0 items</span>
@@ -585,6 +599,32 @@
       <button class="cb-btn cb-btn-green" onclick="window.generateCbPdf()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Get summary
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Add to Basket Modal -->
+<div class="cb-modal-overlay" id="cbAddModal">
+  <div class="cb-modal" style="width:520px;">
+    <div class="cb-modal-header">
+      <h3 id="cbAddModalTitle">Add to Basket</h3>
+      <button class="cb-modal-close" onclick="window.closeCbAddModal()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="cb-modal-body">
+      <div class="cb-tabbar" style="margin-bottom:16px;">
+        <button class="cb-tab-btn active" id="cbAddTypeNL" onclick="window.cbSetAddType('nl')">New Line</button>
+        <button class="cb-tab-btn" id="cbAddTypeRepl" onclick="window.cbSetAddType('repl')">Replenishment</button>
+      </div>
+      <div id="cbAddFormBody"></div>
+    </div>
+    <div class="cb-modal-footer">
+      <button class="cb-btn cb-btn-slate" onclick="window.closeCbAddModal()">Cancel</button>
+      <button class="cb-btn cb-btn-green" id="cbAddSaveBtn" onclick="window.cbSaveAddItem()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Add to Basket
       </button>
     </div>
   </div>
@@ -1266,7 +1306,7 @@ const tabs = [
       { id:'details', label:'Details',    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>' },
       { id:'prices',  label:'Catalog Prices', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
     ];
-    if (type==='repl') tabs.push({ id:'notes', label:'Notes', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="15" y2="11"/></svg>' });
+    tabs.push({ id:'notes', label:'Notes', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="15" y2="11"/></svg>' });
     document.getElementById('cbDrawerTabs').innerHTML = tabs.map(t=>
       `<button class="cb-drawer-tab${_drawerTab===t.id?' active':''}" onclick="window.switchCbDrawerTab('${t.id}')">${t.icon}${t.label}</button>`
     ).join('');
@@ -1274,7 +1314,7 @@ const tabs = [
 /* ── Body ── */
 if (_drawerTab==='details') { _renderDetailsTab(type, p, isPurchased, isInquire); _renderPriceHistoryInto(type, type==='nl'?p.opportunity_id:p.sku); }
     else if (_drawerTab==='prices') _renderPricesTab();
-    else if (_drawerTab==='notes') _renderNotesTab(p);
+    else if (_drawerTab==='notes') _renderNotesTab(type, p);
 
     /* ── Actions ── */
     _renderDrawerActions(type, p, isPurchased, isInquire);
@@ -1432,13 +1472,67 @@ ${isPurchased?`<div class="cb-info-card">
     document.getElementById('cbDrawerBody').innerHTML = html;
   }
 
-  function _renderNotesTab(p) {
+function _cbCurrentUserName(){
+    try{
+      const u = JSON.parse(sessionStorage.getItem('user')||'{}');
+      return ((u.firstName||'')+' '+(u.lastName||'')).trim();
+    }catch(e){ return ''; }
+  }
+  function _cbInitials(name){ return (name||'?').split(' ').filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,2); }
+
+  async function _renderNotesTab(type, p) {
+    if (type === 'repl') {
+      document.getElementById('cbDrawerBody').innerHTML = `
+        <div class="cb-sec-label">Notes</div>
+        <textarea id="cbReplNotes" class="cb-edit-input" style="min-height:160px;resize:vertical;font-family:inherit;line-height:1.5;" placeholder="Add notes about this product…">${escH(p.note||'')}</textarea>
+        <button class="cb-btn cb-btn-green" style="margin-top:10px;" onclick="window.cbSaveReplNotes('${escA(p.sku)}')">Save Notes</button>
+      `;
+      return;
+    }
+    // type === 'nl' — full thread, same source table Sourcing uses (sourcing_notes)
     document.getElementById('cbDrawerBody').innerHTML = `
       <div class="cb-sec-label">Notes</div>
-      <textarea id="cbReplNotes" class="cb-edit-input" style="min-height:160px;resize:vertical;font-family:inherit;line-height:1.5;" placeholder="Add notes about this product…">${escH(p.note||'')}</textarea>
-      <button class="cb-btn cb-btn-green" style="margin-top:10px;" onclick="window.cbSaveReplNotes('${escA(p.sku)}')">Save Notes</button>
-    `;
+      <div id="cbNlNotesList" style="margin-bottom:10px;">
+        <div style="display:flex;align-items:center;justify-content:center;padding:24px;color:#94a3b8;font-size:12px;gap:8px;">
+          <div style="width:13px;height:13px;border:2px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin .65s linear infinite;"></div>
+          Loading notes…
+        </div>
+      </div>
+      <div class="cb-note-composer">
+        <textarea id="cbNlNoteInput" class="cb-note-textarea" placeholder="Write your note here…"></textarea>
+        <div class="cb-note-composer-bottom">
+          <button class="cb-btn cb-btn-green" onclick="window.cbAddNlNote('${escA(p.opportunity_id)}')">Add Note</button>
+        </div>
+      </div>`;
+    const { data, error } = await sb.from('sourcing_notes')
+      .select('id,author_name,text,created_at')
+      .eq('opportunity_id', p.opportunity_id)
+      .order('created_at', { ascending:true });
+    const listEl = document.getElementById('cbNlNotesList');
+    if (!listEl) return; // drawer closed / tab switched while this was loading
+    if (error) { listEl.innerHTML = `<div style="font-size:12px;color:#dc2626;">Failed to load notes.</div>`; return; }
+    if (!data || !data.length) { listEl.innerHTML = `<div style="font-size:12px;color:#94a3b8;">No notes yet.</div>`; return; }
+    listEl.innerHTML = data.map(n => `
+      <div class="cb-note-item">
+        <div class="cb-note-meta">
+          <div class="cb-note-avatar">${escH(_cbInitials(n.author_name))}</div>
+          <span class="cb-note-author">${escH(n.author_name)}</span>
+          <span class="cb-note-date">${fmtDate(n.created_at)}</span>
+        </div>
+        <div class="cb-note-text">${escH(n.text)}</div>
+      </div>`).join('');
   }
+  window.cbAddNlNote = async function(opportunityId) {
+    const author = _cbCurrentUserName();
+    const text = (document.getElementById('cbNlNoteInput')?.value || '').trim();
+    if (!author) { _cbToast('Unable to identify current user', 'error'); return; }
+    if (!text) { _cbToast('Please write something', 'error'); return; }
+    try {
+      await sb.from('sourcing_notes').insert({ opportunity_id: opportunityId, author_name: author, text });
+      _cbToast('Note added', 'success');
+      if (_drawerItem && _drawerItem.type==='nl') _renderNotesTab('nl', _drawerItem.data);
+    } catch(e) { _cbToast('Failed to add note', 'error'); }
+  };
   window.cbSaveReplNotes = async function(sku) {
     const val = document.getElementById('cbReplNotes')?.value || '';
     try {
@@ -1542,7 +1636,142 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
       window.renderCentralBasket(true);
     } catch(e) { _cbToast('Failed to update qty','error'); }
   };
- 
+
+
+/* ── ADD TO BASKET (New Line / Replenishment) ── */
+  let _cbAddType = 'nl';
+  window.openCbAddModal = async function() {
+    await _loadCbSuppliers();
+    _cbAddType = 'nl';
+    document.getElementById('cbAddTypeNL').classList.add('active');
+    document.getElementById('cbAddTypeRepl').classList.remove('active');
+    document.getElementById('cbAddModalTitle').textContent = 'Add to Basket';
+    _renderCbAddForm();
+    document.getElementById('cbAddModal').classList.add('open');
+  };
+  window.closeCbAddModal = function() { document.getElementById('cbAddModal').classList.remove('open'); };
+  window.cbSetAddType = function(type) {
+    _cbAddType = type;
+    document.getElementById('cbAddTypeNL').classList.toggle('active', type==='nl');
+    document.getElementById('cbAddTypeRepl').classList.toggle('active', type==='repl');
+    _renderCbAddForm();
+  };
+  function _cbSupplierOptions(selected) {
+    return '<option value="">— Select Supplier —</option>' +
+      _cbSupplierList.map(s=>`<option value="${escA(s.name)}"${s.name===selected?' selected':''}>${escH(s.name)}</option>`).join('');
+  }
+  function _renderCbAddForm() {
+    const body = document.getElementById('cbAddFormBody');
+    if (_cbAddType === 'nl') {
+      body.innerHTML = `
+        <div class="cb-info-grid">
+          <div class="cb-info-card" style="grid-column:1/-1">
+            <label>Product Name *</label>
+            <input type="text" class="cb-edit-input" id="cbAddNL_name" placeholder="e.g. Branded Widget 500ml">
+          </div>
+          <div class="cb-info-card">
+            <label>Supplier *</label>
+            <select class="cb-edit-input" id="cbAddNL_supplier">${_cbSupplierOptions('')}</select>
+          </div>
+          <div class="cb-info-card">
+            <label>EAN</label>
+            <input type="text" class="cb-edit-input" id="cbAddNL_ean" placeholder="e.g. 5012345678900">
+          </div>
+          <div class="cb-info-card">
+            <label>Cost per Unit (£) *</label>
+            <input type="number" step="0.01" min="0" class="cb-edit-input" id="cbAddNL_cost" placeholder="0.00">
+          </div>
+          <div class="cb-info-card">
+            <label>Qty *</label>
+            <input type="number" step="1" min="1" class="cb-edit-input" id="cbAddNL_qty" placeholder="0">
+          </div>
+        </div>`;
+    } else {
+      body.innerHTML = `
+        <div class="cb-info-grid">
+          <div class="cb-info-card" style="grid-column:1/-1">
+            <label>Product Name *</label>
+            <input type="text" class="cb-edit-input" id="cbAddRepl_name" placeholder="e.g. Vitamin C 1000mg 60s">
+          </div>
+          <div class="cb-info-card">
+            <label>SKU *</label>
+            <input type="text" class="cb-edit-input" id="cbAddRepl_sku" placeholder="e.g. VITC-1000-60">
+          </div>
+          <div class="cb-info-card">
+            <label>Supplier</label>
+            <select class="cb-edit-input" id="cbAddRepl_supplier">${_cbSupplierOptions('')}</select>
+          </div>
+          <div class="cb-info-card">
+            <label>EAN</label>
+            <input type="text" class="cb-edit-input" id="cbAddRepl_ean" placeholder="e.g. 5012345678900">
+          </div>
+          <div class="cb-info-card">
+            <label>Purchase Cost (£) *</label>
+            <input type="number" step="0.01" min="0" class="cb-edit-input" id="cbAddRepl_cost" placeholder="0.00">
+          </div>
+          <div class="cb-info-card">
+            <label>Order Qty *</label>
+            <input type="number" step="1" min="1" class="cb-edit-input" id="cbAddRepl_qty" placeholder="0">
+          </div>
+        </div>`;
+    }
+  }
+  async function _cbNextSourcingId() {
+    const { data } = await sb.from('sourcing').select('opportunity_id').order('opportunity_id', { ascending:false }).limit(1).single();
+    const lastNum = data ? parseInt(String(data.opportunity_id).replace('SRC-','')) : 0;
+    return 'SRC-' + String((lastNum||0) + 1).padStart(6,'0');
+  }
+  window.cbSaveAddItem = async function() {
+    const btn = document.getElementById('cbAddSaveBtn');
+    if (_cbAddType === 'nl') {
+      const name = (document.getElementById('cbAddNL_name').value||'').trim();
+      const supplier = document.getElementById('cbAddNL_supplier').value;
+      const ean = (document.getElementById('cbAddNL_ean').value||'').trim();
+      const cost = parseFloat(document.getElementById('cbAddNL_cost').value);
+      const qty = parseInt(document.getElementById('cbAddNL_qty').value);
+      if (!name || !supplier || isNaN(cost) || cost<0 || isNaN(qty) || qty<=0) { _cbToast('Please fill in all required fields','error'); return; }
+      btn.disabled = true;
+      try {
+        const opportunityId = await _cbNextSourcingId();
+        const nowIso = new Date().toISOString();
+        await sb.from('sourcing').insert({
+          opportunity_id: opportunityId, product_name: name, supplier_name: supplier,
+          code: ean, cost_of_unit: cost, unit_quantity: qty,
+          approved: true, purchased: false, inquire: false,
+          agent: _cbCurrentUserName() || null,
+          created_at: nowIso, last_updated: nowIso, basket_added_at: nowIso,
+        });
+        _cbToast('Added to basket','success');
+        window.closeCbAddModal(); window.setCbTab('tobuy');
+        window.renderCentralBasket(true); _cbFetchTabCounts();
+      } catch(e) { console.error(e); _cbToast('Failed to add product','error'); }
+      finally { btn.disabled = false; }
+    } else {
+      const name = (document.getElementById('cbAddRepl_name').value||'').trim();
+      const sku = (document.getElementById('cbAddRepl_sku').value||'').trim();
+      const supplier = document.getElementById('cbAddRepl_supplier').value;
+      const ean = (document.getElementById('cbAddRepl_ean').value||'').trim();
+      const cost = parseFloat(document.getElementById('cbAddRepl_cost').value);
+      const qty = parseInt(document.getElementById('cbAddRepl_qty').value);
+      if (!name || !sku || isNaN(cost) || cost<0 || isNaN(qty) || qty<=0) { _cbToast('Please fill in all required fields','error'); return; }
+      btn.disabled = true;
+      try {
+        const { data: existing } = await sb.from('replenishment_skus').select('sku').eq('sku', sku).maybeSingle();
+        if (existing) { _cbToast('A product with this SKU already exists','error'); btn.disabled = false; return; }
+        const nowIso = new Date().toISOString();
+        await sb.from('replenishment_skus').insert({
+          sku, name, ean, supplier_name: supplier || null,
+          order_qty: qty, cost_price: cost, original_cost_price: cost,
+          action: 'basket', basket_added_at: nowIso, uploaded_at: nowIso,
+        });
+        _cbToast('Added to basket','success');
+        window.closeCbAddModal(); window.setCbTab('tobuy');
+        window.renderCentralBasket(true); _cbFetchTabCounts();
+      } catch(e) { console.error(e); _cbToast('Failed to add product','error'); }
+      finally { btn.disabled = false; }
+    }
+  };
+                                                  
 /* ── MAIN RENDER ── */
   window.renderCentralBasket = async function(opts) {
     opts = opts || {};
