@@ -661,18 +661,27 @@ async function loadPacking(){
 async function init(){
   if(!sb)return;
   pStart();
-  const results=await Promise.allSettled([
-    loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
-    loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
-  ]);
-  const failed=results.filter(r=>r.status==='rejected');
-  if(failed.length){failed.forEach(f=>console.error('Overview load error:',f.reason));toast('Some data failed to load','error');}
-  renderAll();
+  const fastGroup=[loadReplenishments(),loadFBA(),loadFaults(),loadRota(),loadPacking()];
+  const slowGroup=[loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadPaycheck()];
+  const fastResults=await Promise.allSettled(fastGroup);
+  const fastFailed=fastResults.filter(r=>r.status==='rejected');
+  if(fastFailed.length)fastFailed.forEach(f=>console.error('Overview load error (fast):',f.reason));
+  renderFast();
+  const slowResults=await Promise.allSettled(slowGroup);
+  const slowFailed=slowResults.filter(r=>r.status==='rejected');
+  if(slowFailed.length){slowFailed.forEach(f=>console.error('Overview load error (slow):',f.reason));toast('Some data failed to load','error');}
+  renderSlow();
   pDone();
 }
+function renderFast(){
+  renderPacking();renderRota();renderDonut();renderAttention();
+}
+function renderSlow(){
+  renderHero();renderAttention();renderRevenue();renderFunnel();
+  renderCatalogKpis();renderPaycheck();renderSyncBadge();
+}
 function renderAll(){
-  renderHero();renderAttention();renderRevenue();renderPacking();renderFunnel();renderDonut();
-  renderCatalogKpis();renderRota();renderPaycheck();renderSyncBadge();
+  renderFast();renderSlow();
 }
 /* ── SYNC BADGE ── */
 function renderSyncBadge(){
