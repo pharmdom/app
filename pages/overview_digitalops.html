@@ -650,8 +650,8 @@ function renderAll(){
 function renderHero(){
   const myLeads=D.sourcingMine||[];
   const pendingApprovals=D.offersPending||[];
-  const critReplen=(D.replen||[]).filter(r=>r.urgency==='C'&&!r.action);
-  const pendReplen=(D.replen||[]).filter(r=>!r.action);
+  const critReplen=(D.replen||[]).filter(r=>r.urgency==='C'&&r.action==='def');
+  const pendReplen=(D.replen||[]).filter(r=>r.action==='def');
   const fbaOpps=D.fbaOpps||[];
 
   // This week's submitted leads
@@ -723,14 +723,14 @@ function buildQueueItems(){
     const days=oldest?.created_at?Math.floor((Date.now()-new Date(oldest.created_at))/86400000):0;
     items.push({
       sev:days>3?'crit':'warn',
-      t:`${catPending.length} catalog item${catPending.length!==1?'s':''} need review`,
+      t:`${catPending.length} offer${catPending.length!==1?'s':''} need review`,
       s:`Oldest waiting ${days} day${days!==1?'s':''} — approve or reject to clear queue`,
       meta:'Offers',tag:{cls:'sb-purple',txt:'Offers'},fn:'doOpenOffersDrawer()'
     });
   }
 
   // Critical replen
-  const critReplen=replen.filter(r=>r.urgency==='C'&&!r.action);
+  const critReplen=replen.filter(r=>r.urgency==='C'&&r.action==='def');
   if(critReplen.length) items.push({
     sev:'crit',
     t:`${critReplen.length} SKU${critReplen.length!==1?'s':''} critically low — action now`,
@@ -870,10 +870,10 @@ function renderOffersWidget(){
 /* ── REPLEN WIDGET ── */
 function renderReplen(){
   const r=D.replen||[];
-  const crit=r.filter(x=>x.urgency==='C'&&!x.action).length;
-  const ord=r.filter(x=>x.urgency==='R'&&!x.action).length;
-  const pend=r.filter(x=>!x.action).length;
-  const done=r.filter(x=>x.action).length;
+  const crit=r.filter(x=>x.urgency==='C'&&x.action==='def').length;
+  const ord=r.filter(x=>x.urgency==='R'&&x.action==='def').length;
+  const pend=r.filter(x=>x.action==='def').length;
+  const done=r.filter(x=>x.action!=='def').length;
 
   document.getElementById('doReplenWidget').innerHTML=`
     <div class="mkpi-row">
@@ -1083,9 +1083,9 @@ function doOpenOffersDrawer(){
 
 function doOpenReplenDrawer(){
   const r=D.replen||[];
-  const crit=r.filter(x=>x.urgency==='C'&&!x.action);
-  const ord=r.filter(x=>x.urgency==='R'&&!x.action);
-  const done=r.filter(x=>x.action);
+  const crit=r.filter(x=>x.urgency==='C'&&x.action==='def');
+  const ord=r.filter(x=>x.urgency==='R'&&x.action==='def');
+  const done=r.filter(x=>x.action!=='def');
 
 doOpenDrawer('Replenishments','Action Needed',`${crit.length+ord.length} pending`,`
     <div class="drw-sec-lbl">Replenishment Summary</div>
