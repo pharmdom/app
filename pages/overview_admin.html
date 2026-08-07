@@ -906,9 +906,23 @@ function renderPacking(){
   const slots=[...new Set(counts.map(c=>c.time_slot))].sort();
   const latestSlot=slots[slots.length-1];
   const activeNow=latestSlot?new Set(counts.filter(c=>c.time_slot===latestSlot&&(parseInt(c.count)||0)>0).map(c=>c.packer_name)).size:0;
-  const avgPph=stats.length?(stats.reduce((s,r)=>s+(parseFloat(r.packs_per_hour)||0),0)/stats.length):0;
+  // Per-packer today's rate: their own latest cumulative count ÷ hours between their first and latest checkpoint today.
+  const byPacker={};
+  counts.forEach(c=>{
+    if(!byPacker[c.packer_name])byPacker[c.packer_name]=[];
+    byPacker[c.packer_name].push(c);
+  });
+  const timeToMins=t=>{if(!t)return 0;const[h,m]=String(t).slice(0,5).split(':').map(Number);return h*60+m;};
+  const packerRates=Object.values(byPacker).map(rows=>{
+    const sorted=rows.slice().sort((a,b)=>a.time_slot.localeCompare(b.time_slot));
+    const first=timeToMins(sorted[0].time_slot),last=timeToMins(sorted[sorted.length-1].time_slot);
+    const elapsedHours=(last-first)/60;
+    const cnt=parseInt(sorted[sorted.length-1].count)||0;
+    return elapsedHours>0?cnt/elapsedHours:0;
+  }).filter(r=>r>0);
+  const avgPph=packerRates.length?(packerRates.reduce((s,r)=>s+r,0)/packerRates.length):0;
   const topPacker=Object.values(latestPerPacker).sort((a,b)=>(parseInt(b.count)||0)-(parseInt(a.count)||0))[0];
-  document.getElementById('ovPackSub').textContent=stats.length?`${stats.length} packer${stats.length!==1?'s':''} · updated on the hour & half-hour`:'No activity yet';
+  document.getElementById('ovPackSub').textContent=Object.keys(latestPerPacker).length?'Warehouse Today · updated on the hour & half-hour':'No activity yet';
   document.getElementById('ovPackTotal').textContent=totalPacks.toLocaleString();
   document.getElementById('ovPackActive').textContent=activeNow;
   document.getElementById('ovPackPph').textContent=avgPph?avgPph.toFixed(1):'—';
