@@ -2,6 +2,17 @@
 <script>
 (async function(){
   const container = document.getElementById('digitalOpsEmbed');
+
+  // Save the real logged-in session so we can restore it after this embed loads
+  const realSession = sessionStorage.getItem('user');
+
+  // TEMP: hardcode session for testing this specific user's Digital Ops view
+  sessionStorage.setItem('user', JSON.stringify({
+    user_id: 'USR-0010', // matches employee_id in rota_schedule, packer_name lookups, etc.
+    firstName: 'Anees',
+    lastName: 'Syed'
+  }));
+
   try {
     const res = await fetch('../pages/overview_digitalops.html', { cache: 'no-store' });
     if (!res.ok) throw new Error(`Failed to load: ${res.status}`);
@@ -18,6 +29,13 @@
   } catch (err) {
     console.error('[operations.html → overview_digitalops embed]', err);
     container.innerHTML = `<div style="padding:20px;color:#b91c1c;">Failed to load Digital Ops Overview.</div>`;
+  } finally {
+    // Restore the real session shortly after, once the embedded page has had
+    // a chance to read sessionStorage during its own async boot sequence
+    setTimeout(() => {
+      if (realSession) sessionStorage.setItem('user', realSession);
+      else sessionStorage.removeItem('user');
+    }, 1500);
   }
 })();
 </script>
