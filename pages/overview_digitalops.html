@@ -506,6 +506,28 @@ document.head.appendChild(scr);
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const fmtGBP=v=>'£'+(parseFloat(v)||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtDate=s=>{if(!s)return'—';return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short'});};
+
+
+
+function weeklyBuckets(records,n=6,dateField='created_at'){
+  const now=new Date();
+  const buckets=[];
+  for(let i=n-1;i>=0;i--){
+    const end=new Date(now);end.setDate(end.getDate()-i*7);
+    const start=new Date(end);start.setDate(start.getDate()-7);
+    const startStr=start.toISOString(),endStr=end.toISOString();
+    buckets.push(records.filter(r=>r[dateField]>=startStr&&r[dateField]<endStr).length);
+  }
+  return buckets;
+}
+function sparklineSvg(values,color){
+  const w=64,h=20,pad=2;
+  const max=Math.max(...values,1);
+  const step=(w-pad*2)/(values.length-1||1);
+  const pts=values.map((v,i)=>`${(pad+i*step).toFixed(1)},${(h-pad-(v/max)*(h-pad*2)).toFixed(1)}`).join(' ');
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="display:block;margin:5px auto 0"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+  
 /* ── UK DATE HELPERS (same pattern used on Warehouse/Admin overview) ── */
 function ukTodayStr(){
   const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
@@ -671,8 +693,12 @@ function renderHero(){
   const weekAgoStr=weekAgo.toISOString();
   const leadsThisWeek=myLeads.filter(p=>p.created_at>=weekAgoStr).length;
 
+
+  const lastLead=myLeads.length?myLeads.reduce((a,b)=>a.created_at>b.created_at?a:b):null;
+  const daysSinceLast=lastLead?Math.floor((Date.now()-new Date(lastLead.created_at))/86400000):null;
+
   const cards=[
-    {cls:'sc-cyan',label:'Leads Submitted',val:leadsThisWeek,sub:'This week',
+    {cls:'sc-cyan',label:'Leads Submitted',val:leadsThisWeek,sub:leadsThisWeek>0?'This week':(daysSinceLast!=null?`Last submitted ${daysSinceLast}d ago`:'No leads yet'),
       badge:leadsThisWeek>=5?{cls:'bg-good',txt:'On target'}:leadsThisWeek>=2?{cls:'bg-warn',txt:'Building'}:{cls:'bg-neutral',txt:'Get going'},
       icon:'<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
       onclick:'doOpenSourcingDrawer()'},
@@ -934,25 +960,32 @@ function renderOutput(){
   const deltaText=delta>0?`↑ ${delta} vs last week`:delta<0?`↓ ${Math.abs(delta)} vs last week`:'Same as last week';
 
   document.getElementById('doOutputSub').textContent=`${leadsThisWeek} leads · ${catApprovedThisWeek} catalog reviews · this week`;
-
-  document.getElementById('doOutputWidget').innerHTML=`
+const leadsTrend=weeklyBuckets(mine,6);
+  const catTrend=weeklyBuckets(D.catApproved||[],6);
+  const approvedTrend=weeklyBuckets(mine.filter(p=>p.approved),6);
+  
+document.getElementById('doOutputWidget').innerHTML=`
     <div class="output-grid">
       <div class="output-stat">
         <div class="output-stat-val">${leadsThisWeek}</div>
         <div class="output-stat-lbl">Leads</div>
         <div class="output-stat-delta ${deltaClass}">${deltaText}</div>
+        ${sparklineSvg(leadsTrend,'var(--cyan)')}
       </div>
       <div class="output-stat">
         <div class="output-stat-val">${catApprovedThisWeek}</div>
         <div class="output-stat-lbl">Reviewed</div>
         <div class="output-stat-delta delta-flat">catalog items</div>
+        ${sparklineSvg(catTrend,'var(--purple)')}
       </div>
       <div class="output-stat">
         <div class="output-stat-val">${mine.filter(p=>p.approved).length}</div>
         <div class="output-stat-lbl">Approved</div>
         <div class="output-stat-delta delta-flat">all time</div>
+        ${sparklineSvg(approvedTrend,'var(--green)')}
       </div>
-    </div>`;
+    </div>
+    <div style="font-size:9.5px;color:var(--text4);text-align:center;margin-top:6px;font-weight:600">Last 6 weeks</div>`;
 }
 
 /* ── CALENDAR ── */
