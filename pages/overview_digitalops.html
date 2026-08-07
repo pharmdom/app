@@ -1087,12 +1087,20 @@ function doOpenReplenDrawer(){
   const ord=r.filter(x=>x.urgency==='R'&&x.action==='def');
   const done=r.filter(x=>x.action!=='def');
 
+  const actionLabels={rej:'Rejected',pur:'Purchased',na:'Not Applicable',def:'Deferred — Needs Action',basket:'In Basket'};
+  const actionColors={rej:'var(--red)',pur:'var(--green)',na:'var(--text4)',def:'var(--amber)',basket:'var(--purple)'};
+  const byAction={};
+  r.forEach(x=>{const k=x.action||'Unset';byAction[k]=(byAction[k]||0)+1;});
+  const sortedActions=Object.entries(byAction).sort((a,b)=>b[1]-a[1]);
+
 doOpenDrawer('Replenishments','Action Needed',`${crit.length+ord.length} pending`,`
     <div class="drw-sec-lbl">Replenishment Summary</div>
     <div class="drw-row"><div class="drw-row-k">Critical — Order Now</div><div class="drw-row-v" style="color:var(--red)">${crit.length}</div></div>
     <div class="drw-row"><div class="drw-row-k">Order Soon</div><div class="drw-row-v" style="color:var(--amber)">${ord.length}</div></div>
     <div class="drw-row"><div class="drw-row-k">Actioned</div><div class="drw-row-v" style="color:var(--green)">${done.length}</div></div>
     <div class="drw-row"><div class="drw-row-k">Total Pending</div><div class="drw-row-v">${crit.length+ord.length}</div></div>
+    <div class="drw-sec-lbl">Status Distribution</div>
+    ${sortedActions.map(([k,n])=>`<div class="drw-row"><div class="drw-row-k">${esc(actionLabels[k]||k)}</div><div class="drw-row-v" style="color:${actionColors[k]||'var(--text2)'}">${n}</div></div>`).join('')}
     <button class="drw-nav" onclick="doCloseDrawer();window.loadModule&&loadModule('replenishments')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
       Open Replenishments Module
