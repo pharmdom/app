@@ -1095,7 +1095,8 @@ function renderRota(){
   const dayCounts=days.map((_,i)=>{
     const ds=addDaysToDateStr(startStr,i);
     const count=new Set(sched.filter(s=>s.date===ds).map(s=>s.employee_id)).size;
-    return{lbl:days[i],ds,count,isToday:ds===todayStr};
+    const dateNum=parseInt(ds.split('-')[2],10);
+    return{lbl:days[i],ds,count,dateNum,isToday:ds===todayStr};
   });
   const todayEmpIds=new Set(sched.filter(s=>s.date===todayStr).map(s=>s.employee_id));
   const todayStaff=users.filter(u=>todayEmpIds.has(u.user_id));
@@ -1103,9 +1104,12 @@ function renderRota(){
   const pills=todayStaff.slice(0,8).map(u=>`<div class="sp ${DEPT[u.role]||'sp-wh'}"><div class="sp-av">${esc(initials((u.first_name||'')+' '+(u.last_name||'')))}</div>${esc((u.first_name||'').split(' ')[0])}</div>`).join('');
   document.getElementById('ovRotaWidget').innerHTML=`
     <div class="rota-days">
-      ${dayCounts.map(d=>`<div class="rota-day">
-        <div class="rota-dlbl" style="${d.isToday?'color:var(--accent);font-weight:800':''}">${d.lbl}</div>
-        <div class="rota-dn" style="${d.isToday?'color:var(--accent)':''}">${d.count||'—'}</div>
+${dayCounts.map(d=>`<div class="rota-day">
+        <div class="rota-dlbl" style="${d.isToday?'color:var(--accent);font-weight:800':''}">${d.lbl} <span style="font-weight:600;opacity:.55">${d.dateNum}</span></div>
+        <div class="rota-dn" style="${d.isToday?'color:var(--accent)':''}display:flex;align-items:center;justify-content:center;gap:3px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px;opacity:.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          ${d.count||'—'}
+        </div>
         <div class="rota-dbar${d.isToday?' today':''}"></div>
       </div>`).join('')}
     </div>
