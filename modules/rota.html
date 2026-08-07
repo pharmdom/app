@@ -316,43 +316,18 @@ body { overflow: hidden; }
 .closed-day-label { font-size: 11px; color: #b45309; margin-top: 2px; }
 .remove-closed-btn { padding: 5px 12px; border: 1.5px solid #fcd34d; border-radius: 8px; background: #fff; color: #b45309; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; flex-shrink: 0; }
 .remove-closed-btn:hover { background: #fef3c7; }
-.add-closed-form { margin-top: 16px; border-top: 2px solid #f1f5f9; padding-top: 18px; }
 .add-closed-form h4 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: #64748b; margin-bottom: 12px; }
-.closed-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-.closed-form-row input { padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; width: 100%; }
-.closed-form-row input:focus { border-color: #f59e0b; }
 .closed-modal-tabs { display: flex; gap: 6px; padding: 12px 24px 0; flex-shrink: 0; }
 .closed-modal-tab-btn { padding: 7px 14px; border-radius: 100px; border: 1.5px solid #e2e8f0; background: #fff; color: #64748b; font-size: 12.5px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all .15s; }
 .closed-modal-tab-btn:hover { border-color: #94a3b8; color: #334155; }
 .closed-modal-tab-btn.active { background: #0f172a; color: #fff; border-color: #0f172a; }
-.closed-holiday-filter { margin-bottom: 14px; }
 .closed-holiday-filter select { width: 100%; padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; }
-.closed-holiday-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border: 1px solid #ddd6fe; border-radius: 12px; margin-bottom: 10px; background: #f5f3ff; }
 .closed-holiday-emp { font-size: 13px; font-weight: 800; color: #5b21b6; }
 .hours-total-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; margin-top: 6px; border-top: 2px solid #f1f5f9; font-size: 12.5px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .5px; }
 .hours-total-value { font-size: 16px; font-weight: 800; color: #0f172a; text-transform: none; letter-spacing: normal; }
 .btn-add-closed { width: 100%; padding: 10px; background: #f59e0b; color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; }
 .btn-add-closed:hover { background: #d97706; }
 
-/* ── CLOSURE SCOPE / EMPLOYEE PICKER ── */
-.closed-scope-toggle { display: flex; gap: 6px; }
-.closed-scope-btn { flex: 1; padding: 9px 10px; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #fff; color: #64748b; font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all .15s; white-space: nowrap; }
-.closed-scope-btn.active { background: #0f172a; color: #fff; border-color: #0f172a; }
-.closed-emp-picker { display: flex; flex-direction: column; gap: 2px; max-height: 160px; overflow-y: auto; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 6px; }
-.closed-emp-opt { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 7px; font-size: 12.5px; color: #0f172a; cursor: pointer; }
-.closed-emp-opt:hover { background: #f8fafc; }
-.closed-emp-opt input { cursor: pointer; }
-/* ── HOLIDAY TYPE SELECTOR ── */
-.holiday-type-row { display: flex; gap: 8px; margin-bottom: 4px; }
-.holiday-type-card { flex: 1; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px 10px; text-align: center; background: #fff; transition: all .15s; }
-.holiday-type-card.active { border-color: #0f172a; background: #0f172a; }
-.holiday-type-card.active .holiday-type-icon { color: #fbbf24; }
-.holiday-type-card.active .holiday-type-label { color: #fff; }
-.holiday-type-card.active .holiday-type-sub { color: rgba(255,255,255,.55); }
-.holiday-type-card.disabled { opacity: .45; cursor: not-allowed; background: #f8fafc; }
-.holiday-type-icon { display: flex; align-items: center; justify-content: center; margin-bottom: 6px; color: #64748b; }
-.holiday-type-label { font-size: 12.5px; font-weight: 800; color: #0f172a; }
-.holiday-type-sub { font-size: 10px; color: #94a3b8; margin-top: 2px; }
 
 /* ── DRAWER TABS ── */
 .drawer-tabs { display: flex; gap: 6px; padding: 10px 20px; border-bottom: 1px solid #f1f5f9; background: #fafafa; flex-shrink: 0; }
@@ -1633,6 +1608,7 @@ const liveConflicts=getConflicts(payload.employeeId,payload.date,payload.start,p
     };
     const { error } = await sb.from('rota_schedule').upsert(sbPayload, { onConflict: 'id' });
     if(error) throw error;
+    await syncClosureForShift(payload);
     S.pending.delete(payload.id); renderGrid(); if(S.drawerEmpId)renderDrawerBody();
     showToast(isEdit?'Shift updated ✓':(replaceConflicts?'Replaced & saved ✓':'Shift saved ✓'),'success');
   }catch(err){
@@ -1664,8 +1640,9 @@ async function deleteShift(id){
   const prev=[...S.schedule]; S.schedule=S.schedule.filter(s=>s.id!==String(id));
   renderGrid(); if(S.drawerEmpId)renderDrawerBody(); showToast('Deleting…','info');
 try{
-    const { error } = await sb.from('rota_schedule').delete().eq('id', String(id));
+   const { error } = await sb.from('rota_schedule').delete().eq('id', String(id));
     if(error) throw error;
+    await sb.from('rota_closures').delete().eq('shift_id', String(id));
     showToast('Shift deleted','success');
   }catch(err){
     S.schedule=prev; renderGrid(); if(S.drawerEmpId)renderDrawerBody();
@@ -1739,6 +1716,25 @@ function canViewHolidaysTab(empId){
   return !!myId && myId === String(empId);
 }
 
+async function syncClosureForShift(shift){
+  try{
+    if(isHolidayTask(shift.taskId)){
+      await sb.from('rota_closures').upsert({
+        shift_id: shift.id,
+        date: shift.date,
+        label: 'Holiday',
+        hours: dur(shift.start, shift.end),
+        scope: 'specific',
+        employee_ids: [shift.employeeId]
+      }, { onConflict: 'shift_id' });
+    } else {
+      // Shift was edited away from Holiday to something else — remove any stale closure row
+      await sb.from('rota_closures').delete().eq('shift_id', shift.id);
+    }
+  }catch(e){
+    console.error('syncClosureForShift error:', e);
+  }
+}
 function isHolidayTask(taskId){
   const t = S.tasks.find(x=>String(x.id)===String(taskId));
   return !!t && (t.name||'').toLowerCase().trim()==='holiday';
@@ -2077,8 +2073,9 @@ const empUser = (await sb.from('users').select('hourly_rate').eq('user_id', s.em
         type:        s.type,
         hourly_rate: parseFloat(empUser?.hourly_rate || 0)
       };
-      const { error } = await sb.from('rota_schedule').upsert(sbPayload, { onConflict: 'id' });
+       const { error } = await sb.from('rota_schedule').upsert(sbPayload, { onConflict: 'id' });
       if(error) throw error;
+      await syncClosureForShift(s);
       S.pending.delete(s.id); saved++;
     }catch{
       S.schedule=S.schedule.filter(x=>x.id!==s.id); S.pending.delete(s.id); failed++;
