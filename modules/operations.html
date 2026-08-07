@@ -1,1 +1,29 @@
-<p>this is for all operations business analysis</p>
+async function loadWarehouseOverview(containerId) {
+  const container = document.getElementById(containerId);
+  try {
+    const res = await fetch('/pages/overview_warehouse.html');
+    if (!res.ok) throw new Error(`Failed to load: ${res.status}`);
+    const html = await res.text();
+
+    // Inject the fetched HTML (styles, markup, etc.)
+    container.innerHTML = html;
+
+    // innerHTML never executes <script> tags — extract and re-run them manually
+    container.querySelectorAll('script').forEach(oldScript => {
+      const newScript = document.createElement('script');
+      if (oldScript.src) {
+        newScript.src = oldScript.src;
+      } else {
+        newScript.textContent = oldScript.textContent;
+      }
+      document.body.appendChild(newScript);
+      oldScript.remove();
+    });
+  } catch (err) {
+    console.error('[loadWarehouseOverview]', err);
+    container.innerHTML = `<div style="padding:20px;color:#b91c1c;">Failed to load Warehouse Overview.</div>`;
+  }
+}
+
+// Usage:
+loadWarehouseOverview('app'); // 'app' = the id of your container div
