@@ -306,7 +306,6 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
   <div class="ov-topbar">
     <div class="ov-topbar-left">
       <div>
-        <div class="ov-greeting">MAKING CHANGES: For Digital Ops overview. Only you can see this for now pending approval</div>
         <div class="ov-greeting" id="doGreeting">Good morning</div>
         <div class="ov-date" id="doDate"></div>
       </div>
@@ -465,46 +464,71 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 let sb=null;
 let ME=null; // logged-in user object
 const D={};
-let _refreshTimer=null;
 
 /* ── BOOT: load Supabase, get logged-in user, then init ── */
+function getSessionUser(){
+  try{
+    const raw=sessionStorage.getItem('user');
+    if(!raw)return null;
+    const u=JSON.parse(raw);
+    return{
+      user_id:u.user_id?String(u.user_id):null,
+      first_name:(u.firstName||'').trim(),
+      last_name:(u.lastName||'').trim(),
+      role:u.role||'Digital Ops',
+    };
+  }catch(e){return null;}
+}
 const scr=document.createElement('script');
 scr.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
 scr.onload=()=>{
   sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:false}});
-  // Get logged-in user from shell
-  const shellUser=window.currentUser||window.appUser||null;
-  if(shellUser){
-    ME=shellUser;
-    bootWithUser();
-  } else {
-    // Fallback: try to get from Supabase auth session
-    sb.auth.getUser().then(({data})=>{
-      if(data?.user){
-        // Fetch from users table
-        sb.from('users').select('user_id,first_name,last_name,role,status').eq('auth_id',data.user.id).single().then(({data:u})=>{
-          ME=u||{user_id:null,first_name:'You',last_name:'',role:'Digital Ops'};
-          bootWithUser();
-        });
-      } else {
-        // No auth — use anonymous mode, show all digital ops data
-        ME={user_id:null,first_name:'Digital Ops',last_name:'',role:'Digital Ops'};
-        bootWithUser();
-      }
-    });
-  }
+  ME=getSessionUser()||{user_id:null,first_name:'Digital Ops',last_name:'',role:'Digital Ops'};
+  init();
 };
 document.head.appendChild(scr);
 
-function bootWithUser(){
-  init();
-}
-
+/* ── UTILS ── */
 /* ── UTILS ── */
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const fmtGBP=v=>'£'+(parseFloat(v)||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtDate=s=>{if(!s)return'—';return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short'});};
-
+/* ── UK DATE HELPERS (same pattern used on Warehouse/Admin overview) ── */
+function ukTodayStr(){
+  const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const p={};parts.forEach(x=>p[x.type]=x.value);
+  return `${p.year}-${p.month}-${p.day}`;
+}
+function addDaysToDateStr(dateStr,days){
+  const[y,m,d]=dateStr.split('-').map(Number);
+  const dt=new Date(Date.UTC(y,m-1,d));
+  dt.setUTCDate(dt.getUTCDate()+days);
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}-${String(dt.getUTCDate()).padStart(2,'0')}`;
+}
+function dowOfDateStr(dateStr){
+  const[y,m,d]=dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y,m-1,d)).getUTCDay();
+}
+function weekBounds(){
+  const todayStr=ukTodayStr();
+  const dow=dowOfDateStr(todayStr);
+  const off=dow===0?-6:1-dow;
+  const startStr=addDaysToDateStr(todayStr,off);
+  const endStr=addDaysToDateStr(startStr,7);
+  return{startStr,endStr};
+}
+/* ── TIERED NAME MATCH (same precision-first pattern as Warehouse overview) ── */
+function tieredNameMatch(rows,nameField,first,last){
+  if(!first&&!last)return rows;
+  const norm=s=>String(s||'').toLowerCase().trim();
+  const f=norm(first),l=norm(last);
+  let matched=rows.filter(r=>{const n=norm(r[nameField]);return f&&l&&n.includes(f)&&n.includes(l);});
+  if(matched.length)return matched;
+  matched=rows.filter(r=>{const n=norm(r[nameField]);return (f&&l&&n.includes(f)&&n.includes(l[0]))||(f&&l&&n.includes(f[0])&&n.includes(l));});
+  if(matched.length)return matched;
+  matched=rows.filter(r=>{const n=norm(r[nameField]);return (f&&n.includes(f))||(l&&n.includes(l));});
+  return matched;
+}
 /* ── CLOCK ── */
 function updateClock(){
   const now=new Date();
@@ -552,13 +576,11 @@ async function init(){
 
 /* ── LOADERS ── */
 async function loadSourcing(){
-  // Get all sourcing records — filter by user if we have an ID
-  let q=sb.from('sourcing').select('opportunity_id,product_name,supplier_name,approved,purchased,created_at,submitted_by,sourcing_approvals(status)').order('created_at',{ascending:false}).limit(500);
+  let q=sb.from('sourcing').select('opportunity_id,product_name,supplier_name,agent,approved,purchased,created_at,sourcing_approvals(status)').order('created_at',{ascending:false}).limit(500);
   const{data}=await q;
   D.sourcingAll=data||[];
-  // My leads = submitted by this user (fall back to all if no user_id)
-  D.sourcingMine=ME?.user_id
-    ?D.sourcingAll.filter(p=>p.submitted_by===ME.user_id)
+  D.sourcingMine=(ME?.first_name||ME?.last_name)
+    ?tieredNameMatch(D.sourcingAll,'agent',ME.first_name,ME.last_name)
     :D.sourcingAll;
 }
 
@@ -579,28 +601,24 @@ async function loadReplen(){
 }
 
 async function loadFBA(){
-  const[{data:prods},{data:opps}]=await Promise.all([
-    sb.from('fba_products').select('id,brand,product_line,units_required,units_completed,ups_collected,collection_booked,assigned_to').limit(200),
-    // fba_opportunities table if it exists — silently skip if not
-    sb.from('fba_products').select('id,brand,product_line,units_required,units_completed,collection_booked').eq('units_completed',0).limit(50),
-  ]);
-  D.fbaProds=prods||[];
-  D.fbaOpps=opps||[]; // products not yet started = opportunities
+  const{data:prods}=await sb.from('fba_products').select('id,brand,product_line,units_required,units_completed,ups_collected,collection_booked,assigned_to').limit(500);
+  const all=prods||[];
+  // "Mine" = assigned to me by name, OR unassigned (open for anyone to pick up)
+  const mine=(ME?.first_name||ME?.last_name)
+    ?all.filter(p=>!p.assigned_to||tieredNameMatch([p],'assigned_to',ME.first_name,ME.last_name).length>0)
+    :all;
+  D.fbaProds=mine;
+  D.fbaOpps=mine.filter(p=>!p.units_completed||p.units_completed===0);
 }
 
 async function loadRota(){
   if(!ME?.user_id){D.rotaToday=[];D.rotaWeek=[];return;}
-  const today=new Date();
-  const todayStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-  const dow=today.getDay();
-  const off=dow===0?-6:1-dow;
-  const wStart=new Date(today);wStart.setDate(today.getDate()+off);
-  const wEnd=new Date(wStart);wEnd.setDate(wStart.getDate()+6);
-  const wStartStr=`${wStart.getFullYear()}-${String(wStart.getMonth()+1).padStart(2,'0')}-${String(wStart.getDate()).padStart(2,'0')}`;
-  const wEndStr=`${wEnd.getFullYear()}-${String(wEnd.getMonth()+1).padStart(2,'0')}-${String(wEnd.getDate()).padStart(2,'0')}`;
+  const todayStr=ukTodayStr();
+  const{startStr,endStr}=weekBounds();
+  const wEndInclusive=addDaysToDateStr(endStr,-1);
   const[r1,r2]=await Promise.all([
     sb.from('rota_schedule').select('id,employee_id,date,start_time,end_time,notes,type').eq('employee_id',ME.user_id).eq('date',todayStr),
-    sb.from('rota_schedule').select('id,employee_id,date,start_time,end_time,notes,type').eq('employee_id',ME.user_id).gte('date',wStartStr).lte('date',wEndStr).order('date',{ascending:true}),
+    sb.from('rota_schedule').select('id,employee_id,date,start_time,end_time,notes,type').eq('employee_id',ME.user_id).gte('date',startStr).lte('date',wEndInclusive).order('date',{ascending:true}),
   ]);
   D.rotaToday=r1.data||[];
   D.rotaWeek=r2.data||[];
@@ -902,18 +920,13 @@ function renderOutput(){
 /* ── CALENDAR ── */
 function renderCalendar(){
   const week=D.rotaWeek||[];
-  const today=new Date();
-  const todayStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const todayStr=ukTodayStr();
   const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const dow=today.getDay();
-  const off=dow===0?-6:1-dow;
-  const weekStart=new Date(today);weekStart.setDate(today.getDate()+off);
-
+  const{startStr}=weekBounds();
   const dayData=days.map((_,i)=>{
-    const d=new Date(weekStart);d.setDate(weekStart.getDate()+i);
-    const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const ds=addDaysToDateStr(startStr,i);
     const shifts=week.filter(s=>s.date===ds);
-    return{lbl:days[i],ds,dn:d.getDate(),shifts,isToday:ds===todayStr};
+    return{lbl:days[i],ds,dn:parseInt(ds.split('-')[2],10),shifts,isToday:ds===todayStr};
   });
 
   const todayShift=D.rotaToday||[];
@@ -1244,7 +1257,6 @@ window.doOpenSuppliersDrawer=doOpenSuppliersDrawer;
 window.doOpenOutputDrawer=doOpenOutputDrawer;
 
 /* ── AUTO REFRESH every 90s ── */
-_refreshTimer=setInterval(()=>silentRefresh(),90000);
 
 })();
 </script>
