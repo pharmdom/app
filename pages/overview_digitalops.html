@@ -122,7 +122,9 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .queue-empty span{font-size:11px;color:var(--text4);}
 
 /* WORK COLUMN */
-.work-col{display:flex;flex-direction:column;gap:12px;}
+.work-col{display:flex;flex-direction:column;gap:12px;height:100%;}
+.work-card-fill{height:100%;display:flex;flex-direction:column;}
+#doOutputWidget{flex:1;display:flex;flex-direction:column;justify-content:center;}
 .work-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;box-shadow:var(--sh-sm);animation:ovFadeUp .35s .08s ease both;cursor:pointer;transition:box-shadow .18s,border-color .18s;}
 .work-card:hover{box-shadow:var(--sh);border-color:var(--accent-bd);}
 .work-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
@@ -190,7 +192,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 
 /* Output stats */
 .output-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
-.output-stat{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;text-align:center;}
+.output-stat{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px 12px 16px;text-align:center;}
 .output-stat-val{font-size:22px;font-weight:800;font-family:var(--mono);color:var(--text);line-height:1;margin-bottom:3px;}
 .output-stat-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);}
 .output-stat-delta{font-size:10px;font-weight:700;margin-top:3px;}
@@ -355,7 +357,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 
       <!-- RIGHT: OUTPUT STRIP -->
       <div class="work-col">
-        <div class="work-card" onclick="doOpenOutputDrawer()">
+        <div class="work-card work-card-fill" onclick="doOpenOutputDrawer()">
           <div class="work-hdr">
             <div>
               <div class="work-title">My Output — This Week</div>
@@ -391,43 +393,16 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
         <div id="doSrcExtra"></div>
       </div>
 
-      <div class="work-card" onclick="doOpenCatalogDrawer()">
+      <div class="work-card" onclick="doOpenOffersDrawer()">
         <div class="work-hdr">
           <div>
-            <div class="work-title">Catalog Review</div>
+            <div class="work-title">Offers Review</div>
             <div class="work-sub" id="doCatSub">Loading…</div>
           </div>
           <div class="work-link">View <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
         </div>
         <div id="doCatWidget">
           <div class="shimmer" style="height:60px"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- SECTION 3: LISTINGS & STOCK -->
-    <div class="ov-sec-wrap">
-      <div class="ov-sec">Listings &amp; Stock</div>
-      <div class="ov-sec-sub">Keeping live products live</div>
-    </div>
-    <div class="sub-grid" style="margin-bottom:24px">
-      <div class="work-card" onclick="doOpenListingsDrawer()">
-        <div class="work-hdr">
-          <div class="work-title">Listings</div>
-          <div class="work-link">View <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
-        </div>
-        <div id="doListWidget">
-          <div class="shimmer" style="height:52px"></div>
-        </div>
-      </div>
-
-      <div class="work-card" onclick="doOpenReplenDrawer()">
-        <div class="work-hdr">
-          <div class="work-title">Replenishments</div>
-          <div class="work-link">View <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
-        </div>
-        <div id="doReplenWidget">
-          <div class="shimmer" style="height:52px"></div>
         </div>
       </div>
     </div>
@@ -521,11 +496,11 @@ function weeklyBuckets(records,n=6,dateField='created_at'){
   return buckets;
 }
 function sparklineSvg(values,color){
-  const w=64,h=20,pad=2;
+  const w=96,h=34,pad=2;
   const max=Math.max(...values,1);
   const step=(w-pad*2)/(values.length-1||1);
   const pts=values.map((v,i)=>`${(pad+i*step).toFixed(1)},${(h-pad-(v/max)*(h-pad*2)).toFixed(1)}`).join(' ');
-  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="display:block;margin:5px auto 0"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="display:block;margin:8px auto 0"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
   
 /* ── UK DATE HELPERS (same pattern used on Warehouse/Admin overview) ── */
@@ -597,11 +572,10 @@ async function init(){
   try{
     await Promise.all([
       loadSourcing(),
-      loadCatalog(),
+      loadOffers(),
       loadReplen(),
       loadFBA(),
       loadRota(),
-      loadListings(),
     ]);
     renderAll();
   }catch(e){console.error('[DO init error]',e);toast('Some data failed to load','error');}
@@ -621,15 +595,15 @@ async function loadSourcing(){
     :D.sourcingAll;
 }
 
-async function loadCatalog(){
+async function loadOffers(){
   const[r1,r2,r3]=await Promise.all([
-    sb.from('catalog').select('*',{count:'exact',head:true}),
-    sb.from('catalog').select('id,product_name,supplier_name,status,created_at,agent').eq('status','Pending').order('created_at',{ascending:false}).limit(200),
-    sb.from('catalog').select('id,product_name,status,created_at').eq('status','Approved').order('created_at',{ascending:false}).limit(200),
+    sb.from('offers').select('id,product_name,supplier_name,category,agent,created_at').is('approval',null).order('created_at',{ascending:false}).limit(500),
+    sb.from('offers').select('id,product_name,supplier_name,note,created_at').eq('approval','Rejected').order('created_at',{ascending:false}).limit(500),
+    sb.from('sourcing').select('opportunity_id,product_name,created_at').eq('source','Offers').order('created_at',{ascending:false}).limit(200),
   ]);
-  D.catTotal=r1.count||0;
-  D.catPending=r2.data||[];
-  D.catApproved=r3.data||[];
+  D.offersPending=r1.data||[];
+  D.offersRejected=r2.data||[];
+  D.offersApproved=r3.data||[];
 }
 
 async function loadReplen(){
@@ -658,21 +632,14 @@ async function loadRota(){
   D.rotaWeek=r2.data||[];
 }
 
-async function loadListings(){
-  // Approximate listings from catalog items that are approved but need to go live
-  // In a real portal this would be a listings table; using catalog as proxy
-  const{data}=await sb.from('catalog').select('id,product_name,status,created_at').in('status',['Draft','Pending Review','Ready to List']).order('created_at',{ascending:false}).limit(100);
-  D.listings=data||[];
-}
+
 
 /* ── RENDER ALL ── */
 function renderAll(){
   renderHero();
   renderQueue();
   renderSourcing();
-  renderCatalogWidget();
-  renderListings();
-  renderReplen();
+  renderOffersWidget();
   renderOutput();
   renderCalendar();
   renderFBA();
@@ -682,7 +649,7 @@ function renderAll(){
 /* ── HERO STRIP (4 cards — "My Total Leads" cut, Veeqo card intentionally left out: no linking field between sourcing/catalog and veeqo_orders) ── */
 function renderHero(){
   const myLeads=D.sourcingMine||[];
-  const pendingApprovals=D.catPending||[];
+  const pendingApprovals=D.offersPending||[];
   const critReplen=(D.replen||[]).filter(r=>r.urgency==='C'&&!r.action);
   const pendReplen=(D.replen||[]).filter(r=>!r.action);
   const fbaOpps=D.fbaOpps||[];
@@ -702,10 +669,10 @@ function renderHero(){
       badge:leadsThisWeek>=5?{cls:'bg-good',txt:'On target'}:leadsThisWeek>=2?{cls:'bg-warn',txt:'Building'}:{cls:'bg-neutral',txt:'Get going'},
       icon:'<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
       onclick:'doOpenSourcingDrawer()'},
-    {cls:'sc-purple',label:'Catalog Queue',val:pendingApprovals.length,sub:'Items to review',
+    {cls:'sc-purple',label:'Offers Queue',val:pendingApprovals.length,sub:'Items to review',
       badge:pendingApprovals.length>10?{cls:'bg-crit',txt:'Backlog'}:pendingApprovals.length>0?{cls:'bg-warn',txt:'Action needed'}:{cls:'bg-good',txt:'All clear'},
       icon:'<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
-      onclick:'doOpenCatalogDrawer()'},
+      onclick:'doOpenOffersDrawer()'},
     {cls:'sc-amber',label:'Replen Critical',val:critReplen.length,sub:`${pendReplen.length} total pending`,
       badge:critReplen.length>0?{cls:'bg-crit',txt:'Urgent'}:{cls:'bg-good',txt:'All clear'},
       icon:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/>',
@@ -746,10 +713,9 @@ function renderHero(){
 /* ── QUEUE ── */
 function buildQueueItems(){
   const items=[];
-  const catPending=D.catPending||[];
+  const catPending=D.offersPending||[];
   const replen=D.replen||[];
   const fbaOpps=D.fbaOpps||[];
-  const listings=D.listings||[];
 
   // Catalog items pending review
   if(catPending.length){
@@ -759,7 +725,7 @@ function buildQueueItems(){
       sev:days>3?'crit':'warn',
       t:`${catPending.length} catalog item${catPending.length!==1?'s':''} need review`,
       s:`Oldest waiting ${days} day${days!==1?'s':''} — approve or reject to clear queue`,
-      meta:'Catalog',tag:{cls:'sb-purple',txt:'Catalog'},fn:'doOpenCatalogDrawer()'
+      meta:'Offers',tag:{cls:'sb-purple',txt:'Offers'},fn:'doOpenOffersDrawer()'
     });
   }
 
@@ -781,13 +747,6 @@ function buildQueueItems(){
     meta:'Sourcing',tag:{cls:'sb-blue',txt:'Sourcing'},fn:'doOpenSourcingDrawer()'
   });
 
-  // Listings in draft
-  if(listings.length) items.push({
-    sev:'warn',
-    t:`${listings.length} listing${listings.length!==1?'s':''} not yet live`,
-    s:'Products ready to be listed on channel — complete and publish',
-    meta:'Listings',tag:{cls:'sb-blue',txt:'Listings'},fn:'doOpenListingsDrawer()'
-  });
 
   // FBA opps
   if(fbaOpps.length) items.push({
@@ -890,40 +849,23 @@ function renderSourcing(){
 }
 
 /* ── CATALOG WIDGET ── */
-function renderCatalogWidget(){
-  const pending=D.catPending||[];
-  const approved=D.catApproved||[];
-  document.getElementById('doCatSub').textContent=`${pending.length} pending · ${approved.length} approved recently`;
+function renderOffersWidget(){
+  const pending=D.offersPending||[];
+  const rejected=D.offersRejected||[];
+  const approved=D.offersApproved||[];
+  document.getElementById('doCatSub').textContent=`${pending.length} pending · ${approved.length} approved`;
 
   document.getElementById('doCatWidget').innerHTML=`
     <div class="mkpi-row" style="margin-bottom:8px">
-      <div class="mkpi"><div class="mkpi-lbl">Pending</div><div class="mkpi-val ${pending.length>5?'red':pending.length>0?'amber':''}">${pending.length}</div></div>
+      <div class="mkpi"><div class="mkpi-lbl">Pending</div><div class="mkpi-val ${pending.length>15?'red':pending.length>0?'amber':''}">${pending.length}</div></div>
       <div class="mkpi"><div class="mkpi-lbl">Approved</div><div class="mkpi-val green">${approved.length}</div></div>
-      <div class="mkpi"><div class="mkpi-lbl">Total SKUs</div><div class="mkpi-val">${(D.catTotal||0).toLocaleString()}</div></div>
+      <div class="mkpi"><div class="mkpi-lbl">Rejected</div><div class="mkpi-val red">${rejected.length}</div></div>
     </div>
     ${pending.slice(0,2).map(p=>`<div style="font-size:11px;padding:4px 0;border-bottom:1px solid var(--border2);color:var(--text2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.product_name||'—')} <span style="color:var(--text4);font-weight:400">· ${esc(p.supplier_name||'—')}</span></div>`).join('')}
     ${pending.length>2?`<div style="font-size:10px;color:var(--text4);margin-top:5px;font-weight:600">+${pending.length-2} more to review</div>`:''}`;
 }
 
-/* ── LISTINGS ── */
-function renderListings(){
-  const listings=D.listings||[];
-  const byStatus={};
-  listings.forEach(l=>{byStatus[l.status]=(byStatus[l.status]||0)+1;});
 
-  document.getElementById('doListWidget').innerHTML=listings.length===0?
-    `<div style="font-size:12px;color:var(--green);font-weight:600;padding:8px 0">✓ No pending listings</div>`:
-    `<div class="status-list">
-      ${Object.entries(byStatus).map(([s,n])=>`
-        <div class="status-row">
-          <div class="status-row-l">
-            <div class="status-dot" style="background:${s==='Draft'?'var(--text4)':s==='Ready to List'?'var(--green)':'var(--amber)'}"></div>
-            <div class="status-lbl">${esc(s)}</div>
-          </div>
-          <div class="status-val">${n}</div>
-        </div>`).join('')}
-    </div>`;
-}
 
 /* ── REPLEN WIDGET ── */
 function renderReplen(){
@@ -949,7 +891,7 @@ function renderOutput(){
   const weekAgoStr=weekAgo.toISOString();
 
   const leadsThisWeek=mine.filter(p=>p.created_at>=weekAgoStr).length;
-  const catApprovedThisWeek=(D.catApproved||[]).filter(p=>p.created_at>=weekAgoStr).length;
+  const catApprovedThisWeek=(D.offersApproved||[]).filter(p=>p.created_at>=weekAgoStr).length;
 
   // Previous week for delta
   const twoWeeksAgo=new Date(now);twoWeeksAgo.setDate(now.getDate()-14);
@@ -959,9 +901,9 @@ function renderOutput(){
   const deltaClass=delta>0?'delta-up':delta<0?'delta-dn':'delta-flat';
   const deltaText=delta>0?`↑ ${delta} vs last week`:delta<0?`↓ ${Math.abs(delta)} vs last week`:'Same as last week';
 
-  document.getElementById('doOutputSub').textContent=`${leadsThisWeek} leads · ${catApprovedThisWeek} catalog reviews · this week`;
+  document.getElementById('doOutputSub').textContent=`${leadsThisWeek} leads · ${catApprovedThisWeek} offers approved · this week`;
 const leadsTrend=weeklyBuckets(mine,6);
-  const catTrend=weeklyBuckets(D.catApproved||[],6);
+  const catTrend=weeklyBuckets(D.offersApproved||[],6);
   const approvedTrend=weeklyBuckets(mine.filter(p=>p.approved),6);
   
 document.getElementById('doOutputWidget').innerHTML=`
@@ -974,13 +916,13 @@ document.getElementById('doOutputWidget').innerHTML=`
       </div>
       <div class="output-stat">
         <div class="output-stat-val">${catApprovedThisWeek}</div>
-        <div class="output-stat-lbl">Reviewed</div>
-        <div class="output-stat-delta delta-flat">catalog items</div>
+        <div class="output-stat-lbl">Approved</div>
+        <div class="output-stat-delta delta-flat">offers converted</div>
         ${sparklineSvg(catTrend,'var(--purple)')}
       </div>
       <div class="output-stat">
         <div class="output-stat-val">${mine.filter(p=>p.approved).length}</div>
-        <div class="output-stat-lbl">Approved</div>
+        <div class="output-stat-lbl">Approved Offers</div>
         <div class="output-stat-delta delta-flat">all time</div>
         ${sparklineSvg(approvedTrend,'var(--green)')}
       </div>
@@ -1096,50 +1038,46 @@ function doOpenSourcingDrawer(){
   const purchased=mine.filter(p=>p.purchased);
   const rejected=mine.filter(p=>(p.sourcing_approvals||[]).some(a=>a.status==='rejected')&&!p.approved);
 
-  const cards=items=>items.slice(0,8).map(p=>`
-    <div class="drw-card">
-      <div class="drw-card-t">${esc(p.product_name||'—')}</div>
-      <div class="drw-card-s">${esc(p.supplier_name||'—')} · ${fmtDate(p.created_at)}</div>
-    </div>`).join('');
+const approvalRate=mine.length?Math.round(approved.length/mine.length*100):0;
+  const oldest=pending.length?pending.reduce((a,b)=>a.created_at<b.created_at?a:b):null;
+  const oldestDays=oldest?Math.floor((Date.now()-new Date(oldest.created_at))/86400000):null;
 
   doOpenDrawer('My Sourcing','All Leads',`${mine.length} total submitted`,`
-    <div class="drw-sec-lbl">Pending Approval (${pending.length})</div>
-    ${pending.length?cards(pending):'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None pending</div>'}
-    <div class="drw-sec-lbl">Approved — Awaiting Purchase (${approved.length})</div>
-    ${approved.length?cards(approved):'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None</div>'}
-    <div class="drw-sec-lbl">Purchased (${purchased.length})</div>
-    ${purchased.length?cards(purchased):'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None yet</div>'}
-    <div class="drw-sec-lbl">Rejected (${rejected.length})</div>
-    ${rejected.length?cards(rejected):'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None</div>'}
+    <div class="drw-sec-lbl">Pipeline Summary</div>
+    <div class="drw-row"><div class="drw-row-k">Pending Approval</div><div class="drw-row-v">${pending.length}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Approved — Awaiting Purchase</div><div class="drw-row-v" style="color:var(--cyan)">${approved.length}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Purchased</div><div class="drw-row-v" style="color:var(--green)">${purchased.length}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Rejected</div><div class="drw-row-v" style="color:var(--red)">${rejected.length}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Approval Rate</div><div class="drw-row-v">${approvalRate}%</div></div>
+    ${oldestDays!=null?`<div class="drw-row"><div class="drw-row-k">Oldest Pending</div><div class="drw-row-v">${oldestDays}d</div></div>`:''}
     <button class="drw-nav" onclick="doCloseDrawer();window.loadModule&&loadModule('sourcing')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       Open Sourcing Module
     </button>`);
 }
 
-function doOpenCatalogDrawer(){
-  const pending=D.catPending||[];
-  const approved=D.catApproved||[];
+function doOpenOffersDrawer(){
+  const pending=D.offersPending||[];
+  const rejected=D.offersRejected||[];
+  const approved=D.offersApproved||[];
+  const total=pending.length+rejected.length+approved.length;
+  const approvalRate=total?Math.round(approved.length/total*100):0;
 
-  doOpenDrawer('Catalog','Review Queue',`${pending.length} items pending`,`
-    <div class="drw-sec-lbl">Needs Review (${pending.length})</div>
-    ${pending.slice(0,10).map(p=>`
-      <div class="drw-card">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div class="drw-card-t">${esc(p.product_name||'—')}</div>
-          <span class="sbadge sb-amber">Pending</span>
-        </div>
-        <div class="drw-card-s">${esc(p.supplier_name||'—')} · Added ${fmtDate(p.created_at)}</div>
-      </div>`).join('')||'<div style="padding:8px 0;font-size:12px;color:var(--green);font-weight:600">✓ All reviewed</div>'}
-    <div class="drw-sec-lbl">Recently Approved (${approved.slice(0,5).length})</div>
-    ${approved.slice(0,5).map(p=>`
-      <div class="drw-card">
-        <div class="drw-card-t">${esc(p.product_name||'—')}</div>
-        <div class="drw-card-s">Approved · ${fmtDate(p.created_at)}</div>
-      </div>`).join('')||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None recently</div>'}
+  const bySupplier={};
+  pending.forEach(p=>{const k=p.supplier_name||'Unknown';bySupplier[k]=(bySupplier[k]||0)+1;});
+  const topSuppliers=Object.entries(bySupplier).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  doOpenDrawer('Offers','Review Queue',`${pending.length} pending`,`
+    <div class="drw-sec-lbl">Offers Summary</div>
+    <div class="drw-row"><div class="drw-row-k">Pending Review</div><div class="drw-row-v" style="color:var(--amber)">${pending.length}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Approved</div><div class="drw-row-v" style="color:var(--green)">${approved.length}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Rejected</div><div class="drw-row-v" style="color:var(--red)">${rejected.length}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Approval Rate</div><div class="drw-row-v">${approvalRate}%</div></div>
+    <div class="drw-sec-lbl">Pending — By Supplier</div>
+    ${topSuppliers.length?topSuppliers.map(([name,n])=>`<div class="drw-row"><div class="drw-row-k">${esc(name)}</div><div class="drw-row-v">${n}</div></div>`).join(''):'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None pending</div>'}
     <button class="drw-nav" onclick="doCloseDrawer();window.loadModule&&loadModule('suppliers')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-      Open Catalog Module
+      Open Offers Module
     </button>`);
 }
 
@@ -1149,72 +1087,34 @@ function doOpenReplenDrawer(){
   const ord=r.filter(x=>x.urgency==='R'&&!x.action);
   const done=r.filter(x=>x.action);
 
-  const rows=items=>items.slice(0,8).map(x=>`
-    <div class="drw-card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div class="drw-card-t">${esc(x.name||x.sku||'—')}</div>
-        <span class="sbadge ${x.urgency==='C'?'sb-red':'sb-amber'}">${x.urgency==='C'?'Critical':'Order'}</span>
-      </div>
-      <div class="drw-card-s">${x.days_left!=null?x.days_left+' days left · ':''} Order qty: ${x.order_qty||'—'}</div>
-    </div>`).join('');
-
-  doOpenDrawer('Replenishments','Action Needed',`${crit.length+ord.length} pending`,`
-    <div class="drw-sec-lbl">Critical — Order Now (${crit.length})</div>
-    ${crit.length?rows(crit):'<div style="padding:8px 0;font-size:12px;color:var(--green);font-weight:600">✓ None critical</div>'}
-    <div class="drw-sec-lbl">Order Soon (${ord.length})</div>
-    ${ord.length?rows(ord):'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None</div>'}
-    <div class="drw-sec-lbl">Actioned (${done.length})</div>
-    <div style="font-size:12px;color:var(--green);padding:6px 0;font-weight:600">${done.length} SKUs actioned this cycle</div>
+doOpenDrawer('Replenishments','Action Needed',`${crit.length+ord.length} pending`,`
+    <div class="drw-sec-lbl">Replenishment Summary</div>
+    <div class="drw-row"><div class="drw-row-k">Critical — Order Now</div><div class="drw-row-v" style="color:var(--red)">${crit.length}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Order Soon</div><div class="drw-row-v" style="color:var(--amber)">${ord.length}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Actioned</div><div class="drw-row-v" style="color:var(--green)">${done.length}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Total Pending</div><div class="drw-row-v">${crit.length+ord.length}</div></div>
     <button class="drw-nav" onclick="doCloseDrawer();window.loadModule&&loadModule('replenishments')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
       Open Replenishments Module
     </button>`);
 }
 
-function doOpenListingsDrawer(){
-  const listings=D.listings||[];
-  doOpenDrawer('Listings','Pending',`${listings.length} not yet live`,`
-    <div class="drw-sec-lbl">All Pending (${listings.length})</div>
-    ${listings.slice(0,12).map(l=>`
-      <div class="drw-card">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div class="drw-card-t">${esc(l.product_name||'—')}</div>
-          <span class="sbadge ${l.status==='Ready to List'?'sb-green':'sb-neutral'}">${esc(l.status||'Draft')}</span>
-        </div>
-        <div class="drw-card-s">Added ${fmtDate(l.created_at)}</div>
-      </div>`).join('')||'<div style="padding:8px 0;font-size:12px;color:var(--green);font-weight:600">✓ All listings live</div>'}
-    <button class="drw-nav" onclick="doCloseDrawer();window.loadModule&&loadModule('suppliers')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      Open Catalog & Listings
-    </button>`);
-}
 
 function doOpenFBADrawer(){
   const prods=D.fbaProds||[];
+  const notStarted=prods.filter(p=>!p.units_completed||p.units_completed===0).length;
+  const inProgress=prods.filter(p=>p.units_completed>0&&p.units_completed<(p.units_required||1)).length;
+  const completed=prods.filter(p=>p.units_completed>0&&p.units_completed>=(p.units_required||1)).length;
+  const booked=prods.filter(p=>p.collection_booked==='Yes'&&p.ups_collected!=='Yes').length;
   doOpenDrawer('FBA','Prep Pipeline',`${prods.length} products`,`
-    <div class="drw-sec-lbl">All Products (${prods.length})</div>
-    ${prods.slice(0,12).map(p=>{
-      const req=p.units_required||0;
-      const done=p.units_completed||0;
-      const pct=req>0?Math.min(done/req*100,100):0;
-      const stage=done===0?'Not started':done>=req?'Completed':'In progress';
-      const col=done===0?'var(--text4)':done>=req?'var(--green)':'var(--amber)';
-      return`<div class="drw-card">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div class="drw-card-t">${esc(p.brand||'—')}${p.product_line?' — '+esc(p.product_line):''}</div>
-          <span style="font-size:10px;font-weight:700;color:${col}">${stage}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-          <div style="flex:1;height:4px;background:var(--surface3);border-radius:99px;overflow:hidden">
-            <div style="height:100%;width:${pct.toFixed(1)}%;background:${col};border-radius:99px"></div>
-          </div>
-          <span style="font-size:10.5px;font-weight:700;color:var(--text3);white-space:nowrap">${done}/${req}</span>
-        </div>
-        ${p.collection_booked==='Yes'?`<div style="margin-top:4px;font-size:10px;color:var(--purple);font-weight:600">📦 Collection booked${p.ups_collected==='Yes'?' · ✓ Collected':''}</div>`:''}
-      </div>`;
-    }).join('')||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No FBA products in pipeline</div>'}
+    <div class="drw-sec-lbl">FBA Pipeline Summary</div>
+    <div class="drw-row"><div class="drw-row-k">Not Started</div><div class="drw-row-v">${notStarted}</div></div>
+    <div class="drw-row"><div class="drw-row-k">In Progress</div><div class="drw-row-v" style="color:var(--amber)">${inProgress}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Completed</div><div class="drw-row-v" style="color:var(--green)">${completed}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Awaiting UPS Collection</div><div class="drw-row-v" style="color:var(--purple)">${booked}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Total Products</div><div class="drw-row-v">${prods.length}</div></div>
     <button class="drw-nav" onclick="doCloseDrawer();window.loadModule&&loadModule('fba')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
       Open FBA Module
     </button>`);
 }
@@ -1266,7 +1166,7 @@ function doOpenSuppliersDrawer(){
 
 function doOpenOutputDrawer(){
   const mine=D.sourcingMine||[];
-  const cat=D.catApproved||[];
+  const cat=D.offersApproved||[];
 
   doOpenDrawer('My Output','All Time','Personal performance',`
     <div class="drw-sec-lbl">Sourcing</div>
@@ -1275,8 +1175,8 @@ function doOpenOutputDrawer(){
     <div class="drw-row"><div class="drw-row-k">Purchased</div><div class="drw-row-v" style="color:var(--cyan)">${mine.filter(p=>p.purchased).length}</div></div>
     <div class="drw-row"><div class="drw-row-k">Rejected</div><div class="drw-row-v" style="color:var(--red)">${mine.filter(p=>(p.sourcing_approvals||[]).some(a=>a.status==='rejected')&&!p.approved).length}</div></div>
     <div class="drw-row"><div class="drw-row-k">Approval Rate</div><div class="drw-row-v">${mine.length?Math.round(mine.filter(p=>p.approved).length/mine.length*100):0}%</div></div>
-    <div class="drw-sec-lbl">Catalog</div>
-    <div class="drw-row"><div class="drw-row-k">Items Reviewed</div><div class="drw-row-v">${cat.length}</div></div>
+    <div class="drw-sec-lbl">Offers</div>
+    <div class="drw-row"><div class="drw-row-k">Offers Approved</div><div class="drw-row-v">${cat.length}</div></div>
     <button class="drw-nav" onclick="doCloseDrawer();window.loadModule&&loadModule('sourcing')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Open Sourcing Module
@@ -1287,13 +1187,11 @@ function doOpenOutputDrawer(){
 async function silentRefresh(){
   if(!sb)return;
   try{
-    await Promise.all([loadSourcing(),loadCatalog(),loadReplen(),loadFBA(),loadRota(),loadListings()]);
+    await Promise.all([loadSourcing(),loadOffers(),loadReplen(),loadFBA(),loadRota()]);
     renderHero();
     renderQueue();
     renderSourcing();
-    renderCatalogWidget();
-    renderListings();
-    renderReplen();
+    renderOffersWidget();
     renderOutput();
     renderCalendar();
     renderFBA();
@@ -1309,9 +1207,9 @@ document.addEventListener('keydown',e=>{
 /* ── EXPOSE GLOBALS ── */
 window.doCloseDrawer=doCloseDrawer;
 window.doOpenSourcingDrawer=doOpenSourcingDrawer;
-window.doOpenCatalogDrawer=doOpenCatalogDrawer;
+window.doOpenOffersDrawer=doOpenOffersDrawer;
 window.doOpenReplenDrawer=doOpenReplenDrawer;
-window.doOpenListingsDrawer=doOpenListingsDrawer;
+
 window.doOpenFBADrawer=doOpenFBADrawer;
 window.doOpenCalendarDrawer=doOpenCalendarDrawer;
 window.doOpenSuppliersDrawer=doOpenSuppliersDrawer;
