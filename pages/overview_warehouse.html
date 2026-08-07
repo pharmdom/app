@@ -347,7 +347,17 @@ function dowOfDateStr(dateStr){
 }
 function utcDateStr(d){return (d||new Date()).toISOString().slice(0,10);}
 function timeToMins(t){if(!t)return 0;const[h,m]=String(t).slice(0,5).split(':').map(Number);return h*60+m;}
-function getWeekKey(dateStr){
+function computeTodayPacksStats(counts){
+  if(!counts||!counts.length)return{packsToday:0,pph:0,lastSlot:null,hasData:false};
+  const sorted=counts.slice().sort((a,b)=>a.time_slot.localeCompare(b.time_slot));
+  const packsToday=Math.max(...sorted.map(c=>parseInt(c.count)||0));
+  const firstMins=timeToMins(sorted[0].time_slot);
+  const lastMins=timeToMins(sorted[sorted.length-1].time_slot);
+  const elapsedHours=(lastMins-firstMins)/60;
+  const pph=elapsedHours>0?packsToday/elapsedHours:0;
+  return{packsToday,pph,lastSlot:sorted[sorted.length-1].time_slot,hasData:true};
+}
+  function getWeekKey(dateStr){
   const dow=dowOfDateStr(dateStr);
   const diffToMon=dow===0?6:dow-1;
   return addDaysUK(dateStr,-diffToMon);
@@ -466,14 +476,8 @@ async function fetchByNameTieredRange(table,cols,dateCol,dateFrom,nameCol,orderC
 async function loadMyPacking(){
   if(!ME_FIRST&&!ME_LAST)return;
   const todayStr=ukTodayStr();
-  const[counts,todayStat]=await Promise.all([
-    fetchByNameTiered('manus_packing_counts','date,time_slot,count,packer_name',
-      'date',todayStr,'packer_name','time_slot'),
-    fetchByNameTiered('manus_packing_week_stats','date,total_packs,packs_per_hour,name',
-      'date',todayStr,'name','date'),
-  ]);
-  D.myPackingToday=counts;
-  D.myPackingStatToday=todayStat[0]||null;
+  D.myPackingToday=await fetchByNameTiered('manus_packing_counts','date,time_slot,count,packer_name',
+    'date',todayStr,'packer_name','time_slot');
   const ago7=new Date();ago7.setDate(ago7.getDate()-6);
   const ago7Str=utcDateStr(ago7);
   D.myPacking7d=await fetchByNameTieredRange('manus_packing_week_stats','date,total_packs,packs_per_hour,name',
@@ -544,9 +548,9 @@ function renderHero(){
   const todayStr=ukTodayStr();
   const rota=myRotaThisWeek();
   const shiftsThisWeek=new Set(rota.filter(r=>r.type!=='break').map(r=>r.date)).size;
-  const counts=D.myPackingToday||[];
-  const packsToday=counts.length?Math.max(...counts.map(c=>parseInt(c.count)||0)):0;
-  const pph=D.myPackingStatToday?parseFloat(D.myPackingStatToday.packs_per_hour||0):0;
+  const stats=computeTodayPacksStats(D.myPackingToday);
+  const packsToday=stats.packsToday;
+  const pph=stats.pph;
   const currentWeekKey=getWeekKey(todayStr);
   const payThisWeek=(D.myPay||[]).filter(r=>r.weekKey===currentWeekKey);
   const payAmt=payThisWeek.reduce((s,r)=>s+r.pay,0);
@@ -706,14 +710,12 @@ function drawSparkline(id,vals,keys,color,unit){
 }
 function renderPacking(){
   const counts=D.myPackingToday||[];
-  const stat=D.myPackingStatToday;
-  const packsToday=counts.length?Math.max(...counts.map(c=>parseInt(c.count)||0)):0;
+  const stats=computeTodayPacksStats(counts);
   const slots=[...new Set(counts.map(c=>c.time_slot))].sort();
-  const lastSlot=slots[slots.length-1];
-  document.getElementById('whPackSub').textContent=stat?'Updated on the hour & half-hour':'No activity yet';
-  document.getElementById('whPackTotal').textContent=packsToday.toLocaleString();
-  document.getElementById('whPackPph').textContent=stat?parseFloat(stat.packs_per_hour||0).toFixed(1):'—';
-  document.getElementById('whPackLast').textContent=lastSlot||'—';
+  document.getElementById('whPackSub').textContent=stats.hasData?'Updated on the hour & half-hour':'No activity yet';
+  document.getElementById('whPackTotal').textContent=stats.packsToday.toLocaleString();
+  document.getElementById('whPackPph').textContent=stats.hasData&&stats.pph?stats.pph.toFixed(1):'—';
+  document.getElementById('whPackLast').textContent=stats.lastSlot||'—';
   const vals=slots.map(sl=>{const row=counts.find(c=>c.time_slot===sl);return row?parseInt(row.count)||0:0;});
   requestAnimationFrame(()=>drawSparkline('whPackSparkline',vals,slots,'var(--purple)','count'));
 }
