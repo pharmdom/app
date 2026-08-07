@@ -907,12 +907,12 @@ function renderPacking(){
   const latestSlot=slots[slots.length-1];
   const activeNow=latestSlot?new Set(counts.filter(c=>c.time_slot===latestSlot&&(parseInt(c.count)||0)>0).map(c=>c.packer_name)).size:0;
   const avgPph=stats.length?(stats.reduce((s,r)=>s+(parseFloat(r.packs_per_hour)||0),0)/stats.length):0;
-  const topPacker=stats.slice().sort((a,b)=>(b.total_packs||0)-(a.total_packs||0))[0];
+  const topPacker=Object.values(latestPerPacker).sort((a,b)=>(parseInt(b.count)||0)-(parseInt(a.count)||0))[0];
   document.getElementById('ovPackSub').textContent=stats.length?`${stats.length} packer${stats.length!==1?'s':''} · updated on the hour & half-hour`:'No activity yet';
   document.getElementById('ovPackTotal').textContent=totalPacks.toLocaleString();
   document.getElementById('ovPackActive').textContent=activeNow;
   document.getElementById('ovPackPph').textContent=avgPph?avgPph.toFixed(1):'—';
-  document.getElementById('ovPackTop').textContent=topPacker?`${(topPacker.name||'').split(' ')[0]} (${topPacker.total_packs||0})`:'—';
+  document.getElementById('ovPackTop').textContent=topPacker?`${(topPacker.packer_name||'').split(' ')[0]} (${parseInt(topPacker.count)||0})`:'—';
   const bucket={};
   counts.forEach(c=>{bucket[c.time_slot]=(bucket[c.time_slot]||0)+(parseInt(c.count)||0);});
   const vals=slots.map(sl=>bucket[sl]||0);
