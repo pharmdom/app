@@ -482,6 +482,32 @@ const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>
 const fmtGBP=v=>'£'+(parseFloat(v)||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtDate=s=>{if(!s)return'—';return new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short'});};
 
+/* ── PAGINATED FETCH — no caps, ever. Pages in batches of 1000 until exhausted. ── */
+async function fetchAll(table,cols,build,orderCol,pageSize){
+  pageSize=pageSize||1000;
+  let all=[],lastVal=null;
+  while(true){
+    let data=null,error=null;
+    for(let attempt=0;attempt<3;attempt++){
+      let q=sb.from(table).select(cols);
+      if(build)q=build(q);
+      if(lastVal!==null)q=q.gt(orderCol,lastVal);
+      q=q.order(orderCol,{ascending:true}).limit(pageSize);
+      const res=await q;
+      data=res.data;error=res.error;
+      if(!error)break;
+      if(error.code!=='57014'||attempt===2)break;
+      console.warn('[fetchAll '+table+'] timeout, retrying ('+(attempt+1)+'/2)…');
+      await new Promise(r=>setTimeout(r,500*(attempt+1)));
+    }
+    if(error){console.error('[fetchAll '+table+']',error);throw new Error('fetchAll:'+table+':'+(error.message||error.code||'error'));}
+    if(!data||!data.length)break;
+    all=all.concat(data);
+    lastVal=data[data.length-1][orderCol];
+    if(data.length<pageSize)break;
+  }
+  return all;
+}
 
 
 function weeklyBuckets(records,n=6,dateField='created_at'){
@@ -591,36 +617,33 @@ async function loadSourcing(){
   // NOTE: rejection-reason breakdown is disabled below — sourcing_approvals has
   // no `reason` column in this schema (confirmed: that guess 400'd the whole query).
   // Tell me the real column name if one exists and I'll wire the breakdown back in.
-  let q=sb.from('sourcing').select('opportunity_id,product_name,supplier_name,agent,approved,purchased,created_at,sourcing_approvals(status)').order('created_at',{ascending:false}).limit(500);
-  const{data}=await q;
-  D.sourcingAll=data||[];
+  D.sourcingAll=await fetchAll('sourcing','opportunity_id,product_name,supplier_name,agent,approved,purchased,created_at,sourcing_approvals(status)',null,'opportunity_id');
   D.sourcingMine=(ME?.first_name||ME?.last_name)
     ?tieredNameMatch(D.sourcingAll,'agent',ME.first_name,ME.last_name)
     :D.sourcingAll;
 }
 
 async function loadOffers(){
-  const[r1,r2,r3]=await Promise.all([
-    sb.from('offers').select('id,product_name,supplier_name,category,agent,created_at').or('approval.is.null,approval.eq.').order('created_at',{ascending:false}).limit(500),
-    sb.from('offers').select('id,product_name,supplier_name,note,created_at').eq('approval','Rejected').order('created_at',{ascending:false}).limit(500),
-    sb.from('sourcing').select('opportunity_id,product_name,created_at').eq('source','Offers').order('created_at',{ascending:false}).limit(200),
+  const[pending,rejected,approved]=await Promise.all([
+    fetchAll('offers','id,product_name,supplier_name,category,agent,created_at',q=>q.or('approval.is.null,approval.eq.'),'id'),
+    fetchAll('offers','id,product_name,supplier_name,note,created_at',q=>q.eq('approval','Rejected'),'id'),
+    fetchAll('sourcing','opportunity_id,product_name,created_at',q=>q.eq('source','Offers'),'opportunity_id'),
   ]);
-  D.offersPending=r1.data||[];
-  D.offersRejected=r2.data||[];
-  D.offersApproved=r3.data||[];
+  D.offersPending=pending;
+  D.offersRejected=rejected;
+  D.offersApproved=approved;
 }
 
 async function loadReplen(){
-  const{data}=await sb.from('replenishment_skus').select('sku,name,action,days_left,order_qty,urgency').limit(2000);
-  D.replen=data||[];
+  D.replen=await fetchAll('replenishment_skus','sku,name,action,days_left,order_qty,urgency',null,'sku');
 }
 
 async function loadFBA(){
   // fba_products has no assignee/name column, so this is team-wide (same treatment
   // as Replenishments) rather than filtered to "mine" — there's nothing to filter on.
-  const{data:prods}=await sb.from('fba_products').select('id,brand,product_line,units_required,units_completed,ups_collected,collection_booked').limit(500);
-  D.fbaProds=prods||[];
-  D.fbaOpps=(prods||[]).filter(p=>!p.units_completed||p.units_completed===0);
+  const prods=await fetchAll('fba_products','id,brand,product_line,units_required,units_completed,ups_collected,collection_booked',null,'id');
+  D.fbaProds=prods;
+  D.fbaOpps=prods.filter(p=>!p.units_completed||p.units_completed===0);
 }
 
 async function loadRota(){
