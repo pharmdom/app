@@ -595,11 +595,10 @@ async function init(){
 
 /* ── LOADERS ── */
 async function loadSourcing(){
-  // NOTE: sourcing_approvals(status,reason) assumes a `reason` column exists on
-  // sourcing_approvals for rejected leads. If that column is named differently
-  // (or doesn't exist), the rejection-reason breakdown below will just show
-  // "Not specified" for everything — safe fallback, but flag the real column name.
-  let q=sb.from('sourcing').select('opportunity_id,product_name,supplier_name,agent,approved,purchased,created_at,sourcing_approvals(status,reason)').order('created_at',{ascending:false}).limit(500);
+  // NOTE: rejection-reason breakdown is disabled below — sourcing_approvals has
+  // no `reason` column in this schema (confirmed: that guess 400'd the whole query).
+  // Tell me the real column name if one exists and I'll wire the breakdown back in.
+  let q=sb.from('sourcing').select('opportunity_id,product_name,supplier_name,agent,approved,purchased,created_at,sourcing_approvals(status)').order('created_at',{ascending:false}).limit(500);
   const{data}=await q;
   D.sourcingAll=data||[];
   D.sourcingMine=(ME?.first_name||ME?.last_name)
@@ -610,7 +609,7 @@ async function loadSourcing(){
 async function loadCatalog(){
   const[r1,r2,r3]=await Promise.all([
     sb.from('catalog').select('*',{count:'exact',head:true}),
-    sb.from('catalog').select('id,product_name,supplier_name,status,created_at,reviewed_by').eq('status','Pending').order('created_at',{ascending:false}).limit(200),
+    sb.from('catalog').select('id,product_name,supplier_name,status,created_at,agent').eq('status','Pending').order('created_at',{ascending:false}).limit(200),
     sb.from('catalog').select('id,product_name,status,created_at').eq('status','Approved').order('created_at',{ascending:false}).limit(200),
   ]);
   D.catTotal=r1.count||0;
@@ -624,14 +623,11 @@ async function loadReplen(){
 }
 
 async function loadFBA(){
-  const{data:prods}=await sb.from('fba_products').select('id,brand,product_line,units_required,units_completed,ups_collected,collection_booked,assigned_to').limit(500);
-  const all=prods||[];
-  // "Mine" = assigned to me by name, OR unassigned (open for anyone to pick up)
-  const mine=(ME?.first_name||ME?.last_name)
-    ?all.filter(p=>!p.assigned_to||tieredNameMatch([p],'assigned_to',ME.first_name,ME.last_name).length>0)
-    :all;
-  D.fbaProds=mine;
-  D.fbaOpps=mine.filter(p=>!p.units_completed||p.units_completed===0);
+  // fba_products has no assignee/name column, so this is team-wide (same treatment
+  // as Replenishments) rather than filtered to "mine" — there's nothing to filter on.
+  const{data:prods}=await sb.from('fba_products').select('id,brand,product_line,units_required,units_completed,ups_collected,collection_booked').limit(500);
+  D.fbaProds=prods||[];
+  D.fbaOpps=(prods||[]).filter(p=>!p.units_completed||p.units_completed===0);
 }
 
 async function loadRota(){
