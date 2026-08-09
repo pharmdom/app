@@ -991,7 +991,7 @@ let allData         = [];
   let myRecords    = [];
   let myViewFilter = 'all';
   let myClosures   = [];
-  let myHolidayHours = {};
+  let myHolidayHours = [];
 
   async function init() {
     await loadData();
@@ -1045,10 +1045,10 @@ const [shiftsRes, usersRes, closuresRes] = await Promise.all([
       if (closuresRes.error) throw closuresRes.error;
 
       const myUserRow = (usersRes.data||[]).find(u=>String(u.user_id)===String(currentUser.userId));
-      myHolidayHours = (myUserRow && myUserRow.holiday_hours && typeof myUserRow.holiday_hours==='object') ? myUserRow.holiday_hours : {};
+      myHolidayHours = Array.isArray(myUserRow?.holiday_hours) ? myUserRow.holiday_hours : [];
       allHolidayHoursMap = {};
       (usersRes.data||[]).forEach(u=>{
-        allHolidayHoursMap[String(u.user_id)] = (u.holiday_hours && typeof u.holiday_hours==='object') ? u.holiday_hours : {};
+        allHolidayHoursMap[String(u.user_id)] = Array.isArray(u.holiday_hours) ? u.holiday_hours : [];
       });
       myClosures = (closuresRes.data||[]).map(c=>({
         id: c.id, date: String(c.date), label: c.label || 'Closed',
@@ -1290,6 +1290,7 @@ html += `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:1
 
 function renderMyHolidaysTab(content){
   const summary = getMyHolidaySummary();
+  const periodLabel = summary.period ? `${new Date(summary.period.start).toLocaleDateString('en-GB',{month:'short',day:'numeric',year:'numeric'})} – ${new Date(summary.period.end).toLocaleDateString('en-GB',{month:'short',day:'numeric',year:'numeric'})}` : 'No active period';
   const pct = summary.totalAllowance>0 ? Math.min(100, Math.round((summary.usedHours/summary.totalAllowance)*100)) : 0;
   const over = summary.balance < 0;
   const closureRows = summary.closures.length
@@ -1307,13 +1308,12 @@ function renderMyHolidaysTab(content){
           <div class="myhol-closure-hours">-${fmtHM(c.hours)}</div>
         </div>`;
       }).join('')
-    : `<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No holiday entries for ${summary.year} yet</p>`;
-
+    : `<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No holiday entries for this period yet</p>`;
 content.innerHTML = `
     <div class="myhol-summary-card">
       <div class="myhol-balance-row">
         <div>
-          <div class="myhol-balance-label">Holiday Balance ${summary.year}</div>
+          <div class="myhol-balance-label">Holiday Balance (${periodLabel})</div>
           <div class="myhol-balance-value" style="color:${over?'#dc2626':'#0f172a'};">${fmtHM(summary.balance)}</div>
         </div>
         <div class="myhol-balance-chips">
@@ -1328,9 +1328,9 @@ content.innerHTML = `
         </div>
       </div>
       <div class="myhol-progress-track"><div class="myhol-progress-fill" style="width:${pct}%;background:${over?'#dc2626':'#f59e0b'};"></div></div>
-      ${summary.totalAllowance<=0 ? '<div class="myhol-empty-note">No holiday hours set for this year yet — contact your manager.</div>' : ''}
+      ${!summary.period ? '<div class="myhol-empty-note">No holiday period covers today — contact your manager.</div>' : ''}
     </div>
-    <div class="myhol-closures-label">Closures in ${summary.year}</div>
+    <div class="myhol-closures-label">Closures in this period</div>
     ${closureRows}
     <div class="myhol-disclaimer">These hours are informational only and are never included in your pay.</div>
   `;
@@ -1850,31 +1850,48 @@ function closureAppliesToMe(c){
     return c.scope!=='specific' || c.employeeIds.includes(String(currentUser.userId||''));
   }
 
-function getMyHolidaySummary(){
-    const year = new Date().getFullYear();
-    const totalAllowance = parseFloat(myHolidayHours[year]) || 0;
-    const yearClosures = myClosures
-      .filter(c => c.date.slice(0,4)===String(year) && closureAppliesToMe(c))
-      .sort((a,b)=>a.date.localeCompare(b.date));
-    const usedHours = yearClosures.reduce((s,c)=>s+c.hours,0);
-    return { year, totalAllowance, usedHours, balance: totalAllowance-usedHours, closures: yearClosures };
+function findActiveHolidayPeriodChain(periods, closuresForPerson){
+    if (!periods || !periods.length) return null;
+    const sorted = [...periods].sort((a,b)=>a.start.localeCompare(b.start));
+    const now = new Date();
+    const today = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+    const activeIdx = sorted.findIndex(p => p.start <= today && today <= p.end);
+    if (activeIdx === -1) return null;
+    let rollover = 0, result = null;
+    for (let i = 0; i <= activeIdx; i++) {
+      const p = sorted[i];
+      const usedInPeriod = closuresForPerson.filter(c => c.date >= p.start && c.date <= p.end).reduce((s,c)=>s+c.hours,0);
+      const totalAllowance = p.hours + rollover;
+      const balance = totalAllowance - usedInPeriod;
+      rollover = Math.max(0, balance);
+      if (i === activeIdx) {
+        result = { period: p, totalAllowance, usedHours: usedInPeriod, balance,
+          closures: closuresForPerson.filter(c=>c.date>=p.start && c.date<=p.end).sort((a,b)=>a.date.localeCompare(b.date)) };
+      }
+    }
+    return result;
+  }
+  function getMyHolidaySummary(){
+    const myClosuresList = myClosures.filter(c=>closureAppliesToMe(c));
+    const active = findActiveHolidayPeriodChain(myHolidayHours, myClosuresList);
+    if (!active) return { period:null, totalAllowance:0, usedHours:0, balance:0, closures:[] };
+    return active;
   }
   function closureAppliesToEmp(c, empId){
     return c.scope!=='specific' || c.employeeIds.includes(String(empId));
   }
 
 function getEmployeeHolidaySummaryAdmin(empId){
-    const year = new Date().getFullYear();
-    const hh = (employees[empId] && employees[empId].holidayHours) || {};
-    const totalAllowance = parseFloat(hh[year]) || 0;
-    const yearClosures = myClosures
-      .filter(c => c.date.slice(0,4)===String(year) && closureAppliesToEmp(c, empId))
-      .sort((a,b)=>a.date.localeCompare(b.date));
-    const usedHours = yearClosures.reduce((s,c)=>s+c.hours,0);
-    return { year, totalAllowance, usedHours, balance: totalAllowance-usedHours, closures: yearClosures };
+    const hh = (employees[empId] && employees[empId].holidayHours) || [];
+    const empClosures = myClosures.filter(c=>closureAppliesToEmp(c, empId));
+    const active = findActiveHolidayPeriodChain(hh, empClosures);
+    if (!active) return { period:null, totalAllowance:0, usedHours:0, balance:0, closures:[] };
+    return active;
   }
-  function renderDrawerHolidayTab(empId){
+
+function renderDrawerHolidayTab(empId){
     const summary = getEmployeeHolidaySummaryAdmin(empId);
+    const periodLabel = summary.period ? `${new Date(summary.period.start).toLocaleDateString('en-GB',{month:'short',day:'numeric',year:'numeric'})} – ${new Date(summary.period.end).toLocaleDateString('en-GB',{month:'short',day:'numeric',year:'numeric'})}` : 'No active period';
     const pct = summary.totalAllowance>0 ? Math.min(100, Math.round((summary.usedHours/summary.totalAllowance)*100)) : 0;
     const over = summary.balance < 0;
     const closureRows = summary.closures.length
@@ -1892,12 +1909,12 @@ function getEmployeeHolidaySummaryAdmin(empId){
             <div class="myhol-closure-hours">-${fmtHM(c.hours)}</div>
           </div>`;
         }).join('')
-      : `<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No holiday entries for ${summary.year} yet</p>`;
+      : `<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No holiday entries for this period yet</p>`;
     document.getElementById('drawerBody').innerHTML = `
       <div class="myhol-summary-card">
         <div class="myhol-balance-row">
           <div>
-            <div class="myhol-balance-label">Holiday Balance ${summary.year}</div>
+            <div class="myhol-balance-label">Holiday Balance (${periodLabel})</div>
             <div class="myhol-balance-value" style="color:${over?'#dc2626':'#0f172a'};">${fmtHM(summary.balance)}</div>
           </div>
           <div class="myhol-balance-chips">
@@ -1912,13 +1929,16 @@ function getEmployeeHolidaySummaryAdmin(empId){
           </div>
         </div>
         <div class="myhol-progress-track"><div class="myhol-progress-fill" style="width:${pct}%;background:${over?'#dc2626':'#f59e0b'};"></div></div>
-        ${summary.totalAllowance<=0 ? '<div class="myhol-empty-note">No holiday hours set for this employee this year yet.</div>' : ''}
+        ${!summary.period ? '<div class="myhol-empty-note">No holiday period covers today for this employee.</div>' : ''}
       </div>
-      <div class="myhol-closures-label">Closures in ${summary.year}</div>
+      <div class="myhol-closures-label">Closures in this period</div>
       ${closureRows}
       <div class="myhol-disclaimer">These hours are informational only and are never included in pay calculations.</div>
     `;
   }
+
+
+    
 function getClosuresForPeriod(mode, weeks, monthGroups){
     const mine = myClosures.filter(c=>closureAppliesToMe(c));
     if (mode==='week') {
@@ -1990,7 +2010,7 @@ function buildEmployeeMap() {
     uniqueEmployees = [];
     allData.forEach(r => {
       if (!r.employeeId) return;
-      if (!employees[r.employeeId]) employees[r.employeeId] = { id: r.employeeId, name: r.employeeName, records: [], holidayHours: allHolidayHoursMap[r.employeeId] || {} };
+      if (!employees[r.employeeId]) employees[r.employeeId] = { id: r.employeeId, name: r.employeeName, records: [], holidayHours: allHolidayHoursMap[r.employeeId] || [] };
       employees[r.employeeId].records.push(r);
       if (!seen.has(r.employeeId)) {
         seen.add(r.employeeId);
