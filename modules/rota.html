@@ -1515,7 +1515,7 @@ function openShiftModal(empId,date,time){
   _openShiftModalCore(empId,date,time);
 }
 function _openShiftModalCore(empId,date,time){
-  S.editingId=null; S.shiftType='task'; S.conflictIds=[];
+  S.editingId=null; S.shiftType='task'; S.conflictIds=[]; S.holidayBalanceConfirmed=false;
   const st=time?time.slice(0,5):'07:00';
   const sh=parseInt(st.split(':')[0]);
   const et=pad(Math.min(sh+2,H_END))+':00';
@@ -1537,7 +1537,7 @@ function editShift(id){
   if(!requireWrite()) return;
   const shift=S.schedule.find(s=>s.id===String(id));
   if(!shift) return;
-  S.editingId=id; S.conflictIds=[];
+  S.editingId=id; S.conflictIds=[]; S.holidayBalanceConfirmed=false;
   document.getElementById('empSelect').innerHTML=S.employees.map(e=>`<option value="${esc(e.id)}"${String(e.id)===String(shift.employeeId)?' selected':''}>${esc(e.name)}</option>`).join('');
   document.getElementById('taskSelect').innerHTML=S.tasks.map(t=>`<option value="${esc(t.id)}"${String(t.id)===String(shift.taskId)?' selected':''}>${esc(t.name)}</option>`).join('');
   document.getElementById('dateInput').value=shift.date;
@@ -1576,6 +1576,23 @@ async function saveShift(replaceConflicts){
   };
   if(!payload.employeeId||!payload.date||!payload.start||!payload.end){showToast('Please fill all required fields','error');return;}
   if(payload.start>=payload.end){showToast('End time must be after start time','error');return;}
+  if(!S.holidayBalanceConfirmed && payload.type==='task' && isHolidayTask(payload.taskId)){
+    const emp = S.employees.find(e=>String(e.id)===String(payload.employeeId));
+    const shiftHours = dur(payload.start, payload.end);
+    const otherHolidayShifts = S.schedule.filter(s => String(s.employeeId)===String(payload.employeeId) && isHolidayTask(s.taskId) && s.id!==String(S.editingId||''));
+    const periodInfo = findHolidayPeriodChainForDate(emp?.holidayHours||[], otherHolidayShifts, payload.date);
+    if(!periodInfo){
+      const ok=await showConfirm('No holiday period covers this date',`This date isn't set up under any holiday period for ${emp?.name||'this employee'}. The shift will still be saved and excluded from pay, but won't count toward a tracked balance. Continue?`,'Continue','confirm-btn-danger');
+      if(!ok) return;
+    } else {
+      const resultingBalance = periodInfo.balance - shiftHours;
+      if(resultingBalance < 0){
+        const ok=await showConfirm('This will exceed the holiday balance',`${emp?.name||'This employee'} has ${fmtHM(periodInfo.balance)} remaining for this period. Saving this shift will bring the balance to ${fmtHM(resultingBalance)}. Continue?`,'Continue','confirm-btn-danger');
+        if(!ok) return;
+      }
+    }
+    S.holidayBalanceConfirmed = true;
+  }
 const liveConflicts=getConflicts(payload.employeeId,payload.date,payload.start,payload.end,S.editingId);
   if(liveConflicts.length&&!replaceConflicts){checkConflict();return;}
   const isEdit=!!S.editingId,prev=[...S.schedule];
@@ -1749,6 +1766,7 @@ function isHolidayTask(taskId){
   const t = S.tasks.find(x=>String(x.id)===String(taskId));
   return !!t && (t.name||'').toLowerCase().trim()==='holiday';
 }
+
 function findActiveHolidayPeriodChain(periods, allHolidayShifts){
   if (!periods || !periods.length) return null;
   const sorted = [...periods].sort((a,b)=>a.start.localeCompare(b.start));
@@ -1769,6 +1787,25 @@ function findActiveHolidayPeriodChain(periods, allHolidayShifts){
   }
   return result;
 }
+function findHolidayPeriodChainForDate(periods, allHolidayShifts, targetDate){
+  if (!periods || !periods.length) return null;
+  const sorted = [...periods].sort((a,b)=>a.start.localeCompare(b.start));
+  const activeIdx = sorted.findIndex(p => p.start <= targetDate && targetDate <= p.end);
+  if (activeIdx === -1) return null;
+  let rollover = 0, result = null;
+  for (let i = 0; i <= activeIdx; i++) {
+    const p = sorted[i];
+    const usedInPeriod = allHolidayShifts.filter(s => s.date >= p.start && s.date <= p.end).reduce((sum,s)=>sum+dur(s.start,s.end), 0);
+    const totalAllowance = p.hours + rollover;
+    const balance = totalAllowance - usedInPeriod;
+    rollover = Math.max(0, balance);
+    if (i === activeIdx) {
+      result = { period: p, totalAllowance, usedHours: usedInPeriod, balance };
+    }
+  }
+  return result;
+}
+  
 function getEmployeeHolidaySummary(empId){
   const emp = S.employees.find(e=>String(e.id)===String(empId));
   const allHolidayShifts = S.schedule
