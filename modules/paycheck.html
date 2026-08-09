@@ -1054,7 +1054,8 @@ const [shiftsRes, usersRes, closuresRes] = await Promise.all([
         id: c.id, date: String(c.date), label: c.label || 'Closed',
         hours: parseFloat(c.hours) || 8,
         scope: c.scope || 'all',
-        employeeIds: Array.isArray(c.employee_ids) ? c.employee_ids.map(String) : []
+        employeeIds: Array.isArray(c.employee_ids) ? c.employee_ids.map(String) : [],
+        shiftId: c.shift_id ? String(c.shift_id) : null
       }));
 
       // Build user lookup map
@@ -1066,9 +1067,11 @@ const [shiftsRes, usersRes, closuresRes] = await Promise.all([
         };
       });
 
-// Map shifts to paycheck records
+// Shifts linked to a Holiday closure row (via shift_id) are excluded from pay entirely
+      const holidayShiftIds = new Set(myClosures.filter(c => c.shiftId).map(c => c.shiftId));
+      // Map shifts to paycheck records
       allData = (shiftsRes.data || [])
-        .filter(r => r.type !== 'break') // exclude breaks from pay
+        .filter(r => r.type !== 'break' && !holidayShiftIds.has(String(r.id))) // exclude breaks and Holiday shifts from pay
         .map(r => {
           const user  = userMap[String(r.employee_id)] || {};
           const hours = Math.max(0, (timeToMins(r.end_time) - timeToMins(r.start_time)) / 60);
@@ -1336,11 +1339,15 @@ content.innerHTML = `
 function employeeWeekRow(week) {
   const isPaid   = week.paid === 'Yes';
     const hasBonus = week.bonus > 0;
+    const holHours = getHolidayHoursForWeek(week.weekKey);
     const badge = isPaid
       ? `<span style="font-size:11px;font-weight:600;color:#15803d;background:#dcfce7;padding:3px 9px;border-radius:6px;border:1px solid #bbf7d0;">Paid</span>`
       : `<span style="font-size:11px;font-weight:600;color:#f59e0b;background:#fef3c7;padding:3px 9px;border-radius:6px;border:1px solid #fde68a;">Unpaid</span>`;
     const bonusLine = hasBonus
       ? `<div style="font-size:11px;color:#7c3aed;font-weight:600;margin-top:2px;">+£${fmt(week.bonus)} bonus${week.bonusNote ? ' · <span style="font-weight:400;font-style:italic;color:#94a3b8;">' + escHtml(week.bonusNote) + '</span>' : ''}</div>`
+      : '';
+    const holLine = holHours > 0
+      ? `<div style="font-size:11px;color:#b45309;font-weight:600;margin-top:2px;">🌴 ${fmtHM(holHours)} holiday this week (not included in pay)</div>`
       : '';
     return `<div class="payment-row ${isPaid?'paid-row':'pending-row'}">
       <div class="payment-date-box" style="min-width:70px;"><div style="font-size:11px;font-weight:700;color:#0f172a;line-height:1.3;">${escHtml(week.weekLabel)}</div></div>
@@ -1348,6 +1355,7 @@ function employeeWeekRow(week) {
         <div class="payment-hours-row"><span class="payment-hours">${fmtHM(week.totalHours)}</span><span class="payment-rate">@ £${fmt(week.hourlyRate)}/hr</span></div>
         <div class="payment-amount ${isPaid?'paid':'pending'}">£${fmt(week.totalPay)}</div>
         ${bonusLine}
+        ${holLine}
       </div>
       <div class="payment-actions">${badge}</div>
     </div>`;
@@ -1841,14 +1849,12 @@ function employeeWeekRow(week) {
 function closureAppliesToMe(c){
     return c.scope!=='specific' || c.employeeIds.includes(String(currentUser.userId||''));
   }
-  function myShiftOn(date){
-    return myRecords.some(r=>r.date===date);
-  }
-  function getMyHolidaySummary(){
+
+function getMyHolidaySummary(){
     const year = new Date().getFullYear();
     const totalAllowance = parseFloat(myHolidayHours[year]) || 0;
     const yearClosures = myClosures
-      .filter(c => c.date.slice(0,4)===String(year) && closureAppliesToMe(c) && !myShiftOn(c.date))
+      .filter(c => c.date.slice(0,4)===String(year) && closureAppliesToMe(c))
       .sort((a,b)=>a.date.localeCompare(b.date));
     const usedHours = yearClosures.reduce((s,c)=>s+c.hours,0);
     return { year, totalAllowance, usedHours, balance: totalAllowance-usedHours, closures: yearClosures };
@@ -1856,15 +1862,13 @@ function closureAppliesToMe(c){
   function closureAppliesToEmp(c, empId){
     return c.scope!=='specific' || c.employeeIds.includes(String(empId));
   }
-  function empHasShiftOn(empId, date){
-    return allData.some(r=>String(r.employeeId)===String(empId) && r.date===date);
-  }
-  function getEmployeeHolidaySummaryAdmin(empId){
+
+function getEmployeeHolidaySummaryAdmin(empId){
     const year = new Date().getFullYear();
     const hh = (employees[empId] && employees[empId].holidayHours) || {};
     const totalAllowance = parseFloat(hh[year]) || 0;
     const yearClosures = myClosures
-      .filter(c => c.date.slice(0,4)===String(year) && closureAppliesToEmp(c, empId) && !empHasShiftOn(empId, c.date))
+      .filter(c => c.date.slice(0,4)===String(year) && closureAppliesToEmp(c, empId))
       .sort((a,b)=>a.date.localeCompare(b.date));
     const usedHours = yearClosures.reduce((s,c)=>s+c.hours,0);
     return { year, totalAllowance, usedHours, balance: totalAllowance-usedHours, closures: yearClosures };
@@ -1915,8 +1919,8 @@ function closureAppliesToMe(c){
       <div class="myhol-disclaimer">These hours are informational only and are never included in pay calculations.</div>
     `;
   }
-  function getClosuresForPeriod(mode, weeks, monthGroups){
-    const mine = myClosures.filter(c=>closureAppliesToMe(c) && !myShiftOn(c.date));
+function getClosuresForPeriod(mode, weeks, monthGroups){
+    const mine = myClosures.filter(c=>closureAppliesToMe(c));
     if (mode==='week') {
       const weekKeys = weeks.map(w=>w.weekKey);
       return mine.filter(c=>weekKeys.includes(getWeekKey(c.date).key)).sort((a,b)=>a.date.localeCompare(b.date));
@@ -1925,7 +1929,7 @@ function closureAppliesToMe(c){
     return mine.filter(c=>c.date.slice(0,7)===mk).sort((a,b)=>a.date.localeCompare(b.date));
   }
 
-  function getWeekKey(dateStr) {
+function getWeekKey(dateStr) {
     const d = new Date(dateStr);
     const day = d.getDay();
     const diffToMon = day === 0 ? 6 : day - 1;
@@ -1933,6 +1937,25 @@ function closureAppliesToMe(c){
     const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
     const fmt2 = d => d.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
     return { key: mon.toISOString().slice(0,10), label: fmt2(mon) + ' – ' + fmt2(sun) };
+  }
+  function getWeekDateRange(weekKey) {
+    const mon = new Date(weekKey);
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    return { mon, sun };
+  }
+  function getHolidayHoursForWeek(weekKey) {
+    const { mon, sun } = getWeekDateRange(weekKey);
+    return myClosures.filter(c => closureAppliesToMe(c)).filter(c => {
+      const d = new Date(c.date);
+      return d >= mon && d <= sun;
+    }).reduce((s,c) => s + c.hours, 0);
+  }
+  function getHolidayHoursForWeekEmp(weekKey, empId) {
+    const { mon, sun } = getWeekDateRange(weekKey);
+    return myClosures.filter(c => closureAppliesToEmp(c, empId)).filter(c => {
+      const d = new Date(c.date);
+      return d >= mon && d <= sun;
+    }).reduce((s,c) => s + c.hours, 0);
   }
 
   function groupByWeek(records) {
@@ -2195,8 +2218,12 @@ function paymentRow(week, empId) {
     const isPaid  = week.paid === 'Yes';
     const rowKey  = escAttr(empId + '_' + week.weekKey);
     const hasBonus = week.bonus > 0;
+    const holHoursAdmin = getHolidayHoursForWeekEmp(week.weekKey, empId);
     const bonusTag = hasBonus
       ? `<span style="font-size:10px;font-weight:600;color:#7c3aed;background:#f5f3ff;padding:2px 7px;border-radius:5px;border:1px solid #ddd6fe;margin-left:4px;">+£${fmt(week.bonus)} bonus</span>`
+      : '';
+    const holTag = holHoursAdmin > 0
+      ? `<span style="font-size:10px;font-weight:600;color:#b45309;background:#fffbeb;padding:2px 7px;border-radius:5px;border:1px solid #fde68a;margin-left:4px;">🌴 ${fmtHM(holHoursAdmin)} holiday</span>`
       : '';
     const actionBtn = isPaid
       ? `<button class="mark-paid-btn undo-pay" id="btn_${rowKey}" onclick="event.stopPropagation();toggleWeekPaid('${escAttr(empId)}','${escAttr(week.weekKey)}','No')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Undo</button>`
@@ -2208,7 +2235,7 @@ function paymentRow(week, empId) {
       <div class="row-saving" id="saving_${rowKey}"><div class="spinner"></div></div>
       <div class="payment-date-box" style="min-width:70px;"><div style="font-size:11px;font-weight:700;color:#0f172a;line-height:1.3;">${escHtml(week.weekLabel)}</div></div>
       <div class="payment-info">
-        <div class="payment-hours-row"><span class="payment-hours">${fmtHM(week.totalHours)}</span><span class="payment-rate">@ £${fmt(week.hourlyRate)}/hr</span>${bonusTag}</div>
+        <div class="payment-hours-row"><span class="payment-hours">${fmtHM(week.totalHours)}</span><span class="payment-rate">@ £${fmt(week.hourlyRate)}/hr</span>${bonusTag}${holTag}</div>
         <div style="display:flex;align-items:center;gap:6px;">
           <div class="payment-amount ${isPaid?'paid':'pending'}">£${fmt(week.totalPay)}</div>
           ${hasBonus && week.bonusNote ? `<span style="font-size:10px;color:#94a3b8;font-style:italic;">${escHtml(week.bonusNote)}</span>` : ''}
