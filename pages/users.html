@@ -326,16 +326,20 @@
             <button type="button" class="sm-switch" id="smHolidayToggle" onclick="smToggleHolidayEntry()" title="Enable adding holiday hours"></button>
           </div>
           <div id="smHolidayList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
-          <div id="smHolidayAddRow" style="display:none;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
+<div id="smHolidayAddRow" style="display:none;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;">
             <div>
-              <label class="sm-label">Year</label>
-              <input id="smHolidayYear" class="pd-input" type="number" placeholder="2026" min="2000" max="2100">
+              <label class="sm-label">Start Date</label>
+              <input id="smHolidayStart" class="pd-input" type="date">
+            </div>
+            <div>
+              <label class="sm-label">End Date</label>
+              <input id="smHolidayEnd" class="pd-input" type="date">
             </div>
             <div>
               <label class="sm-label">Holiday Hours</label>
               <input id="smHolidayHoursInput" class="pd-input" type="number" step="0.5" min="0" placeholder="e.g. 40">
             </div>
-            <button type="button" class="pd-btn pd-btn-outline pd-btn-sm" onclick="smAddHolidayYear()">Add</button>
+            <button type="button" class="pd-btn pd-btn-outline pd-btn-sm" onclick="smAddHolidayPeriod()">Add</button>
           </div>
         </div>
 
@@ -661,7 +665,7 @@ const SM_MODULE_GROUPS = [
 const ALL_MODULES = SM_MODULE_GROUPS.flatMap(g => g.modules.map(m => m.key));
 
 let smAllStaff = [];
-let smEditHolidayHours = {};
+let smEditHolidayHours = [];
 let smFilter = 'all';
 let smCurrentStaff = null;
 
@@ -708,7 +712,7 @@ async function loadStaff() {
     status:    r.status,
     permissions: Array.isArray(r.permissions) ? r.permissions : [],
     hourlyRate: r.hourly_rate || '',
-    holidayHours: (r.holiday_hours && typeof r.holiday_hours === 'object') ? r.holiday_hours : {},
+    holidayHours: Array.isArray(r.holiday_hours) ? r.holiday_hours : [],
     createdAt: r.created_at,
   }));
 
@@ -850,11 +854,11 @@ const modGroupsHtml = SM_MODULE_GROUPS.map(g => {
     </div>`;
   }).join('');
 
-const holidayEntries = Object.entries(staff.holidayHours || {}).sort((a,b) => b[0]-a[0]);
+const holidayEntries = Array.isArray(staff.holidayHours) ? [...staff.holidayHours].sort((a,b) => b.start.localeCompare(a.start)) : [];
   const holidayHtml = holidayEntries.length ? `
     <div class="sm-detail-label">Holiday Hours</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;">
-      ${holidayEntries.map(([y,h]) => `<div class="sm-detail-card" style="flex:1;min-width:90px;"><div class="sm-field-label">${y}</div><div class="sm-field-value">${h}h</div></div>`).join('')}
+      ${holidayEntries.map(p => `<div class="sm-detail-card" style="flex:1;min-width:150px;"><div class="sm-field-label">${p.start} → ${p.end}</div><div class="sm-field-value">${p.hours}h</div></div>`).join('')}
     </div>` : '';
 
   document.getElementById('smDrawerBody').innerHTML = `
@@ -1106,7 +1110,7 @@ document.querySelectorAll('.sm-mod-toggle').forEach(b => b.classList.remove('act
   SM_MODULE_GROUPS.forEach(g => smUpdateGroupCount(g.id));
   smSyncRotaWidgetState();
   smCollapseRotaSection();
-  smEditHolidayHours = {};
+  smEditHolidayHours = [];
   document.getElementById('smHolidaySection').style.display = 'none';
   document.getElementById('smModal').style.display = 'flex';
 }
@@ -1133,9 +1137,9 @@ document.getElementById('smHourlyRate').value = staff.hourlyRate || '';
   SM_MODULE_GROUPS.forEach(g => smUpdateGroupCount(g.id));
   smSyncRotaWidgetState();
   smCollapseRotaSection();
-  smEditHolidayHours = Object.assign({}, staff.holidayHours || {});
+  smEditHolidayHours = Array.isArray(staff.holidayHours) ? staff.holidayHours.slice() : [];
   document.getElementById('smHolidaySection').style.display = '';
-  const smHasHolidayEntries = Object.keys(smEditHolidayHours).length > 0;
+  const smHasHolidayEntries = smEditHolidayHours.length > 0;
   document.getElementById('smHolidayToggle').classList.toggle('active', smHasHolidayEntries);
   document.getElementById('smHolidayAddRow').style.display = smHasHolidayEntries ? 'grid' : 'none';
   smRenderHolidayList();
@@ -1147,29 +1151,33 @@ function smCloseModal() { document.getElementById('smModal').style.display = 'no
 function smRenderHolidayList() {
   const container = document.getElementById('smHolidayList');
   if (!container) return;
-  const years = Object.keys(smEditHolidayHours).sort((a,b) => b-a);
-  container.innerHTML = years.length ? years.map(y => `
+  const periods = [...smEditHolidayHours].sort((a,b) => b.start.localeCompare(a.start));
+  container.innerHTML = periods.length ? periods.map(p => `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;">
-      <span style="font-weight:600;color:#0f172a;">${y}</span>
-      <span style="color:#64748b;">${smEditHolidayHours[y]}h</span>
-      <button type="button" onclick="smRemoveHolidayYear('${y}')" style="border:none;background:transparent;color:#dc2626;cursor:pointer;font-size:11px;font-weight:600;">Remove</button>
-    </div>`).join('') : '<div style="font-size:11.5px;color:#94a3b8;">No holiday hours recorded yet</div>';
+      <span style="font-weight:600;color:#0f172a;">${p.start} → ${p.end}</span>
+      <span style="color:#64748b;">${p.hours}h</span>
+      <button type="button" onclick="smRemoveHolidayPeriod('${p.start}')" style="border:none;background:transparent;color:#dc2626;cursor:pointer;font-size:11px;font-weight:600;">Remove</button>
+    </div>`).join('') : '<div style="font-size:11.5px;color:#94a3b8;">No holiday periods recorded yet</div>';
 }
 
-function smAddHolidayYear() {
-  const yearEl = document.getElementById('smHolidayYear');
+function smAddHolidayPeriod() {
+  const startEl = document.getElementById('smHolidayStart');
+  const endEl = document.getElementById('smHolidayEnd');
   const hoursEl = document.getElementById('smHolidayHoursInput');
-  const year = parseInt(yearEl.value);
+  const start = startEl.value;
+  const end = endEl.value;
   const hours = parseFloat(hoursEl.value);
-  if (!year || year < 2000 || year > 2100) { smShowToast('Enter a valid year', 'error'); return; }
+  if (!start || !end) { smShowToast('Enter a start and end date', 'error'); return; }
+  if (end < start) { smShowToast('End date must be after start date', 'error'); return; }
   if (isNaN(hours) || hours < 0) { smShowToast('Enter valid holiday hours', 'error'); return; }
-  smEditHolidayHours[year] = hours;
-  yearEl.value = ''; hoursEl.value = '';
+  smEditHolidayHours = smEditHolidayHours.filter(p => p.start !== start);
+  smEditHolidayHours.push({ start, end, hours });
+  startEl.value = ''; endEl.value = ''; hoursEl.value = '';
   smRenderHolidayList();
 }
 
-function smRemoveHolidayYear(year) {
-  delete smEditHolidayHours[year];
+function smRemoveHolidayPeriod(start) {
+  smEditHolidayHours = smEditHolidayHours.filter(p => p.start !== start);
   smRenderHolidayList();
 }
 function smToggleHolidayEntry() {
@@ -1305,8 +1313,8 @@ window.smSaveStaff = smSaveStaff;
 window.smToggleGroup = smToggleGroup;
 window.smGroupSelectAll = smGroupSelectAll;
 window.smToggleMod = smToggleMod;
-window.smAddHolidayYear = smAddHolidayYear;
-window.smRemoveHolidayYear = smRemoveHolidayYear;
+window.smAddHolidayPeriod = smAddHolidayPeriod;
+window.smRemoveHolidayPeriod = smRemoveHolidayPeriod;
 window.smToggleHolidayEntry = smToggleHolidayEntry;
 window.smToggleRotaLevel = smToggleRotaLevel;
 window.smSyncRotaWidgetState = smSyncRotaWidgetState;
