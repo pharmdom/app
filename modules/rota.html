@@ -1681,21 +1681,28 @@ function renderHoursTabBody(){
   const tm=buildTaskMap(),dates=getDates();
   const empShifts=S.schedule.filter(s=>String(s.employeeId)===String(empId));
   const f=[];
-  let grandTotal=0;
+  let grandTotal=0, grandHoliday=0;
   if(S.view==='day'){
     const dayShifts=empShifts.filter(s=>s.date===S.currentDate).sort((a,b)=>a.start.localeCompare(b.start));
     if(!dayShifts.length) f.push('<p style="color:#94a3b8;font-size:13px;text-align:center;padding:20px 0">No shifts scheduled today</p>');
-    else dayShifts.forEach(s=>{ f.push(shiftItemHTML(s,tm)); grandTotal+=dur(s.start,s.end); });
+    else dayShifts.forEach(s=>{
+      f.push(shiftItemHTML(s,tm));
+      if(isHolidayTask(s.taskId)) grandHoliday+=dur(s.start,s.end);
+      else grandTotal+=dur(s.start,s.end);
+    });
   }else{
     let any=false;
     dates.forEach(date=>{
       const ds=empShifts.filter(s=>s.date===date).sort((a,b)=>a.start.localeCompare(b.start));
       if(!ds.length) return; any=true;
-      const total=ds.reduce((acc,s)=>acc+dur(s.start,s.end),0),exp=S.expandedDays[date];
+      const holHours=ds.filter(s=>isHolidayTask(s.taskId)).reduce((acc,s)=>acc+dur(s.start,s.end),0);
+      const total=ds.filter(s=>!isHolidayTask(s.taskId)).reduce((acc,s)=>acc+dur(s.start,s.end),0);
+      const exp=S.expandedDays[date];
       grandTotal+=total;
+      grandHoliday+=holHours;
       f.push(`<div class="day-section">
         <div class="day-section-hdr" onclick="toggleDay('${date}')">
-          <div><span class="day-section-title">${fmtDate(date,{weekday:'short',month:'short',day:'numeric'})}</span><span class="day-hours-badge">${fmtHM(total)}</span></div>
+          <div><span class="day-section-title">${fmtDate(date,{weekday:'short',month:'short',day:'numeric'})}</span><span class="day-hours-badge">${fmtHM(total)}</span>${holHours>0?`<span class="day-hours-badge" style="background:#fffbeb;color:#b45309;margin-left:4px;">🌴 ${fmtHM(holHours)}</span>`:''}</div>
           <svg class="day-toggle-icon${exp?' open':''}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
         <div class="day-shifts${exp?' open':''}">${ds.map(s=>shiftItemHTML(s,tm)).join('')}</div>
@@ -1703,8 +1710,11 @@ function renderHoursTabBody(){
     });
     if(!any) f.push('<p style="color:#94a3b8;font-size:13px;text-align:center;padding:20px 0">No shifts this period</p>');
   }
-  if(grandTotal>0){
+  if(grandTotal>0 || grandHoliday>0){
     f.push(`<div class="hours-total-footer"><span>Total Hours</span><span class="hours-total-value">${fmtHM(grandTotal)}</span></div>`);
+    if(grandHoliday>0){
+      f.push(`<div class="hours-total-footer" style="margin-top:4px;border-top:none;padding-top:0;"><span style="color:#b45309;">🌴 Holiday</span><span class="hours-total-value" style="color:#b45309;font-size:13px;">${fmtHM(grandHoliday)}</span></div>`);
+    }
   }
   document.getElementById('drawerBody').innerHTML=f.join('');
 }
