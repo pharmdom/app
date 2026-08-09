@@ -1108,7 +1108,7 @@ S.employees = (empRes.data || []).map((u, i) => {
         initials:   ((first[0] || '') + (last[0] || '')).toUpperCase(),
         department: u.role || '',
         avatar:     ['#6366f1','#ef4444','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6'][i % 8],
-        holidayHours: (u.holiday_hours && typeof u.holiday_hours === 'object') ? u.holiday_hours : {}
+        holidayHours: Array.isArray(u.holiday_hours) ? u.holiday_hours : []
       };
     });
 
@@ -1749,16 +1749,34 @@ function isHolidayTask(taskId){
   const t = S.tasks.find(x=>String(x.id)===String(taskId));
   return !!t && (t.name||'').toLowerCase().trim()==='holiday';
 }
+function findActiveHolidayPeriodChain(periods, allHolidayShifts){
+  if (!periods || !periods.length) return null;
+  const sorted = [...periods].sort((a,b)=>a.start.localeCompare(b.start));
+  const today = isoDate(new Date());
+  const activeIdx = sorted.findIndex(p => p.start <= today && today <= p.end);
+  if (activeIdx === -1) return null;
+  let rollover = 0, result = null;
+  for (let i = 0; i <= activeIdx; i++) {
+    const p = sorted[i];
+    const usedInPeriod = allHolidayShifts.filter(s => s.date >= p.start && s.date <= p.end).reduce((sum,s)=>sum+dur(s.start,s.end), 0);
+    const totalAllowance = p.hours + rollover;
+    const balance = totalAllowance - usedInPeriod;
+    rollover = Math.max(0, balance);
+    if (i === activeIdx) {
+      result = { period: p, totalAllowance, usedHours: usedInPeriod, balance,
+        closures: allHolidayShifts.filter(s=>s.date>=p.start && s.date<=p.end).map(s=>({date:s.date,label:'Holiday',hours:dur(s.start,s.end)})) };
+    }
+  }
+  return result;
+}
 function getEmployeeHolidaySummary(empId){
   const emp = S.employees.find(e=>String(e.id)===String(empId));
-  const year = new Date().getFullYear();
-  const totalAllowance = parseFloat((emp?.holidayHours||{})[year]) || 0;
-  const yearHolidayShifts = S.schedule
-    .filter(s => String(s.employeeId)===String(empId) && s.date.slice(0,4)===String(year) && isHolidayTask(s.taskId))
+  const allHolidayShifts = S.schedule
+    .filter(s => String(s.employeeId)===String(empId) && isHolidayTask(s.taskId))
     .sort((a,b)=>a.date.localeCompare(b.date));
-  const usedHours = yearHolidayShifts.reduce((sum,s)=>sum+dur(s.start,s.end), 0);
-  const closures = yearHolidayShifts.map(s=>({ date:s.date, label:'Holiday', hours:dur(s.start,s.end) }));
-  return { year, totalAllowance, usedHours, balance: totalAllowance - usedHours, closures };
+  const active = findActiveHolidayPeriodChain(emp?.holidayHours||[], allHolidayShifts);
+  if (!active) return { period:null, totalAllowance:0, usedHours:0, balance:0, closures:[] };
+  return active;
 }
 
 function renderDrawerTabs(){
@@ -1779,6 +1797,7 @@ function switchDrawerTab(tab){
 function renderHolidaysTabBody(){
   const empId=S.drawerEmpId; if(!empId) return;
   const summary = getEmployeeHolidaySummary(empId);
+  const periodLabel = summary.period ? `${fmtDate(summary.period.start,{month:'short',day:'numeric',year:'numeric'})} – ${fmtDate(summary.period.end,{month:'short',day:'numeric',year:'numeric'})}` : 'No active period';
   const pct = summary.totalAllowance>0 ? Math.min(100, Math.round((summary.usedHours/summary.totalAllowance)*100)) : 0;
   const over = summary.balance < 0;
   const closureRows = summary.closures.length
@@ -1790,13 +1809,12 @@ function renderHolidaysTabBody(){
           </div>
           <div class="holiday-closure-hours">-${fmtHM(c.hours)}</div>
         </div>`).join('')
-    : `<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No closures recorded for ${summary.year} yet</p>`;
-
+    : `<p style="color:#94a3b8;font-size:13px;text-align:center;padding:16px 0">No closures recorded for this period yet</p>`;
   document.getElementById('drawerBody').innerHTML = `
     <div class="holiday-summary-card">
       <div class="holiday-summary-row">
         <div class="holiday-summary-item">
-          <div class="holiday-summary-label">Total ${summary.year}</div>
+          <div class="holiday-summary-label">Total (${periodLabel})</div>
           <div class="holiday-summary-value">${fmtHM(summary.totalAllowance)}</div>
         </div>
         <div class="holiday-summary-item">
@@ -1809,14 +1827,13 @@ function renderHolidaysTabBody(){
         </div>
       </div>
       <div class="holiday-progress-track"><div class="holiday-progress-fill" style="width:${pct}%;background:${over?'#dc2626':'#f59e0b'};"></div></div>
-      ${summary.totalAllowance<=0 ? '<div class="holiday-empty-note">No holiday hours set for this year yet.</div>' : ''}
+      ${!summary.period ? '<div class="holiday-empty-note">No holiday period covers today — ask an admin to set one up.</div>' : ''}
     </div>
-    <div class="holiday-closures-label">Closures/Holidays in ${summary.year}</div>
+    <div class="holiday-closures-label">Closures/Holidays in this period</div>
     ${closureRows}
     <div class="holiday-disclaimer">These hours are informational only and are never included in pay calculations.</div>
   `;
-}
-      
+} 
 
 function shiftItemHTML(s,tm){
   const task=tm[String(s.taskId)],isBreak=s.type==='break',d=dur(s.start,s.end);
