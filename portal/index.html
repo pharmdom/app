@@ -168,7 +168,7 @@
     .sidebar.collapsed .sidebar-nav { padding: 12px 0; }
    /* Desktop: hover-expand the icon rail to preview labels — overlays the page instead of pushing it */
     .sidebar.collapsed:hover { width: var(--sidebar-w); min-width: var(--sidebar-w); box-shadow: 10px 0 40px rgba(0,0,0,.35); }
-    .sidebar.collapsed:not(.force-collapsed):hover { z-index: 32; }
+    .sidebar.collapsed.hover-elevate { z-index: 32; }
     
     .sidebar.collapsed:hover .sidebar-brand-name,
     .sidebar.collapsed:hover .nav-item-label,
@@ -779,6 +779,7 @@ function navItem(key, icon, label, onClick) {
 
 // ── SECONDARY SIDEBAR (docked, click-to-pin group panel) ──
   let pinnedGroupId = null;
+  let lastPinTime = 0;
   function buildSecondaryPanels() {
     const inner = document.getElementById('sidebarSecondaryInner');
     inner.innerHTML = Object.keys(GROUP_CHILDREN).map(id => {
@@ -809,6 +810,8 @@ function pinGroup(id) {
     document.getElementById(`group-header-${id}`)?.classList.add('active-group');
     document.getElementById(`chevron-${id}`)?.querySelector('.nav-chevron')?.classList.add('open');
     document.getElementById('sidebar')?.classList.add('force-collapsed');
+    document.getElementById('sidebar')?.classList.remove('hover-elevate');
+    lastPinTime = Date.now();
     syncTopbarBrandWidth();
   }
   function unpinGroup() {
@@ -833,6 +836,11 @@ window.handleGroupClick = handleGroupClick;
   window.unpinGroup = unpinGroup;
   document.getElementById('sidebar')?.addEventListener('mouseleave', () => {
     document.getElementById('sidebar')?.classList.remove('force-collapsed');
+    document.getElementById('sidebar')?.classList.remove('hover-elevate');
+  });
+  document.getElementById('sidebar')?.addEventListener('mousemove', () => {
+    if (Date.now() - lastPinTime < 70) return;
+    document.getElementById('sidebar')?.classList.add('hover-elevate');
   });
 
     
