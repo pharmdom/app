@@ -81,7 +81,15 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .rf-status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .rf-amt-input { width: 90px; padding: 5px 8px; border: 1.5px solid #e2e8f0; border-radius: 7px; font-size: 12.5px; font-family: ui-monospace, monospace; }
 .rf-empty { text-align: center; padding: 40px 20px; color: #94a3b8; font-size: 13px; }
-
+.rf-expand-btn { width: 22px; height: 22px; border: none; background: #f1f5f9; border-radius: 6px; color: #64748b; cursor: pointer; font-size: 10px; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+.rf-expand-btn:hover { background: #e2e8f0; color: #0f172a; }
+.rf-expand-btn svg { width: 11px; height: 11px; transition: transform .15s; }
+.rf-expand-btn.open svg { transform: rotate(90deg); }
+.rf-detail-row td { background: #f8fafc; padding: 0 !important; border-bottom: 1px solid #f1f5f9; white-space: normal !important; }
+.rf-detail-inner { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.rf-detail-item { font-size: 12.5px; color: #334155; line-height: 1.5; }
+.rf-detail-item b { color: #64748b; font-weight: 700; margin-right: 5px; }
+  
 @media(max-width:900px){ .rf-form-grid{grid-template-columns:1fr 1fr;} .rf-summary{grid-template-columns:1fr 1fr;} }
 @media(max-width:600px){ .rf-page{padding:14px 14px 32px;} .rf-form-grid{grid-template-columns:1fr;} .rf-summary{grid-template-columns:1fr 1fr;gap:8px;} .rf-header{flex-direction:column;align-items:flex-start;} }
 </style>
@@ -111,10 +119,10 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
     <div class="rf-table-wrap">
       <table class="rf-table">
         <colgroup>
-          <col style="width:11%"><col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:16%"><col style="width:14%"><col style="width:8%"><col style="width:9%"><col style="width:9%"><col style="width:9%">
+          <col style="width:4%"><col style="width:13%"><col style="width:11%"><col style="width:12%"><col style="width:15%"><col style="width:12%"><col style="width:11%"><col style="width:12%"><col style="width:10%">
         </colgroup>
         <thead><tr>
-          <th>Order #</th><th>Marketplace</th><th>Submitted</th><th>Person</th><th>Reason</th><th>Notes</th><th>Requested</th><th>Status</th><th>Amount</th><th>Processed</th>
+          <th></th><th>Order #</th><th>Marketplace</th><th>Submitted</th><th>Person</th><th>Requested</th><th>Status</th><th>Amount</th><th>Processed</th>
         </tr></thead>
         <tbody id="rfTableBody"></tbody>
       </table>
@@ -185,6 +193,26 @@ function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.get
 let RF_MONTH = new Date(); RF_MONTH.setDate(1);
 let RF_ROWS = [];
 let RF_FILTER = 'all';
+let RF_EXPANDED_ID = null;
+
+function rfCollapseRow(id){
+  const btn=document.getElementById('rfExpandBtn'+id);
+  const row=document.getElementById('rfDetailRow'+id);
+  if(btn) btn.classList.remove('open');
+  if(row) row.style.display='none';
+}
+
+function rfToggleRow(id){
+  const wasOpen = RF_EXPANDED_ID===id;
+  if(RF_EXPANDED_ID!==null) rfCollapseRow(RF_EXPANDED_ID);
+  RF_EXPANDED_ID = wasOpen ? null : id;
+  if(RF_EXPANDED_ID!==null){
+    const btn=document.getElementById('rfExpandBtn'+RF_EXPANDED_ID);
+    const row=document.getElementById('rfDetailRow'+RF_EXPANDED_ID);
+    if(btn) btn.classList.add('open');
+    if(row) row.style.display='table-row';
+  }
+}
 
 function rfSetFilter(filter){
   RF_FILTER = RF_FILTER===filter ? 'all' : filter;
@@ -258,17 +286,25 @@ const amountCell=CAN_WRITE_REFUNDS
     const refundedCell=CAN_WRITE_REFUNDS
       ? `<input type="checkbox" ${r.refunded?'checked':''} onchange="rfToggleRefunded(${r.id},this.checked)">`
       : rfStatusPill(r);
+    const isOpen=RF_EXPANDED_ID===r.id;
     return `<tr>
+      <td><button class="rf-expand-btn${isOpen?' open':''}" id="rfExpandBtn${r.id}" onclick="rfToggleRow(${r.id})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button></td>
       <td class="rf-order-num">${esc(r.order_number)}</td>
       <td><span class="rf-mkt-badge ${r.marketplace==='eBay'?'ebay':'amazon'}">${esc(r.marketplace)}</span></td>
       <td>${fmtDateShort(r.date_submitted)}<div class="rf-days-old">${rfDaysOld(r.date_submitted)}</div></td>
       <td>${esc(r.submitted_by)}</td>
-      <td>${esc(r.reason)}</td>
-      <td class="rf-notes-cell" title="${esc(r.notes||'')}">${esc(r.notes||'—')}</td>
       <td>${r.amount_requested!=null?fmtGBP(r.amount_requested):'—'}</td>
       <td>${CAN_WRITE_REFUNDS?refundedCell:rfStatusPill(r)}</td>
       <td>${amountCell}</td>
       <td>${fmtDateShort(r.date_processed)}</td>
+    </tr>
+    <tr class="rf-detail-row" id="rfDetailRow${r.id}" style="display:${isOpen?'table-row':'none'}">
+      <td colspan="9">
+        <div class="rf-detail-inner">
+          <div class="rf-detail-item"><b>Reason:</b>${esc(r.reason)}</div>
+          ${r.notes?`<div class="rf-detail-item"><b>Notes:</b>${esc(r.notes)}</div>`:''}
+        </div>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -353,7 +389,7 @@ window.rfToggleNotes=rfToggleNotes;
 window.rfOpenModal=rfOpenModal;
 window.rfCloseModal=rfCloseModal;
 window.rfSetFilter=rfSetFilter;
-
+window.rfToggleRow=rfToggleRow;
 rfInit();
 })();
 </script>
