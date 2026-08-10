@@ -236,7 +236,8 @@ async function rfLoad(){
   document.getElementById('rfListMonthLabel').textContent=RF_MONTH.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
   const{data,error}=await sb.from('refunds').select('*')
     .gte('date_submitted',start).lt('date_submitted',end)
-    .order('date_submitted',{ascending:false});
+    .order('date_submitted',{ascending:false})
+    .order('id',{ascending:true});
   if(error){ showToast('Failed to load refunds','error'); console.error(error); return; }
   RF_ROWS=data||[];
   rfRenderSummary();
@@ -352,34 +353,37 @@ const{error}=await sb.from('refunds').insert(payload);
 async function rfToggleRefunded(id,checked){
   if(!CAN_WRITE_REFUNDS){ showToast('You do not have permission to update refunds','warn'); return; }
   const r=RF_ROWS.find(x=>x.id===id);
-  if(checked&&!(r&&parseFloat(r.amount_processed)>0)){
+  if(!r)return;
+  if(checked&&!(parseFloat(r.amount_processed)>0)){
     showToast('Enter an amount processed before marking as refunded','warn');
-    rfLoad();
+    rfRenderTable();
     return;
   }
   const patch=checked
     ? {refunded:true, date_processed:todayStr(), processed_by:ME_NAME, updated_at:new Date().toISOString()}
     : {refunded:false, date_processed:null, processed_by:null, updated_at:new Date().toISOString()};
+  r.refunded=patch.refunded; r.date_processed=patch.date_processed; r.processed_by=patch.processed_by;
+  rfRenderTable(); rfRenderSummary();
   const{error}=await sb.from('refunds').update(patch).eq('id',id);
-  if(error){ showToast('Failed to update','error'); console.error(error); return; }
+  if(error){ showToast('Failed to update','error'); console.error(error); rfLoad(); return; }
   showToast(checked?'Marked as processed ✓':'Marked as outstanding','success');
-  rfLoad();
 }
 
 async function rfUpdateAmount(id,val){
   if(!CAN_WRITE_REFUNDS){ showToast('You do not have permission to update refunds','warn'); return; }
   const amount=val?parseFloat(val):null;
   const r=RF_ROWS.find(x=>x.id===id);
+  if(!r)return;
   const patch={amount_processed:amount,updated_at:new Date().toISOString()};
-  if(r&&r.refunded&&!(amount>0)){
-    patch.refunded=false;
-    patch.date_processed=null;
-    patch.processed_by=null;
-  }
+  const wasUnmarked = r.refunded && !(amount>0);
+  if(wasUnmarked){ patch.refunded=false; patch.date_processed=null; patch.processed_by=null; }
+  // Update local state immediately so any near-simultaneous checkbox click sees the fresh value.
+  r.amount_processed=amount;
+  if(wasUnmarked){ r.refunded=false; r.date_processed=null; r.processed_by=null; }
+  rfRenderTable(); rfRenderSummary();
   const{error}=await sb.from('refunds').update(patch).eq('id',id);
-  if(error){ showToast('Failed to save amount','error'); console.error(error); return; }
-  showToast(patch.refunded===false?'Amount cleared — marked as outstanding':'Amount saved ✓','success');
-  rfLoad();
+  if(error){ showToast('Failed to save amount','error'); console.error(error); rfLoad(); return; }
+  showToast(wasUnmarked?'Amount cleared — marked as outstanding':'Amount saved ✓','success');
 }
 
 function rfShiftMonth(delta){
