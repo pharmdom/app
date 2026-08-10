@@ -1,1 +1,270 @@
-<p>this is for all refunds</p>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color: #0f172a; background: #f8fafc; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+.rf-page { padding: 20px 24px 40px; max-width: 1280px; margin: 0 auto; }
+.rf-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+.rf-header h1 { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 2px; }
+.rf-header p { font-size: 12.5px; color: #64748b; }
+.rf-month-picker { display: flex; align-items: center; gap: 8px; }
+.rf-month-picker button { width: 30px; height: 30px; border: 1.5px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; transition: all .15s; }
+.rf-month-picker button:hover { border-color: #2563eb; color: #2563eb; }
+.rf-month-label { font-size: 13px; font-weight: 700; min-width: 110px; text-align: center; }
+
+.rf-summary { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 24px; }
+.rf-sum-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 14px 16px; }
+.rf-sum-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; margin-bottom: 6px; }
+.rf-sum-val { font-size: 20px; font-weight: 800; font-family: ui-monospace, monospace; }
+.rf-sum-sub { font-size: 11px; color: #94a3b8; margin-top: 3px; }
+.rf-sum-card.amber .rf-sum-val { color: #b45309; }
+.rf-sum-card.green .rf-sum-val { color: #15803d; }
+
+.rf-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; margin-bottom: 20px; }
+.rf-card-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; }
+
+.rf-form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.rf-field label { display: block; font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 5px; }
+.rf-field input, .rf-field select, .rf-field textarea { width: 100%; padding: 9px 11px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; transition: border-color .15s; }
+.rf-field input:focus, .rf-field select:focus, .rf-field textarea:focus { border-color: #2563eb; }
+.rf-field input[disabled] { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+.rf-field textarea { resize: vertical; min-height: 60px; }
+.rf-submit-btn { padding: 10px 20px; background: #0f172a; color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background .15s; }
+.rf-submit-btn:hover { background: #1e293b; }
+.rf-submit-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+.rf-table-wrap { overflow-x: auto; }
+.rf-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.rf-table th { text-align: left; padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #94a3b8; border-bottom: 1.5px solid #e2e8f0; white-space: nowrap; }
+.rf-table td { padding: 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.rf-table tr:hover td { background: #f8fafc; }
+.rf-order-num { font-weight: 700; font-family: ui-monospace, monospace; }
+.rf-mkt-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 700; }
+.rf-mkt-badge.ebay { background: #fef3c7; color: #92400e; }
+.rf-mkt-badge.amazon { background: #fef3c7; color: #d97706; background: #fff7ed; color: #c2410c; }
+.rf-status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 99px; font-size: 10.5px; font-weight: 700; }
+.rf-status-pill.pending { background: #fef3c7; color: #b45309; }
+.rf-status-pill.processed { background: #dcfce7; color: #15803d; }
+.rf-status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.rf-amt-input { width: 90px; padding: 5px 8px; border: 1.5px solid #e2e8f0; border-radius: 7px; font-size: 12.5px; font-family: ui-monospace, monospace; }
+.rf-notes-cell { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #64748b; font-size: 11.5px; }
+.rf-empty { text-align: center; padding: 40px 20px; color: #94a3b8; font-size: 13px; }
+
+@media(max-width:900px){ .rf-form-grid{grid-template-columns:1fr 1fr;} .rf-summary{grid-template-columns:1fr 1fr;} }
+@media(max-width:600px){ .rf-page{padding:14px 14px 32px;} .rf-form-grid{grid-template-columns:1fr;} .rf-summary{grid-template-columns:1fr 1fr;gap:8px;} .rf-header{flex-direction:column;align-items:flex-start;} }
+</style>
+
+<div class="rf-page">
+  <div class="rf-header">
+    <div>
+      <h1>Refunds Tracker</h1>
+      <p>Log and track eBay / Amazon refund requests</p>
+    </div>
+    <div class="rf-month-picker">
+      <button onclick="rfShiftMonth(-1)" title="Previous month">‹</button>
+      <div class="rf-month-label" id="rfMonthLabel">—</div>
+      <button onclick="rfShiftMonth(1)" title="Next month">›</button>
+    </div>
+  </div>
+
+  <div class="rf-summary" id="rfSummary">
+    <div class="rf-sum-card amber"><div class="rf-sum-lbl">Outstanding</div><div class="rf-sum-val" id="rfOutCount">—</div><div class="rf-sum-sub" id="rfOutAmt">—</div></div>
+    <div class="rf-sum-card green"><div class="rf-sum-lbl">Processed</div><div class="rf-sum-val" id="rfProcCount">—</div><div class="rf-sum-sub" id="rfProcAmt">—</div></div>
+    <div class="rf-sum-card"><div class="rf-sum-lbl">Total Requested</div><div class="rf-sum-val" id="rfReqAmt">—</div><div class="rf-sum-sub">This month</div></div>
+    <div class="rf-sum-card"><div class="rf-sum-lbl">Total This Month</div><div class="rf-sum-val" id="rfTotalCount">—</div><div class="rf-sum-sub">requests</div></div>
+  </div>
+
+  <div class="rf-card">
+    <div class="rf-card-title">New Refund Request</div>
+    <div class="rf-form-grid">
+      <div class="rf-field"><label>Order Number</label><input type="text" id="rfOrderNumber" placeholder="e.g. 203-1234567-8901234"></div>
+      <div class="rf-field"><label>Marketplace</label>
+        <select id="rfMarketplace"><option value="">Select…</option><option value="eBay">eBay</option><option value="Amazon">Amazon</option></select>
+      </div>
+      <div class="rf-field"><label>Date</label><input type="text" id="rfDateDisplay" disabled></div>
+      <div class="rf-field"><label>Person</label><input type="text" id="rfPersonDisplay" disabled></div>
+      <div class="rf-field" style="grid-column:span 2"><label>Reason</label>
+        <select id="rfReason" onchange="rfToggleNotes()">
+          <option value="">Select…</option>
+          <option value="Shipping claim (Lost/Damaged)">Shipping claim to be processed (Lost/Damaged)</option>
+          <option value="Shipping claim (Not received, but delivered)">Shipping claim to be processed (Not received, but delivered)</option>
+          <option value="Incorrect item sent - full refund">Incorrect item sent — full refund</option>
+          <option value="Out of stock - full refund">Out of stock — full refund</option>
+          <option value="Missing items - partial refund">Missing items — partial refund</option>
+        </select>
+      </div>
+      <div class="rf-field"><label>Amount Requested (£) <span style="font-weight:400;color:#94a3b8">— optional</span></label><input type="number" id="rfAmountRequested" min="0" step="0.01" placeholder="0.00"></div>
+      <div class="rf-field" id="rfNotesWrap" style="grid-column:span 3;display:none"><label>Notes — which/how many units are missing</label><textarea id="rfNotes" placeholder="e.g. 2 of 5 units missing from order"></textarea></div>
+    </div>
+    <button class="rf-submit-btn" onclick="rfSubmit()">Submit Refund Request</button>
+  </div>
+
+  <div class="rf-card">
+    <div class="rf-card-title">Requests — <span id="rfListMonthLabel"></span></div>
+    <div class="rf-table-wrap">
+      <table class="rf-table">
+        <thead><tr>
+          <th>Order #</th><th>Marketplace</th><th>Submitted</th><th>Person</th><th>Reason</th><th>Notes</th><th>Requested</th><th>Status</th><th>Amount</th><th>Processed</th>
+        </tr></thead>
+        <tbody id="rfTableBody"></tbody>
+      </table>
+      <div class="rf-empty" id="rfEmptyState" style="display:none">No refund requests for this month yet.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+const CURRENT_USER = JSON.parse(sessionStorage.getItem('user') || '{}');
+const IS_ADMIN = ['admin','administrator'].includes((CURRENT_USER.role||'').toLowerCase());
+const CAN_WRITE_REFUNDS = IS_ADMIN || (CURRENT_USER.permissions || []).includes('refund_write');
+const ME_NAME = ((CURRENT_USER.firstName||'')+' '+(CURRENT_USER.lastName||'')).trim() || 'Unknown';
+const ME_ID = CURRENT_USER.userId || null;
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtGBP(n){ return '£'+(parseFloat(n)||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtDateShort(d){ return d?new Date(d+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'—'; }
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+let RF_MONTH = new Date(); RF_MONTH.setDate(1);
+let RF_ROWS = [];
+
+function rfMonthBounds(d){
+  const y=d.getFullYear(), m=d.getMonth();
+  const start=y+'-'+String(m+1).padStart(2,'0')+'-01';
+  const nm=m===11?0:m+1, ny=m===11?y+1:y;
+  const end=ny+'-'+String(nm+1).padStart(2,'0')+'-01';
+  return{start,end};
+}
+
+async function rfLoad(){
+  const{start,end}=rfMonthBounds(RF_MONTH);
+  document.getElementById('rfMonthLabel').textContent=RF_MONTH.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  document.getElementById('rfListMonthLabel').textContent=RF_MONTH.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  const{data,error}=await sb.from('refunds').select('*')
+    .gte('date_submitted',start).lt('date_submitted',end)
+    .order('date_submitted',{ascending:false});
+  if(error){ showToast('Failed to load refunds','error'); console.error(error); return; }
+  RF_ROWS=data||[];
+  rfRenderSummary();
+  rfRenderTable();
+}
+
+function rfRenderSummary(){
+  const outstanding=RF_ROWS.filter(r=>!r.refunded);
+  const processed=RF_ROWS.filter(r=>r.refunded);
+  const outAmt=outstanding.reduce((s,r)=>s+(parseFloat(r.amount_requested)||0),0);
+  const procAmt=processed.reduce((s,r)=>s+(parseFloat(r.amount_processed)||0),0);
+  const reqAmt=RF_ROWS.reduce((s,r)=>s+(parseFloat(r.amount_requested)||0),0);
+  document.getElementById('rfOutCount').textContent=outstanding.length;
+  document.getElementById('rfOutAmt').textContent=fmtGBP(outAmt)+' requested';
+  document.getElementById('rfProcCount').textContent=processed.length;
+  document.getElementById('rfProcAmt').textContent=fmtGBP(procAmt)+' paid out';
+  document.getElementById('rfReqAmt').textContent=fmtGBP(reqAmt);
+  document.getElementById('rfTotalCount').textContent=RF_ROWS.length;
+}
+
+function rfStatusPill(r){
+  if(r.refunded) return `<span class="rf-status-pill processed"><span class="rf-status-dot"></span>Processed</span>`;
+  return `<span class="rf-status-pill pending"><span class="rf-status-dot"></span>Pending</span>`;
+}
+
+function rfRenderTable(){
+  const body=document.getElementById('rfTableBody');
+  const empty=document.getElementById('rfEmptyState');
+  if(!RF_ROWS.length){ body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  body.innerHTML=RF_ROWS.map(r=>{
+    const amountCell=CAN_WRITE_REFUNDS
+      ? `<input type="number" class="rf-amt-input" min="0" step="0.01" value="${r.amount_processed!=null?r.amount_processed:''}" placeholder="0.00" onchange="rfUpdateAmount(${r.id},this.value)">`
+      : (r.amount_processed!=null?fmtGBP(r.amount_processed):'—');
+    const refundedCell=CAN_WRITE_REFUNDS
+      ? `<input type="checkbox" ${r.refunded?'checked':''} onchange="rfToggleRefunded(${r.id},this.checked)">`
+      : rfStatusPill(r);
+    return `<tr>
+      <td class="rf-order-num">${esc(r.order_number)}</td>
+      <td><span class="rf-mkt-badge ${r.marketplace==='eBay'?'ebay':'amazon'}">${esc(r.marketplace)}</span></td>
+      <td>${fmtDateShort(r.date_submitted)}</td>
+      <td>${esc(r.submitted_by)}</td>
+      <td>${esc(r.reason)}</td>
+      <td class="rf-notes-cell" title="${esc(r.notes||'')}">${esc(r.notes||'—')}</td>
+      <td>${r.amount_requested!=null?fmtGBP(r.amount_requested):'—'}</td>
+      <td>${CAN_WRITE_REFUNDS?refundedCell:rfStatusPill(r)}</td>
+      <td>${amountCell}</td>
+      <td>${fmtDateShort(r.date_processed)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function rfToggleNotes(){
+  const reason=document.getElementById('rfReason').value;
+  document.getElementById('rfNotesWrap').style.display=reason==='Missing items - partial refund'?'block':'none';
+}
+
+async function rfSubmit(){
+  const orderNumber=document.getElementById('rfOrderNumber').value.trim();
+  const marketplace=document.getElementById('rfMarketplace').value;
+  const reason=document.getElementById('rfReason').value;
+  const notes=document.getElementById('rfNotes').value.trim();
+  const amountRequested=document.getElementById('rfAmountRequested').value;
+  if(!orderNumber||!marketplace||!reason){ showToast('Please fill in Order Number, Marketplace and Reason','error'); return; }
+  const payload={
+    order_number:orderNumber, marketplace, reason,
+    notes:reason==='Missing items - partial refund'?(notes||null):null,
+    amount_requested:amountRequested?parseFloat(amountRequested):null,
+    date_submitted:todayStr(),
+    submitted_by:ME_NAME, submitted_by_id:ME_ID,
+  };
+  const{error}=await sb.from('refunds').insert(payload);
+  if(error){ showToast('Failed to submit refund request','error'); console.error(error); return; }
+  showToast('Refund request submitted ✓','success');
+  document.getElementById('rfOrderNumber').value='';
+  document.getElementById('rfMarketplace').value='';
+  document.getElementById('rfReason').value='';
+  document.getElementById('rfNotes').value='';
+  document.getElementById('rfAmountRequested').value='';
+  rfToggleNotes();
+  rfLoad();
+}
+
+async function rfToggleRefunded(id,checked){
+  if(!CAN_WRITE_REFUNDS){ showToast('You do not have permission to update refunds','warn'); return; }
+  const patch=checked
+    ? {refunded:true, date_processed:todayStr(), processed_by:ME_NAME, updated_at:new Date().toISOString()}
+    : {refunded:false, date_processed:null, processed_by:null, updated_at:new Date().toISOString()};
+  const{error}=await sb.from('refunds').update(patch).eq('id',id);
+  if(error){ showToast('Failed to update','error'); console.error(error); return; }
+  showToast(checked?'Marked as processed ✓':'Marked as outstanding','success');
+  rfLoad();
+}
+
+async function rfUpdateAmount(id,val){
+  if(!CAN_WRITE_REFUNDS){ showToast('You do not have permission to update refunds','warn'); return; }
+  const amount=val?parseFloat(val):null;
+  const{error}=await sb.from('refunds').update({amount_processed:amount,updated_at:new Date().toISOString()}).eq('id',id);
+  if(error){ showToast('Failed to save amount','error'); console.error(error); return; }
+  showToast('Amount saved ✓','success');
+  rfLoad();
+}
+
+function rfShiftMonth(delta){
+  RF_MONTH=new Date(RF_MONTH.getFullYear(),RF_MONTH.getMonth()+delta,1);
+  rfLoad();
+}
+
+function rfInit(){
+  document.getElementById('rfDateDisplay').value=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('rfPersonDisplay').value=ME_NAME;
+  rfLoad();
+}
+
+window.rfShiftMonth=rfShiftMonth;
+window.rfSubmit=rfSubmit;
+window.rfToggleRefunded=rfToggleRefunded;
+window.rfUpdateAmount=rfUpdateAmount;
+window.rfToggleNotes=rfToggleNotes;
+
+rfInit();
+})();
+</script>
