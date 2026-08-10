@@ -86,9 +86,15 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .rf-expand-btn svg { width: 11px; height: 11px; transition: transform .15s; }
 .rf-expand-btn.open svg { transform: rotate(90deg); }
 .rf-detail-row td { background: #f8fafc; padding: 0 !important; border-bottom: 1px solid #f1f5f9; white-space: normal !important; }
-.rf-detail-inner { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.rf-detail-inner { padding: 12px 16px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.rf-detail-text { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
 .rf-detail-item { font-size: 12.5px; color: #334155; line-height: 1.5; }
 .rf-detail-item b { color: #64748b; font-weight: 700; margin-right: 5px; }
+.rf-detail-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.rf-detail-btn { padding: 6px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px; background: #fff; font-size: 12px; font-weight: 700; font-family: inherit; color: #475569; cursor: pointer; transition: all .15s; }
+.rf-detail-btn:hover { border-color: #2563eb; color: #2563eb; background: #eff6ff; }
+.rf-detail-btn.danger:hover { border-color: #ef4444; color: #ef4444; background: #fff1f2; }
+  
   
 @media(max-width:900px){ .rf-form-grid{grid-template-columns:1fr 1fr;} .rf-summary{grid-template-columns:1fr 1fr;} }
 @media(max-width:600px){ .rf-page{padding:14px 14px 32px;} .rf-form-grid{grid-template-columns:1fr;} .rf-summary{grid-template-columns:1fr 1fr;gap:8px;} .rf-header{flex-direction:column;align-items:flex-start;} }
@@ -298,11 +304,17 @@ const amountCell=CAN_WRITE_REFUNDS
       <td>${amountCell}</td>
       <td>${fmtDateShort(r.date_processed)}</td>
     </tr>
-    <tr class="rf-detail-row" id="rfDetailRow${r.id}" style="display:${isOpen?'table-row':'none'}">
+<tr class="rf-detail-row" id="rfDetailRow${r.id}" style="display:${isOpen?'table-row':'none'}">
       <td colspan="9">
         <div class="rf-detail-inner">
-          <div class="rf-detail-item"><b>Reason:</b>${esc(r.reason)}</div>
-          ${r.notes?`<div class="rf-detail-item"><b>Notes:</b>${esc(r.notes)}</div>`:''}
+          <div class="rf-detail-text">
+            <div class="rf-detail-item"><b>Reason:</b>${esc(r.reason)}</div>
+            ${r.notes?`<div class="rf-detail-item"><b>Notes:</b>${esc(r.notes)}</div>`:''}
+          </div>
+          ${CAN_WRITE_REFUNDS?`<div class="rf-detail-actions">
+            <button class="rf-detail-btn" onclick="rfEditRefund(${r.id})">Edit</button>
+            <button class="rf-detail-btn danger" onclick="rfDeleteRefund(${r.id})">Delete</button>
+          </div>`:''}
         </div>
       </td>
     </tr>`;
@@ -314,13 +326,52 @@ function rfToggleNotes(){
   document.getElementById('rfNotesWrap').style.display=reason==='Missing items - partial refund'?'block':'none';
 }
 
+let RF_EDIT_ID = null;
+
 function rfOpenModal(){
+  RF_EDIT_ID=null;
   document.getElementById('rfDateDisplay').value=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
   document.getElementById('rfPersonDisplay').value=ME_NAME;
+  document.getElementById('rfOrderNumber').value='';
+  document.getElementById('rfMarketplace').value='';
+  document.getElementById('rfReason').value='';
+  document.getElementById('rfNotes').value='';
+  document.getElementById('rfAmountRequested').value='';
+  rfToggleNotes();
+  document.querySelector('#rfModalOverlay .rf-card-title').textContent='New Refund Request';
+  document.querySelector('.rf-submit-btn').textContent='Submit Refund Request';
   document.getElementById('rfModalOverlay').classList.add('open');
 }
 function rfCloseModal(){
   document.getElementById('rfModalOverlay').classList.remove('open');
+}
+
+function rfEditRefund(id){
+  if(!CAN_WRITE_REFUNDS){ showToast('You do not have permission to edit refunds','warn'); return; }
+  const r=RF_ROWS.find(x=>x.id===id);
+  if(!r)return;
+  RF_EDIT_ID=id;
+  document.getElementById('rfDateDisplay').value=fmtDateShort(r.date_submitted);
+  document.getElementById('rfPersonDisplay').value=r.submitted_by;
+  document.getElementById('rfOrderNumber').value=r.order_number;
+  document.getElementById('rfMarketplace').value=r.marketplace;
+  document.getElementById('rfReason').value=r.reason;
+  document.getElementById('rfNotes').value=r.notes||'';
+  document.getElementById('rfAmountRequested').value=r.amount_requested!=null?r.amount_requested:'';
+  rfToggleNotes();
+  document.querySelector('#rfModalOverlay .rf-card-title').textContent='Edit Refund Request';
+  document.querySelector('.rf-submit-btn').textContent='Save Changes';
+  document.getElementById('rfModalOverlay').classList.add('open');
+}
+
+async function rfDeleteRefund(id){
+  if(!CAN_WRITE_REFUNDS){ showToast('You do not have permission to delete refunds','warn'); return; }
+  if(!confirm('Delete this refund request? This cannot be undone.'))return;
+  const{error}=await sb.from('refunds').delete().eq('id',id);
+  if(error){ showToast('Failed to delete','error'); console.error(error); return; }
+  RF_ROWS=RF_ROWS.filter(r=>r.id!==id);
+  showToast('Refund request deleted','success');
+  rfRenderTable(); rfRenderSummary();
 }
 
 async function rfSubmit(){
@@ -334,18 +385,18 @@ async function rfSubmit(){
     order_number:orderNumber, marketplace, reason,
     notes:reason==='Missing items - partial refund'?(notes||null):null,
     amount_requested:amountRequested?parseFloat(amountRequested):null,
-    date_submitted:todayStr(),
-    submitted_by:ME_NAME, submitted_by_id:ME_ID,
   };
-const{error}=await sb.from('refunds').insert(payload);
-  if(error){ showToast('Failed to submit refund request','error'); console.error(error); return; }
-  showToast('Refund request submitted ✓','success');
-  document.getElementById('rfOrderNumber').value='';
-  document.getElementById('rfMarketplace').value='';
-  document.getElementById('rfReason').value='';
-  document.getElementById('rfNotes').value='';
-  document.getElementById('rfAmountRequested').value='';
-  rfToggleNotes();
+  if(RF_EDIT_ID){
+    const{error}=await sb.from('refunds').update(payload).eq('id',RF_EDIT_ID);
+    if(error){ showToast('Failed to save changes','error'); console.error(error); return; }
+    showToast('Refund request updated ✓','success');
+  }else{
+    payload.date_submitted=todayStr();
+    payload.submitted_by=ME_NAME; payload.submitted_by_id=ME_ID;
+    const{error}=await sb.from('refunds').insert(payload);
+    if(error){ showToast('Failed to submit refund request','error'); console.error(error); return; }
+    showToast('Refund request submitted ✓','success');
+  }
   rfCloseModal();
   rfLoad();
 }
@@ -406,6 +457,9 @@ window.rfOpenModal=rfOpenModal;
 window.rfCloseModal=rfCloseModal;
 window.rfSetFilter=rfSetFilter;
 window.rfToggleRow=rfToggleRow;
+window.rfEditRefund=rfEditRefund;
+window.rfDeleteRefund=rfDeleteRefund;
+  
 rfInit();
 })();
 </script>
