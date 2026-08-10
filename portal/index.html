@@ -43,13 +43,14 @@
       font-family: 'Inter', system-ui, sans-serif;
       background: var(--bg); color: var(--text-primary);
       display: flex; height: 100vh; overflow: hidden;
+      padding-top: var(--topbar-h);   /* ADD THIS */
     }
 
     /* ── SIDEBAR ── */
 .sidebar {
       width: var(--sidebar-w); min-width: var(--sidebar-w);
       display: flex; flex-direction: column;
-      position: fixed; top: 0; left: 0; bottom: 0; z-index: 30; overflow: hidden;
+      position: fixed;  top: var(--topbar-h); left: 0; bottom: 0; z-index: 30; overflow: hidden;
       background: linear-gradient(160deg, var(--sidebar-bg1) 0%, var(--sidebar-bg2) 100%);
       transition: width 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s ease;
     }
@@ -184,9 +185,13 @@
       transition: width 0.22s cubic-bezier(0.4,0,0.2,1), min-width 0.22s cubic-bezier(0.4,0,0.2,1);
     }
     .sidebar-secondary.open { width: 208px; min-width: 208px; }
-    .sidebar-secondary-inner { width: 208px; padding: 18px 10px; height: 100%; overflow-y: auto; }
+    .sidebar-secondary-inner { width: 208px; padding: 12px 10px; height: 100%; overflow-y: auto; position: relative; z-index: 2; }
     .sidebar-secondary-group { display: none; }
     .sidebar-secondary-group.active { display: block; }
+    .sidebar-secondary::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-glow), transparent); z-index: 3;
+}
     .sidebar-secondary-title {
       font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
       color: rgba(255,255,255,0.3); padding: 4px 10px 12px; white-space: nowrap;
@@ -271,7 +276,8 @@
     .topbar {
       height: var(--topbar-h); background: var(--white); border-bottom: 1px solid var(--border);
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0 28px; flex-shrink: 0; box-shadow: var(--shadow); z-index: 1; position: relative;
+      padding: 0 28px; flex-shrink: 0; box-shadow: var(--shadow);
+      position: fixed; top: 0; left: 0; right: 0; width: 100%; z-index: 60;
     }
     .topbar-left { display: flex; align-items: center; gap: 12px; }
     .page-title { font-size: 16px; font-weight: 600; letter-spacing: -0.3px; color: var(--text-primary); }
@@ -321,6 +327,12 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
     }
+
+
+    .topbar-brand { display:flex; align-items:center; padding-right:20px; margin-right:14px; border-right:1px solid var(--border); }
+    .topbar-brand-logo { width:30px; height:30px; object-fit:contain; border-radius:8px; }
+
+    
     .dropdown-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
     .dropdown-role { font-size: 11px; color: var(--text-4); margin-top: 2px; }
     .dropdown-body { padding: 6px; }
@@ -392,12 +404,17 @@
   </aside>
   <div class="sidebar-spacer"></div>
   <aside class="sidebar-secondary" id="sidebarSecondary">
-    
+    <div class="sidebar-orb-1"></div>
+    <div class="sidebar-orb-2"></div>
+    <div class="sidebar-mesh"></div>
     <div class="sidebar-secondary-inner" id="sidebarSecondaryInner"></div>
   </aside>
   <div class="main">
     <header class="topbar">
-      <div class="topbar-left">
+       <div class="topbar-left">
+        <div class="topbar-brand">
+          <img class="topbar-brand-logo" src="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png" alt="Logo">
+        </div>
         <button class="sidebar-toggle" onclick="toggleSidebar()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
@@ -589,10 +606,7 @@ const pages = {
   function buildSidebar() {
     const s = document.getElementById('sidebar');
     s.insertAdjacentHTML('beforeend', `
-      <div class="sidebar-header">
-        <img class="sidebar-logo" src="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png" alt="Logo">
-      </div>
-<nav class="sidebar-nav" id="sidebarNav"></nav>
+    <nav class="sidebar-nav" id="sidebarNav"></nav>
 <div class="sidebar-footer" style="position:relative;">
         <div class="sidebar-footer-flyout" id="footerFlyout">
           <div class="sidebar-footer-flyout-item" id="nav-reports" onclick="loadModule('reports'); closeFooterFlyout();">
