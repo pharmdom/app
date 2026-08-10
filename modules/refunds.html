@@ -32,6 +32,19 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .rf-submit-btn:hover { background: #1e293b; }
 .rf-submit-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
 
+.rf-add-btn { padding: 8px 16px; background: #2563eb; color: #fff; border: none; border-radius: 9px; font-size: 12.5px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background .15s; white-space: nowrap; }
+.rf-add-btn:hover { background: #1d4ed8; }
+
+.rf-modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(2px); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+.rf-modal-overlay.open { display: flex; }
+.rf-modal { background: #fff; border-radius: 16px; width: 100%; max-width: 620px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+.rf-modal-hdr { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1.5px solid #e2e8f0; position: sticky; top: 0; background: #fff; z-index: 1; }
+.rf-modal-close { width: 28px; height: 28px; border: none; background: #f1f5f9; border-radius: 8px; font-size: 13px; color: #64748b; cursor: pointer; transition: all .15s; }
+.rf-modal-close:hover { background: #e2e8f0; color: #0f172a; }
+.rf-modal-body { padding: 20px; }
+
+@media(max-width:600px){ .rf-modal{max-width:100%;border-radius:14px 14px 0 0;position:fixed;bottom:0;left:0;right:0;max-height:85vh;} .rf-modal-overlay{align-items:flex-end;padding:0;} }
+  
 .rf-table-wrap { overflow-x: auto; }
 .rf-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .rf-table th { text-align: left; padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #94a3b8; border-bottom: 1.5px solid #e2e8f0; white-space: nowrap; }
@@ -59,10 +72,13 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
       <h1>Refunds Tracker</h1>
       <p>Log and track eBay / Amazon refund requests</p>
     </div>
-    <div class="rf-month-picker">
-      <button onclick="rfShiftMonth(-1)" title="Previous month">‹</button>
-      <div class="rf-month-label" id="rfMonthLabel">—</div>
-      <button onclick="rfShiftMonth(1)" title="Next month">›</button>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="rf-month-picker">
+        <button onclick="rfShiftMonth(-1)" title="Previous month">‹</button>
+        <div class="rf-month-label" id="rfMonthLabel">—</div>
+        <button onclick="rfShiftMonth(1)" title="Next month">›</button>
+      </div>
+      <button class="rf-add-btn" onclick="rfOpenModal()">+ Submit Request</button>
     </div>
   </div>
 
@@ -73,32 +89,7 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
     <div class="rf-sum-card"><div class="rf-sum-lbl">Total This Month</div><div class="rf-sum-val" id="rfTotalCount">—</div><div class="rf-sum-sub">requests</div></div>
   </div>
 
-  <div class="rf-card">
-    <div class="rf-card-title">New Refund Request</div>
-    <div class="rf-form-grid">
-      <div class="rf-field"><label>Order Number</label><input type="text" id="rfOrderNumber" placeholder="e.g. 203-1234567-8901234"></div>
-      <div class="rf-field"><label>Marketplace</label>
-        <select id="rfMarketplace"><option value="">Select…</option><option value="eBay">eBay</option><option value="Amazon">Amazon</option></select>
-      </div>
-      <div class="rf-field"><label>Date</label><input type="text" id="rfDateDisplay" disabled></div>
-      <div class="rf-field"><label>Person</label><input type="text" id="rfPersonDisplay" disabled></div>
-      <div class="rf-field" style="grid-column:span 2"><label>Reason</label>
-        <select id="rfReason" onchange="rfToggleNotes()">
-          <option value="">Select…</option>
-          <option value="Shipping claim (Lost/Damaged)">Shipping claim to be processed (Lost/Damaged)</option>
-          <option value="Shipping claim (Not received, but delivered)">Shipping claim to be processed (Not received, but delivered)</option>
-          <option value="Incorrect item sent - full refund">Incorrect item sent — full refund</option>
-          <option value="Out of stock - full refund">Out of stock — full refund</option>
-          <option value="Missing items - partial refund">Missing items — partial refund</option>
-        </select>
-      </div>
-      <div class="rf-field"><label>Amount Requested (£) <span style="font-weight:400;color:#94a3b8">— optional</span></label><input type="number" id="rfAmountRequested" min="0" step="0.01" placeholder="0.00"></div>
-      <div class="rf-field" id="rfNotesWrap" style="grid-column:span 3;display:none"><label>Notes — which/how many units are missing</label><textarea id="rfNotes" placeholder="e.g. 2 of 5 units missing from order"></textarea></div>
-    </div>
-    <button class="rf-submit-btn" onclick="rfSubmit()">Submit Refund Request</button>
-  </div>
-
-  <div class="rf-card">
+<div class="rf-card">
     <div class="rf-card-title">Requests — <span id="rfListMonthLabel"></span></div>
     <div class="rf-table-wrap">
       <table class="rf-table">
@@ -108,6 +99,38 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
         <tbody id="rfTableBody"></tbody>
       </table>
       <div class="rf-empty" id="rfEmptyState" style="display:none">No refund requests for this month yet.</div>
+    </div>
+</div>
+</div>
+
+<div class="rf-modal-overlay" id="rfModalOverlay" onclick="if(event.target===this)rfCloseModal()">
+  <div class="rf-modal">
+    <div class="rf-modal-hdr">
+      <div class="rf-card-title" style="margin:0">New Refund Request</div>
+      <button class="rf-modal-close" onclick="rfCloseModal()">✕</button>
+    </div>
+    <div class="rf-modal-body">
+      <div class="rf-form-grid">
+        <div class="rf-field"><label>Order Number</label><input type="text" id="rfOrderNumber" placeholder="e.g. 203-1234567-8901234"></div>
+        <div class="rf-field"><label>Marketplace</label>
+          <select id="rfMarketplace"><option value="">Select…</option><option value="eBay">eBay</option><option value="Amazon">Amazon</option></select>
+        </div>
+        <div class="rf-field"><label>Date</label><input type="text" id="rfDateDisplay" disabled></div>
+        <div class="rf-field"><label>Person</label><input type="text" id="rfPersonDisplay" disabled></div>
+        <div class="rf-field" style="grid-column:span 2"><label>Reason</label>
+          <select id="rfReason" onchange="rfToggleNotes()">
+            <option value="">Select…</option>
+            <option value="Shipping claim (Lost/Damaged)">Shipping claim to be processed (Lost/Damaged)</option>
+            <option value="Shipping claim (Not received, but delivered)">Shipping claim to be processed (Not received, but delivered)</option>
+            <option value="Incorrect item sent - full refund">Incorrect item sent — full refund</option>
+            <option value="Out of stock - full refund">Out of stock — full refund</option>
+            <option value="Missing items - partial refund">Missing items — partial refund</option>
+          </select>
+        </div>
+        <div class="rf-field"><label>Amount Requested (£) <span style="font-weight:400;color:#94a3b8">— optional</span></label><input type="number" id="rfAmountRequested" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="rf-field" id="rfNotesWrap" style="grid-column:span 3;display:none"><label>Notes — which/how many units are missing</label><textarea id="rfNotes" placeholder="e.g. 2 of 5 units missing from order"></textarea></div>
+      </div>
+      <button class="rf-submit-btn" onclick="rfSubmit()">Submit Refund Request</button>
     </div>
   </div>
 </div>
@@ -202,6 +225,15 @@ function rfToggleNotes(){
   document.getElementById('rfNotesWrap').style.display=reason==='Missing items - partial refund'?'block':'none';
 }
 
+function rfOpenModal(){
+  document.getElementById('rfDateDisplay').value=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('rfPersonDisplay').value=ME_NAME;
+  document.getElementById('rfModalOverlay').classList.add('open');
+}
+function rfCloseModal(){
+  document.getElementById('rfModalOverlay').classList.remove('open');
+}
+
 async function rfSubmit(){
   const orderNumber=document.getElementById('rfOrderNumber').value.trim();
   const marketplace=document.getElementById('rfMarketplace').value;
@@ -216,7 +248,7 @@ async function rfSubmit(){
     date_submitted:todayStr(),
     submitted_by:ME_NAME, submitted_by_id:ME_ID,
   };
-  const{error}=await sb.from('refunds').insert(payload);
+const{error}=await sb.from('refunds').insert(payload);
   if(error){ showToast('Failed to submit refund request','error'); console.error(error); return; }
   showToast('Refund request submitted ✓','success');
   document.getElementById('rfOrderNumber').value='';
@@ -225,6 +257,7 @@ async function rfSubmit(){
   document.getElementById('rfNotes').value='';
   document.getElementById('rfAmountRequested').value='';
   rfToggleNotes();
+  rfCloseModal();
   rfLoad();
 }
 
@@ -253,9 +286,8 @@ function rfShiftMonth(delta){
   rfLoad();
 }
 
+
 function rfInit(){
-  document.getElementById('rfDateDisplay').value=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
-  document.getElementById('rfPersonDisplay').value=ME_NAME;
   rfLoad();
 }
 
@@ -264,6 +296,8 @@ window.rfSubmit=rfSubmit;
 window.rfToggleRefunded=rfToggleRefunded;
 window.rfUpdateAmount=rfUpdateAmount;
 window.rfToggleNotes=rfToggleNotes;
+window.rfOpenModal=rfOpenModal;
+window.rfCloseModal=rfCloseModal;
 
 rfInit();
 })();
