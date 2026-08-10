@@ -53,7 +53,7 @@
       background: linear-gradient(160deg, var(--sidebar-bg1) 0%, var(--sidebar-bg2) 100%);
       transition: width 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s ease;
     }
-    .sidebar-spacer { width: 64px; min-width: 64px; flex-shrink: 0; }
+    .sidebar-spacer { width: 50px; min-width: 50px; flex-shrink: 0; }
     @media (max-width: 768px) { .sidebar-spacer { display: none; } }
     .sidebar-orb-1 {
       position: absolute; width: 320px; height: 320px;
@@ -142,7 +142,7 @@
     .sidebar.collapsed .nav-group-header.active-group svg { opacity: 1; }
     
     /* Collapsed state */
-    .sidebar.collapsed { width: 64px; min-width: 64px; }
+    .sidebar.collapsed { width: 50px; min-width: 50px; }
     .sidebar.collapsed .sidebar-brand-name,
     .sidebar.collapsed .nav-item-label,
     .sidebar.collapsed .nav-group-label,
@@ -171,7 +171,9 @@
     .sidebar.collapsed:hover .nav-item,
     .sidebar.collapsed:hover .nav-group-header { justify-content: flex-start; padding: 10px 12px; }
     .sidebar.collapsed:hover .sidebar-user-card { justify-content: flex-start; padding: 10px 12px; }
+
     .sidebar.collapsed:hover .sidebar-footer-toggle { display: flex; }
+    
     
 /* Collapsed mode: group icons open a floating flyout instead of expanding the sidebar */
 .sidebar-secondary {
@@ -220,6 +222,20 @@
     .sidebar-footer-toggle.open { background: color-mix(in srgb, var(--accent) 75%, transparent); color: #fff; border-color: transparent; }
     .sidebar.collapsed .sidebar-footer-toggle { display: none; }
     .sidebar.collapsed:hover .sidebar-footer-toggle { display: flex; }
+    /* While a group panel is pinned open, keep the rail collapsed even if the mouse is still over it */
+    .sidebar.collapsed.force-collapsed:hover { width: 50px !important; min-width: 50px !important; box-shadow: none !important; }
+    .sidebar.collapsed.force-collapsed:hover .sidebar-brand-name,
+    .sidebar.collapsed.force-collapsed:hover .nav-item-label,
+    .sidebar.collapsed.force-collapsed:hover .nav-group-label,
+    .sidebar.collapsed.force-collapsed:hover .nav-section-label,
+    .sidebar.collapsed.force-collapsed:hover .sidebar-user-name,
+    .sidebar.collapsed.force-collapsed:hover .sidebar-user-role,
+    .sidebar.collapsed.force-collapsed:hover .nav-chevron { display: none !important; }
+    .sidebar.collapsed.force-collapsed:hover .sidebar-header { justify-content: center !important; padding: 20px 8px !important; }
+    .sidebar.collapsed.force-collapsed:hover .nav-item,
+    .sidebar.collapsed.force-collapsed:hover .nav-group-header { justify-content: center !important; padding: 10px 0 !important; }
+    .sidebar.collapsed.force-collapsed:hover .sidebar-user-card { justify-content: center !important; padding: 10px !important; }
+    .sidebar.collapsed.force-collapsed:hover .sidebar-footer-toggle { display: none !important; }
 
     .sidebar-footer-flyout {
       position: absolute; left: 10px; right: 10px; bottom: calc(100% + 8px);
@@ -736,7 +752,7 @@ function navItem(key, icon, label, onClick) {
     if (pinnedGroupId === id) { unpinGroup(); return; }
     pinGroup(id);
   }
-  function pinGroup(id) {
+function pinGroup(id) {
     if (!GROUP_CHILDREN[id]) return;
     pinnedGroupId = id;
     document.querySelectorAll('.sidebar-secondary-group').forEach(el => el.classList.remove('active'));
@@ -746,6 +762,7 @@ function navItem(key, icon, label, onClick) {
     document.querySelectorAll('.nav-chevron.open').forEach(el => el.classList.remove('open'));
     document.getElementById(`group-header-${id}`)?.classList.add('active-group');
     document.getElementById(`chevron-${id}`)?.querySelector('.nav-chevron')?.classList.add('open');
+    document.getElementById('sidebar')?.classList.add('force-collapsed');
   }
   function unpinGroup() {
     pinnedGroupId = null;
@@ -758,9 +775,12 @@ function navItem(key, icon, label, onClick) {
     if (groupId && GROUP_CHILDREN[groupId]) pinGroup(groupId);
     else unpinGroup();
   }
-  window.handleGroupClick = handleGroupClick;
+window.handleGroupClick = handleGroupClick;
   window.pinGroup = pinGroup;
   window.unpinGroup = unpinGroup;
+  document.getElementById('sidebar')?.addEventListener('mouseleave', () => {
+    document.getElementById('sidebar')?.classList.remove('force-collapsed');
+  });
 
     
 
