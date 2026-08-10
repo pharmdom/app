@@ -56,20 +56,7 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 @keyframes rfToastIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
 @keyframes rfToastOut { to{opacity:0;transform:translateY(8px);} }
   
-.rf-drawer-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.4); z-index: 900; opacity: 0; pointer-events: none; transition: opacity .2s; }
-.rf-drawer-overlay.open { opacity: 1; pointer-events: all; }
-.rf-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 92vw; background: #fff; z-index: 901; box-shadow: -8px 0 30px rgba(0,0,0,.15); transform: translateX(100%); transition: transform .25s cubic-bezier(.2,.8,.2,1); display: flex; flex-direction: column; }
-.rf-drawer.open { transform: translateX(0); }
-.rf-drawer-hdr { padding: 18px 20px; border-bottom: 1.5px solid #e2e8f0; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.rf-drawer-order { font-size: 16px; font-weight: 800; font-family: ui-monospace, monospace; }
-.rf-drawer-sub { font-size: 11.5px; color: #94a3b8; margin-top: 3px; }
-.rf-drawer-body { flex: 1; overflow-y: auto; padding: 18px 20px; }
-.rf-drawer-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #f1f5f9; gap: 10px; }
-.rf-drawer-k { font-size: 12px; color: #64748b; font-weight: 600; }
-.rf-drawer-v { font-size: 12.5px; color: #0f172a; font-weight: 700; text-align: right; }
-.rf-drawer-sec { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; margin: 18px 0 6px; }
-.rf-drawer-notes { font-size: 12.5px; color: #334155; background: #f8fafc; border-radius: 9px; padding: 10px 12px; line-height: 1.5; }
-  
+
 .rf-table-card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,.05); display: flex; flex-direction: column; height: calc(100vh - 320px); min-height: 280px; }
 .rf-table-wrap { flex: 1; overflow-y: auto; overflow-x: hidden; }
 .rf-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12.5px; }
@@ -80,8 +67,11 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .rf-table tbody tr:last-child { border-bottom: none; }
 .rf-table td { padding: 11px 10px; border-bottom: inherit; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rf-days-old { font-size: 10.5px; color: #94a3b8; margin-top: 1px; }
-@media(max-width:900px){ .rf-table-card{height:calc(100vh - 380px);} }
 .rf-order-num { font-weight: 700; font-family: ui-monospace, monospace; }
+.rf-notes-cell { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #64748b; font-size: 11.5px; }
+.rf-table td { white-space: normal; }
+.rf-table td.rf-notes-cell, .rf-table td.rf-order-num { white-space: nowrap; }
+@media(max-width:900px){ .rf-table-card{height:calc(100vh - 380px);} }
 .rf-mkt-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 700; }
 .rf-mkt-badge.ebay { background: #fef3c7; color: #92400e; }
 .rf-mkt-badge.amazon { background: #fef3c7; color: #d97706; background: #fff7ed; color: #c2410c; }
@@ -90,7 +80,6 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .rf-status-pill.processed { background: #dcfce7; color: #15803d; }
 .rf-status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .rf-amt-input { width: 90px; padding: 5px 8px; border: 1.5px solid #e2e8f0; border-radius: 7px; font-size: 12.5px; font-family: ui-monospace, monospace; }
-.rf-notes-cell { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #64748b; font-size: 11.5px; }
 .rf-empty { text-align: center; padding: 40px 20px; color: #94a3b8; font-size: 13px; }
 
 @media(max-width:900px){ .rf-form-grid{grid-template-columns:1fr 1fr;} .rf-summary{grid-template-columns:1fr 1fr;} }
@@ -116,14 +105,16 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
     <button onclick="rfShiftMonth(1)" title="Next month">›</button>
   </div>
 </div>
+
+  
 <div class="rf-table-card">
     <div class="rf-table-wrap">
       <table class="rf-table">
         <colgroup>
-          <col style="width:16%"><col style="width:16%"><col style="width:16%"><col style="width:16%"><col style="width:20%">
+          <col style="width:11%"><col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:16%"><col style="width:14%"><col style="width:8%"><col style="width:9%"><col style="width:9%"><col style="width:9%">
         </colgroup>
         <thead><tr>
-          <th>Date</th><th>Marketplace</th><th>Status</th><th>Amount</th><th>Submitted</th>
+          <th>Order #</th><th>Marketplace</th><th>Submitted</th><th>Person</th><th>Reason</th><th>Notes</th><th>Requested</th><th>Status</th><th>Amount</th><th>Processed</th>
         </tr></thead>
         <tbody id="rfTableBody"></tbody>
       </table>
@@ -165,17 +156,6 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 
 </div>
 
-<div class="rf-drawer-overlay" id="rfDrawerOverlay" onclick="rfCloseDrawer()"></div>
-<div class="rf-drawer" id="rfDrawer">
-  <div class="rf-drawer-hdr">
-    <div>
-      <div class="rf-drawer-order" id="rfDrawerOrder">—</div>
-      <div class="rf-drawer-sub" id="rfDrawerSub">—</div>
-    </div>
-    <button class="rf-modal-close" onclick="rfCloseDrawer()">✕</button>
-  </div>
-  <div class="rf-drawer-body" id="rfDrawerBody"></div>
-</div>
 
 <script>
 (function(){
@@ -272,47 +252,25 @@ function rfRenderTable(){
   if(!rows.length){ body.innerHTML=''; empty.style.display='block'; empty.textContent=RF_FILTER==='all'?'No refund requests for this month yet.':'No requests match this filter.'; return; }
   empty.style.display='none';
   body.innerHTML=rows.map(r=>{
-    const amount=r.amount_processed!=null?fmtGBP(r.amount_processed):(r.amount_requested!=null?fmtGBP(r.amount_requested)+' (req.)':'—');
-    return `<tr onclick="rfOpenDrawer(${r.id})">
-      <td>${fmtDateShort(r.date_submitted)}<div class="rf-days-old">${rfDaysOld(r.date_submitted)}</div></td>
+const amountCell=CAN_WRITE_REFUNDS
+      ? `<input type="number" class="rf-amt-input" min="0" step="0.01" value="${r.amount_processed!=null?r.amount_processed:''}" placeholder="0.00" onchange="rfUpdateAmount(${r.id},this.value)">`
+      : (r.amount_processed!=null?fmtGBP(r.amount_processed):'—');
+    const refundedCell=CAN_WRITE_REFUNDS
+      ? `<input type="checkbox" ${r.refunded?'checked':''} onchange="rfToggleRefunded(${r.id},this.checked)">`
+      : rfStatusPill(r);
+    return `<tr>
+      <td class="rf-order-num">${esc(r.order_number)}</td>
       <td><span class="rf-mkt-badge ${r.marketplace==='eBay'?'ebay':'amazon'}">${esc(r.marketplace)}</span></td>
-      <td>${rfStatusPill(r)}</td>
-      <td>${amount}</td>
+      <td>${fmtDateShort(r.date_submitted)}<div class="rf-days-old">${rfDaysOld(r.date_submitted)}</div></td>
       <td>${esc(r.submitted_by)}</td>
+      <td>${esc(r.reason)}</td>
+      <td class="rf-notes-cell" title="${esc(r.notes||'')}">${esc(r.notes||'—')}</td>
+      <td>${r.amount_requested!=null?fmtGBP(r.amount_requested):'—'}</td>
+      <td>${CAN_WRITE_REFUNDS?refundedCell:rfStatusPill(r)}</td>
+      <td>${amountCell}</td>
+      <td>${fmtDateShort(r.date_processed)}</td>
     </tr>`;
   }).join('');
-}
-function rfOpenDrawer(id){
-  const r=RF_ROWS.find(x=>x.id===id);
-  if(!r)return;
-  document.getElementById('rfDrawerOrder').textContent=r.order_number;
-  document.getElementById('rfDrawerSub').textContent=r.marketplace+' · '+fmtDateShort(r.date_submitted);
-  const refundedControl=CAN_WRITE_REFUNDS
-    ?`<div style="display:flex;align-items:center;gap:8px;margin-top:4px"><input type="checkbox" id="rfDrawerRefunded" ${r.refunded?'checked':''} onchange="rfToggleRefunded(${r.id},this.checked)"><label for="rfDrawerRefunded" style="font-size:12.5px;font-weight:600">Mark as refunded</label></div>`
-    :'';
-  const amountControl=CAN_WRITE_REFUNDS
-    ?`<input type="number" class="rf-amt-input" style="width:100%;margin-top:4px" min="0" step="0.01" value="${r.amount_processed!=null?r.amount_processed:''}" placeholder="0.00" onchange="rfUpdateAmount(${r.id},this.value)">`
-    :(r.amount_processed!=null?fmtGBP(r.amount_processed):'—');
-  document.getElementById('rfDrawerBody').innerHTML=`
-    <div class="rf-drawer-row"><div class="rf-drawer-k">Status</div><div class="rf-drawer-v">${rfStatusPill(r)}</div></div>
-    <div class="rf-drawer-row"><div class="rf-drawer-k">Submitted By</div><div class="rf-drawer-v">${esc(r.submitted_by)}</div></div>
-    <div class="rf-drawer-row"><div class="rf-drawer-k">Date Submitted</div><div class="rf-drawer-v">${fmtDateShort(r.date_submitted)}</div></div>
-    <div class="rf-drawer-row"><div class="rf-drawer-k">Reason</div><div class="rf-drawer-v" style="text-align:right;max-width:220px">${esc(r.reason)}</div></div>
-    ${r.notes?`<div class="rf-drawer-sec">Notes</div><div class="rf-drawer-notes">${esc(r.notes)}</div>`:''}
-    <div class="rf-drawer-sec">Amounts</div>
-    <div class="rf-drawer-row"><div class="rf-drawer-k">Amount Requested</div><div class="rf-drawer-v">${r.amount_requested!=null?fmtGBP(r.amount_requested):'—'}</div></div>
-    <div class="rf-drawer-row"><div class="rf-drawer-k">Amount Processed</div><div class="rf-drawer-v" style="${CAN_WRITE_REFUNDS?'width:110px':''}">${amountControl}</div></div>
-    <div class="rf-drawer-sec">Processing</div>
-    <div class="rf-drawer-row"><div class="rf-drawer-k">Date Processed</div><div class="rf-drawer-v">${fmtDateShort(r.date_processed)}</div></div>
-    <div class="rf-drawer-row"><div class="rf-drawer-k">Processed By</div><div class="rf-drawer-v">${r.processed_by?esc(r.processed_by):'—'}</div></div>
-    ${refundedControl}
-  `;
-  document.getElementById('rfDrawerOverlay').classList.add('open');
-  document.getElementById('rfDrawer').classList.add('open');
-}
-function rfCloseDrawer(){
-  document.getElementById('rfDrawerOverlay').classList.remove('open');
-  document.getElementById('rfDrawer').classList.remove('open');
 }
 
 function rfToggleNotes(){
@@ -364,8 +322,7 @@ async function rfToggleRefunded(id,checked){
   const{error}=await sb.from('refunds').update(patch).eq('id',id);
   if(error){ showToast('Failed to update','error'); console.error(error); return; }
   showToast(checked?'Marked as processed ✓':'Marked as outstanding','success');
-  await rfLoad();
-  rfOpenDrawer(id);
+  rfLoad();
 }
 
 async function rfUpdateAmount(id,val){
@@ -373,9 +330,8 @@ async function rfUpdateAmount(id,val){
   const amount=val?parseFloat(val):null;
   const{error}=await sb.from('refunds').update({amount_processed:amount,updated_at:new Date().toISOString()}).eq('id',id);
   if(error){ showToast('Failed to save amount','error'); console.error(error); return; }
-  showToast('Amount saved ✓','success');
-  await rfLoad();
-  rfOpenDrawer(id);
+showToast('Amount saved ✓','success');
+  rfLoad();
 }
 
 function rfShiftMonth(delta){
@@ -396,8 +352,6 @@ window.rfUpdateAmount=rfUpdateAmount;
 window.rfToggleNotes=rfToggleNotes;
 window.rfOpenModal=rfOpenModal;
 window.rfCloseModal=rfCloseModal;
-window.rfOpenDrawer=rfOpenDrawer;
-window.rfCloseDrawer=rfCloseDrawer;
 window.rfSetFilter=rfSetFilter;
 
 rfInit();
