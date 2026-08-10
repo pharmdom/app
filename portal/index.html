@@ -166,21 +166,31 @@
     .sidebar.collapsed .sidebar-user-card { justify-content: center; padding: 10px; }
     .sidebar.collapsed .sidebar-nav { padding: 12px 0; }
 
-    /* Hover expand when collapsed */
-    .sidebar.collapsed:hover { width: var(--sidebar-w); }
-    .sidebar.collapsed:hover .sidebar-brand-name,
-    .sidebar.collapsed:hover .nav-item-label,
-    .sidebar.collapsed:hover .nav-group-label,
-    .sidebar.collapsed:hover .nav-section-label,
-    .sidebar.collapsed:hover .nav-chevron,
-    .sidebar.collapsed:hover .sidebar-user-name,
-    .sidebar.collapsed:hover .sidebar-user-role { display: block; }
-    .sidebar.collapsed:hover .nav-item,
-    .sidebar.collapsed:hover .nav-group-header { justify-content: flex-start; padding: 10px 12px; }
-    .sidebar.collapsed:hover .sidebar-header { justify-content: flex-start; padding: 20px 16px; }
-    .sidebar.collapsed:hover .sidebar-user-card { justify-content: flex-start; padding: 10px 12px; }
-    .sidebar.collapsed:hover .sidebar-nav { padding: 12px 10px; }
-    .sidebar.collapsed:hover .nav-children.open { display: block; }
+/* Collapsed mode: group icons open a floating flyout instead of expanding the sidebar */
+    .nav-flyout {
+      position: fixed; top: 0; bottom: 0; left: 64px; width: 208px;
+      background: linear-gradient(160deg, var(--sidebar-bg1) 0%, var(--sidebar-bg2) 100%);
+      border-right: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 10px 0 30px rgba(0,0,0,.3);
+      z-index: 45; padding: 18px 10px;
+      opacity: 0; pointer-events: none; transform: translateX(-6px);
+      transition: opacity .16s ease, transform .16s ease;
+    }
+    .nav-flyout.open { opacity: 1; pointer-events: auto; transform: translateX(0); }
+    .nav-flyout-title {
+      font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
+      color: rgba(255,255,255,0.3); padding: 4px 10px 12px;
+    }
+    .nav-flyout-item {
+      display: flex; align-items: center; padding: 9px 10px; border-radius: var(--radius-sm);
+      font-size: 13.5px; font-weight: 500; color: rgba(255,255,255,0.55); cursor: pointer;
+      transition: all 0.15s ease; margin-bottom: 1px; user-select: none;
+    }
+    .nav-flyout-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9); }
+    .nav-flyout-item.active {
+      background: color-mix(in srgb, var(--accent) 82%, transparent);
+      color: #fff;
+    }
 
 /* Sidebar footer */
     .sidebar-footer { padding: 10px; border-top: 1px solid rgba(255,255,255,0.06); position: relative; z-index: 2; }
@@ -558,7 +568,11 @@ const pages = {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
       </div>
-      <nav class="sidebar-nav" id="sidebarNav"></nav>
+<nav class="sidebar-nav" id="sidebarNav"></nav>
+      <div class="nav-flyout" id="navFlyout" onmouseenter="cancelFlyoutClose()" onmouseleave="scheduleFlyoutClose()">
+        <div class="nav-flyout-title" id="navFlyoutTitle"></div>
+        <div id="navFlyoutBody"></div>
+      </div>
 <div class="sidebar-footer" style="position:relative;">
         <div class="sidebar-footer-flyout" id="footerFlyout">
           <div class="sidebar-footer-flyout-item" id="nav-reports" onclick="loadModule('reports'); closeFooterFlyout();">
@@ -590,10 +604,10 @@ html += navItem(roleOverviewKey, ic.overview, 'Overview', new Function("loadPage
     
     // Business Analysis group + Payroll — in the role section, before Modules
     const hasBizAnalysis = hasPermission('cashflow') || hasPermission('operations');
-    if (hasBizAnalysis) {
+if (hasBizAnalysis) {
       html += navGroup('bizanalysis', 'Business Analysis', ic.bizanalysis, [
-        hasPermission('cashflow')   ? navItem('cashflow',   ic.cashflow,   'Cashflow',   () => loadModule('cashflow'))   : '',
-        hasPermission('operations') ? navItem('operations', ic.operations, 'Operations', () => loadModule('operations')) : '',
+        hasPermission('cashflow')   ? {key:'cashflow',   icon:ic.cashflow,   label:'Cashflow',   onClick:() => loadModule('cashflow')}   : null,
+        hasPermission('operations') ? {key:'operations', icon:ic.operations, label:'Operations', onClick:() => loadModule('operations')} : null,
       ]);
     }
     if (hasPermission('payroll')) {
@@ -619,28 +633,28 @@ html += navItem(roleOverviewKey, ic.overview, 'Overview', new Function("loadPage
     if (hasAnyModule) {
       html += `<div class="nav-section-label">Modules</div>`;
 
-      if (perms.sourcing || perms.listing || perms.fbaopportunities || perms.calendar) {
+if (perms.sourcing || perms.listing || perms.fbaopportunities || perms.calendar) {
         html += navGroup('products', 'Products', ic.products, [
-          perms.sourcing         ? navItem('sourcing',         ic.sourcing,         'Sourcing',          () => loadModule('sourcing'))         : '',
-          perms.calendar         ? navItem('calendar',         ic.calendar,         'Calendar',          () => loadModule('calendar'))         : '',
-          perms.listing          ? navItem('listing',          ic.listing,          'Listing & Veeqo',   () => loadModule('listing'))          : '',
-          perms.fbaopportunities ? navItem('fbaopportunities', ic.fbaopportunities, 'FBA Opportunities', () => loadModule('fbaopportunities')) : '',
+          perms.sourcing         ? {key:'sourcing',         icon:ic.sourcing,         label:'Sourcing',          onClick:() => loadModule('sourcing')}         : null,
+          perms.calendar         ? {key:'calendar',         icon:ic.calendar,         label:'Calendar',          onClick:() => loadModule('calendar')}         : null,
+          perms.listing          ? {key:'listing',          icon:ic.listing,          label:'Listing & Veeqo',   onClick:() => loadModule('listing')}          : null,
+          perms.fbaopportunities ? {key:'fbaopportunities', icon:ic.fbaopportunities, label:'FBA Opportunities', onClick:() => loadModule('fbaopportunities')} : null,
         ]);
       }
 if (perms.suppliers || perms.offers || perms.replenishments || perms.sourcing) {
         html += navGroup('procurement', 'Procurement', ic.procurement, [
-          perms.offers    ? navItem('offers',    ic.offers,    'Offers',    () => loadModule('offers'))    : '',
-          perms.suppliers ? navItem('suppliers', ic.suppliers, 'Suppliers', () => loadModule('suppliers')) : '',
-          perms.replenishments ? navItem('replenishments', ic.replenishments, 'Replenishments', () => loadModule('replenishments')) : '',
-          perms.basket ? navItem('basket', ic.basket, 'Basket', () => loadModule('basket')) : '',
+          perms.offers    ? {key:'offers',    icon:ic.offers,    label:'Offers',    onClick:() => loadModule('offers')}    : null,
+          perms.suppliers ? {key:'suppliers', icon:ic.suppliers, label:'Suppliers', onClick:() => loadModule('suppliers')} : null,
+          perms.replenishments ? {key:'replenishments', icon:ic.replenishments, label:'Replenishments', onClick:() => loadModule('replenishments')} : null,
+          perms.basket ? {key:'basket', icon:ic.basket, label:'Basket', onClick:() => loadModule('basket')} : null,
         ]);
       }
       if (perms.fba || perms.inventory || perms.deliverychecks || perms.packagingfault) {
         html += navGroup('warehouse', 'Warehouse', ic.warehouse, [
-          perms.fba            ? navItem('fba',            ic.fba,            'FBA',              () => loadModule('fba'))            : '',
-          perms.inventory      ? navItem('inventory',      ic.inventory,      'Inventory Analysis',        () => loadModule('inventory'))      : '',
-          perms.deliverychecks ? navItem('deliverychecks', ic.deliverychecks, 'Delivery Checks',  () => loadModule('deliverychecks')) : '',
-          perms.packagingfault ? navItem('packagingfault', ic.packagingfault, 'Packaging Faults', () => loadModule('packagingfault')) : '',
+          perms.fba            ? {key:'fba',            icon:ic.fba,            label:'FBA',              onClick:() => loadModule('fba')}            : null,
+          perms.inventory      ? {key:'inventory',      icon:ic.inventory,      label:'Inventory Analysis',onClick:() => loadModule('inventory')}      : null,
+          perms.deliverychecks ? {key:'deliverychecks', icon:ic.deliverychecks, label:'Delivery Checks',  onClick:() => loadModule('deliverychecks')} : null,
+          perms.packagingfault ? {key:'packagingfault', icon:ic.packagingfault, label:'Packaging Faults', onClick:() => loadModule('packagingfault')} : null,
         ]);
       }
       if (perms.invoices) {
@@ -652,9 +666,9 @@ if (perms.suppliers || perms.offers || perms.replenishments || perms.sourcing) {
       if (perms.rota || perms.paycheck || perms.intelligence) {
         html += navItem('rota', ic.rota, 'Rota', () => loadModule('rota'));
       }
-      if (perms.packaging) {
+if (perms.packaging) {
         html += navGroup('tracker', 'Tracker', ic.tracker, [
-          perms.packaging ? navItem('packaging', ic.packaging, 'Packaging', () => loadModule('packaging')) : '',
+          perms.packaging ? {key:'packaging', icon:ic.packaging, label:'Packaging', onClick:() => loadModule('packaging')} : null,
         ]);
       }
     }
@@ -679,18 +693,52 @@ if (perms.suppliers || perms.offers || perms.replenishments || perms.sourcing) {
   window.toggleFooterFlyout = toggleFooterFlyout;
   window.closeFooterFlyout = closeFooterFlyout;
 
+const GROUP_CHILDREN = {};
+
   function navItem(key, icon, label, onClick) {
-    return `<div class="nav-item" id="nav-${key}" onclick="(${onClick.toString()})()">${icon}<span class="nav-item-label">${label}</span></div>`;
+    return `<div class="nav-item" id="nav-${key}" title="${label}" onclick="(${onClick.toString()})()" onmouseenter="closeFlyoutNow()">${icon}<span class="nav-item-label">${label}</span></div>`;
   }
 
-  function navGroup(id, label, icon, childrenArr) {
+  function navGroup(id, label, icon, items) {
+    const valid = items.filter(Boolean);
+    GROUP_CHILDREN[id] = { label, items: valid };
+    const childrenHtml = valid.map(it => navItem(it.key, it.icon, it.label, it.onClick)).join('');
     return `<div class="nav-group">
-      <div class="nav-group-header" onclick="toggleGroup('${id}')" id="group-header-${id}">
+      <div class="nav-group-header" onclick="toggleGroup('${id}')" onmouseenter="handleGroupHover('${id}')" id="group-header-${id}">
         ${icon}<span class="nav-group-label">${label}</span><span id="chevron-${id}">${ic.chevron}</span>
       </div>
-      <div class="nav-children" id="children-${id}">${childrenArr.join('')}</div>
+      <div class="nav-children" id="children-${id}">${childrenHtml}</div>
     </div>`;
   }
+
+  // ── FLYOUT (collapsed-mode group panel) ──
+  let flyoutCloseTimer = null;
+  function handleGroupHover(id) {
+    if (!document.getElementById('sidebar').classList.contains('collapsed')) return;
+    cancelFlyoutClose();
+    const group = GROUP_CHILDREN[id];
+    if (!group) return;
+    document.getElementById('navFlyoutTitle').textContent = group.label;
+    document.getElementById('navFlyoutBody').innerHTML = group.items.map(it =>
+      `<div class="nav-flyout-item" id="flyout-${it.key}" onclick="(${it.onClick.toString()})()">${it.label}</div>`
+    ).join('');
+    document.getElementById('navFlyout').classList.add('open');
+  }
+  function cancelFlyoutClose() {
+    if (flyoutCloseTimer) { clearTimeout(flyoutCloseTimer); flyoutCloseTimer = null; }
+  }
+  function scheduleFlyoutClose() {
+    cancelFlyoutClose();
+    flyoutCloseTimer = setTimeout(() => document.getElementById('navFlyout').classList.remove('open'), 220);
+  }
+  function closeFlyoutNow() {
+    cancelFlyoutClose();
+    document.getElementById('navFlyout').classList.remove('open');
+  }
+  window.handleGroupHover = handleGroupHover;
+  window.cancelFlyoutClose = cancelFlyoutClose;
+  window.scheduleFlyoutClose = scheduleFlyoutClose;
+  window.closeFlyoutNow = closeFlyoutNow;
 
   // ── GROUP TOGGLE ──
   function toggleGroup(id) {
@@ -716,21 +764,25 @@ if (perms.suppliers || perms.offers || perms.replenishments || perms.sourcing) {
     if (chevron)  chevron.classList.add('open');
   }
 
-  function closeAllGroups() {
+function closeAllGroups() {
     document.querySelectorAll('.nav-children.open').forEach(el => el.classList.remove('open'));
     document.querySelectorAll('.nav-chevron.open').forEach(el => el.classList.remove('open'));
+    closeFlyoutNow();
   }
 
   // ── ACTIVE NAV ──
-  function setActiveNav(navId, groupId) {
+function setActiveNav(navId, groupId) {
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-group-header').forEach(el => el.classList.remove('active-group'));
+    document.querySelectorAll('.nav-flyout-item').forEach(el => el.classList.remove('active'));
     let el = document.getElementById(navId);
     if (!el && groupId) el = document.getElementById(`nav-${groupId}`);
     if (el) el.classList.add('active');
     if (groupId) {
       const header = document.getElementById(`group-header-${groupId}`);
       if (header) header.classList.add('active-group');
+      const flyoutItem = document.getElementById(navId.replace('nav-', 'flyout-'));
+      if (flyoutItem) flyoutItem.classList.add('active');
     }
   }
 
@@ -758,6 +810,11 @@ document.addEventListener('click', e => {
     const footer = document.querySelector('.sidebar-footer');
     if (footer && !footer.contains(e.target)) {
       closeFooterFlyout();
+    }
+    const sidebar = document.getElementById('sidebar');
+    const flyout = document.getElementById('navFlyout');
+    if (sidebar && flyout && !sidebar.contains(e.target) && !flyout.contains(e.target)) {
+      closeFlyoutNow();
     }
   });
 
