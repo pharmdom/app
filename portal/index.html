@@ -25,6 +25,7 @@
       --accent-mesh: rgba(59,110,248,0.07);
       --sidebar-bg1: #0b0f1e;
       --sidebar-bg2: #060912;
+      --topbar-brand-bg: #101936;
       --bg: #f5f6fa;
       --white: #ffffff;
       --text-primary: #0d0f14;
@@ -335,7 +336,7 @@
 .topbar-brand {
   width: var(--topbar-brand-w); flex-shrink: 0; overflow: hidden;
   display: flex; align-items: center; gap: 10px; padding: 0 14px;
-  background: #101936;
+  background: var(--topbar-brand-bg);
   border-right: 1px solid rgba(255,255,255,0.08); white-space: nowrap;
   transition: width 0.22s cubic-bezier(0.4,0,0.2,1);
   position: relative;
@@ -546,9 +547,9 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
   // ── ROLE THEME CONFIG ──
   const THEMES = {
-    'Admin':       { accent: '#3b6ef8', orb1: 'rgba(59,110,248,0.22)',  orb2: 'rgba(99,60,240,0.15)',   mesh: 'rgba(59,110,248,0.07)',  bg1: '#0b0f1e', bg2: '#060912' },
-    'Digital Ops': { accent: '#7c3aed', orb1: 'rgba(124,58,237,0.22)', orb2: 'rgba(168,85,247,0.15)',  mesh: 'rgba(124,58,237,0.07)', bg1: '#130b1e', bg2: '#0a0612' },
-    'Warehouse':   { accent: '#0d9488', orb1: 'rgba(13,148,136,0.22)', orb2: 'rgba(16,185,129,0.15)',  mesh: 'rgba(13,148,136,0.07)', bg1: '#0b1a1e', bg2: '#06100d' },
+    'Admin':       { accent: '#3b6ef8', orb1: 'rgba(59,110,248,0.22)',  orb2: 'rgba(99,60,240,0.15)',   mesh: 'rgba(59,110,248,0.07)',  bg1: '#0b0f1e', bg2: '#060912', brandBg: '#101936' },
+    'Digital Ops': { accent: '#7c3aed', orb1: 'rgba(124,58,237,0.22)', orb2: 'rgba(168,85,247,0.15)',  mesh: 'rgba(124,58,237,0.07)', bg1: '#130b1e', bg2: '#0a0612', brandBg: '#201135' },
+    'Warehouse':   { accent: '#0d9488', orb1: 'rgba(13,148,136,0.22)', orb2: 'rgba(16,185,129,0.15)',  mesh: 'rgba(13,148,136,0.07)', bg1: '#0b1a1e', bg2: '#06100d', brandBg: '#0B282B' },
   };
 
   const theme = THEMES[user.role] || THEMES['Admin'];
@@ -561,7 +562,8 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
   root.style.setProperty('--accent-mesh', theme.mesh);
   root.style.setProperty('--sidebar-bg1', theme.bg1);
   root.style.setProperty('--sidebar-bg2', theme.bg2);
-
+  root.style.setProperty('--topbar-brand-bg', theme.brandBg);
+    
   // ── USER INFO ──
   const fullName = ((user.firstName || '') + ' ' + (user.lastName || '')).trim() || user.role;
   const initials = ((user.firstName || '?')[0] + (user.lastName || '?')[0]).toUpperCase();
@@ -858,7 +860,8 @@ window.handleGroupClick = handleGroupClick;
     document.getElementById('sidebar')?.classList.remove('force-collapsed');
     document.getElementById('sidebar')?.classList.remove('hover-elevate');
   });
-  document.getElementById('sidebar')?.addEventListener('mousemove', () => {
+document.getElementById('sidebar')?.addEventListener('mousemove', () => {
+    if (window.innerWidth <= 768) return;
     if (Date.now() - lastPinTime < 70) return;
     document.getElementById('sidebar')?.classList.add('hover-elevate');
   });
