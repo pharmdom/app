@@ -166,13 +166,26 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
         <div class="rf-field"><label>Amount Requested (£) <span style="font-weight:400;color:#94a3b8">— optional</span></label><input type="number" id="rfAmountRequested" min="0" step="0.01" placeholder="0.00"></div>
         <div class="rf-field" id="rfNotesWrap" style="grid-column:span 3;display:none"><label>Notes — which/how many units are missing</label><textarea id="rfNotes" placeholder="e.g. 2 of 5 units missing from order"></textarea></div>
       </div>
-      <button class="rf-submit-btn" onclick="rfSubmit()">Submit Refund Request</button>
+
+<button class="rf-submit-btn" onclick="rfSubmit()">Submit Refund Request</button>
     </div>
   </div>
-
 </div>
-
-
+<div class="rf-modal-overlay" id="rfConfirmOverlay" onclick="if(event.target===this)rfCloseConfirm()">
+  <div class="rf-modal" style="max-width:380px;">
+    <div class="rf-modal-hdr">
+      <div class="rf-card-title" style="margin:0" id="rfConfirmTitle">Delete this refund request?</div>
+      <button class="rf-modal-close" onclick="rfCloseConfirm()">✕</button>
+    </div>
+    <div class="rf-modal-body">
+      <p style="font-size:13px;color:#64748b;margin-bottom:18px;" id="rfConfirmMsg">This cannot be undone.</p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="rf-detail-btn" style="width:auto;height:auto;padding:9px 16px;background:#f1f5f9;color:#334155;border-radius:9px;font-size:12.5px;font-weight:700;font-family:inherit;" onclick="rfCloseConfirm()">Cancel</button>
+        <button class="rf-detail-btn danger" style="width:auto;height:auto;padding:9px 16px;border-radius:9px;font-size:12.5px;font-weight:700;font-family:inherit;color:#fff;" id="rfConfirmOkBtn">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
 <script>
 (function(){
 'use strict';
@@ -366,9 +379,27 @@ function rfEditRefund(id){
   document.getElementById('rfModalOverlay').classList.add('open');
 }
 
+let RF_CONFIRM_RESOLVE=null;
+function rfShowConfirm(title,msg){
+  return new Promise(resolve=>{
+    RF_CONFIRM_RESOLVE=resolve;
+    document.getElementById('rfConfirmTitle').textContent=title;
+    document.getElementById('rfConfirmMsg').textContent=msg;
+    document.getElementById('rfConfirmOverlay').classList.add('open');
+  });
+}
+function rfCloseConfirm(){
+  document.getElementById('rfConfirmOverlay').classList.remove('open');
+  if(RF_CONFIRM_RESOLVE){ const r=RF_CONFIRM_RESOLVE; RF_CONFIRM_RESOLVE=null; r(false); }
+}
+document.getElementById('rfConfirmOkBtn').addEventListener('click',()=>{
+  document.getElementById('rfConfirmOverlay').classList.remove('open');
+  if(RF_CONFIRM_RESOLVE){ const r=RF_CONFIRM_RESOLVE; RF_CONFIRM_RESOLVE=null; r(true); }
+});
 async function rfDeleteRefund(id){
   if(!CAN_WRITE_REFUNDS){ showToast('You do not have permission to delete refunds','warn'); return; }
-  if(!confirm('Delete this refund request? This cannot be undone.'))return;
+  const ok=await rfShowConfirm('Delete this refund request?','This cannot be undone.');
+  if(!ok)return;
   const{error}=await sb.from('refunds').delete().eq('id',id);
   if(error){ showToast('Failed to delete','error'); console.error(error); return; }
   RF_ROWS=RF_ROWS.filter(r=>r.id!==id);
@@ -461,6 +492,7 @@ window.rfSetFilter=rfSetFilter;
 window.rfToggleRow=rfToggleRow;
 window.rfEditRefund=rfEditRefund;
 window.rfDeleteRefund=rfDeleteRefund;
+window.rfCloseConfirm=rfCloseConfirm;
   
 rfInit();
 })();
