@@ -400,8 +400,13 @@ async function rfDeleteRefund(id){
   if(!CAN_WRITE_REFUNDS){ showToast('You do not have permission to delete refunds','warn'); return; }
   const ok=await rfShowConfirm('Delete this refund request?','This cannot be undone.');
   if(!ok)return;
-  const{error}=await sb.from('refunds').delete().eq('id',id);
+  const{data,error}=await sb.from('refunds').delete().eq('id',id).select();
   if(error){ showToast('Failed to delete','error'); console.error(error); return; }
+  if(!data||!data.length){
+    showToast('Delete blocked — check permissions','error');
+    console.error('[rfDeleteRefund] delete returned 0 rows — likely blocked by an RLS policy on the refunds table');
+    return;
+  }
   RF_ROWS=RF_ROWS.filter(r=>r.id!==id);
   showToast('Refund request deleted','success');
   rfRenderTable(); rfRenderSummary();
