@@ -117,6 +117,21 @@
 .wp-progress-track { height: 8px; background: #f1f5f9; border-radius: 100px; overflow: hidden; }
 .wp-progress-fill { height: 100%; border-radius: 100px; transition: width .5s cubic-bezier(.16,1,.3,1); }
 
+.wp-compare-row { display:flex; align-items:center; justify-content:space-between; gap:10px; background:#f8fafc; border:1px solid #f1f5f9; border-radius:12px; padding:14px 16px; margin-bottom:14px; }
+.wp-compare-stat { text-align:center; flex:1; min-width:0; }
+.wp-compare-stat-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#94a3b8; margin-bottom:4px; }
+.wp-compare-stat-value { font-size:19px; font-weight:800; color:#0f172a; }
+.wp-compare-delta { display:flex; flex-direction:column; align-items:center; gap:3px; flex-shrink:0; padding:0 6px; }
+.wp-compare-delta-badge { display:inline-flex; align-items:center; gap:3px; padding:4px 9px; border-radius:100px; font-size:12px; font-weight:800; white-space:nowrap; }
+.wp-compare-delta-badge svg { width:11px; height:11px; }
+.wp-compare-delta.up .wp-compare-delta-badge { background:#f0fdf4; color:#15803d; }
+.wp-compare-delta.down .wp-compare-delta-badge { background:#fef2f2; color:#dc2626; }
+.wp-compare-delta.flat .wp-compare-delta-badge { background:#f1f5f9; color:#64748b; }
+.wp-compare-delta-pct { font-size:9.5px; color:#94a3b8; font-weight:600; }
+.wp-compare-empty { text-align:center; padding:14px; color:#94a3b8; font-size:12px; background:#f8fafc; border-radius:12px; border:1px solid #f1f5f9; margin-bottom:14px; }
+
+  
+
 /* ── LOADING / TOAST ── */
 .wp-loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 60px 0; color: #94a3b8; font-size: 13px; }
 .wp-spinner { width: 16px; height: 16px; border: 2.5px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: wpSpin .65s linear infinite; }
@@ -280,8 +295,16 @@
   </div>
   <div class="wp-drawer-body">
     <div class="wp-drawer-section-label" id="wpDrawerTrendLabel">Trend</div>
-    <div class="wp-chart-wrap"><canvas id="wpDrawerTrendChart" height="140"></canvas></div>
+<div class="wp-chart-wrap"><canvas id="wpDrawerTrendChart" height="140"></canvas></div>
     <div class="wp-chart-empty" id="wpDrawerTrendEmpty" style="display:none;">Not enough history yet.</div>
+
+    <div class="wp-drawer-section-label" id="wpDrawerCompareLabel">Compared to Yesterday</div>
+    <div class="wp-compare-row" id="wpCompareRow">
+      <div class="wp-compare-stat"><div class="wp-compare-stat-label" id="wpCompareCurLabel">Today</div><div class="wp-compare-stat-value" id="wpCompareCurValue">—</div></div>
+      <div class="wp-compare-delta" id="wpCompareDelta"></div>
+      <div class="wp-compare-stat"><div class="wp-compare-stat-label" id="wpComparePrevLabel">Yesterday</div><div class="wp-compare-stat-value" id="wpComparePrevValue">—</div></div>
+    </div>
+    <div class="wp-compare-empty" id="wpCompareEmpty" style="display:none;">No data available for the previous period yet.</div>
 
     <div class="wp-drawer-section-label">Compared to the Team</div>
     <div class="wp-progress-row">
@@ -794,13 +817,49 @@ function wpAllNames(){
       const rows = wpAllCounts.filter(r=>r.date===date && r.name===name).sort((a,b)=>a.timeSlot.localeCompare(b.timeSlot));
       return rows.length ? rows[rows.length-1].count : null;
     }
-    const table = tableKey==='week' ? wpAllWeek : wpAllMonth;
+const table = tableKey==='week' ? wpAllWeek : wpAllMonth;
     const dates = tableKey==='week' ? wpWeekDates : wpMonthDates;
     for (let i=dates.length-1; i>=0; i--) {
       const row = table.find(r=>r.date===dates[i] && r.name===name);
       if (row) return row.total;
     }
     return null;
+  }
+
+  function wpDateMinus(dateStr, days){
+    const d = new Date(dateStr+'T00:00');
+    d.setDate(d.getDate()-days);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  function wpFindRowNear(table, dates, targetDate, name){
+    for (let i=dates.length-1; i>=0; i--) {
+      if (dates[i] <= targetDate) {
+        const row = table.find(r=>r.date===dates[i] && r.name===name);
+        if (row) return row;
+      }
+    }
+    return null;
+  }
+
+  function wpComparisonFor(name){
+    if (wpPeriod === 'today') {
+      const target = wpDateMinus(wpSelectedDate, 1);
+      const rows = wpAllCounts.filter(r=>r.date===target && r.name===name);
+      if (!rows.length) return null;
+      const last = rows.slice().sort((a,b)=>a.timeSlot.localeCompare(b.timeSlot)).pop();
+      return { prevValue: last.count };
+    }
+    if (wpPeriod === 'week') {
+      const target = wpDateMinus(wpSelectedDate, 7);
+      const row = wpFindRowNear(wpAllWeek, wpWeekDates, target, name);
+      if (!row) return null;
+      return { prevValue: row.total };
+    }
+    const target = wpDateMinus(wpSelectedDate, 30);
+    const row = wpFindRowNear(wpAllMonth, wpMonthDates, target, name);
+    if (!row) return null;
+    return { prevValue: row.total };
   }
 
   function wpOpenDrawer(name){
@@ -829,9 +888,35 @@ function wpAllNames(){
     document.getElementById('wpProgPaceVal').textContent = avgPace>0 ? pacePct+'% of average' : '—';
     document.getElementById('wpProgPaceFill').style.width = Math.min(100,pacePct)+'%';
     document.getElementById('wpProgPaceFill').style.background = pacePct>=100 ? '#15803d' : '#2563eb';
-    document.getElementById('wpProgTotalVal').textContent = maxTotal>0 ? totalPct+'%' : '—';
+document.getElementById('wpProgTotalVal').textContent = maxTotal>0 ? totalPct+'%' : '—';
     document.getElementById('wpProgTotalFill').style.width = Math.min(100,totalPct)+'%';
     document.getElementById('wpProgTotalFill').style.background = '#7c3aed';
+
+    // Comparison vs previous equivalent period
+    const cmp = wpComparisonFor(name);
+    const periodNoun = wpPeriod==='today' ? 'Yesterday' : (wpPeriod==='week' ? 'Last Week' : 'Last Month');
+    const curNoun = wpPeriod==='today' ? 'Today' : (wpPeriod==='week' ? 'This Week' : 'This Month');
+    document.getElementById('wpDrawerCompareLabel').textContent = 'Compared to ' + periodNoun;
+    document.getElementById('wpCompareCurLabel').textContent = curNoun;
+    document.getElementById('wpComparePrevLabel').textContent = periodNoun;
+    const compareRow = document.getElementById('wpCompareRow');
+    const compareEmpty = document.getElementById('wpCompareEmpty');
+    if (!cmp) {
+      compareRow.style.display = 'none';
+      compareEmpty.style.display = 'block';
+    } else {
+      compareRow.style.display = 'flex';
+      compareEmpty.style.display = 'none';
+      document.getElementById('wpCompareCurValue').textContent = fmtNum(myTotal);
+      document.getElementById('wpComparePrevValue').textContent = fmtNum(cmp.prevValue);
+      const delta = myTotal - cmp.prevValue;
+      const pct = cmp.prevValue>0 ? Math.round((delta/cmp.prevValue)*100) : (myTotal>0?100:0);
+      const dir = delta>0?'up':(delta<0?'down':'flat');
+      const arrow = dir==='up' ? '<polyline points="18 15 12 9 6 15"/>' : (dir==='down' ? '<polyline points="6 9 12 15 18 9"/>' : '<line x1="5" y1="12" x2="19" y2="12"/>');
+      const deltaEl = document.getElementById('wpCompareDelta');
+      deltaEl.className = 'wp-compare-delta ' + dir;
+      deltaEl.innerHTML = `<div class="wp-compare-delta-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${arrow}</svg>${dir==='flat'?'No change':(delta>0?'+':'')+fmtNum(Math.abs(delta))}</div><div class="wp-compare-delta-pct">${dir==='flat'?'':(delta>0?'+':'-')+Math.abs(pct)+'%'}</div>`;
+    }
 
     // Drawer trend chart
     const trendLabel = document.getElementById('wpDrawerTrendLabel');
