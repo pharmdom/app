@@ -176,7 +176,7 @@
   <div class="wp-toolbar">
     <div class="wp-period-toggle" id="wpPeriodToggle">
       <button data-period="today" class="wp-period-btn active" onclick="wpSetPeriod('today')">Today</button>
-      <button data-period="week" class="wp-period-btn" onclick="wpSetPeriod('week')">This Week</button>
+      <button data-period="week" class="wp-period-btn" onclick="wpSetPeriod('week')">Last 7 Days</button>
       <button data-period="month" class="wp-period-btn" onclick="wpSetPeriod('month')">This Month</button>
     </div>
     <div class="wp-date-wrap">
@@ -290,7 +290,7 @@
     </div>
     <div class="wp-drawer-kpis">
       <div class="wp-drawer-kpi"><div class="wp-drawer-kpi-label">Today</div><div class="wp-drawer-kpi-value" id="wpDrawerKpiToday">—</div></div>
-      <div class="wp-drawer-kpi"><div class="wp-drawer-kpi-label">This Week</div><div class="wp-drawer-kpi-value" id="wpDrawerKpiWeek">—</div></div>
+      <div class="wp-drawer-kpi"><div class="wp-drawer-kpi-label">Last 7 Days</div><div class="wp-drawer-kpi-value" id="wpDrawerKpiWeek">—</div></div>
       <div class="wp-drawer-kpi"><div class="wp-drawer-kpi-label">This Month</div><div class="wp-drawer-kpi-value" id="wpDrawerKpiMonth">—</div></div>
     </div>
   </div>
@@ -567,7 +567,7 @@
     const avgPace = paceVals.length ? Math.round(paceVals.reduce((a,b)=>a+b,0)/paceVals.length) : 0;
     const top = rows[0];
 
-    const periodLabel = wpPeriod==='today' ? 'today' : (wpPeriod==='week' ? 'this trailing week' : 'this trailing month');
+    const periodLabel = wpPeriod==='today' ? 'today' : (wpPeriod==='week' ? 'the last 7 days' : 'this trailing month');
     const cards = [
       { label:'Total Packs', icon:'box', value: fmtNum(totalPacks), sub:'Across '+active+' packer'+(active===1?'':'s')+', '+periodLabel, cls:'' },
       { label:'Active Packers', icon:'users', value: active, sub: wpPeriod==='today' ? 'Logged activity today' : 'With recorded activity', cls:'' },
@@ -651,7 +651,7 @@
       titleEl.textContent = "Today's Pack Progress";
       noteEl.textContent = fmtDateLong(wpSelectedDate);
     } else {
-      titleEl.textContent = 'Team Total Trend (' + (wpPeriod==='week'?'trailing 7-day':'trailing 30-day') + ')';
+      titleEl.textContent = 'Team Total Trend (' + (wpPeriod==='week'?'last 7 days':'trailing 30-day') + ')';
       noteEl.textContent = series.labels.length + ' snapshot' + (series.labels.length===1?'':'s');
     }
 
@@ -910,8 +910,8 @@ document.getElementById('wpProgTotalVal').textContent = maxTotal>0 ? totalPct+'%
 
     // Comparison vs previous equivalent period
     const cmp = wpComparisonFor(name);
-    const periodNoun = wpPeriod==='today' ? 'Yesterday' : (wpPeriod==='week' ? 'Last Week' : 'Last Month');
-    const curNoun = wpPeriod==='today' ? 'Today' : (wpPeriod==='week' ? 'This Week' : 'This Month');
+    const periodNoun = wpPeriod==='today' ? 'Yesterday' : (wpPeriod==='week' ? 'Previous 7 Days' : 'Last Month');
+    const curNoun = wpPeriod==='today' ? 'Today' : (wpPeriod==='week' ? 'Last 7 Days' : 'This Month');
     document.getElementById('wpDrawerCompareLabel').textContent = 'Compared to ' + periodNoun;
     document.getElementById('wpCompareCurLabel').textContent = curNoun;
     document.getElementById('wpComparePrevLabel').textContent = periodNoun;
@@ -944,7 +944,7 @@ document.getElementById('wpProgTotalVal').textContent = maxTotal>0 ? totalPct+'%
       const slots = (rowInPeriod && rowInPeriod.slots) ? rowInPeriod.slots : [];
       labels = slots.map(s=>s.timeSlot); values = slots.map(s=>s.count); rawKeys = labels;
     } else {
-      trendLabel.textContent = (wpPeriod==='week'?'Trailing 7-day Total — Over Time':'Trailing 30-day Total — Over Time');
+      trendLabel.textContent = (wpPeriod==='week'?'Last 7 Days — Over Time':'Trailing 30-day Total — Over Time');
       const table = wpPeriod==='week' ? wpAllWeek : wpAllMonth;
       const dates = (wpPeriod==='week' ? wpWeekDates : wpMonthDates).filter(d => d <= wpSelectedDate);
       dates.forEach(d => { const row = table.find(r=>r.date===d && r.name===name); if (row) { labels.push(fmtDateShort(d)); values.push(row.total); rawKeys.push(d); } });
@@ -955,7 +955,7 @@ if (!labels.length) { el.style.display='none'; empty.style.display='block'; if(w
       el.style.display='block'; empty.style.display='none';
       const cmpValues = wpComparisonSeriesAligned(name, rawKeys);
       const hasCmp = cmpValues.some(v => v != null);
-      const cmpLabel = wpPeriod==='today' ? 'Yesterday' : (wpPeriod==='week' ? 'Same day last week' : 'Same day last month');
+      const cmpLabel = wpPeriod==='today' ? 'Yesterday' : (wpPeriod==='week' ? '7 days earlier' : 'Same day last month');
       const datasets = [{ label:'This period', data: values, borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,.1)', borderWidth:2.5, fill:true, tension:.35, pointRadius: labels.length>20?0:3, pointBackgroundColor:'#2563eb', order:1 }];
       if (hasCmp) {
         datasets.push({ label: cmpLabel, data: cmpValues, borderColor:'#cbd5e1', backgroundColor:'transparent', borderWidth:2, borderDash:[5,4], tension:.35, pointRadius:0, fill:false, order:2, spanGaps:true });
