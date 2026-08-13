@@ -336,12 +336,24 @@
   }
 
   /* ── CHART.JS LOADER ── */
+  let wpChartJsFailed = false;
   function ensureChartJs(cb){
     if (window.Chart) { cb(); return; }
+    if (wpChartJsFailed) { return; } // already failed this session — don't retry per render
+    const existing = document.getElementById('wpChartJsScript');
+    if (existing) { existing.addEventListener('load', cb, { once:true }); return; }
     const s = document.createElement('script');
+    s.id = 'wpChartJsScript';
     s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js';
     s.onload = cb;
-    s.onerror = () => wpShowToast('Failed to load chart library', 'wp-error');
+    s.onerror = () => {
+      wpChartJsFailed = true;
+      wpShowToast('Charts could not load — showing tables only', 'wp-error');
+      ['wpLeaderboardEmpty','wpShareEmpty','wpTrendEmpty','wpComboEmpty'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.textContent = 'Chart library failed to load — check your network/ad-blocker.'; el.style.display = 'block'; }
+      });
+    };
     document.head.appendChild(s);
   }
 
@@ -466,14 +478,18 @@
     const liveTime = latestUpdate ? new Date(latestUpdate).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—';
     document.getElementById('wpSubtitle').innerHTML = '<span class="wp-live-dot"></span>Data last synced ' + liveTime + ' · ' + wpAllCounts.length + ' intraday records tracked';
 
+    // KPIs and the table never depend on Chart.js — render them immediately.
+    try { wpRenderKpis(); } catch(e) { console.error('wpRenderKpis failed:', e); }
+    try { wpRenderTable(); } catch(e) { console.error('wpRenderTable failed:', e); }
+
+    // Only the visualisations need the chart library, and each is isolated
+    // so one failing chart can never prevent the others from rendering.
     ensureChartJs(() => {
-      wpRenderKpis();
-      wpRenderLeaderboard();
-      wpRenderShare();
-      wpRenderTrend();
-      wpRenderCombo();
-      wpRenderTable();
-      if (wpDrawerName) wpOpenDrawer(wpDrawerName); // refresh open drawer if any
+      try { wpRenderLeaderboard(); } catch(e) { console.error('wpRenderLeaderboard failed:', e); }
+      try { wpRenderShare(); } catch(e) { console.error('wpRenderShare failed:', e); }
+      try { wpRenderTrend(); } catch(e) { console.error('wpRenderTrend failed:', e); }
+      try { wpRenderCombo(); } catch(e) { console.error('wpRenderCombo failed:', e); }
+      if (wpDrawerName) { try { wpOpenDrawer(wpDrawerName); } catch(e) { console.error('drawer refresh failed:', e); } }
     });
   }
 
