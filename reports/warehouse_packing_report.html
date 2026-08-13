@@ -622,12 +622,9 @@
     if (!rows.length) { el.style.display='none'; empty.style.display='block'; if(wpCharts.share){wpCharts.share.destroy();wpCharts.share=null;} return; }
     el.style.display='block'; empty.style.display='none';
     const visibleRows = rows.filter(r => String(r.name||'').trim().toLowerCase()!=='awais').slice().sort((a,b)=>(b.pace||0)-(a.pace||0));
-    const top5 = visibleRows.slice(0,5);
-    const rest = visibleRows.slice(5);
-    const restTotal = rest.reduce((s,r)=>s+(r.pace||0),0);
-    const labels = top5.map(r=>r.name).concat(rest.length ? ['Others ('+rest.length+')'] : []);
-    const values = top5.map(r=>r.pace||0).concat(rest.length ? [restTotal] : []);
-    const colors = top5.map((_,i)=>PALETTE[i%PALETTE.length]).concat(rest.length ? ['#cbd5e1'] : []);
+    const labels = visibleRows.map(r=>r.name);
+    const values = visibleRows.map(r=>r.pace||0);
+    const colors = visibleRows.map((_,i)=>PALETTE[i%PALETTE.length]);
 
     if (wpCharts.share) wpCharts.share.destroy();
     wpCharts.share = new Chart(el.getContext('2d'), {
@@ -636,8 +633,8 @@
       options: {
         responsive: true, maintainAspectRatio: false, cutout: '62%',
         plugins: { legend: { position:'bottom', labels:{ font:{size:10.5}, boxWidth:9, padding:10 } }, tooltip: { callbacks: { label: (ctx)=> ctx.label+': '+fmtNum(ctx.parsed)+'/hr' } } },
-        onClick: (evt, els) => { if (els.length && els[0].index < top5.length) wpOpenDrawer(top5[els[0].index].name); },
-        onHover: (evt, els) => { evt.native.target.style.cursor = (els.length && els[0].index < top5.length) ? 'pointer' : 'default'; }
+        onClick: (evt, els) => { if (els.length) wpOpenDrawer(visibleRows[els[0].index].name); },
+        onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; }
       }
     });
   }
