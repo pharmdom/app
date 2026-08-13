@@ -335,26 +335,66 @@
     setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 3500);
   }
 
-  /* ── CHART.JS LOADER ── */
+  /* ── CHART.JS LOADER — tries multiple CDNs with a timeout, so a single blocked host can't hang forever ── */
+  const WP_CHART_CDNS = [
+    'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js',
+    'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
+    'https://unpkg.com/chart.js@4.4.4/dist/chart.umd.min.js',
+  ];
   let wpChartJsFailed = false;
+  let wpChartJsLoading = false;
+  let wpChartJsCallbacks = [];
+
+  function wpTryLoadScript(url, timeoutMs){
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      let done = false;
+      const timer = setTimeout(() => { if (!done) { done = true; s.remove(); reject(new Error('timeout: ' + url)); } }, timeoutMs);
+      s.src = url;
+      s.onload = () => { if (!done) { done = true; clearTimeout(timer); resolve(); } };
+      s.onerror = () => { if (!done) { done = true; clearTimeout(timer); s.remove(); reject(new Error('failed to load: ' + url)); } };
+      document.head.appendChild(s);
+    });
+  }
+
+  async function wpLoadChartJsWithFallback(){
+    for (const url of WP_CHART_CDNS) {
+      try {
+        console.log('[Warehouse Packing] Trying chart library from', url);
+        await wpTryLoadScript(url, 6000);
+        if (window.Chart) { console.log('[Warehouse Packing] Chart library loaded from', url); return true; }
+      } catch(e) {
+        console.warn('[Warehouse Packing]', e.message);
+      }
+    }
+    return false;
+  }
+
   function ensureChartJs(cb){
     if (window.Chart) { cb(); return; }
-    if (wpChartJsFailed) { return; } // already failed this session — don't retry per render
-    const existing = document.getElementById('wpChartJsScript');
-    if (existing) { existing.addEventListener('load', cb, { once:true }); return; }
-    const s = document.createElement('script');
-    s.id = 'wpChartJsScript';
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js';
-    s.onload = cb;
-    s.onerror = () => {
-      wpChartJsFailed = true;
-      wpShowToast('Charts could not load — showing tables only', 'wp-error');
-      ['wpLeaderboardEmpty','wpShareEmpty','wpTrendEmpty','wpComboEmpty'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) { el.textContent = 'Chart library failed to load — check your network/ad-blocker.'; el.style.display = 'block'; }
-      });
-    };
-    document.head.appendChild(s);
+    if (wpChartJsFailed) { return; }
+    wpChartJsCallbacks.push(cb);
+    if (wpChartJsLoading) return;
+    wpChartJsLoading = true;
+    wpLoadChartJsWithFallback().then(ok => {
+      wpChartJsLoading = false;
+      if (ok) {
+        const cbs = wpChartJsCallbacks.slice(); wpChartJsCallbacks = [];
+        cbs.forEach(fn => fn());
+      } else {
+        wpChartJsFailed = true;
+        console.error('[Warehouse Packing] All chart CDNs failed — charts disabled, tables/KPIs remain fully functional.');
+        wpShowToast('Charts could not load from any source — showing tables only', 'wp-error');
+        ['wpLeaderboardEmpty','wpShareEmpty','wpTrendEmpty','wpComboEmpty'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) { el.textContent = 'Charts unavailable — your network appears to be blocking script CDNs. Data is still available in the table below.'; el.style.display = 'block'; }
+        });
+        ['wpLeaderboardChart','wpShareChart','wpTrendChart','wpComboChart'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = 'none';
+        });
+      }
+    });
   }
 
   /* ── LOAD ── */
