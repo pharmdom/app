@@ -411,10 +411,11 @@
       if (weekRes.error) throw weekRes.error;
       if (monthRes.error) throw monthRes.error;
 
-      wpAllCounts = (countsRes.data||[]).map(r => ({ date:String(r.date), name:r.packer_name, count:r.count||0, timeSlot:String(r.time_slot).slice(0,5), updatedAt:r.updated_at }));
-      wpAllWeek   = (weekRes.data||[]).map(r => ({ date:String(r.date), name:r.name, total:r.total_packs||0, daysWorked:r.days_worked||0, pace:r.packs_per_hour||0 }));
-      wpAllMonth  = (monthRes.data||[]).map(r => ({ date:String(r.date), name:r.name, total:r.total_packs||0, daysWorked:r.days_worked||0, pace:r.packs_per_hour||0, activeMinutes:r.active_minutes||0 }));
-
+      const wpIsExcluded = n => String(n||'').trim().toLowerCase() === 'awais';
+      wpAllCounts = (countsRes.data||[]).map(r => ({ date:String(r.date), name:r.packer_name, count:r.count||0, timeSlot:String(r.time_slot).slice(0,5), updatedAt:r.updated_at })).filter(r => !wpIsExcluded(r.name));
+      wpAllWeek   = (weekRes.data||[]).map(r => ({ date:String(r.date), name:r.name, total:r.total_packs||0, daysWorked:r.days_worked||0, pace:r.packs_per_hour||0 })).filter(r => !wpIsExcluded(r.name));
+      wpAllMonth  = (monthRes.data||[]).map(r => ({ date:String(r.date), name:r.name, total:r.total_packs||0, daysWorked:r.days_worked||0, pace:r.packs_per_hour||0, activeMinutes:r.active_minutes||0 })).filter(r => !wpIsExcluded(r.name));
+      
       wpCountsDates = [...new Set(wpAllCounts.map(r=>r.date))].sort();
       wpWeekDates   = [...new Set(wpAllWeek.map(r=>r.date))].sort();
       wpMonthDates  = [...new Set(wpAllMonth.map(r=>r.date))].sort();
