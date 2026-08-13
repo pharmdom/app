@@ -609,9 +609,8 @@ const pages = {
     cashflow:   { navTitle: 'Cashflow',   pageTitle: 'Cashflow',   permission: 'cashflow',   file: '../modules/cashflow.html',   parent: 'bizanalysis' },
     operations: { navTitle: 'Operations', pageTitle: 'Operations', permission: 'operations', file: '../modules/operations.html', parent: 'bizanalysis' },
     payroll:    { navTitle: 'Payroll',    pageTitle: 'Payroll',    permission: 'payroll',    file: '../modules/paycheck.html',    parent: null },
-    reports:          { navTitle: 'Reports',           pageTitle: 'Reports',            permission: 'reports',         file: '../modules/reports.html',         parent: null },
-    veeqo_report:             { navTitle: 'Veeqo',             pageTitle: 'Veeqo Report',             permission: 'reports', file: '../pages/veeqo_report.html',             parent: 'reportsGroup' },
-    warehouse_packing_report: { navTitle: 'Warehouse Packing', pageTitle: 'Warehouse Packing Report', permission: 'reports', file: '../pages/warehouse_packing_report.html', parent: 'reportsGroup' },
+    veeqo_report:             { navTitle: 'Veeqo',             pageTitle: 'Veeqo Report',             permission: 'veeqo_report',             file: '../pages/veeqo_report.html',             parent: 'reportsGroup' },
+    warehouse_packing_report: { navTitle: 'Warehouse Packing', pageTitle: 'Warehouse Packing Report', permission: 'warehouse_packing_report', file: '../pages/warehouse_packing_report.html', parent: 'reportsGroup' },
     sourcing:         { navTitle: 'Sourcing',          pageTitle: 'Sourcing',           permission: 'sourcing',        file: '../modules/sourcing.html',        parent: 'products' },
     listing:          { navTitle: 'Listing & Veeqo',   pageTitle: 'Listing & Veeqo',    permission: 'listing',         file: '../modules/listing.html',         parent: 'products' },
     fbaopportunities: { navTitle: 'FBA Opportunities', pageTitle: 'FBA Opportunities',  permission: 'fbaopportunities',file: '../modules/fbaopportunities.html',parent: 'products' },
@@ -675,6 +674,7 @@ const pages = {
     s.insertAdjacentHTML('beforeend', `
     <nav class="sidebar-nav" id="sidebarNav"></nav>
 <div class="sidebar-footer" style="position:relative;">
+        ${(hasPermission('veeqo_report') || hasPermission('warehouse_packing_report')) ? `
         <div class="sidebar-footer-flyout" id="footerFlyout">
           <div class="sidebar-footer-flyout-item nav-group-header" id="group-header-reportsGroup" onclick="handleGroupClick('reportsGroup'); if (window.innerWidth > 768) { closeFooterFlyout(); }">
             ${ic.reports}
@@ -682,10 +682,10 @@ const pages = {
             <span class="nav-chevron-wrap" id="chevron-reportsGroup">${ic.chevron}</span>
           </div>
           <div class="footer-flyout-children" id="children-reportsGroup">
-            <div class="sidebar-footer-flyout-item" id="secitem-veeqo_report" onclick="loadModule('veeqo_report'); closeFooterFlyout();">Veeqo</div>
-            <div class="sidebar-footer-flyout-item" id="secitem-warehouse_packing_report" onclick="loadModule('warehouse_packing_report'); closeFooterFlyout();">Warehouse Packing</div>
+            ${hasPermission('veeqo_report') ? `<div class="sidebar-footer-flyout-item" id="secitem-veeqo_report" onclick="loadModule('veeqo_report'); closeFooterFlyout();">Veeqo</div>` : ''}
+            ${hasPermission('warehouse_packing_report') ? `<div class="sidebar-footer-flyout-item" id="secitem-warehouse_packing_report" onclick="loadModule('warehouse_packing_report'); closeFooterFlyout();">Warehouse Packing</div>` : ''}
           </div>
-        </div>
+        </div>` : ''}
         <div class="sidebar-user-card">
           <div class="sidebar-avatar">${initials}</div>
           <div class="sidebar-user-card-text">
@@ -780,10 +780,11 @@ if (perms.packaging) {
     }
 
 nav.innerHTML = html;
-    GROUP_CHILDREN['reportsGroup'] = { label: 'Reports', items: [
-      { key:'veeqo_report', icon: ic.reports, label:'Veeqo', onClick: () => loadModule('veeqo_report') },
-      { key:'warehouse_packing_report', icon: ic.packaging, label:'Warehouse Packing', onClick: () => loadModule('warehouse_packing_report') },
-    ]};
+    const reportsItems = [
+      hasPermission('veeqo_report') ? { key:'veeqo_report', icon: ic.reports, label:'Veeqo', onClick: () => loadModule('veeqo_report') } : null,
+      hasPermission('warehouse_packing_report') ? { key:'warehouse_packing_report', icon: ic.packaging, label:'Warehouse Packing', onClick: () => loadModule('warehouse_packing_report') } : null,
+    ].filter(Boolean);
+    if (reportsItems.length) GROUP_CHILDREN['reportsGroup'] = { label: 'Reports', items: reportsItems };
     buildSecondaryPanels();
   }
 
