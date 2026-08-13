@@ -983,12 +983,10 @@ document.getElementById('wpProgTotalVal').textContent = maxTotal>0 ? totalPct+'%
       trendLabel.textContent = "Today's Pack Progress";
       const slots = (rowInPeriod && rowInPeriod.slots) ? rowInPeriod.slots : [];
       labels = slots.map(s=>s.timeSlot); values = slots.map(s=>s.count); rawKeys = labels;
-   } else if (wpPeriod === 'week') {
-      trendLabel.textContent = 'Last 7 Days — Over Time';
+    } else if (wpPeriod === 'week') {
       const dates = wpWeekDates.filter(d => d <= wpSelectedDate);
       dates.forEach(d => { const row = wpAllWeek.find(r=>r.date===d && r.name===name); if (row) { labels.push(fmtDateShort(d)); values.push(row.total); rawKeys.push(d); } });
     } else {
-      trendLabel.textContent = 'This Month, Day by Day (Cumulative)';
       const curDates = wpDateRange(wpMonthStartStr(wpSelectedDate), wpSelectedDate);
       let running = 0;
       curDates.forEach(d => {
@@ -1003,8 +1001,13 @@ if (!labels.length) { el.style.display='none'; empty.style.display='block'; if(w
       el.style.display='block'; empty.style.display='none';
       const cmpValues = wpComparisonSeriesAligned(name, rawKeys);
       const hasCmp = cmpValues.some(v => v != null);
-      const cmpLabel = wpPeriod==='today' ? 'Yesterday' : (wpPeriod==='week' ? '7 days earlier' : 'Same days last month (cumulative)');
-      const datasets = [{ label:'This period', data: values, borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,.1)', borderWidth:2, fill:true, tension:.35, pointRadius: labels.length>20?0:3, pointHoverRadius:5, pointBackgroundColor:'#2563eb', order:1 }];
+      const cmpLabel = wpPeriod==='today' ? 'Yesterday' : (wpPeriod==='week' ? 'Previous 7 Days' : 'Same Days Last Month');
+      if (wpPeriod === 'week') {
+        trendLabel.textContent = hasCmp ? 'Last 14 Days — This 7 vs Previous 7' : 'Last 7 Days — Trend';
+      } else if (wpPeriod === 'month') {
+        trendLabel.textContent = hasCmp ? 'This Month vs Same Days Last Month (Cumulative)' : 'This Month, Day by Day (Cumulative)';
+      }
+      const datasets = [{ label:'This period', data: values, borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,.1)', borderWidth:2, fill:true, tension:.35, pointRadius: hasCmp ? 0 : (labels.length>20?0:3), pointHoverRadius:5, pointBackgroundColor:'#2563eb', order:1 }];
       if (hasCmp) {
         datasets.push({ label: cmpLabel, data: cmpValues, borderColor:'#94a3b8', backgroundColor:'transparent', borderWidth:2, borderDash:[5,4], tension:.35, pointRadius: labels.length>20?0:3, pointHoverRadius:5, pointBackgroundColor:'#94a3b8', fill:false, order:2, spanGaps:true });
       }
