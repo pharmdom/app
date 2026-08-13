@@ -216,8 +216,9 @@
       <div class="wp-card">
         <div class="wp-card-title-row">
           <div class="wp-card-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-            Share of Total
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+            Who's Fastest
           </div>
         </div>
         <div class="wp-chart-wrap"><canvas id="wpShareChart" height="230"></canvas></div>
@@ -613,19 +614,19 @@
     });
   }
 
-  /* ── SHARE (doughnut) ── */
+/* ── SHARE (doughnut) — packs/hr share ── */
   function wpRenderShare(){
     const el = document.getElementById('wpShareChart');
     const empty = document.getElementById('wpShareEmpty');
-    const rows = wpCurrentRows;
+    const rows = wpCurrentRows.filter(r => (r.pace||0) > 0);
     if (!rows.length) { el.style.display='none'; empty.style.display='block'; if(wpCharts.share){wpCharts.share.destroy();wpCharts.share=null;} return; }
     el.style.display='block'; empty.style.display='none';
-    const visibleRows = rows.filter(r => String(r.name||'').trim().toLowerCase()!=='awais');
+    const visibleRows = rows.filter(r => String(r.name||'').trim().toLowerCase()!=='awais').slice().sort((a,b)=>(b.pace||0)-(a.pace||0));
     const top5 = visibleRows.slice(0,5);
     const rest = visibleRows.slice(5);
-    const restTotal = rest.reduce((s,r)=>s+r.total,0);
+    const restTotal = rest.reduce((s,r)=>s+(r.pace||0),0);
     const labels = top5.map(r=>r.name).concat(rest.length ? ['Others ('+rest.length+')'] : []);
-    const values = top5.map(r=>r.total).concat(rest.length ? [restTotal] : []);
+    const values = top5.map(r=>r.pace||0).concat(rest.length ? [restTotal] : []);
     const colors = top5.map((_,i)=>PALETTE[i%PALETTE.length]).concat(rest.length ? ['#cbd5e1'] : []);
 
     if (wpCharts.share) wpCharts.share.destroy();
@@ -634,7 +635,7 @@
       data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor:'#fff' }] },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: '62%',
-        plugins: { legend: { position:'bottom', labels:{ font:{size:10.5}, boxWidth:9, padding:10 } }, tooltip: { callbacks: { label: (ctx)=> ctx.label+': '+fmtNum(ctx.parsed)+' packs' } } },
+        plugins: { legend: { position:'bottom', labels:{ font:{size:10.5}, boxWidth:9, padding:10 } }, tooltip: { callbacks: { label: (ctx)=> ctx.label+': '+fmtNum(ctx.parsed)+'/hr' } } },
         onClick: (evt, els) => { if (els.length && els[0].index < top5.length) wpOpenDrawer(top5[els[0].index].name); },
         onHover: (evt, els) => { evt.native.target.style.cursor = (els.length && els[0].index < top5.length) ? 'pointer' : 'default'; }
       }
