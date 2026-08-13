@@ -1,1 +1,825 @@
-<p>this is for all warehouse and packing insights/analytics/reports</p>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+.wp-page { font-family: 'Inter', system-ui, sans-serif; padding: 5px 10px 50px 10px; color: #0f172a; }
+.wp-page * { box-sizing: border-box; }
+
+/* ── HEADER ── */
+.wp-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.wp-title { font-size: 18px; font-weight: 700; color: #0f172a; }
+.wp-subtitle { font-size: 12px; color: #94a3b8; margin-top: 3px; }
+.wp-subtitle .wp-live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #22c55e; margin-right: 5px; box-shadow: 0 0 0 3px rgba(34,197,94,.15); }
+.wp-header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.wp-jump-wrap { position: relative; }
+.wp-jump-input { width: 220px; padding: 8px 11px 8px 32px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12.5px; font-family: inherit; color: #0f172a; outline: none; background: #fff; transition: border-color .15s; }
+.wp-jump-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+.wp-jump-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
+.wp-jump-list { position: absolute; top: calc(100% + 5px); left: 0; right: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.1); max-height: 240px; overflow-y: auto; z-index: 40; display: none; padding: 5px; }
+.wp-jump-list.open { display: block; }
+.wp-jump-item { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 7px; font-size: 12.5px; font-weight: 500; color: #334155; cursor: pointer; }
+.wp-jump-item:hover { background: #f1f5f9; }
+.wp-jump-empty { padding: 10px; font-size: 12px; color: #94a3b8; text-align: center; }
+
+.wp-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 8px; font-size: 12.5px; font-weight: 600; font-family: inherit; cursor: pointer; transition: all .15s; border: 1px solid transparent; }
+.wp-btn-ghost { background: #fff; color: #475569; border-color: #e2e8f0; }
+.wp-btn-ghost:hover { border-color: #94a3b8; background: #f8fafc; }
+.wp-btn svg { width: 13px; height: 13px; }
+.wp-btn.wp-spinning svg { animation: wpSpin .7s linear infinite; }
+
+/* ── TOOLBAR ── */
+.wp-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.wp-period-toggle { display: inline-flex; background: #f1f5f9; border-radius: 10px; padding: 3px; gap: 2px; }
+.wp-period-btn { padding: 7px 16px; border: none; background: transparent; border-radius: 8px; font-size: 12.5px; font-weight: 600; font-family: inherit; color: #64748b; cursor: pointer; transition: all .15s; }
+.wp-period-btn:hover { color: #334155; }
+.wp-period-btn.active { background: #0f172a; color: #fff; box-shadow: 0 2px 8px rgba(15,23,42,.2); }
+.wp-date-wrap { display: flex; align-items: center; gap: 8px; }
+.wp-date-label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+.wp-date-input { padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12.5px; font-family: inherit; color: #0f172a; background: #fff; outline: none; }
+.wp-date-input:focus { border-color: #2563eb; }
+.wp-date-nudge { display: inline-flex; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+.wp-date-nudge button { width: 26px; height: 30px; border: none; background: #fff; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s; }
+.wp-date-nudge button:hover { background: #f1f5f9; color: #0f172a; }
+.wp-date-nudge button:disabled { opacity: .35; cursor: not-allowed; }
+.wp-date-nudge button + button { border-left: 1px solid #e2e8f0; }
+
+/* ── KPI ROW ── */
+.wp-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+.wp-kpi-card { background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 13px; padding: 14px 16px; position: relative; overflow: hidden; }
+.wp-kpi-card::before { content: ''; position: absolute; top: -25px; right: -25px; width: 80px; height: 80px; border-radius: 50%; background: rgba(255,255,255,.04); }
+.wp-kpi-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: rgba(255,255,255,.4); display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+.wp-kpi-label svg { width: 11px; height: 11px; }
+.wp-kpi-value { font-size: 21px; font-weight: 800; color: #fff; line-height: 1.1; position: relative; z-index: 1; }
+.wp-kpi-value.wp-accent-green { color: #4ade80; }
+.wp-kpi-value.wp-accent-amber { color: #fbbf24; }
+.wp-kpi-sub { font-size: 10.5px; color: rgba(255,255,255,.4); margin-top: 4px; }
+
+/* ── CARDS / CHARTS ── */
+.wp-charts-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; margin-bottom: 12px; }
+.wp-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 13px; padding: 16px 18px; }
+.wp-card-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 8px; flex-wrap: wrap; }
+.wp-card-title { font-size: 12.5px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 7px; }
+.wp-card-title svg { width: 14px; height: 14px; color: #2563eb; flex-shrink: 0; }
+.wp-card-note { font-size: 10.5px; color: #94a3b8; }
+.wp-chart-wrap { position: relative; }
+.wp-chart-empty { text-align: center; padding: 30px 10px; color: #94a3b8; font-size: 12px; }
+
+/* ── TABLE ── */
+.wp-table-card { margin-bottom: 12px; }
+.wp-table-search-wrap { position: relative; max-width: 240px; }
+.wp-table-search-wrap svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+.wp-table-search { width: 100%; padding: 6px 10px 6px 28px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; font-family: inherit; outline: none; }
+.wp-table-search:focus { border-color: #2563eb; }
+.wp-table-wrap { overflow-x: auto; }
+.wp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 560px; }
+.wp-table thead tr { border-bottom: 2px solid #f1f5f9; }
+.wp-table th { text-align: left; padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; white-space: nowrap; cursor: pointer; user-select: none; }
+.wp-table th:hover { color: #334155; }
+.wp-table th .wp-sort-arrow { display: inline-block; margin-left: 3px; opacity: .35; font-size: 9px; }
+.wp-table th.wp-sorted .wp-sort-arrow { opacity: 1; color: #2563eb; }
+.wp-table tbody tr { border-bottom: 1px solid #f8fafc; cursor: pointer; transition: background .1s; }
+.wp-table tbody tr:hover { background: #f8fafc; }
+.wp-table td { padding: 9px 10px; vertical-align: middle; white-space: nowrap; }
+.wp-rank-badge { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 6px; font-size: 10.5px; font-weight: 800; background: #f1f5f9; color: #64748b; }
+.wp-rank-badge.wp-rank-1 { background: #fef3c7; color: #b45309; }
+.wp-rank-badge.wp-rank-2 { background: #e2e8f0; color: #475569; }
+.wp-rank-badge.wp-rank-3 { background: #fed7aa; color: #c2410c; }
+.wp-table-name { font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+.wp-mini-avatar { width: 24px; height: 24px; border-radius: 50%; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 700; flex-shrink: 0; }
+.wp-table-total { font-weight: 700; color: #0f172a; }
+.wp-empty-state { text-align: center; padding: 40px 20px; color: #94a3b8; font-size: 13px; }
+.wp-empty-state svg { margin-bottom: 10px; opacity: .5; }
+
+/* ── DRAWER ── */
+.wp-drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.3); backdrop-filter: blur(4px); z-index: 1000; opacity: 0; transition: opacity .25s; }
+.wp-drawer-overlay.wp-open { opacity: 1; }
+.wp-drawer { position: fixed; top: 0; right: 0; width: 480px; max-width: 96vw; height: 100%; background: #fff; box-shadow: -4px 0 40px rgba(0,0,0,.12); z-index: 1001; display: flex; flex-direction: column; transform: translateX(100%); transition: transform .3s cubic-bezier(.16,1,.3,1); }
+.wp-drawer.wp-open { transform: translateX(0); }
+.wp-drawer-hero { background: linear-gradient(135deg, #1e293b, #0f172a); padding: 22px 22px 18px; position: relative; overflow: hidden; flex-shrink: 0; }
+.wp-drawer-hero::before { content: ''; position: absolute; top: -30px; right: -30px; width: 110px; height: 110px; border-radius: 50%; background: rgba(255,255,255,.04); }
+.wp-drawer-close { position: absolute; top: 14px; right: 14px; width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,.08); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.55); z-index: 2; }
+.wp-drawer-close:hover { background: rgba(255,255,255,.16); color: #fff; }
+.wp-drawer-id-row { display: flex; align-items: center; gap: 13px; position: relative; z-index: 1; margin-bottom: 16px; }
+.wp-drawer-avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #7c3aed); display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.wp-drawer-name { font-size: 16px; font-weight: 700; color: #fff; }
+.wp-drawer-rank { font-size: 11.5px; color: rgba(255,255,255,.45); margin-top: 2px; }
+.wp-drawer-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; position: relative; z-index: 1; }
+.wp-drawer-kpi { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 9px 10px; }
+.wp-drawer-kpi-label { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(255,255,255,.4); margin-bottom: 4px; }
+.wp-drawer-kpi-value { font-size: 15px; font-weight: 800; color: #fff; }
+.wp-drawer-body { flex: 1; overflow-y: auto; padding: 20px 22px; }
+.wp-drawer-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: #94a3b8; margin: 18px 0 10px; display: flex; align-items: center; gap: 7px; }
+.wp-drawer-section-label:first-child { margin-top: 0; }
+.wp-drawer-section-label::after { content: ''; flex: 1; height: 1px; background: #f1f5f9; }
+.wp-progress-row { margin-bottom: 12px; }
+.wp-progress-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+.wp-progress-label { font-size: 12px; font-weight: 600; color: #334155; }
+.wp-progress-value { font-size: 12px; font-weight: 700; color: #0f172a; }
+.wp-progress-track { height: 8px; background: #f1f5f9; border-radius: 100px; overflow: hidden; }
+.wp-progress-fill { height: 100%; border-radius: 100px; transition: width .5s cubic-bezier(.16,1,.3,1); }
+
+/* ── LOADING / TOAST ── */
+.wp-loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 60px 0; color: #94a3b8; font-size: 13px; }
+.wp-spinner { width: 16px; height: 16px; border: 2.5px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: wpSpin .65s linear infinite; }
+@keyframes wpSpin { to { transform: rotate(360deg); } }
+.wp-toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.wp-toast { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 500; box-shadow: 0 4px 20px rgba(0,0,0,.12); pointer-events: auto; animation: wpToastIn .2s ease; }
+.wp-toast.wp-error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.wp-toast.wp-success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+@keyframes wpToastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 900px) {
+  .wp-charts-grid { grid-template-columns: 1fr; }
+  .wp-kpi-row { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+  .wp-header { flex-direction: column; }
+  .wp-jump-input { width: 100%; }
+  .wp-toolbar { gap: 8px; }
+  .wp-drawer { width: 100vw; max-width: 100vw; }
+}
+</style>
+
+<div class="wp-page" id="wpPage">
+  <div class="wp-header">
+    <div>
+      <div class="wp-title">Warehouse Packing</div>
+      <div class="wp-subtitle" id="wpSubtitle">Loading data…</div>
+    </div>
+    <div class="wp-header-actions">
+      <div class="wp-jump-wrap">
+        <svg class="wp-jump-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="wpJumpInput" class="wp-jump-input" placeholder="Jump to a packer…" oninput="wpRenderJumpList()" onfocus="wpRenderJumpList()">
+        <div id="wpJumpList" class="wp-jump-list"></div>
+      </div>
+      <button class="wp-btn wp-btn-ghost" id="wpRefreshBtn" onclick="wpRefresh()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="wp-toolbar">
+    <div class="wp-period-toggle" id="wpPeriodToggle">
+      <button data-period="today" class="wp-period-btn active" onclick="wpSetPeriod('today')">Today</button>
+      <button data-period="week" class="wp-period-btn" onclick="wpSetPeriod('week')">This Week</button>
+      <button data-period="month" class="wp-period-btn" onclick="wpSetPeriod('month')">This Month</button>
+    </div>
+    <div class="wp-date-wrap">
+      <span class="wp-date-label" id="wpDateLabel">Date</span>
+      <div class="wp-date-nudge">
+        <button id="wpDatePrev" onclick="wpNudgeDate(-1)" title="Previous">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button id="wpDateNext" onclick="wpNudgeDate(1)" title="Next">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <input type="date" id="wpDatePicker" class="wp-date-input" onchange="wpOnDateChange()">
+    </div>
+  </div>
+
+  <div id="wpLoading" class="wp-loading">
+    <div class="wp-spinner"></div>
+    <span>Loading packing data…</span>
+  </div>
+
+  <div id="wpContent" style="display:none;">
+    <div class="wp-kpi-row" id="wpKpiRow"></div>
+
+    <div class="wp-charts-grid">
+      <div class="wp-card">
+        <div class="wp-card-title-row">
+          <div class="wp-card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Leaderboard
+          </div>
+          <span class="wp-card-note" id="wpLeaderboardNote">Top 10 · click a bar to view</span>
+        </div>
+        <div class="wp-chart-wrap"><canvas id="wpLeaderboardChart" height="230"></canvas></div>
+        <div class="wp-chart-empty" id="wpLeaderboardEmpty" style="display:none;">No packing data for this period.</div>
+      </div>
+      <div class="wp-card">
+        <div class="wp-card-title-row">
+          <div class="wp-card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+            Share of Total
+          </div>
+        </div>
+        <div class="wp-chart-wrap"><canvas id="wpShareChart" height="230"></canvas></div>
+        <div class="wp-chart-empty" id="wpShareEmpty" style="display:none;">No packing data for this period.</div>
+      </div>
+    </div>
+
+    <div class="wp-card" style="margin-bottom:12px;">
+      <div class="wp-card-title-row">
+        <div class="wp-card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span id="wpTrendTitle">Today's Pack Progress</span>
+        </div>
+        <span class="wp-card-note" id="wpTrendNote"></span>
+      </div>
+      <div class="wp-chart-wrap"><canvas id="wpTrendChart" height="80"></canvas></div>
+      <div class="wp-chart-empty" id="wpTrendEmpty" style="display:none;">No trend data available yet.</div>
+    </div>
+
+    <div class="wp-card" style="margin-bottom:12px;">
+      <div class="wp-card-title-row">
+        <div class="wp-card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Volume vs Pace
+        </div>
+        <span class="wp-card-note">Top 8 · bars = packs, line = packs/hr</span>
+      </div>
+      <div class="wp-chart-wrap"><canvas id="wpComboChart" height="90"></canvas></div>
+      <div class="wp-chart-empty" id="wpComboEmpty" style="display:none;">No packing data for this period.</div>
+    </div>
+
+    <div class="wp-card wp-table-card">
+      <div class="wp-card-title-row">
+        <div class="wp-card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          All Packers <span id="wpTableCount" style="color:#94a3b8;font-weight:500;"></span>
+        </div>
+        <div class="wp-table-search-wrap">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="wpTableSearch" class="wp-table-search" placeholder="Search packers…" oninput="wpRenderTable()">
+        </div>
+      </div>
+      <div class="wp-table-wrap">
+        <table class="wp-table">
+          <thead><tr id="wpTableHead"></tr></thead>
+          <tbody id="wpTableBody"></tbody>
+        </table>
+      </div>
+      <div id="wpTableEmpty" class="wp-empty-state" style="display:none;">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <div>No packers match your search.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wp-drawer-overlay" id="wpDrawerOverlay" onclick="wpCloseDrawer()"></div>
+<div class="wp-drawer" id="wpDrawer">
+  <div class="wp-drawer-hero">
+    <button class="wp-drawer-close" onclick="wpCloseDrawer()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="wp-drawer-id-row">
+      <div class="wp-drawer-avatar" id="wpDrawerAvatar"></div>
+      <div>
+        <div class="wp-drawer-name" id="wpDrawerName"></div>
+        <div class="wp-drawer-rank" id="wpDrawerRank"></div>
+      </div>
+    </div>
+    <div class="wp-drawer-kpis">
+      <div class="wp-drawer-kpi"><div class="wp-drawer-kpi-label">Today</div><div class="wp-drawer-kpi-value" id="wpDrawerKpiToday">—</div></div>
+      <div class="wp-drawer-kpi"><div class="wp-drawer-kpi-label">This Week</div><div class="wp-drawer-kpi-value" id="wpDrawerKpiWeek">—</div></div>
+      <div class="wp-drawer-kpi"><div class="wp-drawer-kpi-label">This Month</div><div class="wp-drawer-kpi-value" id="wpDrawerKpiMonth">—</div></div>
+    </div>
+  </div>
+  <div class="wp-drawer-body">
+    <div class="wp-drawer-section-label" id="wpDrawerTrendLabel">Trend</div>
+    <div class="wp-chart-wrap"><canvas id="wpDrawerTrendChart" height="140"></canvas></div>
+    <div class="wp-chart-empty" id="wpDrawerTrendEmpty" style="display:none;">Not enough history yet.</div>
+
+    <div class="wp-drawer-section-label">Compared to the Team</div>
+    <div class="wp-progress-row">
+      <div class="wp-progress-top"><span class="wp-progress-label">Pace vs team average</span><span class="wp-progress-value" id="wpProgPaceVal">—</span></div>
+      <div class="wp-progress-track"><div class="wp-progress-fill" id="wpProgPaceFill" style="width:0%;background:#2563eb;"></div></div>
+    </div>
+    <div class="wp-progress-row">
+      <div class="wp-progress-top"><span class="wp-progress-label">Share of top performer's total</span><span class="wp-progress-value" id="wpProgTotalVal">—</span></div>
+      <div class="wp-progress-track"><div class="wp-progress-fill" id="wpProgTotalFill" style="width:0%;background:#7c3aed;"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="wp-toast-container" id="wpToastContainer"></div>
+
+<script>
+(function(){
+  'use strict';
+  const sb = window.sb;
+  const PALETTE = ['#2563eb','#7c3aed','#0d9488','#b45309','#dc2626','#0891b2','#65a30d','#c026d3','#ea580c','#4338ca'];
+  const SLOT_MIN = 30; // batch interval, in minutes
+
+  let wpPeriod = 'today';
+  let wpSelectedDate = null;
+  let wpAllCounts = [];   // manus_packing_counts (raw)
+  let wpAllWeek = [];     // manus_packing_week_stats
+  let wpAllMonth = [];    // manus_packing_month_stats
+  let wpCountsDates = []; // sorted asc unique dates
+  let wpWeekDates = [];
+  let wpMonthDates = [];
+  let wpCurrentRows = []; // normalized rows for active period+date
+  let wpDrawerName = null;
+  let wpCharts = { leaderboard:null, share:null, trend:null, combo:null, drawerTrend:null };
+  let wpTableSort = { col: 'total', dir: 'desc' };
+
+  /* ── UTIL ── */
+  function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function initials(name){ const p=(name||'').trim().split(/\s+/); return ((p[0]||'?')[0]+(p[1]?p[1][0]:'')).toUpperCase(); }
+  function fmtNum(n){ return Math.round(n||0).toLocaleString('en-GB'); }
+  function timeToMin(t){ const [h,m]=String(t).slice(0,5).split(':').map(Number); return h*60+(m||0); }
+  function fmtDateLong(d){ if(!d) return '—'; return new Date(d+'T00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
+  function fmtDateShort(d){ if(!d) return '—'; return new Date(d+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }
+  function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+  function wpShowToast(msg, type){
+    const c = document.getElementById('wpToastContainer');
+    const t = document.createElement('div');
+    t.className = 'wp-toast ' + (type||'');
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 3500);
+  }
+
+  /* ── CHART.JS LOADER ── */
+  function ensureChartJs(cb){
+    if (window.Chart) { cb(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js';
+    s.onload = cb;
+    s.onerror = () => wpShowToast('Failed to load chart library', 'wp-error');
+    document.head.appendChild(s);
+  }
+
+  /* ── LOAD ── */
+  async function wpLoadAll(){
+    document.getElementById('wpLoading').style.display = 'flex';
+    document.getElementById('wpContent').style.display = 'none';
+    try {
+      const [countsRes, weekRes, monthRes] = await Promise.all([
+        sb.from('manus_packing_counts').select('*'),
+        sb.from('manus_packing_week_stats').select('*'),
+        sb.from('manus_packing_month_stats').select('*'),
+      ]);
+      if (countsRes.error) throw countsRes.error;
+      if (weekRes.error) throw weekRes.error;
+      if (monthRes.error) throw monthRes.error;
+
+      wpAllCounts = (countsRes.data||[]).map(r => ({ date:String(r.date), name:r.packer_name, count:r.count||0, timeSlot:String(r.time_slot).slice(0,5), updatedAt:r.updated_at }));
+      wpAllWeek   = (weekRes.data||[]).map(r => ({ date:String(r.date), name:r.name, total:r.total_packs||0, daysWorked:r.days_worked||0, pace:r.packs_per_hour||0 }));
+      wpAllMonth  = (monthRes.data||[]).map(r => ({ date:String(r.date), name:r.name, total:r.total_packs||0, daysWorked:r.days_worked||0, pace:r.packs_per_hour||0, activeMinutes:r.active_minutes||0 }));
+
+      wpCountsDates = [...new Set(wpAllCounts.map(r=>r.date))].sort();
+      wpWeekDates   = [...new Set(wpAllWeek.map(r=>r.date))].sort();
+      wpMonthDates  = [...new Set(wpAllMonth.map(r=>r.date))].sort();
+
+      document.getElementById('wpLoading').style.display = 'none';
+      document.getElementById('wpContent').style.display = 'block';
+      wpSetPeriod('today', true);
+    } catch(e) {
+      document.getElementById('wpLoading').innerHTML = '<span style="color:#dc2626;">Failed to load packing data. Check your connection and try refreshing.</span>';
+      console.error('Warehouse Packing load error:', e);
+    }
+  }
+
+  function wpRefresh(){
+    const btn = document.getElementById('wpRefreshBtn');
+    btn.classList.add('wp-spinning');
+    wpLoadAll().finally(() => { btn.classList.remove('wp-spinning'); wpShowToast('Data refreshed', 'wp-success'); });
+  }
+
+  /* ── PERIOD / DATE CONTROL ── */
+  function wpDatesForPeriod(period){
+    return period==='today' ? wpCountsDates : (period==='week' ? wpWeekDates : wpMonthDates);
+  }
+
+  function wpSetPeriod(period, isInit){
+    wpPeriod = period;
+    document.querySelectorAll('.wp-period-btn').forEach(b => b.classList.toggle('active', b.dataset.period===period));
+    document.getElementById('wpDateLabel').textContent = period==='today' ? 'Date' : 'As of';
+    const dates = wpDatesForPeriod(period);
+    const latest = dates.length ? dates[dates.length-1] : todayStr();
+    wpSelectedDate = latest;
+    const picker = document.getElementById('wpDatePicker');
+    picker.value = wpSelectedDate;
+    if (dates.length) { picker.min = dates[0]; picker.max = dates[dates.length-1]; }
+    wpRenderAll();
+  }
+  window.wpSetPeriod = wpSetPeriod;
+
+  function wpOnDateChange(){
+    wpSelectedDate = document.getElementById('wpDatePicker').value;
+    wpRenderAll();
+  }
+  window.wpOnDateChange = wpOnDateChange;
+
+  function wpNudgeDate(dir){
+    const dates = wpDatesForPeriod(wpPeriod);
+    const idx = dates.indexOf(wpSelectedDate);
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= dates.length) return;
+    wpSelectedDate = dates[newIdx];
+    document.getElementById('wpDatePicker').value = wpSelectedDate;
+    wpRenderAll();
+  }
+  window.wpNudgeDate = wpNudgeDate;
+
+  /* ── DATA SHAPING ── */
+  function wpGetRowsForPeriod(period, date){
+    if (period === 'today') {
+      const dayRows = wpAllCounts.filter(r => r.date === date);
+      const byName = {};
+      dayRows.forEach(r => { (byName[r.name] = byName[r.name]||[]).push(r); });
+      return Object.keys(byName).map(name => {
+        const slots = byName[name].sort((a,b)=>a.timeSlot.localeCompare(b.timeSlot));
+        const last = slots[slots.length-1];
+        const first = slots[0];
+        const elapsedMin = Math.max(timeToMin(last.timeSlot) - timeToMin(first.timeSlot), SLOT_MIN);
+        const pace = last.count / (elapsedMin/60);
+        return { name, total: last.count, sub: fmtDateShort(date)+' · last update '+last.timeSlot, daysWorked: null, pace: Math.round(pace), activeMinutes: elapsedMin, slots };
+      });
+    }
+    const table = period === 'week' ? wpAllWeek : wpAllMonth;
+    return table.filter(r => r.date === date).map(r => ({
+      name: r.name, total: r.total, sub: r.daysWorked+' day'+(r.daysWorked===1?'':'s')+' worked',
+      daysWorked: r.daysWorked, pace: r.pace, activeMinutes: r.activeMinutes || null,
+    }));
+  }
+
+  function wpTeamTrendSeries(period){
+    if (period === 'today') {
+      const dayRows = wpAllCounts.filter(r => r.date === wpSelectedDate);
+      const bySlot = {};
+      dayRows.forEach(r => { bySlot[r.timeSlot] = (bySlot[r.timeSlot]||0) + r.count; });
+      const slots = Object.keys(bySlot).sort();
+      return { labels: slots, values: slots.map(s => bySlot[s]) };
+    }
+    const table = period === 'week' ? wpAllWeek : wpAllMonth;
+    const dates = period === 'week' ? wpWeekDates : wpMonthDates;
+    const byDate = {};
+    table.forEach(r => { byDate[r.date] = (byDate[r.date]||0) + r.total; });
+    return { labels: dates, values: dates.map(d => byDate[d]||0) };
+  }
+
+  /* ── RENDER: MASTER ── */
+  function wpRenderAll(){
+    wpCurrentRows = wpGetRowsForPeriod(wpPeriod, wpSelectedDate).sort((a,b)=>b.total-a.total);
+    const dates = wpDatesForPeriod(wpPeriod);
+    document.getElementById('wpDatePrev').disabled = dates.indexOf(wpSelectedDate) <= 0;
+    document.getElementById('wpDateNext').disabled = dates.indexOf(wpSelectedDate) >= dates.length-1;
+
+    const latestUpdate = wpAllCounts.filter(r=>r.date===wpCountsDates[wpCountsDates.length-1]).reduce((max,r)=> r.updatedAt>max?r.updatedAt:max, '');
+    const liveTime = latestUpdate ? new Date(latestUpdate).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—';
+    document.getElementById('wpSubtitle').innerHTML = '<span class="wp-live-dot"></span>Data last synced ' + liveTime + ' · ' + wpAllCounts.length + ' intraday records tracked';
+
+    ensureChartJs(() => {
+      wpRenderKpis();
+      wpRenderLeaderboard();
+      wpRenderShare();
+      wpRenderTrend();
+      wpRenderCombo();
+      wpRenderTable();
+      if (wpDrawerName) wpOpenDrawer(wpDrawerName); // refresh open drawer if any
+    });
+  }
+
+  /* ── KPIs ── */
+  function wpRenderKpis(){
+    const rows = wpCurrentRows;
+    const totalPacks = rows.reduce((s,r)=>s+r.total,0);
+    const active = rows.length;
+    const paceVals = rows.map(r=>r.pace).filter(v=>v>0);
+    const avgPace = paceVals.length ? Math.round(paceVals.reduce((a,b)=>a+b,0)/paceVals.length) : 0;
+    const top = rows[0];
+
+    const periodLabel = wpPeriod==='today' ? 'today' : (wpPeriod==='week' ? 'this trailing week' : 'this trailing month');
+    const cards = [
+      { label:'Total Packs', icon:'box', value: fmtNum(totalPacks), sub:'Across '+active+' packer'+(active===1?'':'s')+', '+periodLabel, cls:'' },
+      { label:'Active Packers', icon:'users', value: active, sub: wpPeriod==='today' ? 'Logged activity today' : 'With recorded activity', cls:'' },
+      { label:'Avg Pace', icon:'zap', value: avgPace ? fmtNum(avgPace)+'/hr' : '—', sub:'Average across active packers', cls:'wp-accent-amber' },
+      { label:'Top Performer', icon:'crown', value: top ? esc(top.name) : '—', sub: top ? fmtNum(top.total)+' packs' : 'No data yet', cls:'wp-accent-green' },
+    ];
+    const icons = {
+      box:'<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+      users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+      zap:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+      crown:'<path d="M2 20h20"/><path d="M4 20 2 8l6 4 4-8 4 8 6-4-2 12"/>',
+    };
+    document.getElementById('wpKpiRow').innerHTML = cards.map(c => `
+      <div class="wp-kpi-card">
+        <div class="wp-kpi-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icons[c.icon]}</svg>${c.label}</div>
+        <div class="wp-kpi-value ${c.cls}">${c.value}</div>
+        <div class="wp-kpi-sub">${c.sub}</div>
+      </div>`).join('');
+  }
+
+  /* ── LEADERBOARD (column chart) ── */
+  function wpRenderLeaderboard(){
+    const el = document.getElementById('wpLeaderboardChart');
+    const empty = document.getElementById('wpLeaderboardEmpty');
+    const top = wpCurrentRows.slice(0, 10);
+    if (!top.length) { el.style.display='none'; empty.style.display='block'; if(wpCharts.leaderboard){wpCharts.leaderboard.destroy();wpCharts.leaderboard=null;} return; }
+    el.style.display='block'; empty.style.display='none';
+    document.getElementById('wpLeaderboardNote').textContent = 'Top ' + top.length + ' · click a bar to view';
+
+    if (wpCharts.leaderboard) wpCharts.leaderboard.destroy();
+    wpCharts.leaderboard = new Chart(el.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: top.map(r=>r.name),
+        datasets: [{ data: top.map(r=>r.total), backgroundColor: top.map((_,i)=>PALETTE[i%PALETTE.length]), borderRadius: 6, maxBarThickness: 42 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display:false }, tooltip: { callbacks: { label: (ctx)=> fmtNum(ctx.parsed.y)+' packs' } } },
+        scales: { x: { grid: { display:false }, ticks: { font:{size:10.5}, maxRotation:35, minRotation: top.length>6?35:0 } }, y: { beginAtZero:true, grid:{ color:'#f1f5f9' }, ticks:{ font:{size:10.5} } } },
+        onClick: (evt, els) => { if (els.length) wpOpenDrawer(top[els[0].index].name); },
+        onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; }
+      }
+    });
+  }
+
+  /* ── SHARE (doughnut) ── */
+  function wpRenderShare(){
+    const el = document.getElementById('wpShareChart');
+    const empty = document.getElementById('wpShareEmpty');
+    const rows = wpCurrentRows;
+    if (!rows.length) { el.style.display='none'; empty.style.display='block'; if(wpCharts.share){wpCharts.share.destroy();wpCharts.share=null;} return; }
+    el.style.display='block'; empty.style.display='none';
+
+    const top5 = rows.slice(0,5);
+    const rest = rows.slice(5);
+    const restTotal = rest.reduce((s,r)=>s+r.total,0);
+    const labels = top5.map(r=>r.name).concat(rest.length ? ['Others ('+rest.length+')'] : []);
+    const values = top5.map(r=>r.total).concat(rest.length ? [restTotal] : []);
+    const colors = top5.map((_,i)=>PALETTE[i%PALETTE.length]).concat(rest.length ? ['#cbd5e1'] : []);
+
+    if (wpCharts.share) wpCharts.share.destroy();
+    wpCharts.share = new Chart(el.getContext('2d'), {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor:'#fff' }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '62%',
+        plugins: { legend: { position:'bottom', labels:{ font:{size:10.5}, boxWidth:9, padding:10 } }, tooltip: { callbacks: { label: (ctx)=> ctx.label+': '+fmtNum(ctx.parsed)+' packs' } } },
+        onClick: (evt, els) => { if (els.length && els[0].index < top5.length) wpOpenDrawer(top5[els[0].index].name); },
+        onHover: (evt, els) => { evt.native.target.style.cursor = (els.length && els[0].index < top5.length) ? 'pointer' : 'default'; }
+      }
+    });
+  }
+
+  /* ── TREND ── */
+  function wpRenderTrend(){
+    const el = document.getElementById('wpTrendChart');
+    const empty = document.getElementById('wpTrendEmpty');
+    const series = wpTeamTrendSeries(wpPeriod);
+    const titleEl = document.getElementById('wpTrendTitle');
+    const noteEl = document.getElementById('wpTrendNote');
+
+    if (wpPeriod === 'today') {
+      titleEl.textContent = "Today's Pack Progress";
+      noteEl.textContent = fmtDateLong(wpSelectedDate);
+    } else {
+      titleEl.textContent = 'Team Total Trend (' + (wpPeriod==='week'?'trailing 7-day':'trailing 30-day') + ')';
+      noteEl.textContent = series.labels.length + ' snapshot' + (series.labels.length===1?'':'s');
+    }
+
+    if (!series.labels.length) { el.style.display='none'; empty.style.display='block'; if(wpCharts.trend){wpCharts.trend.destroy();wpCharts.trend=null;} return; }
+    el.style.display='block'; empty.style.display='none';
+
+    const labels = wpPeriod==='today' ? series.labels : series.labels.map(fmtDateShort);
+
+    if (wpCharts.trend) wpCharts.trend.destroy();
+    wpCharts.trend = new Chart(el.getContext('2d'), {
+      type: 'line',
+      data: { labels, datasets: [{
+        data: series.values, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,.08)',
+        borderWidth: 2.5, fill: true, tension: .35, pointRadius: labels.length>25?0:3, pointBackgroundColor:'#2563eb', pointHoverRadius:5,
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend:{display:false}, tooltip:{ callbacks: { label: (ctx)=> fmtNum(ctx.parsed.y)+' packs'+(wpPeriod==='today'?' (cumulative)':' (team total)') } } },
+        scales: { x:{ grid:{display:false}, ticks:{font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:12} }, y:{ beginAtZero:true, grid:{color:'#f1f5f9'}, ticks:{font:{size:10.5}} } }
+      }
+    });
+  }
+
+  /* ── COMBO (bar + line) ── */
+  function wpRenderCombo(){
+    const el = document.getElementById('wpComboChart');
+    const empty = document.getElementById('wpComboEmpty');
+    const top = wpCurrentRows.slice(0,8);
+    if (!top.length) { el.style.display='none'; empty.style.display='block'; if(wpCharts.combo){wpCharts.combo.destroy();wpCharts.combo=null;} return; }
+    el.style.display='block'; empty.style.display='none';
+
+    if (wpCharts.combo) wpCharts.combo.destroy();
+    wpCharts.combo = new Chart(el.getContext('2d'), {
+      data: {
+        labels: top.map(r=>r.name),
+        datasets: [
+          { type:'bar', label:'Total Packs', data: top.map(r=>r.total), backgroundColor:'#bfdbfe', borderRadius:5, yAxisID:'y', order:2, maxBarThickness: 46 },
+          { type:'line', label:'Packs / hr', data: top.map(r=>r.pace||0), borderColor:'#7c3aed', backgroundColor:'#7c3aed', borderWidth:2.5, tension:.3, pointRadius:4, pointBackgroundColor:'#7c3aed', yAxisID:'y1', order:1 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend:{ position:'top', align:'end', labels:{ font:{size:10.5}, boxWidth:10 } } },
+        scales: {
+          x:{ grid:{display:false}, ticks:{font:{size:10.5}, maxRotation:35} },
+          y:{ position:'left', beginAtZero:true, grid:{color:'#f1f5f9'}, title:{display:true,text:'Total Packs',font:{size:10}}, ticks:{font:{size:10}} },
+          y1:{ position:'right', beginAtZero:true, grid:{display:false}, title:{display:true,text:'Packs / hr',font:{size:10}}, ticks:{font:{size:10}} },
+        }
+      }
+    });
+  }
+
+  /* ── TABLE ── */
+  function wpTableColumns(){
+    if (wpPeriod === 'today') return [
+      {key:'name', label:'Packer'}, {key:'total', label:'Packs Today'}, {key:'firstSlot', label:'First Seen'}, {key:'lastSlot', label:'Last Update'}, {key:'pace', label:'Est. Pace/hr'}
+    ];
+    if (wpPeriod === 'week') return [
+      {key:'name', label:'Packer'}, {key:'total', label:'Packs (7d)'}, {key:'daysWorked', label:'Days Worked'}, {key:'pace', label:'Packs/hr'}
+    ];
+    return [
+      {key:'name', label:'Packer'}, {key:'total', label:'Packs (30d)'}, {key:'daysWorked', label:'Days Worked'}, {key:'activeMinutes', label:'Active Mins'}, {key:'pace', label:'Packs/hr'}
+    ];
+  }
+
+  function wpSortTable(col){
+    if (wpTableSort.col === col) wpTableSort.dir = wpTableSort.dir==='desc'?'asc':'desc';
+    else { wpTableSort.col = col; wpTableSort.dir = 'desc'; }
+    wpRenderTable();
+  }
+  window.wpSortTable = wpSortTable;
+
+  function wpRenderTable(){
+    const q = (document.getElementById('wpTableSearch').value||'').toLowerCase().trim();
+    const cols = wpTableColumns();
+
+    document.getElementById('wpTableHead').innerHTML = ['#'].concat(cols.map(c=>c.label)).map((label,i) => {
+      if (i===0) return `<th style="width:34px;">#</th>`;
+      const c = cols[i-1];
+      const sorted = wpTableSort.col===c.key;
+      const arrow = sorted ? (wpTableSort.dir==='desc'?'▼':'▲') : '▾';
+      return `<th class="${sorted?'wp-sorted':''}" onclick="wpSortTable('${c.key}')">${label}<span class="wp-sort-arrow">${arrow}</span></th>`;
+    }).join('');
+
+    let rows = wpCurrentRows.filter(r => !q || r.name.toLowerCase().includes(q));
+    rows = rows.slice().sort((a,b) => {
+      let av = wpTableSort.col==='name' ? a.name : (a[wpTableSort.col]==null ? -Infinity : a[wpTableSort.col]);
+      let bv = wpTableSort.col==='name' ? b.name : (b[wpTableSort.col]==null ? -Infinity : b[wpTableSort.col]);
+      if (wpTableSort.col === 'firstSlot' || wpTableSort.col === 'lastSlot') {
+        av = wpTableSort.col==='firstSlot' ? (a.slots?a.slots[0].timeSlot:'') : (a.slots?a.slots[a.slots.length-1].timeSlot:'');
+        bv = wpTableSort.col==='firstSlot' ? (b.slots?b.slots[0].timeSlot:'') : (b.slots?b.slots[b.slots.length-1].timeSlot:'');
+      }
+      if (typeof av === 'string') return wpTableSort.dir==='desc' ? bv.localeCompare(av) : av.localeCompare(bv);
+      return wpTableSort.dir==='desc' ? bv-av : av-bv;
+    });
+
+    document.getElementById('wpTableCount').textContent = '(' + rows.length + (q ? ' of '+wpCurrentRows.length : '') + ')';
+    const body = document.getElementById('wpTableBody');
+    const emptyEl = document.getElementById('wpTableEmpty');
+    if (!rows.length) { body.innerHTML=''; emptyEl.style.display='block'; return; }
+    emptyEl.style.display = 'none';
+
+    body.innerHTML = rows.map(r => {
+      const rank = wpCurrentRows.indexOf(r) + 1;
+      const rankCls = rank<=3 ? ' wp-rank-'+rank : '';
+      const firstSlot = r.slots ? r.slots[0].timeSlot : '';
+      const lastSlot = r.slots ? r.slots[r.slots.length-1].timeSlot : '';
+      const cells = cols.map(c => {
+        if (c.key==='name') return `<td><div class="wp-table-name"><div class="wp-mini-avatar">${initials(r.name)}</div>${esc(r.name)}</div></td>`;
+        if (c.key==='total') return `<td class="wp-table-total">${fmtNum(r.total)}</td>`;
+        if (c.key==='daysWorked') return `<td>${r.daysWorked!=null?r.daysWorked:'—'}</td>`;
+        if (c.key==='activeMinutes') return `<td>${r.activeMinutes!=null?fmtNum(r.activeMinutes):'—'}</td>`;
+        if (c.key==='pace') return `<td>${r.pace?fmtNum(r.pace)+'/hr':'—'}</td>`;
+        if (c.key==='firstSlot') return `<td>${firstSlot||'—'}</td>`;
+        if (c.key==='lastSlot') return `<td>${lastSlot||'—'}</td>`;
+        return `<td>—</td>`;
+      }).join('');
+      return `<tr onclick="wpOpenDrawer('${esc(r.name).replace(/'/g,"\\'")}')"><td><span class="wp-rank-badge${rankCls}">${rank}</span></td>${cells}</tr>`;
+    }).join('');
+  }
+  window.wpRenderTable = wpRenderTable;
+
+  /* ── JUMP-TO-PERSON ── */
+  function wpAllNames(){
+    const set = new Set();
+    wpAllCounts.forEach(r=>set.add(r.name));
+    wpAllWeek.forEach(r=>set.add(r.name));
+    wpAllMonth.forEach(r=>set.add(r.name));
+    return [...set].sort();
+  }
+
+  function wpRenderJumpList(){
+    const q = (document.getElementById('wpJumpInput').value||'').toLowerCase().trim();
+    const list = document.getElementById('wpJumpList');
+    const names = wpAllNames().filter(n => !q || n.toLowerCase().includes(q));
+    if (!names.length) { list.innerHTML = '<div class="wp-jump-empty">No packers found</div>'; }
+    else {
+      list.innerHTML = names.slice(0,20).map(n => `<div class="wp-jump-item" onclick="wpJumpTo('${esc(n).replace(/'/g,"\\'")}')"><div class="wp-mini-avatar">${initials(n)}</div>${esc(n)}</div>`).join('');
+    }
+    list.classList.add('open');
+  }
+  window.wpRenderJumpList = wpRenderJumpList;
+
+  function wpJumpTo(name){
+    document.getElementById('wpJumpList').classList.remove('open');
+    document.getElementById('wpJumpInput').value = '';
+    wpOpenDrawer(name);
+  }
+  window.wpJumpTo = wpJumpTo;
+
+  document.addEventListener('click', (e) => {
+    const wrap = document.querySelector('.wp-jump-wrap');
+    if (wrap && !wrap.contains(e.target)) document.getElementById('wpJumpList').classList.remove('open');
+  });
+
+  /* ── DRAWER ── */
+  function wpLatestStatFor(name, tableKey){
+    if (tableKey === 'today') {
+      const date = wpCountsDates[wpCountsDates.length-1];
+      const rows = wpAllCounts.filter(r=>r.date===date && r.name===name).sort((a,b)=>a.timeSlot.localeCompare(b.timeSlot));
+      return rows.length ? rows[rows.length-1].count : null;
+    }
+    const table = tableKey==='week' ? wpAllWeek : wpAllMonth;
+    const dates = tableKey==='week' ? wpWeekDates : wpMonthDates;
+    for (let i=dates.length-1; i>=0; i--) {
+      const row = table.find(r=>r.date===dates[i] && r.name===name);
+      if (row) return row.total;
+    }
+    return null;
+  }
+
+  function wpOpenDrawer(name){
+    wpDrawerName = name;
+    const rowInPeriod = wpCurrentRows.find(r=>r.name===name);
+    const rankIdx = wpCurrentRows.findIndex(r=>r.name===name);
+
+    document.getElementById('wpDrawerAvatar').textContent = initials(name);
+    document.getElementById('wpDrawerName').textContent = name;
+    document.getElementById('wpDrawerRank').textContent = rankIdx>-1 ? ('Ranked #'+(rankIdx+1)+' of '+wpCurrentRows.length+' this period') : 'No activity this period';
+
+    const t = wpLatestStatFor(name,'today'), w = wpLatestStatFor(name,'week'), m = wpLatestStatFor(name,'month');
+    document.getElementById('wpDrawerKpiToday').textContent = t!=null ? fmtNum(t) : '—';
+    document.getElementById('wpDrawerKpiWeek').textContent = w!=null ? fmtNum(w) : '—';
+    document.getElementById('wpDrawerKpiMonth').textContent = m!=null ? fmtNum(m) : '—';
+
+    // Progress bars vs team (based on active period)
+    const paceVals = wpCurrentRows.map(r=>r.pace).filter(v=>v>0);
+    const avgPace = paceVals.length ? paceVals.reduce((a,b)=>a+b,0)/paceVals.length : 0;
+    const maxTotal = wpCurrentRows.length ? wpCurrentRows[0].total : 0;
+    const myPace = rowInPeriod ? rowInPeriod.pace : 0;
+    const myTotal = rowInPeriod ? rowInPeriod.total : 0;
+    const pacePct = avgPace>0 ? Math.min(200, Math.round((myPace/avgPace)*100)) : 0;
+    const totalPct = maxTotal>0 ? Math.round((myTotal/maxTotal)*100) : 0;
+
+    document.getElementById('wpProgPaceVal').textContent = avgPace>0 ? pacePct+'% of average' : '—';
+    document.getElementById('wpProgPaceFill').style.width = Math.min(100,pacePct)+'%';
+    document.getElementById('wpProgPaceFill').style.background = pacePct>=100 ? '#15803d' : '#2563eb';
+    document.getElementById('wpProgTotalVal').textContent = maxTotal>0 ? totalPct+'%' : '—';
+    document.getElementById('wpProgTotalFill').style.width = Math.min(100,totalPct)+'%';
+    document.getElementById('wpProgTotalFill').style.background = '#7c3aed';
+
+    // Drawer trend chart
+    const trendLabel = document.getElementById('wpDrawerTrendLabel');
+    const el = document.getElementById('wpDrawerTrendChart');
+    const empty = document.getElementById('wpDrawerTrendEmpty');
+    let labels = [], values = [];
+    if (wpPeriod === 'today') {
+      trendLabel.textContent = "Today's Pack Progress";
+      const slots = (rowInPeriod && rowInPeriod.slots) ? rowInPeriod.slots : [];
+      labels = slots.map(s=>s.timeSlot); values = slots.map(s=>s.count);
+    } else {
+      trendLabel.textContent = (wpPeriod==='week'?'Trailing 7-day Total — Over Time':'Trailing 30-day Total — Over Time');
+      const table = wpPeriod==='week' ? wpAllWeek : wpAllMonth;
+      const dates = wpPeriod==='week' ? wpWeekDates : wpMonthDates;
+      dates.forEach(d => { const row = table.find(r=>r.date===d && r.name===name); if (row) { labels.push(fmtDateShort(d)); values.push(row.total); } });
+    }
+
+    if (!labels.length) { el.style.display='none'; empty.style.display='block'; if(wpCharts.drawerTrend){wpCharts.drawerTrend.destroy();wpCharts.drawerTrend=null;} }
+    else {
+      el.style.display='block'; empty.style.display='none';
+      if (wpCharts.drawerTrend) wpCharts.drawerTrend.destroy();
+      wpCharts.drawerTrend = new Chart(el.getContext('2d'), {
+        type: 'line',
+        data: { labels, datasets: [{ data: values, borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,.1)', borderWidth:2.5, fill:true, tension:.35, pointRadius: labels.length>20?0:3, pointBackgroundColor:'#2563eb' }] },
+        options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:(ctx)=>fmtNum(ctx.parsed.y)+' packs'}}},
+          scales:{ x:{grid:{display:false},ticks:{font:{size:9.5},maxTicksLimit:10}}, y:{beginAtZero:true,grid:{color:'#f1f5f9'},ticks:{font:{size:10}}} } }
+      });
+    }
+
+    document.getElementById('wpDrawerOverlay').style.display = 'block';
+    requestAnimationFrame(() => {
+      document.getElementById('wpDrawerOverlay').classList.add('wp-open');
+      document.getElementById('wpDrawer').classList.add('wp-open');
+    });
+  }
+  window.wpOpenDrawer = wpOpenDrawer;
+
+  function wpCloseDrawer(){
+    document.getElementById('wpDrawerOverlay').classList.remove('wp-open');
+    document.getElementById('wpDrawer').classList.remove('wp-open');
+    setTimeout(() => { document.getElementById('wpDrawerOverlay').style.display='none'; }, 300);
+    wpDrawerName = null;
+  }
+  window.wpCloseDrawer = wpCloseDrawer;
+  window.wpRefresh = wpRefresh;
+
+  wpLoadAll();
+})();
+</script>
