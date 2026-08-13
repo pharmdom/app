@@ -258,6 +258,17 @@
     }
     .sidebar-footer-flyout-item:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); color: #fff; }
     .sidebar-footer-flyout-item svg { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.8; }
+    .sidebar-footer-flyout-item.nav-group-header.active-group { background: color-mix(in srgb, var(--accent) 26%, transparent); color: #fff; }
+    .footer-flyout-children { overflow: hidden; max-height: 0; transition: max-height 0.25s ease; }
+    .footer-flyout-children.open { max-height: 200px; }
+    .footer-flyout-children .sidebar-footer-flyout-item { padding-left: 28px; font-size: 12.5px; }
+    .footer-flyout-children .sidebar-footer-flyout-item.active { background: color-mix(in srgb, var(--accent) 26%, transparent); color: #fff; }
+    .sidebar.collapsed .sidebar-footer-flyout .nav-group-header {
+      width: auto !important; height: auto !important; padding: 9px 10px !important;
+      justify-content: flex-start !important; margin: 0 !important;
+    }
+    .sidebar.collapsed .sidebar-footer-flyout .nav-chevron-wrap { display: flex !important; align-items: center; }
+    .sidebar.collapsed .sidebar-footer-flyout .nav-chevron { display: block !important; }
     .sidebar.collapsed .sidebar-footer-flyout { left: 8px; right: 8px; }
     
     .sidebar-avatar {
@@ -599,6 +610,8 @@ const pages = {
     operations: { navTitle: 'Operations', pageTitle: 'Operations', permission: 'operations', file: '../modules/operations.html', parent: 'bizanalysis' },
     payroll:    { navTitle: 'Payroll',    pageTitle: 'Payroll',    permission: 'payroll',    file: '../modules/paycheck.html',    parent: null },
     reports:          { navTitle: 'Reports',           pageTitle: 'Reports',            permission: 'reports',         file: '../modules/reports.html',         parent: null },
+    veeqo_report:             { navTitle: 'Veeqo',             pageTitle: 'Veeqo Report',             permission: 'reports', file: '../pages/veeqo_report.html',             parent: 'reportsGroup' },
+    warehouse_packing_report: { navTitle: 'Warehouse Packing', pageTitle: 'Warehouse Packing Report', permission: 'reports', file: '../pages/warehouse_packing_report.html', parent: 'reportsGroup' },
     sourcing:         { navTitle: 'Sourcing',          pageTitle: 'Sourcing',           permission: 'sourcing',        file: '../modules/sourcing.html',        parent: 'products' },
     listing:          { navTitle: 'Listing & Veeqo',   pageTitle: 'Listing & Veeqo',    permission: 'listing',         file: '../modules/listing.html',         parent: 'products' },
     fbaopportunities: { navTitle: 'FBA Opportunities', pageTitle: 'FBA Opportunities',  permission: 'fbaopportunities',file: '../modules/fbaopportunities.html',parent: 'products' },
@@ -663,9 +676,14 @@ const pages = {
     <nav class="sidebar-nav" id="sidebarNav"></nav>
 <div class="sidebar-footer" style="position:relative;">
         <div class="sidebar-footer-flyout" id="footerFlyout">
-          <div class="sidebar-footer-flyout-item" id="nav-reports" onclick="loadModule('reports'); closeFooterFlyout();">
+          <div class="sidebar-footer-flyout-item nav-group-header" id="group-header-reportsGroup" onclick="handleGroupClick('reportsGroup'); if (window.innerWidth > 768) { closeFooterFlyout(); }">
             ${ic.reports}
-            <span>Reports</span>
+            <span style="flex:1;">Reports</span>
+            <span class="nav-chevron-wrap" id="chevron-reportsGroup">${ic.chevron}</span>
+          </div>
+          <div class="footer-flyout-children" id="children-reportsGroup">
+            <div class="sidebar-footer-flyout-item" id="secitem-veeqo_report" onclick="loadModule('veeqo_report'); closeFooterFlyout();">Veeqo</div>
+            <div class="sidebar-footer-flyout-item" id="secitem-warehouse_packing_report" onclick="loadModule('warehouse_packing_report'); closeFooterFlyout();">Warehouse Packing</div>
           </div>
         </div>
         <div class="sidebar-user-card">
@@ -762,6 +780,10 @@ if (perms.packaging) {
     }
 
 nav.innerHTML = html;
+    GROUP_CHILDREN['reportsGroup'] = { label: 'Reports', items: [
+      { key:'veeqo_report', icon: ic.reports, label:'Veeqo', onClick: () => loadModule('veeqo_report') },
+      { key:'warehouse_packing_report', icon: ic.packaging, label:'Warehouse Packing', onClick: () => loadModule('warehouse_packing_report') },
+    ]};
     buildSecondaryPanels();
   }
 
@@ -902,6 +924,7 @@ function setActiveNav(navId, groupId) {
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-group-header').forEach(el => el.classList.remove('active-group'));
     document.querySelectorAll('.nav-flyout-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.footer-flyout-children .sidebar-footer-flyout-item').forEach(el => el.classList.remove('active'));
     let el = document.getElementById(navId);
     if (!el && groupId) el = document.getElementById(`nav-${groupId}`);
     if (el) el.classList.add('active');
