@@ -526,13 +526,6 @@ function getSourcingFilterCutoff(filter){
   if(filter==='30d'){const d=new Date(ukMidnight());d.setUTCDate(d.getUTCDate()-29);return d;}
   return null;
 }
-function calendarLastMonthBounds(){
-  const fmt=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'});
-  const parts=fmt.formatToParts(new Date());const p={};parts.forEach(x=>p[x.type]=x.value);
-  const y=parseInt(p.year),m=parseInt(p.month);
-  let lm=m-1,ly=y;if(lm===0){lm=12;ly=y-1;}
-  return{start:ukMidnightForYMD(ly,lm,1),end:ukMidnightForYMD(y,m,1)};
-}
 function utcDateStr(d){return (d||new Date()).toISOString().slice(0,10);}
 /* ── PAGINATED FETCH — no caps, ever. Pages in batches of 1000 until exhausted. ── */
 async function fetchAll(table,cols,build,orderCol,pageSize){
@@ -589,7 +582,7 @@ async function loadVeeqo(){
       q=>q.gte('created_at',midnight.toISOString()),'order_id'),
     fetchAll('veeqo_orders','order_id,total_price,created_at,status,channel',
       q=>q.gte('created_at',ago30.toISOString()),'order_id'),
-    fetchAll('veeqo_orders','order_id,total_price',
+    fetchAll('veeqo_orders','order_id,total_price,created_at',
       q=>q.gte('created_at',ago60.toISOString()).lt('created_at',ago30.toISOString()),'order_id'),
     fetchAll('veeqo_orders','order_id,order_number,status,total_price,created_at,channel,deliver_to_name',
       q=>q.in('status',['awaiting_fulfillment','awaiting_payment','payment_pending','awaiting_stock','on_hold']),'order_id'),
@@ -608,33 +601,7 @@ async function loadLineItems(){
   D.lineItems30=await fetchAll('veeqo_order_line_items','line_item_id,order_id,sku,product_title,quantity,price_per_unit,created_at',
     q=>q.gte('created_at',ago30.toISOString()),'line_item_id');
 }
-function calendarMonthBounds(offset){
-  const fmt=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'});
-  const parts=fmt.formatToParts(new Date());const p={};parts.forEach(x=>p[x.type]=x.value);
-  let y=parseInt(p.year),m=parseInt(p.month)+offset;
-  while(m<1){m+=12;y--;}
-  while(m>12){m-=12;y++;}
-  let ny=y,nm=m+1;if(nm>12){nm=1;ny++;}
-  return{start:ukMidnightForYMD(y,m,1),end:ukMidnightForYMD(ny,nm,1)};
-}
-async function loadMonthBeforeLastVeeqo(){
-  if(D.veeqoMonthBeforeLast)return;
-  const{start,end}=calendarMonthBounds(-2);
-  D.veeqoMonthBeforeLast=await fetchAll('veeqo_orders','order_id,total_price,created_at',
-    q=>q.gte('created_at',start.toISOString()).lt('created_at',end.toISOString()),'order_id');
-}
-async function loadLastMonthVeeqo(){
-  if(D.veeqoLastMonth)return;
-  const{start,end}=calendarLastMonthBounds();
-  const[orders,lineItems]=await Promise.all([
-    fetchAll('veeqo_orders','order_id,order_number,status,total_price,is_amazon_prime,created_at,channel,deliver_to_name',
-      q=>q.gte('created_at',start.toISOString()).lt('created_at',end.toISOString()),'order_id'),
-    fetchAll('veeqo_order_line_items','line_item_id,order_id,sku,product_title,quantity,price_per_unit,created_at',
-      q=>q.gte('created_at',start.toISOString()).lt('created_at',end.toISOString()),'line_item_id'),
-  ]);
-  D.veeqoLastMonth=orders;
-  D.lineItemsLastMonth=lineItems;
-}
+
 async function loadSourcing(){
   const[rows,totalC,unapprovedC,approvedC,purchasedC]=await Promise.all([
     fetchAll('sourcing','opportunity_id,product_name,supplier_name,agent,total_cost,approved,approved_by,approval_timestamp,purchased,purchased_at,created_at,sourcing_approvals(status)',null,'opportunity_id'),
@@ -1842,15 +1809,6 @@ async function getRevenueFilterData(filter){
       prevVals:_revBucketByDayRange(prevOrders,ago14,7),
       granularity:'day',label:'Last 7 Days'};
   }
-  if(filter==='month'){
-    await loadLastMonthVeeqo();
-    await loadMonthBeforeLastVeeqo();
-    const{start:mbStart,end:mbEnd}=calendarMonthBounds(-2);
-    const mbDays=Math.round((mbEnd-mbStart)/86400000);
-    return{orders:D.veeqoLastMonth||[],lineItems:D.lineItemsLastMonth||[],
-      prevVals:_revBucketByDayRange(D.veeqoMonthBeforeLast||[],mbStart,mbDays),
-      granularity:'day',label:'Last Calendar Month'};
-  }
   const midnight30=ukMidnight();
   const ago30=new Date(midnight30);ago30.setUTCDate(ago30.getUTCDate()-29);
   const ago60=new Date(ago30);ago60.setUTCDate(ago60.getUTCDate()-30);
@@ -1865,7 +1823,6 @@ function ovOpenRevenueModal(){
       <button class="rev-tab" onclick="ovSetRevenueFilter('today')" data-f="today">Today</button>
       <button class="rev-tab" onclick="ovSetRevenueFilter('7d')" data-f="7d">Last 7 Days</button>
       <button class="rev-tab active" onclick="ovSetRevenueFilter('30d')" data-f="30d">Last 30 Days</button>
-      <button class="rev-tab" onclick="ovSetRevenueFilter('month')" data-f="month">Last Month</button>
     </div>
     <div id="revModalContent"><div class="shimmer" style="height:220px"></div></div>`);
   renderRevenueModalContent('30d');
