@@ -1069,14 +1069,27 @@ function ovOpenReadyToPurchaseDrawer(){
     bySupplier[k].count++;
     bySupplier[k].val+=replCurrentCost(r)*(parseFloat(r.order_qty)||0);
   });
-  const suppRows=Object.entries(bySupplier).sort((a,b)=>b[1].val-a[1].val).map(([name,v])=>`
+  const moqList=D.suppliersMoq||[];
+  const suppRows=Object.entries(bySupplier).sort((a,b)=>b[1].val-a[1].val).map(([name,v])=>{
+    const sup=moqList.find(s=>s.name===name);
+    const moq=sup?parseFloat(sup.moq)||0:0;
+    let moqBadge='';
+    if(moq>0){
+      const met=v.val>=moq;
+      const pct=Math.min(999,Math.round(v.val/moq*100));
+      moqBadge=met
+        ?'<span style="font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:20px;background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);white-space:nowrap">✓ MOQ Met</span>'
+        :`<span style="font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:20px;background:var(--surface2);color:var(--text3);border:1px solid var(--border);white-space:nowrap">${pct}% of MOQ</span>`;
+    }
+    return`
     <div class="drw-card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div class="drw-card-t">${esc(name)}</div>
-        <span style="font-family:var(--mono);font-size:12px;font-weight:700">${fmtGBP(v.val)}</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div class="drw-card-t" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</div>
+        ${moqBadge}
       </div>
-      <div class="drw-card-s" style="margin-top:3px">${v.count} item${v.count!==1?'s':''}</div>
-    </div>`).join('')||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None pending</div>';
+      <div class="drw-card-s" style="margin-top:3px">${v.count} item${v.count!==1?'s':''} · ${fmtGBP(v.val)}</div>
+    </div>`;
+  }).join('')||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None pending</div>';
   ovOpenDrawer('Basket','Ready to Purchase',`${totalCount} items · ${fmtGBP(totalVal)}`,`
     <div class="drw-sec-lbl">Summary</div>
     <div class="drw-row"><div class="drw-row-k">Total Items</div><div class="drw-row-v">${totalCount.toLocaleString()}</div></div>
