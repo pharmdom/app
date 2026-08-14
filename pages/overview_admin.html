@@ -709,7 +709,7 @@ D.catTotal=rows.length;
   D.suppTotal=allSupplierNames.length;
 }
 async function loadOffers(){
-  const rows=await fetchAll('offers','id,approval,supplier_name',null,'id');
+  const rows=await fetchAll('offers','id,approval,supplier_name,product_name,date,cost_of_unit',null,'id');
   const rejected=rows.filter(r=>(r.approval||'').toLowerCase()==='rejected');
   const active=rows.filter(r=>(r.approval||'').toLowerCase()!=='rejected');
   const bySupplier={};
@@ -723,6 +723,7 @@ async function loadOffers(){
   D.offRejected=rejected.length;
   D.offSuppliers=new Set(active.map(r=>r.supplier_name||'Unknown')).size;
   D.offBySupplier=bySupplier;
+  D.offersPending=active.slice().sort((a,b)=>new Date(a.date||0)-new Date(b.date||0));
 }
 async function loadReplenishments(){
   D.replen=await fetchAll('replenishment_skus','sku,name,action,days_left,order_qty,urgency,cost_price',null,'sku');
@@ -937,6 +938,12 @@ if(needApprovalCount>0){
   const valueNote=pendingValue>0?` · ${fmtGBP(pendingValue)} pending`:'';
   items.push({sev:isStale?'crit':'warn',t:`${needApprovalCount} sourcing product${needApprovalCount!==1?'s':''} need your approval`,s:(isStale?`Oldest has been waiting ${oldestDays} days — review needed`:'Agents have submitted products awaiting your decision')+valueNote,meta:'Sourcing',tag:{cls:isStale?'bg-crit':'bg-warn',txt:'Sourcing'},fn:'ovOpenSourcingApprovalDrawer()'});
 }
+const offersPending=D.offersPending||[];
+if(offersPending.length){
+  const oldestOfferDays=Math.floor((Date.now()-new Date(offersPending[0].date||Date.now()).getTime())/86400000);
+  const isOfferStale=oldestOfferDays>=7;
+  items.push({sev:isOfferStale?'warn':'info',t:`${offersPending.length} offer${offersPending.length!==1?'s':''} pending review`,s:isOfferStale?`Oldest has been waiting ${oldestOfferDays} days — review needed`:'New supplier offers awaiting your decision',meta:'Offers',tag:{cls:isOfferStale?'bg-warn':'sb-neutral',txt:'Offers'},fn:'ovOpenOffersPendingDrawer()'});
+}
 const blocked=open.filter(o=>['awaiting_payment','payment_pending'].includes((o.status||'').toLowerCase()));
   if(blocked.length)items.push({sev:'crit',t:`${blocked.length} order${blocked.length!==1?'s':''} blocked — payment required`,s:'These orders cannot be fulfilled until payment clears',meta:'Current',tag:{cls:'bg-crit',txt:'Critical'},fn:'ovOpenAwaitingPaymentDrawer()'});
   const openFaults=faults.filter(f=>!f.resolved);
@@ -971,6 +978,46 @@ const blocked=open.filter(o=>['awaiting_payment','payment_pending'].includes((o.
   const order={crit:0,warn:1,info:2};
   return items.sort((a,b)=>order[a.sev]-order[b.sev]);
 }
+
+function ovOpenOffersPendingDrawer(){
+  const pending=D.offersPending||[];
+  const now=Date.now();
+  const totalValue=pending.reduce((s,o)=>s+(parseFloat(o.cost_of_unit)||0),0);
+  const oldestDays=pending.length?Math.floor((now-new Date(pending[0].date).getTime())/86400000):0;
+  const rows=pending.map(o=>{
+    const days=o.date?Math.floor((now-new Date(o.date).getTime())/86400000):0;
+    const cost=parseFloat(o.cost_of_unit)||0;
+    const urgent=days>=7,warn=days>=3&&days<7;
+    const color=urgent?'var(--red)':warn?'var(--amber)':'var(--text3)';
+    const bg=urgent?'var(--red-bg)':warn?'var(--amber-bg)':'var(--surface3)';
+    const bd=urgent?'var(--red-bd)':warn?'var(--amber-bd)':'var(--border)';
+    return`<div class="drw-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div class="drw-card-t">${esc(o.product_name||'—')}</div>
+          <div class="drw-card-s" style="margin-top:3px">${esc(o.supplier_name||'Unknown')}${cost?` · ${fmtGBP(cost)}`:''}</div>
+        </div>
+        <div style="flex-shrink:0;text-align:center;min-width:50px;padding:5px 9px;border-radius:9px;background:${bg};border:1px solid ${bd}">
+          <div style="font-size:19px;font-weight:800;font-family:var(--mono);color:${color};line-height:1">${days}</div>
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:${color};margin-top:1px">day${days!==1?'s':''}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('')||'<div class="attn-empty" style="padding:24px 0"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.5"><polyline points="20 6 9 17 4 12"/></svg><p style="font-size:13px;font-weight:700;color:var(--green)">All caught up</p><span style="font-size:11px;color:var(--text4)">No offers pending review</span></div>';
+  ovOpenDrawer('Offers','Pending Review',`${pending.length.toLocaleString()} offer${pending.length!==1?'s':''}${totalValue?` · ${fmtGBP(totalValue)}`:''}`,`
+    <div class="mkpi-row" style="margin-bottom:14px">
+      <div class="mkpi"><div class="mkpi-lbl">Pending</div><div class="mkpi-val amber">${pending.length.toLocaleString()}</div></div>
+      <div class="mkpi"><div class="mkpi-lbl">Total Value</div><div class="mkpi-val" style="color:var(--amber)">${fmtGBP(totalValue)}</div></div>
+      <div class="mkpi"><div class="mkpi-lbl">Oldest</div><div class="mkpi-val" style="color:${oldestDays>=7?'var(--red)':'var(--text)'}">${oldestDays}d</div></div>
+    </div>
+    <div class="drw-sec-lbl">Offers — Oldest First</div>
+    ${rows}
+    <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('offers')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.5"/></svg>
+      Open Offers
+    </button>`);
+}
+  
 function renderAttention(){
   const items=buildAttnItems();
   const badge=document.getElementById('ovAttnBadge');
@@ -2057,6 +2104,7 @@ document.addEventListener('keydown',e=>{
 window.ovOpenVeeqoDrawer=ovOpenVeeqoDrawer;
 window.ovOpenSourcingDrawer=ovOpenSourcingDrawer;
 window.ovOpenSourcingApprovalDrawer=ovOpenSourcingApprovalDrawer;
+window.ovOpenOffersPendingDrawer=ovOpenOffersPendingDrawer;
 window.ovOpenReadyToShipDrawer=ovOpenReadyToShipDrawer;
 window.ovOpenAwaitingPaymentDrawer=ovOpenAwaitingPaymentDrawer;
 window.ovOpenRefundsDrawer=ovOpenRefundsDrawer;
