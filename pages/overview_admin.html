@@ -608,6 +608,21 @@ async function loadLineItems(){
   D.lineItems30=await fetchAll('veeqo_order_line_items','line_item_id,order_id,sku,product_title,quantity,price_per_unit,created_at',
     q=>q.gte('created_at',ago30.toISOString()),'line_item_id');
 }
+function calendarMonthBounds(offset){
+  const fmt=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'});
+  const parts=fmt.formatToParts(new Date());const p={};parts.forEach(x=>p[x.type]=x.value);
+  let y=parseInt(p.year),m=parseInt(p.month)+offset;
+  while(m<1){m+=12;y--;}
+  while(m>12){m-=12;y++;}
+  let ny=y,nm=m+1;if(nm>12){nm=1;ny++;}
+  return{start:ukMidnightForYMD(y,m,1),end:ukMidnightForYMD(ny,nm,1)};
+}
+async function loadMonthBeforeLastVeeqo(){
+  if(D.veeqoMonthBeforeLast)return;
+  const{start,end}=calendarMonthBounds(-2);
+  D.veeqoMonthBeforeLast=await fetchAll('veeqo_orders','order_id,total_price,created_at',
+    q=>q.gte('created_at',start.toISOString()).lt('created_at',end.toISOString()),'order_id');
+}
 async function loadLastMonthVeeqo(){
   if(D.veeqoLastMonth)return;
   const{start,end}=calendarLastMonthBounds();
@@ -786,12 +801,16 @@ async function loadPaycheck(){
 }
 async function loadPacking(){
   const todayStr=utcDateStr();
-  const[counts,todayStats]=await Promise.all([
+  const y=new Date();y.setUTCDate(y.getUTCDate()-1);
+  const yStr=y.toISOString().split('T')[0];
+  const[counts,todayStats,yCounts]=await Promise.all([
     fetchAll('manus_packing_counts','date,time_slot,packer_name,count',q=>q.eq('date',todayStr),'time_slot'),
     fetchAll('manus_packing_week_stats','date,name,total_packs,days_worked,packs_per_hour',q=>q.eq('date',todayStr),'name'),
+    fetchAll('manus_packing_counts','date,time_slot,packer_name,count',q=>q.eq('date',yStr),'time_slot'),
   ]);
   D.packingToday=counts;
   D.packingStatsToday=todayStats;
+  D.packingYesterday=yCounts;
 }
 async function init(){
   if(!sb)return;
@@ -984,16 +1003,37 @@ function renderRevenue(){
   const buckets={};
   for(let i=29;i>=0;i--){const d=new Date(midnight);d.setUTCDate(d.getUTCDate()-i);buckets[d.toISOString().split('T')[0]]=0;}
   orders.forEach(o=>{if(!o.created_at)return;const k=new Date(o.created_at).toISOString().split('T')[0];if(k in buckets)buckets[k]+=parseFloat(o.total_price||0);});
-  requestAnimationFrame(()=>drawSparkline('ovSparkline',Object.values(buckets),Object.keys(buckets),'var(--green)',null,'currency'));
+  const prevBuckets={};
+  for(let i=29;i>=0;i--){const d=new Date(midnight);d.setUTCDate(d.getUTCDate()-i-30);prevBuckets[d.toISOString().split('T')[0]]=0;}
+  (D.veeqoPrev30||[]).forEach(o=>{if(!o.created_at)return;const k=new Date(o.created_at).toISOString().split('T')[0];if(k in prevBuckets)prevBuckets[k]+=parseFloat(o.total_price||0);});
+  requestAnimationFrame(()=>drawSparkline('ovSparkline',Object.values(buckets),Object.keys(buckets),'var(--green)',null,'currency',{prevVals:Object.values(prevBuckets)}));
 }
-function drawSparkline(id,vals,keys,color,xLabelFn,unit){
+
+function ensureSparkTip(){
+  let tip=document.getElementById('ovSparkTip');
+  if(!tip){
+    tip=document.createElement('div');
+    tip.id='ovSparkTip';
+    tip.style.cssText='position:fixed;z-index:5000;pointer-events:none;background:var(--navy);color:#fff;font-size:11px;font-weight:600;padding:6px 9px;border-radius:7px;box-shadow:var(--sh);opacity:0;transition:opacity .1s;white-space:nowrap;font-family:var(--font);line-height:1.5;';
+    document.body.appendChild(tip);
+  }
+  return tip;
+}
+function drawSparkline(id,vals,keys,color,xLabelFn,unit,opts){
+  opts=opts||{};
+  const prevVals=(opts.prevVals&&opts.prevVals.length===vals.length)?opts.prevVals:null;
   const svg=document.getElementById(id);if(!svg)return;
   const W=svg.parentElement.getBoundingClientRect().width||svg.parentElement.offsetWidth||500,H=90,pL=36,pR=8,pT=8,pB=20;
   const cW=W-pL-pR,cH=H-pT-pB,n=vals.length;
-  const maxV=Math.max(...vals,1);
+  const maxV=Math.max(...vals,...(prevVals||[]),1);
   const pts=vals.map((v,i)=>[pL+(n>1?i*cW/(n-1):0),pT+cH-(v/maxV*cH)]);
   const pathD='M '+pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' L ');
   const areaD=pathD+` L ${(pL+cW).toFixed(1)},${pT+cH} L ${pL},${pT+cH} Z`;
+  let prevPathD='';
+  if(prevVals){
+    const prevPts=prevVals.map((v,i)=>[pL+(n>1?i*cW/(n-1):0),pT+cH-(v/maxV*cH)]);
+    prevPathD='M '+prevPts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' L ');
+  }
   const gid='sg'+Math.random().toString(36).slice(2);
   let grid='';
   [0,0.5,1].forEach(f=>{
@@ -1001,6 +1041,8 @@ function drawSparkline(id,vals,keys,color,xLabelFn,unit){
     const rawVal=maxV*f;
     const label=unit==='count'
       ? (maxV>=1000?(rawVal/1000).toFixed(1)+'k':rawVal.toFixed(0))
+      : unit==='pace'
+      ? rawVal.toFixed(0)
       : (maxV>=10000?'£'+(rawVal/1000).toFixed(rawVal/1000<10?1:0)+'k':maxV>=1000?'£'+(rawVal/1000).toFixed(1)+'k':'£'+rawVal.toFixed(0));
     grid+=`<line x1="${pL}" y1="${y.toFixed(1)}" x2="${(pL+cW).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border2)" stroke-width="1" stroke-dasharray="3,3"/>`;
     grid+=`<text x="${(pL-5).toFixed(1)}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--text4)" font-family="var(--mono)">${label}</text>`;
@@ -1020,9 +1062,29 @@ function drawSparkline(id,vals,keys,color,xLabelFn,unit){
   </linearGradient></defs>
   ${grid}
   <path d="${areaD}" fill="url(#${gid})"/>
+  ${prevPathD?`<path d="${prevPathD}" fill="none" stroke="var(--text4)" stroke-width="1.5" stroke-dasharray="4,3" stroke-linecap="round" stroke-linejoin="round"/>`:''}
   <path d="${pathD}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   ${xLabels}`;
+  svg.onmousemove=function(e){
+    const rect=svg.getBoundingClientRect();
+    if(!rect.width)return;
+    const scaleX=W/rect.width;
+    const localX=(e.clientX-rect.left)*scaleX;
+    let idx=0,best=Infinity;
+    pts.forEach((p,i)=>{const d=Math.abs(p[0]-localX);if(d<best){best=d;idx=i;}});
+    const tip=ensureSparkTip();
+    const label=(keys&&keys[idx]!=null)?(xLabelFn?xLabelFn(keys[idx]):keys[idx]):'';
+    const fmtV=v=>unit==='currency'?fmtGBP(v):unit==='pace'?v.toFixed(1)+'/hr':Math.round(v).toLocaleString();
+    let html=`<div style="opacity:.65;font-size:9.5px;margin-bottom:2px">${esc(String(label))}</div><div>${fmtV(vals[idx])}</div>`;
+    if(prevVals&&prevVals[idx]!=null)html+=`<div style="opacity:.65;font-size:9.5px;margin-top:3px;border-top:1px solid rgba(255,255,255,.15);padding-top:3px">Prev: ${fmtV(prevVals[idx])}</div>`;
+    tip.innerHTML=html;
+    tip.style.left=(e.clientX+14)+'px';
+    tip.style.top=(e.clientY-14)+'px';
+    tip.style.opacity='1';
+  };
+  svg.onmouseleave=function(){const t=document.getElementById('ovSparkTip');if(t)t.style.opacity='0';};
 }
+  
 /* ── PACKING ── */
 function renderPacking(){
   const counts=D.packingToday||[];
@@ -1059,10 +1121,39 @@ function renderPacking(){
   document.getElementById('ovPackActive').textContent=activeNow;
   document.getElementById('ovPackPph').textContent=avgPph?avgPph.toFixed(1):'—';
   document.getElementById('ovPackTop').textContent=topPacker?`${(topPacker.packer_name||'').split(' ')[0]} (${parseInt(topPacker.count)||0})`:'—';
+  const bucket=packingBucketBySlot(counts);
+  const paceVals=paceSeriesFromBucket(bucket,slots);
+  const prevPace=yesterdayPaceAligned(slots);
+  requestAnimationFrame(()=>drawSparkline('ovPackSparkline',paceVals,slots,'var(--accent)',k=>k,'pace',prevPace?{prevVals:prevPace}:{}));
+}
+function packingBucketBySlot(counts){
   const bucket={};
   counts.forEach(c=>{bucket[c.time_slot]=(bucket[c.time_slot]||0)+(parseInt(c.count)||0);});
-  const vals=slots.map(sl=>bucket[sl]||0);
-  requestAnimationFrame(()=>drawSparkline('ovPackSparkline',vals,slots,'var(--accent)',k=>k,'count'));
+  return bucket;
+}
+function timeToMinsGlobal(t){if(!t)return 0;const[h,m]=String(t).slice(0,5).split(':').map(Number);return h*60+m;}
+function paceSeriesFromBucket(bucket,slots){
+  return slots.map((sl,i)=>{
+    if(i===0)return 0;
+    const dt=(timeToMinsGlobal(sl)-timeToMinsGlobal(slots[i-1]))/60;
+    const dv=(bucket[sl]||0)-(bucket[slots[i-1]]||0);
+    return dt>0?Math.max(0,dv/dt):0;
+  });
+}
+function yesterdayPaceAligned(todaySlots){
+  const yCounts=D.packingYesterday||[];
+  if(!yCounts.length)return null;
+  const yBucket=packingBucketBySlot(yCounts);
+  const ySlots=[...new Set(yCounts.map(c=>c.time_slot))].sort();
+  if(!ySlots.length)return null;
+  return todaySlots.map(sl=>{
+    let idx=-1;
+    for(let i=0;i<ySlots.length;i++){if(ySlots[i]<=sl)idx=i;else break;}
+    if(idx<=0)return null;
+    const dt=(timeToMinsGlobal(ySlots[idx])-timeToMinsGlobal(ySlots[idx-1]))/60;
+    const dv=(yBucket[ySlots[idx]]||0)-(yBucket[ySlots[idx-1]]||0);
+    return dt>0?Math.max(0,dv/dt):0;
+  });
 }
 /* ── SOURCING FUNNEL ── */
 function getPendingSourcingItems(){
@@ -1688,6 +1779,11 @@ function ovOpenPaycheckDrawer(){
 }
 function ovOpenPackingDrawer(){
   const stats=D.packingStatsToday||[];
+  const counts=D.packingToday||[];
+  const slots=[...new Set(counts.map(c=>c.time_slot))].sort();
+  const bucket=packingBucketBySlot(counts);
+  const paceVals=paceSeriesFromBucket(bucket,slots);
+  const prevPace=yesterdayPaceAligned(slots);
   const rows=stats.slice().sort((a,b)=>(b.total_packs||0)-(a.total_packs||0)).map(p=>`
     <div class="drw-card"><div style="display:flex;justify-content:space-between;align-items:center">
       <div class="drw-card-t">${esc(p.name||'—')}</div>
@@ -1695,13 +1791,16 @@ function ovOpenPackingDrawer(){
     </div>
     <div class="drw-card-s" style="margin-top:3px">${(parseFloat(p.packs_per_hour)||0).toFixed(1)} packs/hr</div>
     </div>`).join('');
-  ovOpenDrawer('Packing','This week checkpoint',`${stats.length} packer${stats.length!==1?'s':''} tracked this week`,`
+  ovOpenDrawer('Packing','Hourly Checkpoints',`${stats.length} packer${stats.length!==1?'s':''} tracked this week`,`
+    <div class="drw-sec-lbl">Pace — Today${prevPace?' vs Yesterday':''}</div>
+    <div class="spark-wrap" style="height:150px;margin-bottom:16px"><svg id="ovPackDrawerSpark" style="width:100%;height:100%;display:block"></svg></div>
     <div class="drw-sec-lbl">By Packer (${stats.length})</div>
     ${rows||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No packing activity recorded today</div>'}
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('packing')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
       Open Packing Detail (verify module key)
     </button>`);
+  requestAnimationFrame(()=>drawSparkline('ovPackDrawerSpark',paceVals,slots,'var(--accent)',k=>k,'pace',prevPace?{prevVals:prevPace}:{}));
 }
 /* ── MODALS ── */
 function ovOpenModal(title,sub,html){
@@ -1712,24 +1811,53 @@ function ovOpenModal(title,sub,html){
 }
 function ovCloseModal(){document.getElementById('ovModalOverlay').classList.remove('open');}
 let _revFilter='30d';
+function _revBucketByHour(rows){
+  const b={};for(let h=0;h<24;h++)b[String(h).padStart(2,'0')]=0;
+  rows.forEach(o=>{if(!o.created_at)return;const h=String(ukHourOfDate(new Date(o.created_at))).padStart(2,'0');b[h]+=parseFloat(o.total_price||0);});
+  return Object.keys(b).map(k=>b[k]);
+}
+function _revBucketByDayRange(rows,start,days){
+  const b={};
+  for(let i=0;i<days;i++){const d=new Date(start);d.setUTCDate(d.getUTCDate()+i);b[d.toISOString().split('T')[0]]=0;}
+  rows.forEach(o=>{if(!o.created_at)return;const k=new Date(o.created_at).toISOString().split('T')[0];if(k in b)b[k]+=parseFloat(o.total_price||0);});
+  return Object.values(b);
+}
 async function getRevenueFilterData(filter){
   const all=D.veeqo30||[],allLI=D.lineItems30||[];
   if(filter==='today'){
     const midnight=ukMidnight();
+    const yStart=new Date(midnight);yStart.setUTCDate(yStart.getUTCDate()-1);
+    const prevOrders=all.filter(o=>o.created_at&&new Date(o.created_at)>=yStart&&new Date(o.created_at)<midnight);
     return{orders:all.filter(o=>o.created_at&&new Date(o.created_at)>=midnight),
       lineItems:allLI.filter(li=>li.created_at&&new Date(li.created_at)>=midnight),
+      prevVals:_revBucketByHour(prevOrders),
       granularity:'hour',label:'Today'};
   }
   if(filter==='7d'){
     const ago7=new Date(ukMidnight());ago7.setUTCDate(ago7.getUTCDate()-6);
+    const ago14=new Date(ago7);ago14.setUTCDate(ago14.getUTCDate()-7);
+    const prevOrders=all.filter(o=>o.created_at&&new Date(o.created_at)>=ago14&&new Date(o.created_at)<ago7);
     return{orders:all.filter(o=>o.created_at&&new Date(o.created_at)>=ago7),
       lineItems:allLI.filter(li=>li.created_at&&new Date(li.created_at)>=ago7),
+      prevVals:_revBucketByDayRange(prevOrders,ago14,7),
       granularity:'day',label:'Last 7 Days'};
   }
   if(filter==='month'){
     await loadLastMonthVeeqo();
-    return{orders:D.veeqoLastMonth||[],lineItems:D.lineItemsLastMonth||[],granularity:'day',label:'Last Calendar Month'};
+    await loadMonthBeforeLastVeeqo();
+    const{start:mbStart,end:mbEnd}=calendarMonthBounds(-2);
+    const mbDays=Math.round((mbEnd-mbStart)/86400000);
+    return{orders:D.veeqoLastMonth||[],lineItems:D.lineItemsLastMonth||[],
+      prevVals:_revBucketByDayRange(D.veeqoMonthBeforeLast||[],mbStart,mbDays),
+      granularity:'day',label:'Last Calendar Month'};
   }
+  const midnight30=ukMidnight();
+  const ago30=new Date(midnight30);ago30.setUTCDate(ago30.getUTCDate()-29);
+  const ago60=new Date(ago30);ago60.setUTCDate(ago60.getUTCDate()-30);
+  return{orders:all,lineItems:allLI,
+    prevVals:_revBucketByDayRange(D.veeqoPrev30||[],ago60,30),
+    granularity:'day',label:'Last 30 Days'};
+}
   return{orders:all,lineItems:allLI,granularity:'day',label:'Last 30 Days'};
 }
 function ovOpenRevenueModal(){
@@ -1752,7 +1880,7 @@ async function ovSetRevenueFilter(filter){
   await renderRevenueModalContent(filter);
 }
 async function renderRevenueModalContent(filter){
-  const{orders,lineItems,granularity,label}=await getRevenueFilterData(filter);
+  const{orders,lineItems,granularity,label,prevVals:prevValsRaw}=await getRevenueFilterData(filter);
   if(_revFilter!==filter)return;
   const total=orders.reduce((s,o)=>s+parseFloat(o.total_price||0),0);
   const avg=orders.length?total/orders.length:0;
@@ -1766,11 +1894,20 @@ async function renderRevenueModalContent(filter){
     orders.forEach(o=>{if(!o.created_at)return;const k=new Date(o.created_at).toISOString().split('T')[0];buckets[k]=(buckets[k]||0)+parseFloat(o.total_price||0);});
     keys=Object.keys(buckets).sort();vals=keys.map(k=>buckets[k]);
   }
+  let prevVals=prevValsRaw||null;
+  if(prevVals&&prevVals.length!==vals.length){
+    prevVals=prevVals.length>vals.length?prevVals.slice(0,vals.length):prevVals.concat(Array(vals.length-prevVals.length).fill(null));
+  }
   const W=580,H=150,pL=50,pR=10,pT=10,pB=22,cW=W-pL-pR,cH=H-pT-pB,n=Math.max(keys.length,1);
-  const maxV=Math.max(...vals,1);
+  const maxV=Math.max(...vals,...(prevVals||[]),1);
   const pts=vals.map((v,i)=>[pL+(n>1?i*cW/(n-1):0),pT+cH-(v/maxV*cH)]);
   const pathD=pts.length?'M '+pts.map(p=>p[0]+','+p[1]).join(' L '):`M ${pL},${pT+cH}`;
   const areaD=pathD+` L ${pL+cW},${pT+cH} L ${pL},${pT+cH} Z`;
+  let prevPathD='';
+  if(prevVals&&prevVals.length===n){
+    const prevPts=prevVals.map((v,i)=>[pL+(n>1?i*cW/(n-1):0),pT+cH-(v/maxV*cH)]);
+    prevPathD='M '+prevPts.map(p=>p[0]+','+p[1]).join(' L ');
+  }
   let grid='';[0,.5,1].forEach(f=>{const y=pT+cH-(cH*f);grid+=`<line x1="${pL}" y1="${y}" x2="${pL+cW}" y2="${y}" stroke="var(--border2)" stroke-width="1"/><text x="${pL-4}" y="${y+4}" text-anchor="end" font-size="9" fill="var(--text4)" font-family="var(--mono)">£${(maxV*f/1000).toFixed(0)}k</text>`;});
   const step=Math.max(1,Math.floor(n/6));
   let xL='';keys.forEach((k,i)=>{if(i%step!==0&&i!==n-1)return;const x=pL+(n>1?i*cW/(n-1):0);const lbl=granularity==='hour'?k+':00':k.slice(8);xL+=`<text x="${x}" y="${H-3}" text-anchor="middle" font-size="8.5" fill="var(--text4)">${lbl}</text>`;});
@@ -1788,21 +1925,41 @@ async function renderRevenueModalContent(filter){
   const body=document.getElementById('revModalContent');
   if(!body)return;
   body.innerHTML=`
-    <div style="font-size:11px;color:var(--text3);margin:-8px 0 14px">${label} · ${orders.length} orders</div>
+    <div style="font-size:11px;color:var(--text3);margin:-8px 0 14px">${label} · ${orders.length} orders${prevVals?' · dashed = previous period':''}</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px">
       <div class="mkpi"><div class="mkpi-lbl">Order Value</div><div class="mkpi-val green">${fmtGBP(total)}</div></div>
       <div class="mkpi"><div class="mkpi-lbl">Total Orders</div><div class="mkpi-val">${orders.length.toLocaleString()}</div></div>
       <div class="mkpi"><div class="mkpi-lbl">Avg Order Value</div><div class="mkpi-val">${fmtGBP(avg)}</div></div>
     </div>
-    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;margin-bottom:18px;overflow:visible">
+    <svg id="revModalChart" viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;margin-bottom:18px;overflow:visible">
       <defs><linearGradient id="rmg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--green)" stop-opacity=".2"/><stop offset="100%" stop-color="var(--green)" stop-opacity="0"/></linearGradient></defs>
-      ${grid}<path d="${areaD}" fill="url(#rmg)"/><path d="${pathD}" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${xL}
+      ${grid}<path d="${areaD}" fill="url(#rmg)"/>${prevPathD?`<path d="${prevPathD}" fill="none" stroke="var(--text4)" stroke-width="1.5" stroke-dasharray="4,3" stroke-linecap="round" stroke-linejoin="round"/>`:''}<path d="${pathD}" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${xL}
     </svg>
     <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:8px">Top 5 Products</div>
     <table class="mini-tbl"><thead><tr><th>Product</th><th style="text-align:right">Units</th><th style="text-align:right">Revenue</th></tr></thead><tbody>${topRows||'<tr><td colspan="3" style="text-align:center;color:var(--text4);padding:14px">No line item data</td></tr>'}</tbody></table>
     <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin:16px 0 8px">By Channel</div>
     <table class="mini-tbl"><thead><tr><th>Channel</th><th style="text-align:right">Orders</th><th style="text-align:right">Share</th></tr></thead><tbody>${chRows||'<tr><td colspan="3" style="text-align:center;color:var(--text4);padding:14px">No orders in this range</td></tr>'}</tbody></table>
     <button class="drw-nav" onclick="ovCloseModal();window.loadModule&&loadModule('reports')">Open Full Veeqo Report</button>`;
+  const chartSvg=document.getElementById('revModalChart');
+  if(chartSvg){
+    chartSvg.onmousemove=function(e){
+      const rect=chartSvg.getBoundingClientRect();
+      if(!rect.width)return;
+      const scaleX=W/rect.width;
+      const localX=(e.clientX-rect.left)*scaleX;
+      let idx=0,best=Infinity;
+      pts.forEach((p,i)=>{const d=Math.abs(p[0]-localX);if(d<best){best=d;idx=i;}});
+      const tip=ensureSparkTip();
+      const lbl=granularity==='hour'?(keys[idx]+':00'):keys[idx];
+      let html=`<div style="opacity:.65;font-size:9.5px;margin-bottom:2px">${esc(String(lbl))}</div><div>${fmtGBP(vals[idx])}</div>`;
+      if(prevVals&&prevVals[idx]!=null)html+=`<div style="opacity:.65;font-size:9.5px;margin-top:3px;border-top:1px solid rgba(255,255,255,.15);padding-top:3px">Prev: ${fmtGBP(prevVals[idx])}</div>`;
+      tip.innerHTML=html;
+      tip.style.left=(e.clientX+14)+'px';
+      tip.style.top=(e.clientY-14)+'px';
+      tip.style.opacity='1';
+    };
+    chartSvg.onmouseleave=function(){const t=document.getElementById('ovSparkTip');if(t)t.style.opacity='0';};
+  }
 }
 function ovOpenReplenishModal(){
   const d=D.replen||[];
