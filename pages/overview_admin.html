@@ -894,7 +894,7 @@ if(needApprovalCount>0){
   const isStale=oldestDays>=7;
   const pendingValue=needApproval.reduce((sum,p)=>sum+(parseFloat(p.total_cost)||0),0);
   const valueNote=pendingValue>0?` · ${fmtGBP(pendingValue)} pending`:'';
-  items.push({sev:isStale?'crit':'warn',t:`${needApprovalCount} sourcing product${needApprovalCount!==1?'s':''} need your approval`,s:(isStale?`Oldest has been waiting ${oldestDays} days — review needed`:'Agents have submitted products awaiting your decision')+valueNote,meta:'Sourcing',tag:{cls:isStale?'bg-crit':'bg-warn',txt:'Sourcing'},fn:'ovOpenSourcingDrawer()'});
+  items.push({sev:isStale?'crit':'warn',t:`${needApprovalCount} sourcing product${needApprovalCount!==1?'s':''} need your approval`,s:(isStale?`Oldest has been waiting ${oldestDays} days — review needed`:'Agents have submitted products awaiting your decision')+valueNote,meta:'Sourcing',tag:{cls:isStale?'bg-crit':'bg-warn',txt:'Sourcing'},fn:'ovOpenSourcingApprovalDrawer()'});
 }
 const blocked=open.filter(o=>['awaiting_payment','payment_pending'].includes((o.status||'').toLowerCase()));
   if(blocked.length)items.push({sev:'crit',t:`${blocked.length} order${blocked.length!==1?'s':''} blocked — payment required`,s:'These orders cannot be fulfilled until payment clears',meta:'Current',tag:{cls:'bg-crit',txt:'Critical'},fn:'ovOpenVeeqoDrawer()'});
@@ -1356,6 +1356,48 @@ function renderFaults(){
     </div>`;
 }
 /* ── DRAWER helpers ── */
+function ovOpenSourcingApprovalDrawer(){
+  const all=D.sourcing||[];
+  const byOldest=(a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0);
+  const needApproval=all.filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected')).sort(byOldest);
+  const now=Date.now();
+  const totalValue=needApproval.reduce((sum,p)=>sum+(parseFloat(p.total_cost)||0),0);
+  const oldestDays=needApproval.length?Math.floor((now-new Date(needApproval[0].created_at).getTime())/86400000):0;
+  const rows=needApproval.map(p=>{
+    const days=p.created_at?Math.floor((now-new Date(p.created_at).getTime())/86400000):0;
+    const cost=parseFloat(p.total_cost)||0;
+    const urgent=days>=7,warn=days>=3&&days<7;
+    const color=urgent?'var(--red)':warn?'var(--amber)':'var(--text3)';
+    const bg=urgent?'var(--red-bg)':warn?'var(--amber-bg)':'var(--surface3)';
+    const bd=urgent?'var(--red-bd)':warn?'var(--amber-bd)':'var(--border)';
+    return`<div class="drw-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div class="drw-card-t">${esc(p.product_name||'—')}</div>
+          <div class="drw-card-s" style="margin-top:3px">${esc(p.supplier_name||'Unknown')} · ${fmtGBP(cost)}</div>
+        </div>
+        <div style="flex-shrink:0;text-align:center;min-width:50px;padding:5px 9px;border-radius:9px;background:${bg};border:1px solid ${bd}">
+          <div style="font-size:19px;font-weight:800;font-family:var(--mono);color:${color};line-height:1">${days}</div>
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:${color};margin-top:1px">day${days!==1?'s':''}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('')||'<div class="attn-empty" style="padding:24px 0"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.5"><polyline points="20 6 9 17 4 12"/></svg><p style="font-size:13px;font-weight:700;color:var(--green)">All caught up</p><span style="font-size:11px;color:var(--text4)">Nothing pending approval</span></div>';
+  ovOpenDrawer('Sourcing','Needs Approval',`${needApproval.length.toLocaleString()} product${needApproval.length!==1?'s':''} · ${fmtGBP(totalValue)} pending`,`
+    <div class="mkpi-row" style="margin-bottom:14px">
+      <div class="mkpi"><div class="mkpi-lbl">Pending</div><div class="mkpi-val amber">${needApproval.length.toLocaleString()}</div></div>
+      <div class="mkpi"><div class="mkpi-lbl">Total Value</div><div class="mkpi-val" style="color:var(--amber)">${fmtGBP(totalValue)}</div></div>
+      <div class="mkpi"><div class="mkpi-lbl">Oldest</div><div class="mkpi-val" style="color:${oldestDays>=7?'var(--red)':'var(--text)'}">${oldestDays}d</div></div>
+    </div>
+    <div class="drw-sec-lbl">Products — Oldest First</div>
+    ${rows}
+    <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('sourcing')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Go to Sourcing
+    </button>`);
+}
+
+  
 function ovOpenDrawer(eyebrow,title,sub,html){
   document.getElementById('ovDrwEyebrow').textContent=eyebrow;
   document.getElementById('ovDrwTitle').textContent=title;
@@ -1973,6 +2015,7 @@ document.addEventListener('keydown',e=>{
 /* ── EXPOSE GLOBALS ── */
 window.ovOpenVeeqoDrawer=ovOpenVeeqoDrawer;
 window.ovOpenSourcingDrawer=ovOpenSourcingDrawer;
+window.ovOpenSourcingApprovalDrawer=ovOpenSourcingApprovalDrawer;
 window.ovOpenReadyToShipDrawer=ovOpenReadyToShipDrawer;
 window.ovOpenRefundsDrawer=ovOpenRefundsDrawer;
 window.ovSetSourcingFilter=ovSetSourcingFilter;
