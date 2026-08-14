@@ -104,6 +104,10 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .pulse-link:hover{color:var(--accent);}
 .pulse-link svg{width:10px;height:10px;}
 .mkpi-row{display:flex;gap:8px;}
+.spark-legend{display:flex;align-items:center;gap:14px;font-size:10px;font-weight:600;color:var(--text3);margin-bottom:6px;}
+.spark-legend-item{display:flex;align-items:center;gap:5px;}
+.spark-legend-swatch{width:14px;height:0;border-top:2px solid;display:inline-block;border-radius:2px;}
+.spark-legend-swatch.dashed{border-top-style:dashed;border-color:var(--text4)!important;}
 .mkpi{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:9px 11px;min-width:0;}
 .mkpi-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);margin-bottom:4px;}
 .mkpi-val{font-size:18px;font-weight:800;color:var(--text);font-family:var(--mono);line-height:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -369,6 +373,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
             <div class="mkpi"><div class="mkpi-lbl">Orders</div><div class="mkpi-val" id="ovRevOrders">—</div></div>
             <div class="mkpi"><div class="mkpi-lbl">Shipped</div><div class="mkpi-val green" id="ovRevShipped">—</div></div>
           </div>
+          <div class="spark-legend" id="ovRevSparkLegend" style="display:none"></div>
           <div class="spark-wrap"><svg id="ovSparkline" style="width:100%;height:100%;display:block;"></svg></div>
         </div>
         <div class="pulse-card">
@@ -385,6 +390,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
             <div class="mkpi"><div class="mkpi-lbl">Avg / Hour</div><div class="mkpi-val" id="ovPackPph">—</div></div>
             <div class="mkpi"><div class="mkpi-lbl">Top Packer</div><div class="mkpi-val" id="ovPackTop" style="font-size:12.5px">—</div></div>
           </div>
+          <div class="spark-legend" id="ovPackSparkLegend" style="display:none"></div>
           <div class="spark-wrap"><svg id="ovPackSparkline" style="width:100%;height:100%;display:block;"></svg></div>
         </div>
         <div class="sub-grid">
@@ -973,8 +979,13 @@ function renderRevenue(){
   const prevBuckets={};
   for(let i=29;i>=0;i--){const d=new Date(midnight);d.setUTCDate(d.getUTCDate()-i-30);prevBuckets[d.toISOString().split('T')[0]]=0;}
   (D.veeqoPrev30||[]).forEach(o=>{if(!o.created_at)return;const k=new Date(o.created_at).toISOString().split('T')[0];if(k in prevBuckets)prevBuckets[k]+=parseFloat(o.total_price||0);});
+  const revLegendEl=document.getElementById('ovRevSparkLegend');
+  if(revLegendEl){
+    revLegendEl.innerHTML='<span class="spark-legend-item"><span class="spark-legend-swatch" style="border-color:var(--green)"></span>This Period</span><span class="spark-legend-item"><span class="spark-legend-swatch dashed"></span>Previous Period</span>';
+    revLegendEl.style.display='flex';
+  }
   requestAnimationFrame(()=>drawSparkline('ovSparkline',Object.values(buckets),Object.keys(buckets),'var(--green)',null,'currency',{prevVals:Object.values(prevBuckets)}));
-}
+  }
 
 function ensureSparkTip(){
   let tip=document.getElementById('ovSparkTip');
@@ -1091,6 +1102,15 @@ function renderPacking(){
   const bucket=packingBucketBySlot(counts);
   const paceVals=paceSeriesFromBucket(bucket,slots);
   const prevPace=yesterdayPaceAligned(slots);
+  const packLegendEl=document.getElementById('ovPackSparkLegend');
+  if(packLegendEl){
+    if(prevPace){
+      packLegendEl.innerHTML='<span class="spark-legend-item"><span class="spark-legend-swatch" style="border-color:var(--accent)"></span>Today</span><span class="spark-legend-item"><span class="spark-legend-swatch dashed"></span>Yesterday</span>';
+      packLegendEl.style.display='flex';
+    }else{
+      packLegendEl.style.display='none';
+    }
+  }
   requestAnimationFrame(()=>drawSparkline('ovPackSparkline',paceVals,slots,'var(--accent)',k=>k,'pace',prevPace?{prevVals:prevPace}:{}));
 }
 function packingBucketBySlot(counts){
@@ -1759,7 +1779,8 @@ function ovOpenPackingDrawer(){
     <div class="drw-card-s" style="margin-top:3px">${(parseFloat(p.packs_per_hour)||0).toFixed(1)} packs/hr</div>
     </div>`).join('');
   ovOpenDrawer('Packing','Hourly Checkpoints',`${stats.length} packer${stats.length!==1?'s':''} tracked this week`,`
-    <div class="drw-sec-lbl">Pace — Today${prevPace?' vs Yesterday':''}</div>
+    <div class="drw-sec-lbl">Pace — Today</div>
+    ${prevPace?'<div class="spark-legend" style="margin-bottom:8px"><span class="spark-legend-item"><span class="spark-legend-swatch" style="border-color:var(--accent)"></span>Today</span><span class="spark-legend-item"><span class="spark-legend-swatch dashed"></span>Yesterday</span></div>':''}
     <div class="spark-wrap" style="height:150px;margin-bottom:16px"><svg id="ovPackDrawerSpark" style="width:100%;height:100%;display:block"></svg></div>
     <div class="drw-sec-lbl">By Packer (${stats.length})</div>
     ${rows||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No packing activity recorded today</div>'}
@@ -1885,7 +1906,8 @@ async function renderRevenueModalContent(filter){
   const body=document.getElementById('revModalContent');
   if(!body)return;
   body.innerHTML=`
-    <div style="font-size:11px;color:var(--text3);margin:-8px 0 14px">${label} · ${orders.length} orders${prevVals?' · dashed = previous period':''}</div>
+    <div style="font-size:11px;color:var(--text3);margin:-8px 0 10px">${label} · ${orders.length} orders</div>
+    ${prevVals?`<div class="spark-legend" style="margin-bottom:10px"><span class="spark-legend-item"><span class="spark-legend-swatch" style="border-color:var(--green)"></span>${esc(label)}</span><span class="spark-legend-item"><span class="spark-legend-swatch dashed"></span>Previous Period</span></div>`:''}
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px">
       <div class="mkpi"><div class="mkpi-lbl">Order Value</div><div class="mkpi-val green">${fmtGBP(total)}</div></div>
       <div class="mkpi"><div class="mkpi-lbl">Total Orders</div><div class="mkpi-val">${orders.length.toLocaleString()}</div></div>
