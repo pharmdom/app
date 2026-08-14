@@ -1511,10 +1511,27 @@ const topAgents=buildPipelineTable(byAgent,'Agent');
     : null;
   const pendingValue=needApproval.reduce((sum,p)=>sum+(parseFloat(p.total_cost)||0),0);
   const awaitingPurchaseValue=awaitPurchase.reduce((sum,p)=>sum+(parseFloat(p.total_cost)||0),0);
+  const now=Date.now();
+  const needApprovalHtml=needApproval.length?needApproval.map(p=>{
+    const days=p.created_at?Math.floor((now-new Date(p.created_at).getTime())/86400000):0;
+    const cost=parseFloat(p.total_cost)||0;
+    return`<div class="drw-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="drw-card-t">${esc(p.product_name||'—')}</div>
+        <span style="font-family:var(--mono);font-size:12px;font-weight:700">${fmtGBP(cost)}</span>
+      </div>
+      <div class="drw-card-s" style="margin-top:3px;display:flex;gap:6px">
+        <span>${esc(p.supplier_name||'Unknown')}</span><span>·</span>
+        <span style="color:${days>=7?'var(--red)':days>=3?'var(--amber)':'var(--text3)'};font-weight:700">${days}d waiting</span>
+      </div>
+    </div>`;
+  }).join(''):'<div style="padding:8px 0;font-size:12px;font-weight:600;color:var(--green)">✓ Nothing pending approval</div>';
   const body=document.getElementById('sourcingDrawerContent');
   if(!body)return;
   body.innerHTML=`
     <div style="font-size:11px;color:var(--text3);margin:0 0 14px">${s.length} products submitted in range</div>
+    <div class="drw-sec-lbl">Needs Approval (${needApproval.length})</div>
+    ${needApprovalHtml}
     <div class="drw-sec-lbl">Summary</div>
     <div class="mkpi-row" style="margin-bottom:10px;">
       <div class="mkpi">
