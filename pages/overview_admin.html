@@ -845,13 +845,11 @@ async function loadPacking(){
   const todayStr=utcDateStr();
   const y=new Date();y.setUTCDate(y.getUTCDate()-1);
   const yStr=y.toISOString().split('T')[0];
-  const[counts,todayStats,yCounts]=await Promise.all([
+  const[counts,yCounts]=await Promise.all([
     fetchAll('manus_packing_counts','date,time_slot,packer_name,count',q=>q.eq('date',todayStr),'time_slot'),
-    fetchAll('manus_packing_week_stats','date,name,total_packs,days_worked,packs_per_hour',q=>q.eq('date',todayStr),'name'),
     fetchAll('manus_packing_counts','date,time_slot,packer_name,count',q=>q.eq('date',yStr),'time_slot'),
   ]);
   D.packingToday=counts;
-  D.packingStatsToday=todayStats;
   D.packingYesterday=yCounts;
 }
 async function init(){
@@ -1340,7 +1338,6 @@ function drawSparkline(id,vals,keys,color,xLabelFn,unit,opts){
 function isExcludedPacker(n){return String(n||'').trim().toLowerCase()==='awais';}
 function renderPacking(){
   const counts=D.packingToday||[];
-  const stats=D.packingStatsToday||[];
   // Each row is a CUMULATIVE snapshot per packer per half-hour, not a per-slot delta.
   // The correct "total today" is the latest snapshot per packer, summed — not every row summed.
   const latestPerPacker={};
@@ -2084,19 +2081,32 @@ function ovOpenPaycheckDrawer(){
 }
 
 function ovOpenPackingDrawer(){
-  const stats=D.packingStatsToday||[];
-  const visibleStats=stats.filter(p=>!isExcludedPacker(p.name));
   const counts=D.packingToday||[];
   const slots=[...new Set(counts.map(c=>c.time_slot))].sort();
   const bucket=packingBucketBySlot(counts);
   const paceVals=paceSeriesFromBucket(bucket,slots);
   const prevPace=yesterdayPaceAligned(slots);
-  const rows=visibleStats.slice().sort((a,b)=>(b.total_packs||0)-(a.total_packs||0)).map(p=>`
+  const byPackerRows={};
+  counts.forEach(c=>{
+    if(!byPackerRows[c.packer_name])byPackerRows[c.packer_name]=[];
+    byPackerRows[c.packer_name].push(c);
+  });
+  const timeToMinsLocal=t=>{if(!t)return 0;const[h,m]=String(t).slice(0,5).split(':').map(Number);return h*60+m;};
+  const packerTotals=Object.entries(byPackerRows).map(([name,rowsArr])=>{
+    const sorted=rowsArr.slice().sort((a,b)=>a.time_slot.localeCompare(b.time_slot));
+    const total=parseInt(sorted[sorted.length-1].count)||0;
+    const first=timeToMinsLocal(sorted[0].time_slot),last=timeToMinsLocal(sorted[sorted.length-1].time_slot);
+    const elapsedHours=(last-first)/60;
+    const pace=elapsedHours>0?total/elapsedHours:0;
+    return{name,total,pace};
+  });
+  const visibleStats=packerTotals.filter(p=>!isExcludedPacker(p.name));
+  const rows=visibleStats.slice().sort((a,b)=>b.total-a.total).map(p=>`
     <div class="drw-card"><div style="display:flex;justify-content:space-between;align-items:center">
       <div class="drw-card-t">${esc(p.name||'—')}</div>
-      <span style="font-family:var(--mono);font-size:12px;font-weight:700">${p.total_packs||0} packs</span>
+      <span style="font-family:var(--mono);font-size:12px;font-weight:700">${p.total} packs</span>
     </div>
-    <div class="drw-card-s" style="margin-top:3px">${(parseFloat(p.packs_per_hour)||0).toFixed(1)} packs/hr</div>
+    <div class="drw-card-s" style="margin-top:3px">${p.pace.toFixed(1)} packs/hr</div>
     </div>`).join('');
   const topPacker=D.packTopPacker;
   const rec=D.packRecommendation;
@@ -2128,7 +2138,7 @@ function ovOpenPackingDrawer(){
     <div class="drw-row"><div class="drw-row-k">Top Packer</div><div class="drw-row-v">${topPacker?`${esc((topPacker.packer_name||'').split(' ')[0])} (${parseInt(topPacker.count)||0})`:'—'}</div></div>
     <div class="drw-sec-lbl">Staffing Recommendation</div>
     ${recHtml}
-    <div class="drw-sec-lbl">By Packer (${visibleStats.length})</div>
+    <div class="drw-sec-lbl">By Packer Today (${visibleStats.length})</div>
     ${rows||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No packing activity recorded today</div>'}
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('packing')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
