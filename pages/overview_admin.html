@@ -1046,30 +1046,46 @@ const blocked=open.filter(o=>['awaiting_payment','payment_pending'].includes((o.
     return order[a.sev]-order[b.sev];
   });
 }
-
 function ovOpenReadyToPurchaseDrawer(){
   const sourcing=D.sourcing||[];
   const replen=D.replen||[];
   const readyToPurchase=sourcing.filter(p=>p.approved&&!p.purchased&&!p.inquire&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected'));
   const replBasket=replen.filter(r=>r.action==='basket');
-  const now=Date.now();
-  const rows=readyToPurchase.map(p=>{
-    const days=p.created_at?Math.floor((now-new Date(p.created_at).getTime())/86400000):0;
-    return`<div class="drw-card"><div style="display:flex;justify-content:space-between;align-items:center">
-      <div class="drw-card-t">${esc(p.product_name||'—')}</div>
-      <span style="font-family:var(--mono);font-size:12px;font-weight:700">${fmtGBP((parseFloat(p.cost_of_unit)||0)*(parseFloat(p.unit_quantity)||0))}</span>
-    </div><div class="drw-card-s" style="margin-top:3px">${esc(p.supplier_name||'—')} · ${days}d ago</div></div>`;
-  }).join('');
-  const replRows=replBasket.map(r=>`<div class="drw-card"><div style="display:flex;justify-content:space-between;align-items:center">
-      <div class="drw-card-t">${esc(r.name||r.sku||'—')}</div>
-      <span style="font-family:var(--mono);font-size:12px;font-weight:700">${fmtGBP(replCurrentCost(r)*(parseFloat(r.order_qty)||0))}</span>
-    </div><div class="drw-card-s" style="margin-top:3px">${esc(r.supplier_name||'Replenishment')} · Qty ${r.order_qty||0}</div></div>`).join('');
-  const totalVal=readyToPurchase.reduce((s,p)=>s+((parseFloat(p.cost_of_unit)||0)*(parseFloat(p.unit_quantity)||0)),0)+replBasket.reduce((s,r)=>s+(replCurrentCost(r)*(parseFloat(r.order_qty)||0)),0);
-  ovOpenDrawer('Basket','Ready to Purchase',`${readyToPurchase.length+replBasket.length} items · ${fmtGBP(totalVal)}`,`
-    <div class="drw-sec-lbl">New Line Items</div>
-    ${rows||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None pending</div>'}
-    <div class="drw-sec-lbl">Replenishments</div>
-    ${replRows||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None pending</div>'}
+  const nlValue=readyToPurchase.reduce((s,p)=>s+((parseFloat(p.cost_of_unit)||0)*(parseFloat(p.unit_quantity)||0)),0);
+  const replValue=replBasket.reduce((s,r)=>s+(replCurrentCost(r)*(parseFloat(r.order_qty)||0)),0);
+  const totalVal=nlValue+replValue;
+  const totalCount=readyToPurchase.length+replBasket.length;
+  const oldestDays=readyToPurchase.length?Math.floor((Date.now()-Math.min(...readyToPurchase.map(p=>p.created_at?new Date(p.created_at).getTime():Date.now())))/86400000):0;
+  const bySupplier={};
+  readyToPurchase.forEach(p=>{
+    const k=p.supplier_name||'No Supplier';
+    if(!bySupplier[k])bySupplier[k]={count:0,val:0};
+    bySupplier[k].count++;
+    bySupplier[k].val+=(parseFloat(p.cost_of_unit)||0)*(parseFloat(p.unit_quantity)||0);
+  });
+  replBasket.forEach(r=>{
+    const k=r.supplier_name||'No Supplier';
+    if(!bySupplier[k])bySupplier[k]={count:0,val:0};
+    bySupplier[k].count++;
+    bySupplier[k].val+=replCurrentCost(r)*(parseFloat(r.order_qty)||0);
+  });
+  const suppRows=Object.entries(bySupplier).sort((a,b)=>b[1].val-a[1].val).map(([name,v])=>`
+    <div class="drw-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="drw-card-t">${esc(name)}</div>
+        <span style="font-family:var(--mono);font-size:12px;font-weight:700">${fmtGBP(v.val)}</span>
+      </div>
+      <div class="drw-card-s" style="margin-top:3px">${v.count} item${v.count!==1?'s':''}</div>
+    </div>`).join('')||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None pending</div>';
+  ovOpenDrawer('Basket','Ready to Purchase',`${totalCount} items · ${fmtGBP(totalVal)}`,`
+    <div class="drw-sec-lbl">Summary</div>
+    <div class="drw-row"><div class="drw-row-k">Total Items</div><div class="drw-row-v">${totalCount.toLocaleString()}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Total Value</div><div class="drw-row-v">${fmtGBP(totalVal)}</div></div>
+    <div class="drw-row"><div class="drw-row-k">New Line Items</div><div class="drw-row-v">${readyToPurchase.length.toLocaleString()} · ${fmtGBP(nlValue)}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Replenishments</div><div class="drw-row-v">${replBasket.length.toLocaleString()} · ${fmtGBP(replValue)}</div></div>
+    ${oldestDays?`<div class="drw-row"><div class="drw-row-k">Oldest Approved</div><div class="drw-row-v" style="color:${oldestDays>=7?'var(--amber)':'var(--text2)'}">${oldestDays}d ago</div></div>`:''}
+    <div class="drw-sec-lbl">By Supplier</div>
+    ${suppRows}
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('basket')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
       Open Basket
