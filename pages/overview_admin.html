@@ -694,10 +694,20 @@ async function loadReplenishments(){
 }
 async function loadFBA(){
   const[prods,work]=await Promise.all([
-    fetchAll('fba_products','id,brand,product_line,units_required,units_completed,ups_collected,collection_booked',null,'id'),
-    fetchAll('fba_work','id,brand,product_line,units_required,units_completed,ups_collected,collection_booked',null,'id'),
+    fetchAll('fba_products','id',null,'id'),
+    fetchAll('fba_work','id,units_completed,ups_collected,veeqo_adjusted',null,'id'),
   ]);
   D.fbaProds=prods;D.fbaWork=work;
+}
+function fbaBucket(row){
+  const unitsCompleted=String(row.units_completed??'').trim();
+  const upsCollected=String(row.ups_collected??'').trim().toLowerCase();
+  const hasUnits=unitsCompleted&&unitsCompleted!=='0';
+  const hasUps=upsCollected&&upsCollected!==''&&upsCollected!=='—'&&upsCollected!=='no';
+  if(!hasUnits||!hasUps)return'warehouse';
+  const veeqo=String(row.veeqo_adjusted??'').trim().toLowerCase();
+  if(veeqo!=='yes')return'digital_ops';
+  return'completed';
 }
 async function loadFaults(){
   const now=new Date();
@@ -910,8 +920,11 @@ const blocked=open.filter(o=>['awaiting_payment','payment_pending'].includes((o.
     const emps=new Set(pendPay.map(r=>r.empId)).size;
     items.push({sev:'info',t:`Payroll pending — ${fmtGBP(amt)} owed`,s:`${emps} staff member${emps!==1?'s':''} with outstanding pay`,meta:'Outstanding',tag:{cls:'sb-blue',txt:'Payroll'},fn:'ovOpenPaycheckDrawer()'});
   }
-  const fbaCount=(D.fbaProds||[]).length;
-  if(fbaCount)items.push({sev:'info',t:`${fbaCount} FBA product${fbaCount!==1?'s':''} in prep pipeline`,s:'Warehouse → Digital Ops stages in progress',meta:'In progress',tag:{cls:'sb-neutral',txt:'FBA Prep'},fn:'ovOpenFBADrawer()'});
+  const fbaWork=D.fbaWork||[];
+  const fbaWhCount=fbaWork.filter(r=>fbaBucket(r)==='warehouse').length;
+  const fbaDopCount=fbaWork.filter(r=>fbaBucket(r)==='digital_ops').length;
+  const fbaPendingTotal=fbaWhCount+fbaDopCount;
+  if(fbaPendingTotal)items.push({sev:'info',t:`${fbaPendingTotal} FBA work item${fbaPendingTotal!==1?'s':''} pending prep`,s:`${fbaWhCount} in Warehouse · ${fbaDopCount} in Digital Ops`,meta:'In progress',tag:{cls:'sb-neutral',txt:'FBA Prep'},fn:'ovOpenFBADrawer()'});
   if(D.lastSyncAt){
     const mins=Math.floor((Date.now()-D.lastSyncAt)/60000);
     const hr=ukHourNow();
@@ -1583,30 +1596,22 @@ function ovOpenFaultsDrawer(){
 }
 function ovOpenFBADrawer(){
   const prods=D.fbaProds||[];
-  const rows=prods.slice(0,12).map(p=>{
-    const req=p.units_required||0;
-    const done=p.units_completed||0;
-    const pct=req>0?Math.min(done/req*100,100):0;
-    const label=`${p.brand||'—'}${p.product_line?' — '+p.product_line:''}`;
-    const stage=done===0?'Not started':done>=req?'Completed':'In progress';
-    const stageCol=done===0?'var(--text4)':done>=req?'var(--green)':'var(--amber)';
-    return`<div class="drw-card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div class="drw-card-t">${esc(label)}</div>
-        <span style="font-size:10px;font-weight:700;color:${stageCol}">${esc(stage)}</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-        <div style="flex:1;height:4px;background:var(--surface3);border-radius:99px;overflow:hidden">
-          <div style="height:100%;width:${pct.toFixed(1)}%;background:${stageCol};border-radius:99px;transition:width .5s"></div>
-        </div>
-        <span style="font-size:10.5px;font-weight:700;color:var(--text3);white-space:nowrap">${done}/${req} units</span>
-      </div>
-      ${p.collection_booked==='Yes'?`<div style="margin-top:4px;font-size:10px;color:var(--purple);font-weight:600">📦 Collection booked${p.ups_collected==='Yes'?' · ✓ Collected':''}</div>`:''}
-    </div>`;
-  }).join('');
-  ovOpenDrawer('FBA Prep','Pipeline',`${prods.length} products in pipeline`,`
-    <div class="drw-sec-lbl">All Products (${prods.length})</div>
-    ${rows||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No FBA products in pipeline</div>'}
+  const work=D.fbaWork||[];
+  const wh=work.filter(r=>fbaBucket(r)==='warehouse').length;
+  const dop=work.filter(r=>fbaBucket(r)==='digital_ops').length;
+  const comp=work.filter(r=>fbaBucket(r)==='completed').length;
+  const pending=wh+dop;
+  ovOpenDrawer('FBA Prep','Status Overview',`${prods.length.toLocaleString()} products · ${work.length.toLocaleString()} work items`,`
+    <div class="drw-sec-lbl">Products</div>
+    <div class="drw-row"><div class="drw-row-k">Total Products</div><div class="drw-row-v">${prods.length.toLocaleString()}</div></div>
+    <div class="drw-sec-lbl">Work Items — By Stage</div>
+    <div class="mkpi-row" style="margin-bottom:10px">
+      <div class="mkpi"><div class="mkpi-lbl">Warehouse</div><div class="mkpi-val amber">${wh.toLocaleString()}</div></div>
+      <div class="mkpi"><div class="mkpi-lbl">Digital Ops</div><div class="mkpi-val" style="color:var(--cyan)">${dop.toLocaleString()}</div></div>
+      <div class="mkpi"><div class="mkpi-lbl">Completed</div><div class="mkpi-val" style="color:var(--green)">${comp.toLocaleString()}</div></div>
+    </div>
+    <div class="drw-row"><div class="drw-row-k">Total Work Items</div><div class="drw-row-v">${work.length.toLocaleString()}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Pending (Warehouse + Digital Ops)</div><div class="drw-row-v" style="color:var(--amber)">${pending.toLocaleString()}</div></div>
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('fba')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
       Open FBA Module
