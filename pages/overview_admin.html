@@ -438,8 +438,8 @@ function dowOfDateStr(dateStr){
   return new Date(Date.UTC(y,m-1,d)).getUTCDay();
 }
 function getSourcingFilterCutoff(filter){
-  if(filter==='today')return ukMidnight();
   if(filter==='7d'){const d=new Date(ukMidnight());d.setUTCDate(d.getUTCDate()-6);return d;}
+  if(filter==='14d'){const d=new Date(ukMidnight());d.setUTCDate(d.getUTCDate()-13);return d;}
   if(filter==='30d'){const d=new Date(ukMidnight());d.setUTCDate(d.getUTCDate()-29);return d;}
   return null;
 }
@@ -1218,18 +1218,18 @@ function ovOpenVeeqoDrawer(){
       Go to Veeqo Report
     </button>`);
 }
-let _sourcingFilter='30d';
+let _sourcingFilter='14d';
 function ovOpenSourcingDrawer(){
-  _sourcingFilter='30d';
+  _sourcingFilter='14d';
   ovOpenDrawer('Sourcing','Pipeline','',`
     <div class="rev-tabs" id="sourcingTabs">
-      <button class="rev-tab" onclick="ovSetSourcingFilter('today')" data-f="today">Today</button>
       <button class="rev-tab" onclick="ovSetSourcingFilter('7d')" data-f="7d">Last 7 Days</button>
-      <button class="rev-tab active" onclick="ovSetSourcingFilter('30d')" data-f="30d">Last 30 Days</button>
+      <button class="rev-tab active" onclick="ovSetSourcingFilter('14d')" data-f="14d">Last 14 Days</button>
+      <button class="rev-tab" onclick="ovSetSourcingFilter('30d')" data-f="30d">Last 30 Days</button>
       <button class="rev-tab" onclick="ovSetSourcingFilter('all')" data-f="all">All Time</button>
     </div>
     <div id="sourcingDrawerContent"></div>`);
-  renderSourcingDrawerContent('30d');
+  renderSourcingDrawerContent('14d');
 }
 function ovSetSourcingFilter(filter){
   _sourcingFilter=filter;
@@ -1240,18 +1240,24 @@ function renderSourcingDrawerContent(filter){
   const all=D.sourcing||[];
   const cutoff=getSourcingFilterCutoff(filter);
   const s=cutoff?all.filter(p=>p.created_at&&new Date(p.created_at)>=cutoff):all;
-  const byOldest=(a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0);
+const byOldest=(a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0);
   const needApproval=s.filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected')).sort(byOldest);
   const awaitPurchase=s.filter(p=>p.approved&&!p.purchased).sort(byOldest);
   const purchased=s.filter(p=>p.purchased);
-  const bySupplier={};
-  s.forEach(p=>{const k=p.supplier_name||'Unknown';bySupplier[k]=(bySupplier[k]||0)+1;});
-  const topSuppliers=Object.entries(bySupplier).sort((a,b)=>b[1]-a[1]).slice(0,5)
-    .map(([name,n])=>`<div class="drw-row"><div class="drw-row-k">${esc(name)}</div><div class="drw-row-v">${n}</div></div>`).join('');
-  const byAgent={};
-  s.forEach(p=>{const k=p.agent||'Unknown';if(!byAgent[k])byAgent[k]={count:0,value:0};byAgent[k].count++;byAgent[k].value+=parseFloat(p.total_cost)||0;});
-  const topAgents=Object.entries(byAgent).sort((a,b)=>b[1].count-a[1].count).slice(0,5)
-    .map(([name,v])=>`<div class="drw-row"><div class="drw-row-k">${esc(name)}</div><div class="drw-row-v">${v.count} · ${fmtGBP(v.value)}</div></div>`).join('');
+  const bySupplier={},byAgent={};
+  s.forEach(p=>{
+    const isRejected=(p.sourcing_approvals||[]).some(a=>a.status==='rejected');
+    const cost=parseFloat(p.total_cost)||0;
+    const supKey=p.supplier_name||'Unknown', agKey=p.agent||'Unknown';
+    if(!bySupplier[supKey])bySupplier[supKey]={submitted:0,rejected:0,approved:0,approvedValue:0};
+    if(!byAgent[agKey])byAgent[agKey]={submitted:0,rejected:0,approved:0,approvedValue:0};
+    bySupplier[supKey].submitted++; byAgent[agKey].submitted++;
+    if(isRejected){ bySupplier[supKey].rejected++; byAgent[agKey].rejected++; }
+    if(p.approved){ bySupplier[supKey].approved++; byAgent[agKey].approved++; bySupplier[supKey].approvedValue+=cost; byAgent[agKey].approvedValue+=cost; }
+  });
+  const topSuppliers=buildPipelineTable(bySupplier,'Supplier',5);
+  const topAgents=buildPipelineTable(byAgent,'Agent');
+  const purchasedWithBothDates=purchased.filter(p=>p.approval_timestamp&&p.purchased_at);
   const purchasedWithBothDates=purchased.filter(p=>p.approval_timestamp&&p.purchased_at);
   const avgDaysToPurchase=purchasedWithBothDates.length
     ? (purchasedWithBothDates.reduce((sum,p)=>sum+(new Date(p.purchased_at)-new Date(p.approval_timestamp))/86400000,0)/purchasedWithBothDates.length).toFixed(1)
@@ -1263,16 +1269,41 @@ function renderSourcingDrawerContent(filter){
   body.innerHTML=`
     <div style="font-size:11px;color:var(--text3);margin:0 0 14px">${s.length} products submitted in range</div>
     <div class="drw-sec-lbl">Summary</div>
-    <div class="drw-row"><div class="drw-row-k">Pending Approval Value</div><div class="drw-row-v" style="color:var(--amber)">${fmtGBP(pendingValue)}</div></div>
-    <div class="drw-row"><div class="drw-row-k">Awaiting Purchase Value</div><div class="drw-row-v" style="color:var(--cyan)">${fmtGBP(awaitingPurchaseValue)}</div></div>
+    <div class="mkpi-row" style="margin-bottom:10px;">
+      <div class="mkpi">
+        <div class="mkpi-lbl">Pending Approval</div>
+        <div class="mkpi-val amber">${fmtGBP(pendingValue)}</div>
+        <div class="mkpi-delta" style="color:var(--text3)">${needApproval.length} product${needApproval.length!==1?'s':''}</div>
+      </div>
+      <div class="mkpi">
+        <div class="mkpi-lbl">Awaiting Purchase</div>
+        <div class="mkpi-val" style="color:var(--cyan)">${fmtGBP(awaitingPurchaseValue)}</div>
+        <div class="mkpi-delta" style="color:var(--text3)">${awaitPurchase.length} product${awaitPurchase.length!==1?'s':''}</div>
+      </div>
+    </div>
     ${avgDaysToPurchase!==null?`<div class="drw-row"><div class="drw-row-k">Avg. Approval → Purchase</div><div class="drw-row-v">${avgDaysToPurchase} days</div></div>`:''}
-    <div class="drw-sec-lbl">Top Suppliers in Pipeline</div>${topSuppliers||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No data</div>'}
-    <div class="drw-sec-lbl">Top Agents in Pipeline</div>${topAgents||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No data</div>'}
+    <div class="drw-sec-lbl">Top Suppliers in Pipeline</div>${topSuppliers}
+    <div class="drw-sec-lbl">Agents in Pipeline</div>${topAgents}
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('sourcing')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       Go to Sourcing
     </button>`;
 }
+
+function buildPipelineTable(dataObj, nameLabel, limit){
+  let rows = Object.entries(dataObj).sort((a,b)=>b[1].submitted-a[1].submitted);
+  if (limit) rows = rows.slice(0, limit);
+  if (!rows.length) return '<div style="padding:8px 0;font-size:12px;color:var(--text4)">No data</div>';
+  const body = rows.map(([name,v]) => `<tr>
+    <td style="font-weight:600;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</td>
+    <td style="text-align:right;font-family:var(--mono)">${v.submitted}</td>
+    <td style="text-align:right;font-family:var(--mono);${v.rejected>0?'color:var(--red);font-weight:700':''}">${v.rejected}</td>
+    <td style="text-align:right;font-family:var(--mono);color:var(--green);font-weight:700">${v.approved}</td>
+    <td style="text-align:right;font-family:var(--mono);font-weight:700">${fmtGBP(v.approvedValue)}</td>
+  </tr>`).join('');
+  return `<table class="mini-tbl"><thead><tr><th>${esc(nameLabel)}</th><th style="text-align:right">Sub</th><th style="text-align:right">Rej</th><th style="text-align:right">App</th><th style="text-align:right">Approved £</th></tr></thead><tbody>${body}</tbody></table>`;
+}
+  
 function ovOpenFaultsDrawer(){
   const f=D.faults||[];
   const open=f.filter(x=>!x.resolved);const resolved=f.filter(x=>x.resolved);
