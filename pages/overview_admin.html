@@ -42,7 +42,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .ov-main{padding:18px 20px 40px;}
 .ov-sec{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text4);margin-bottom:12px;display:flex;align-items:center;gap:10px;}
 .ov-sec::after{content:'';flex:1;height:1px;background:var(--border);}
-.ov-hero{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px;}
+.ov-hero{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;}
 .ov-sc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px 13px;position:relative;overflow:hidden;box-shadow:var(--sh-sm);cursor:pointer;transition:transform .18s,box-shadow .18s,border-color .18s;animation:ovFadeUp .3s ease both;}
 .ov-sc:hover{transform:translateY(-2px);box-shadow:var(--sh);}
 .ov-sc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r-lg) var(--r-lg) 0 0;background:var(--sc-accent,var(--accent));}
@@ -634,6 +634,21 @@ async function loadSourcing(){
   D.sourcingApprovedCount=approvedC.count||0;
   D.sourcingPurchasedCount=purchasedC.count||0;
 }
+async function loadRefunds(){
+  D.refundsAll=await fetchAll('refunds','id,amount_requested,amount_processed,refunded,date_submitted,date_processed,marketplace,order_number',null,'id');
+}
+function refundStats(){
+  const rows=D.refundsAll||[];
+  const now=new Date();now.setHours(0,0,0,0);
+  const d30=new Date(now);d30.setDate(d30.getDate()-30);
+  const d60=new Date(now);d60.setDate(d60.getDate()-60);
+  const inRange=(dateStr,from,to)=>{ if(!dateStr)return false; const d=new Date(dateStr+'T00:00'); return d>=from&&d<to; };
+  const curProcessed=rows.filter(r=>r.refunded&&inRange(r.date_processed,d30,now));
+  const prevProcessed=rows.filter(r=>r.refunded&&inRange(r.date_processed,d60,d30));
+  const curAmt=curProcessed.reduce((s,r)=>s+(parseFloat(r.amount_processed)||0),0);
+  const prevAmt=prevProcessed.reduce((s,r)=>s+(parseFloat(r.amount_processed)||0),0);
+  return {curAmt,curCount:curProcessed.length,prevAmt,prevCount:prevProcessed.length};
+}
 async function loadCatalog(){
   const[rows,suppRes]=await Promise.all([
     fetchAll('catalog','id,status,created_at,last_updated,supplier_name',null,'id'),
@@ -782,7 +797,7 @@ async function init(){
   if(!sb)return;
   pStart();
   const fastGroup=[loadReplenishments(),loadFBA(),loadFaults(),loadRota(),loadPacking()];
-  const slowGroup=[loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadOffers(),loadPaycheck()];
+  const slowGroup=[loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadOffers(),loadRefunds(),loadPaycheck()];
   const fastResults=await Promise.allSettled(fastGroup);
   const fastFailed=fastResults.filter(r=>r.status==='rejected');
   if(fastFailed.length)fastFailed.forEach(f=>console.error('Overview load error (fast):',f.reason));
@@ -823,31 +838,28 @@ function renderSyncBadge(){
 /* ── HERO ── */
 function renderHero(){
   const t=D.veeqoToday||[];
-  const open=D.veeqoOpen||[];
   const shipped=t.filter(o=>['shipped','dispatched'].includes((o.status||'').toLowerCase())).length;
-  const ready=t.filter(o=>o.status==='awaiting_fulfillment');
-  const blocked=open.filter(o=>['awaiting_payment','payment_pending'].includes((o.status||'').toLowerCase()));
+  const ready=t.filter(o=>o.status==='awaiting_fulfillment'&&o.is_amazon_prime);
   const prime=t.filter(o=>o.is_amazon_prime).length;
-  const needsApproval=D.sourcingNeedApproval??((D.sourcing||[]).filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected')).length);
   const oldestReadyHrs=ready.length?Math.floor((Date.now()-Math.min(...ready.map(o=>new Date(o.created_at).getTime())))/3600000):0;
+  const rf=refundStats();
+  const rfDelta=rf.prevAmt>0?((rf.curAmt-rf.prevAmt)/rf.prevAmt*100):(rf.curAmt>0?100:0);
+  const rfDir=rf.curAmt>rf.prevAmt?'up':(rf.curAmt<rf.prevAmt?'down':'flat');
   const hero=document.getElementById('ovHero');
   const isRerender=hero.dataset.rendered==='1';
   const cards=[
     {cls:'sc-green',label:'Shipped Today',val:shipped,sub:'',
       badge:shipped>0?{cls:'bg-good',txt:'✓ On track'}:{cls:'bg-neutral',txt:'None yet'},
-      icon:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',onclick:'ovOpenVeeqoDrawer()'},
-    {cls:'sc-blue',label:'Total Orders',val:t.length,sub:'',
+      icon:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',onclick:"ovOpenVeeqoDrawer('shipped')"},
+    {cls:'sc-blue',label:'Orders Today',val:t.length,sub:'',
       badge:prime>0?{cls:'bg-warn',txt:`${prime} Prime`}:{cls:'bg-neutral',txt:'No Prime'},
-      icon:'<rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 10h8M8 14h4"/>',onclick:'ovOpenVeeqoDrawer()'},
+      icon:'<rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 10h8M8 14h4"/>',onclick:"ovOpenVeeqoDrawer('orders')"},
     {cls:'sc-amber',label:'Ready to Ship',val:ready.length,sub:ready.length?`Oldest: ${fmtAge(oldestReadyHrs)}`:'No backlog',
-      badge:(oldestReadyHrs>48||ready.length>10)?{cls:'bg-crit',txt:'Backlog aging'}:ready.length>5?{cls:'bg-warn',txt:'Backlog building'}:ready.length>0?{cls:'bg-warn',txt:'Action needed'}:{cls:'bg-good',txt:'Clear'},
-      icon:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',onclick:'ovOpenVeeqoDrawer()'},
-    {cls:'sc-red',label:'Awaiting Pay',val:blocked.length,sub:'',
-      badge:blocked.length>0?{cls:'bg-crit',txt:'⚠ Needs action'}:{cls:'bg-good',txt:'All clear'},
-      icon:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',onclick:'ovOpenVeeqoDrawer()'},
-    {cls:'sc-amber',label:'Leads Approvals',val:needsApproval,sub:'',
-      badge:needsApproval>0?{cls:'bg-warn',txt:'Your review needed'}:{cls:'bg-good',txt:'All reviewed'},
-      icon:'<polyline points="20 6 9 17 4 12"/>',onclick:'ovOpenSourcingDrawer()'},
+      badge:{cls:'bg-warn',txt:'Amazon Prime'},
+      icon:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',onclick:'ovOpenReadyToShipDrawer()'},
+    {cls:'sc-red',label:'Refunds',val:fmtGBP(rf.curAmt),sub:`${rf.curCount} refund${rf.curCount!==1?'s':''} · 30 days`,
+      badge:rfDir==='flat'?{cls:'bg-neutral',txt:'No change'}:{cls:rfDir==='up'?'bg-crit':'bg-good',txt:`${rfDir==='up'?'↑':'↓'} ${Math.abs(rfDelta).toFixed(0)}%`},
+      icon:'<path d="M3 10h18M7 15h.01M11 15h2"/><rect x="3" y="5" width="18" height="14" rx="2"/>',onclick:'ovOpenRefundsDrawer()'},
   ];
   if(isRerender){
     const existing=hero.querySelectorAll('.ov-sc');
@@ -1294,7 +1306,7 @@ function ovCloseDrawer(){
 async function silentRefresh(){
   if(!sb)return;
   const results=await Promise.allSettled([
-    loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadOffers(),loadReplenishments(),
+    loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadOffers(),loadRefunds(),loadReplenishments(),
     loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
   ]);
   const failed=results.filter(r=>r.status==='rejected');
@@ -1303,7 +1315,8 @@ async function silentRefresh(){
   renderCatalogKpis();renderPaycheck();renderRota();renderSyncBadge();
 }
 /* ── DRAWERS ── */
-function ovOpenVeeqoDrawer(){
+function ovOpenVeeqoDrawer(focus){
+  focus=focus||'orders';
   const t=D.veeqoToday||[];
   const sg={};t.forEach(o=>{const k=o.status||'unknown';sg[k]=(sg[k]||0)+1;});
   const statRows=Object.entries(sg).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="drw-row"><div class="drw-row-k">${esc(k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()))}</div><div class="drw-row-v">${v}</div></div>`).join('');
@@ -1314,9 +1327,74 @@ function ovOpenVeeqoDrawer(){
     </div>
     <div class="drw-card-s" style="margin-top:3px;display:flex;gap:6px"><span>${esc(o.deliver_to_name||'—')}</span><span>·</span><span>${esc(o.channel||'—')}</span><span>·</span><span>${esc((o.status||'').replace(/_/g,' '))}</span></div>
   </div>`).join('');
+  if(focus==='shipped'){
+    const shippedOrders=t.filter(o=>['shipped','dispatched'].includes((o.status||'').toLowerCase()));
+    const shippedRevenue=shippedOrders.reduce((s,o)=>s+parseFloat(o.total_price||0),0);
+    ovOpenDrawer('Shipped Today',`${shippedOrders.length} shipped`,fmtGBP(shippedRevenue)+' revenue',`
+      <div class="drw-sec-lbl">By Status</div>${statRows}
+      <div class="drw-sec-lbl">Recent Orders</div>${recRows}
+      <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('reports')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 10h8M8 14h4"/></svg>
+        Go to Veeqo Report
+      </button>`);
+    return;
+  }
   ovOpenDrawer("Today's Orders",`${t.length} orders`,fmtGBP(t.reduce((s,o)=>s+parseFloat(o.total_price||0),0))+' revenue',`
     <div class="drw-sec-lbl">By Status</div>${statRows}
     <div class="drw-sec-lbl">Recent Orders</div>${recRows}
+    <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('reports')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 10h8M8 14h4"/></svg>
+      Go to Veeqo Report
+    </button>`);
+}
+
+  function ovOpenRefundsDrawer(){
+  const rf=refundStats();
+  const rows=D.refundsAll||[];
+  const now=new Date();now.setHours(0,0,0,0);
+  const d30=new Date(now);d30.setDate(d30.getDate()-30);
+  const outstanding30=rows.filter(r=>!r.refunded&&r.date_submitted&&new Date(r.date_submitted+'T00:00')>=d30);
+  const outstandingAmt=outstanding30.reduce((s,r)=>s+(parseFloat(r.amount_requested)||0),0);
+  const byMkt={};
+  rows.filter(r=>r.refunded&&r.date_processed&&new Date(r.date_processed+'T00:00')>=d30).forEach(r=>{
+    const k=r.marketplace||'Unknown';
+    if(!byMkt[k])byMkt[k]={count:0,amt:0};
+    byMkt[k].count++;byMkt[k].amt+=parseFloat(r.amount_processed)||0;
+  });
+  const mktRows=Object.entries(byMkt).sort((a,b)=>b[1].amt-a[1].amt).map(([k,v])=>`<div class="drw-row"><div class="drw-row-k">${esc(k)}</div><div class="drw-row-v">${v.count} · ${fmtGBP(v.amt)}</div></div>`).join('')||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No processed refunds this period</div>';
+  const delta=rf.curAmt-rf.prevAmt;
+  const pct=rf.prevAmt>0?(delta/rf.prevAmt*100):(rf.curAmt>0?100:0);
+  const dir=delta>0?'up':(delta<0?'down':'flat');
+  ovOpenDrawer('Refunds','Last 30 Days',`${rf.curCount} processed`,`
+    <div class="drw-sec-lbl">Refunded — Last 30 Days</div>
+    <div class="drw-row"><div class="drw-row-k">Total Refunded</div><div class="drw-row-v">${fmtGBP(rf.curAmt)}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Refunds Processed</div><div class="drw-row-v">${rf.curCount.toLocaleString()}</div></div>
+    <div class="drw-row"><div class="drw-row-k">vs Previous 30 Days</div><div class="drw-row-v" style="color:${dir==='up'?'var(--red)':dir==='down'?'var(--green)':'var(--text2)'}">${dir==='flat'?'No change':(delta>0?'+':'')+fmtGBP(delta)+' ('+(delta>0?'+':'')+pct.toFixed(0)+'%)'}</div></div>
+    <div class="drw-sec-lbl">Outstanding — Last 30 Days</div>
+    <div class="drw-row"><div class="drw-row-k">Outstanding Requests</div><div class="drw-row-v" style="color:var(--amber)">${outstanding30.length.toLocaleString()}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Outstanding Value</div><div class="drw-row-v" style="color:var(--amber)">${fmtGBP(outstandingAmt)}</div></div>
+    <div class="drw-sec-lbl">By Marketplace — Processed</div>
+    ${mktRows}
+    <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('refunds')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18M7 15h.01M11 15h2"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg>
+      Go to Refunds
+    </button>`);
+}
+function ovOpenReadyToShipDrawer(){
+  const t=D.veeqoToday||[];
+  const readyPrime=t.filter(o=>o.status==='awaiting_fulfillment'&&o.is_amazon_prime);
+  const oldestHrs=readyPrime.length?Math.floor((Date.now()-Math.min(...readyPrime.map(o=>new Date(o.created_at).getTime())))/3600000):0;
+  const recRows=readyPrime.slice(0,12).map(o=>`<div class="drw-card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="drw-card-t">#${esc(o.order_number||o.order_id||'—')}<span style="margin-left:6px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd)">Prime</span></div>
+      <span style="font-family:var(--mono);font-size:12px;font-weight:700">${fmtGBP(o.total_price)}</span>
+    </div>
+    <div class="drw-card-s" style="margin-top:3px;display:flex;gap:6px"><span>${esc(o.deliver_to_name||'—')}</span><span>·</span><span>${esc(o.channel||'—')}</span></div>
+  </div>`).join('')||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No Prime orders awaiting fulfillment</div>';
+  ovOpenDrawer('Ready to Ship','Amazon Prime',readyPrime.length?`Oldest: ${fmtAge(oldestHrs)}`:'No backlog',`
+    <div class="drw-sec-lbl">By Status</div>
+    <div class="drw-row"><div class="drw-row-k">Backlog Total</div><div class="drw-row-v" style="color:${readyPrime.length>0?'var(--amber)':'var(--text2)'}">${readyPrime.length.toLocaleString()}</div></div>
+    <div class="drw-sec-lbl">Prime Orders</div>${recRows}
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('reports')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 10h8M8 14h4"/></svg>
       Go to Veeqo Report
@@ -1776,6 +1854,8 @@ document.addEventListener('keydown',e=>{
 /* ── EXPOSE GLOBALS ── */
 window.ovOpenVeeqoDrawer=ovOpenVeeqoDrawer;
 window.ovOpenSourcingDrawer=ovOpenSourcingDrawer;
+window.ovOpenReadyToShipDrawer=ovOpenReadyToShipDrawer;
+window.ovOpenRefundsDrawer=ovOpenRefundsDrawer;
 window.ovSetSourcingFilter=ovSetSourcingFilter;
 window.ovOpenFaultsDrawer=ovOpenFaultsDrawer;
 window.ovOpenFBADrawer=ovOpenFBADrawer;
