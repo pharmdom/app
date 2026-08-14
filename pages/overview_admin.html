@@ -1779,9 +1779,10 @@ function ovOpenModal(title,sub,html){
 function ovCloseModal(){document.getElementById('ovModalOverlay').classList.remove('open');}
 let _revFilter='30d';
 function _revBucketByHour(rows){
-  const hourKeys=[];for(let h=0;h<24;h++)hourKeys.push(String(h).padStart(2,'0'));
+  const nowH=ukHourNow();
+  const hourKeys=[];for(let h=0;h<=nowH;h++)hourKeys.push(String(h).padStart(2,'0'));
   const b={};hourKeys.forEach(h=>b[h]=0);
-  rows.forEach(o=>{if(!o.created_at)return;const h=String(ukHourOfDate(new Date(o.created_at))).padStart(2,'0');b[h]+=parseFloat(o.total_price||0);});
+  rows.forEach(o=>{if(!o.created_at)return;const h=String(ukHourOfDate(new Date(o.created_at))).padStart(2,'0');if(h in b)b[h]+=parseFloat(o.total_price||0);});
   return hourKeys.map(k=>b[k]);
 }
 function _revBucketByDayRange(rows,start,days){
@@ -1842,9 +1843,10 @@ async function renderRevenueModalContent(filter){
   const avg=orders.length?total/orders.length:0;
   let keys=[],vals=[];
   if(granularity==='hour'){
-    const hourKeys=[];for(let h=0;h<24;h++)hourKeys.push(String(h).padStart(2,'0'));
+    const nowH=ukHourNow();
+    const hourKeys=[];for(let h=0;h<=nowH;h++)hourKeys.push(String(h).padStart(2,'0'));
     const buckets={};hourKeys.forEach(h=>buckets[h]=0);
-    orders.forEach(o=>{if(!o.created_at)return;const h=String(ukHourOfDate(new Date(o.created_at))).padStart(2,'0');buckets[h]+=parseFloat(o.total_price||0);});
+    orders.forEach(o=>{if(!o.created_at)return;const h=String(ukHourOfDate(new Date(o.created_at))).padStart(2,'0');if(h in buckets)buckets[h]+=parseFloat(o.total_price||0);});
     keys=hourKeys;vals=keys.map(k=>buckets[k]);
   }else{
     const days=filter==='7d'?7:30;
