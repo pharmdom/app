@@ -373,16 +373,15 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
         <div class="pulse-card">
   <div class="pulse-hdr">
     <div>
-      <div class="pulse-title">Packing Activity (WH) - Hourly Checkpoints</div>
+      <div class="pulse-title">Packing Pace (WH) - Hourly Checkpoints</div>
       <div class="pulse-sub" id="ovPackSub">Loading…</div>
     </div>
     <div class="pulse-link" onclick="ovOpenPackingDrawer()">Expand <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
           </div>
           <div class="mkpi-row">
             <div class="mkpi"><div class="mkpi-lbl">Packs Today</div><div class="mkpi-val" id="ovPackTotal">—</div></div>
-            <div class="mkpi"><div class="mkpi-lbl">Active - Last Check</div><div class="mkpi-val" id="ovPackActive">—</div></div>
-            <div class="mkpi"><div class="mkpi-lbl">Avg / Hour</div><div class="mkpi-val" id="ovPackPph">—</div></div>
-            <div class="mkpi"><div class="mkpi-lbl">Top Packer</div><div class="mkpi-val" id="ovPackTop" style="font-size:12.5px">—</div></div>
+            <div class="mkpi"><div class="mkpi-lbl">To Ship</div><div class="mkpi-val" id="ovPackToShip">—</div></div>
+            <div class="mkpi"><div class="mkpi-lbl">Packing Balance</div><div class="mkpi-val" id="ovPackBalance">—</div><div class="mkpi-delta" id="ovPackBalanceNote"></div></div>
           </div>
           <div class="spark-legend" id="ovPackSparkLegend" style="display:none"></div>
           <div class="spark-wrap"><svg id="ovPackSparkline" style="width:100%;height:100%;display:block;"></svg></div>
@@ -1333,6 +1332,7 @@ function drawSparkline(id,vals,keys,color,xLabelFn,unit,opts){
 }
   
 /* ── PACKING ── */
+function isExcludedPacker(n){return String(n||'').trim().toLowerCase()==='awais';}
 function renderPacking(){
   const counts=D.packingToday||[];
   const stats=D.packingStatsToday||[];
@@ -1362,12 +1362,40 @@ function renderPacking(){
     return elapsedHours>0?cnt/elapsedHours:0;
   }).filter(r=>r>0);
   const avgPph=packerRates.length?(packerRates.reduce((s,r)=>s+r,0)/packerRates.length):0;
-  const topPacker=Object.values(latestPerPacker).sort((a,b)=>(parseInt(b.count)||0)-(parseInt(a.count)||0))[0];
+  const topPacker=Object.values(latestPerPacker).filter(c=>!isExcludedPacker(c.packer_name)).sort((a,b)=>(parseInt(b.count)||0)-(parseInt(a.count)||0))[0];
   document.getElementById('ovPackSub').textContent=Object.keys(latestPerPacker).length?'Warehouse Today · updated on the hour & half-hour':'No activity yet';
   document.getElementById('ovPackTotal').textContent=totalPacks.toLocaleString();
-  document.getElementById('ovPackActive').textContent=activeNow;
-  document.getElementById('ovPackPph').textContent=avgPph?avgPph.toFixed(1):'—';
-  document.getElementById('ovPackTop').textContent=topPacker?`${(topPacker.packer_name||'').split(' ')[0]} (${parseInt(topPacker.count)||0})`:'—';
+  D.packActiveNow=activeNow;
+  D.packAvgPph=avgPph;
+  D.packTopPacker=topPacker;
+  const cutoffToday=new Date(ukMidnight().getTime()+16.5*3600000);
+  const cutoffYesterday=new Date(cutoffToday.getTime()-86400000);
+  const toShipOrders=(D.veeqo30||[]).filter(o=>o.created_at&&new Date(o.created_at)>=cutoffYesterday&&!['shipped','dispatched'].includes((o.status||'').toLowerCase()));
+  const toShip=toShipOrders.length;
+  document.getElementById('ovPackToShip').textContent=toShip.toLocaleString();
+  const balance=totalPacks-toShip;
+  const balanceEl=document.getElementById('ovPackBalance');
+  const noteEl=document.getElementById('ovPackBalanceNote');
+  balanceEl.textContent=(balance>=0?'+':'')+balance.toLocaleString();
+  balanceEl.className='mkpi-val '+(balance>=0?'green':'red');
+  const now=new Date();
+  const hoursUntilCutoff=(cutoffToday.getTime()-now.getTime())/3600000;
+  D.packHoursUntilCutoff=hoursUntilCutoff;
+  D.packShortfall=balance<0?Math.abs(balance):0;
+  if(balance>=0){
+    noteEl.className='mkpi-delta up';noteEl.textContent='✓ On track';
+    D.packRecommendation=null;
+  }else if(hoursUntilCutoff<=0){
+    noteEl.className='mkpi-delta down';noteEl.textContent='Past 4:30pm cutoff';
+    D.packRecommendation={type:'passed'};
+  }else if(avgPph>0){
+    const neededPackers=Math.ceil(D.packShortfall/(avgPph*hoursUntilCutoff));
+    noteEl.className='mkpi-delta down';noteEl.textContent=`~${neededPackers} more packer${neededPackers!==1?'s':''} needed`;
+    D.packRecommendation={type:'need',count:neededPackers};
+  }else{
+    noteEl.className='mkpi-delta down';noteEl.textContent='Behind — pace data pending';
+    D.packRecommendation={type:'unknown'};
+  }
   const bucket=packingBucketBySlot(counts);
   const paceVals=paceSeriesFromBucket(bucket,slots);
   const prevPace=yesterdayPaceAligned(slots);
@@ -2049,25 +2077,53 @@ function ovOpenPaycheckDrawer(){
       Goto Payroll
     </button>`);
 }
+
 function ovOpenPackingDrawer(){
   const stats=D.packingStatsToday||[];
+  const visibleStats=stats.filter(p=>!isExcludedPacker(p.name));
   const counts=D.packingToday||[];
   const slots=[...new Set(counts.map(c=>c.time_slot))].sort();
   const bucket=packingBucketBySlot(counts);
   const paceVals=paceSeriesFromBucket(bucket,slots);
   const prevPace=yesterdayPaceAligned(slots);
-  const rows=stats.slice().sort((a,b)=>(b.total_packs||0)-(a.total_packs||0)).map(p=>`
+  const rows=visibleStats.slice().sort((a,b)=>(b.total_packs||0)-(a.total_packs||0)).map(p=>`
     <div class="drw-card"><div style="display:flex;justify-content:space-between;align-items:center">
       <div class="drw-card-t">${esc(p.name||'—')}</div>
       <span style="font-family:var(--mono);font-size:12px;font-weight:700">${p.total_packs||0} packs</span>
     </div>
     <div class="drw-card-s" style="margin-top:3px">${(parseFloat(p.packs_per_hour)||0).toFixed(1)} packs/hr</div>
     </div>`).join('');
-  ovOpenDrawer('Packing','Hourly Checkpoints',`${stats.length} packer${stats.length!==1?'s':''} tracked this week`,`
+  const topPacker=D.packTopPacker;
+  const rec=D.packRecommendation;
+  const hrsLeft=D.packHoursUntilCutoff||0;
+  const shortfall=D.packShortfall||0;
+  let recHtml;
+  if(!rec){
+    recHtml=`<div class="drw-row"><div class="drw-row-k">Status</div><div class="drw-row-v" style="color:var(--green)">✓ On track — no shortfall</div></div>`;
+  }else if(rec.type==='passed'){
+    recHtml=`<div class="drw-row"><div class="drw-row-k">Status</div><div class="drw-row-v" style="color:var(--red)">Cutoff passed</div></div>
+    <div class="drw-row"><div class="drw-row-k">Shortfall</div><div class="drw-row-v" style="color:var(--red)">${shortfall.toLocaleString()} orders</div></div>
+    <div class="drw-row"><div class="drw-row-k">Note</div><div class="drw-row-v" style="color:var(--text3)">Rolls into tomorrow's queue</div></div>`;
+  }else if(rec.type==='need'){
+    recHtml=`<div class="drw-row"><div class="drw-row-k">Shortfall</div><div class="drw-row-v" style="color:var(--red)">${shortfall.toLocaleString()} orders</div></div>
+    <div class="drw-row"><div class="drw-row-k">Time to 4:30pm</div><div class="drw-row-v">${hrsLeft.toFixed(1)}h</div></div>
+    <div class="drw-row"><div class="drw-row-k">Team Avg Pace</div><div class="drw-row-v">${(D.packAvgPph||0).toFixed(1)}/hr</div></div>
+    <div class="drw-row"><div class="drw-row-k">Recommended</div><div class="drw-row-v" style="color:var(--amber)">+${rec.count} packer${rec.count!==1?'s':''}</div></div>`;
+  }else{
+    recHtml=`<div class="drw-row"><div class="drw-row-k">Shortfall</div><div class="drw-row-v" style="color:var(--red)">${shortfall.toLocaleString()} orders</div></div>
+    <div class="drw-row"><div class="drw-row-k">Note</div><div class="drw-row-v" style="color:var(--text3)">Not enough pace data yet to estimate</div></div>`;
+  }
+  ovOpenDrawer('Packing','Hourly Checkpoints',`${visibleStats.length} packer${visibleStats.length!==1?'s':''} tracked this week`,`
     <div class="drw-sec-lbl">Pace — Today</div>
     ${prevPace?'<div class="spark-legend" style="margin-bottom:8px"><span class="spark-legend-item"><span class="spark-legend-swatch" style="border-color:var(--accent)"></span>Today</span><span class="spark-legend-item"><span class="spark-legend-swatch dashed"></span>Yesterday</span></div>':''}
     <div class="spark-wrap" style="height:150px;margin-bottom:16px"><svg id="ovPackDrawerSpark" style="width:100%;height:100%;display:block"></svg></div>
-    <div class="drw-sec-lbl">By Packer (${stats.length})</div>
+    <div class="drw-sec-lbl">Today's Totals</div>
+    <div class="drw-row"><div class="drw-row-k">Active — Last Check</div><div class="drw-row-v">${D.packActiveNow||0}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Avg / Hour</div><div class="drw-row-v">${(D.packAvgPph||0)?D.packAvgPph.toFixed(1):'—'}</div></div>
+    <div class="drw-row"><div class="drw-row-k">Top Packer</div><div class="drw-row-v">${topPacker?`${esc((topPacker.packer_name||'').split(' ')[0])} (${parseInt(topPacker.count)||0})`:'—'}</div></div>
+    <div class="drw-sec-lbl">Staffing Recommendation</div>
+    ${recHtml}
+    <div class="drw-sec-lbl">By Packer (${visibleStats.length})</div>
     ${rows||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No packing activity recorded today</div>'}
     <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('packing')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
@@ -2075,6 +2131,7 @@ function ovOpenPackingDrawer(){
     </button>`);
   requestAnimationFrame(()=>drawSparkline('ovPackDrawerSpark',paceVals,slots,'var(--accent)',k=>k,'pace',prevPace?{prevVals:prevPace}:{}));
 }
+  
 /* ── MODALS ── */
 function ovOpenModal(title,sub,html){
   document.getElementById('ovModalTitle').textContent=title;
