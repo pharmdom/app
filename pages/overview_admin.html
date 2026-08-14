@@ -143,6 +143,27 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .bottom-card:hover{box-shadow:var(--sh);border-color:var(--accent-bd);}
 .bottom-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
 .bottom-title{font-size:12.5px;font-weight:700;color:var(--text);}
+.co-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.co-col{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:10px 11px;}
+.co-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:8px;}
+.co-stat{margin-bottom:8px;}
+.co-stat:last-child{margin-bottom:0;}
+.co-stat-top{display:flex;align-items:baseline;gap:6px;}
+.co-stat-main{font-size:19px;font-weight:800;font-family:var(--mono);color:var(--text);line-height:1;}
+.co-stat-main.green{color:var(--green);}
+.co-stat-main.red{color:var(--red);}
+.co-stat-badge{font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:20px;background:var(--surface);border:1px solid var(--border);color:var(--text3);white-space:nowrap;}
+.co-stat-badge.red{background:var(--red-bg);border-color:var(--red-bd);color:var(--red);}
+.co-stat-name{font-size:9.5px;font-weight:600;color:var(--text3);margin-top:3px;}
+.co-supp-line{display:flex;align-items:center;justify-content:space-between;padding:7px 0;font-size:11.5px;color:var(--text3);border-top:1px solid var(--border2);margin-top:10px;}
+.co-supp-line b{color:var(--text2);font-family:var(--mono);font-weight:800;}
+.drw-tabs{display:flex;gap:6px;margin-bottom:16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:3px;}
+.drw-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px 8px;border-radius:6px;font-size:11.5px;font-weight:700;color:var(--text3);cursor:pointer;transition:all .15s;background:transparent;border:none;font-family:var(--font);}
+.drw-tab svg{width:13px;height:13px;}
+.drw-tab:hover{color:var(--text2);}
+.drw-tab.active{background:var(--surface);color:var(--accent);box-shadow:var(--sh-sm);}
+.drw-panel{display:none;}
+.drw-panel.active{display:block;}
 .rota-days{display:flex;gap:4px;margin-bottom:12px;}
 .rota-day{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;min-width:0;}
 .rota-dlbl{font-size:9px;font-weight:700;color:var(--text4);}
@@ -398,15 +419,36 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
         </div>
         <div id="ovPayWidget"><div class="shimmer" style="height:80px"></div></div>
       </div>
+      
 <div class="bottom-card">
   <div class="bottom-hdr">
-    <div class="bottom-title">Catalog</div>
+    <div class="bottom-title">Catalog & Offers</div>
     <div class="pulse-link" onclick="ovOpenCatalogDrawer()">View <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
         </div>
-<div class="mkpi-row">
-          <div class="mkpi"><div class="mkpi-lbl">Total SKUs</div><div class="mkpi-val" id="ovCatTotal">—</div></div>
-          <div class="mkpi"><div class="mkpi-lbl">Reviewed</div><div class="mkpi-val green" id="ovCatApproved">—</div></div>
-        </div>
+<div class="co-grid">
+  <div class="co-col">
+    <div class="co-lbl">Catalog</div>
+    <div class="co-stat">
+      <div class="co-stat-top"><div class="co-stat-main" id="ovCatTotal">—</div><div class="co-stat-badge" id="ovCatNewBadge">—</div></div>
+      <div class="co-stat-name">Total SKUs</div>
+    </div>
+    <div class="co-stat">
+      <div class="co-stat-top"><div class="co-stat-main green" id="ovCatApproved">—</div><div class="co-stat-badge red" id="ovCatRejBadge">—</div></div>
+      <div class="co-stat-name">Reviewed</div>
+    </div>
+  </div>
+  <div class="co-col">
+    <div class="co-lbl">Offers</div>
+    <div class="co-stat">
+      <div class="co-stat-top"><div class="co-stat-main" id="ovOffTotal">—</div><div class="co-stat-badge" id="ovOffSuppBadge">—</div></div>
+      <div class="co-stat-name">Total Offers</div>
+    </div>
+    <div class="co-stat">
+      <div class="co-stat-top"><div class="co-stat-main red" id="ovOffRejected">—</div></div>
+      <div class="co-stat-name">Rejected</div>
+    </div>
+  </div>
+</div>
         <div id="ovCatDetails"></div>
       </div>
     </div>
@@ -613,14 +655,31 @@ async function loadCatalog(){
     const days=Math.floor((now-t)/86400000);
     if(!staleSupplier||days>staleSupplierDays){staleSupplier=name;staleSupplierDays=days;}
   });
-  D.catTotal=rows.length;
+D.catTotal=rows.length;
   D.catApproved=approved;
   D.catRejected=rejected;
   D.catPending=pendingItems.length;
   D.catNewThisWeek=newThisWeek;
   D.catStaleSupplier=staleSupplier;
   D.catStaleSupplierDays=staleSupplierDays;
+  D.catSupplierLastUpdate=bySupplierLastUpdate;
   D.suppTotal=suppC.count||0;
+}
+async function loadOffers(){
+  const rows=await fetchAll('offers','id,approval,supplier_name',null,'id');
+  const rejected=rows.filter(r=>(r.approval||'').toLowerCase()==='rejected');
+  const active=rows.filter(r=>(r.approval||'').toLowerCase()!=='rejected');
+  const bySupplier={};
+  rows.forEach(r=>{
+    const k=r.supplier_name||'Unknown';
+    if(!bySupplier[k])bySupplier[k]={total:0,rejected:0};
+    bySupplier[k].total++;
+    if((r.approval||'').toLowerCase()==='rejected')bySupplier[k].rejected++;
+  });
+  D.offTotal=active.length;
+  D.offRejected=rejected.length;
+  D.offSuppliers=new Set(active.map(r=>r.supplier_name||'Unknown')).size;
+  D.offBySupplier=bySupplier;
 }
 async function loadReplenishments(){
   D.replen=await fetchAll('replenishment_skus','sku,name,action,days_left,order_qty,urgency,cost_price',null,'sku');
@@ -718,7 +777,7 @@ async function init(){
   if(!sb)return;
   pStart();
   const fastGroup=[loadReplenishments(),loadFBA(),loadFaults(),loadRota(),loadPacking()];
-  const slowGroup=[loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadPaycheck()];
+  const slowGroup=[loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadOffers(),loadPaycheck()];
   const fastResults=await Promise.allSettled(fastGroup);
   const fastFailed=fastResults.filter(r=>r.status==='rejected');
   if(fastFailed.length)fastFailed.forEach(f=>console.error('Overview load error (fast):',f.reason));
@@ -1083,25 +1142,21 @@ function renderDonut(){
 /* ── CATALOG ── */
 function renderCatalogKpis(){
   document.getElementById('ovCatTotal').textContent=(D.catTotal||0).toLocaleString();
+  document.getElementById('ovCatNewBadge').textContent='+'+(D.catNewThisWeek||0).toLocaleString()+' this wk';
   document.getElementById('ovCatApproved').textContent=(D.catApproved||0).toLocaleString();
+  document.getElementById('ovCatRejBadge').textContent=(D.catRejected||0).toLocaleString()+' rejected';
+  document.getElementById('ovOffTotal').textContent=(D.offTotal||0).toLocaleString();
+  document.getElementById('ovOffSuppBadge').textContent=(D.offSuppliers||0).toLocaleString()+' suppliers';
+  document.getElementById('ovOffRejected').textContent=(D.offRejected||0).toLocaleString();
   const detailsEl=document.getElementById('ovCatDetails');
   if(!detailsEl)return;
   const staleColor=D.catStaleSupplierDays>=30?'var(--red)':'var(--amber)';
   const staleBg=D.catStaleSupplierDays>=30?'var(--red-bg)':'var(--amber-bg)';
   const staleBd=D.catStaleSupplierDays>=30?'var(--red-bd)':'var(--amber-bd)';
   detailsEl.innerHTML=`
-    <div style="display:flex;gap:8px;margin-top:10px">
-      <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:8px 11px">
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);margin-bottom:3px">New This Week</div>
-        <div style="font-size:15px;font-weight:800;color:var(--text);font-family:var(--mono)">${(D.catNewThisWeek||0).toLocaleString()}</div>
-      </div>
-      <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:8px 11px">
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);margin-bottom:3px">Total Suppliers</div>
-        <div style="font-size:15px;font-weight:800;color:var(--text);font-family:var(--mono)">${(D.suppTotal||0).toLocaleString()}</div>
-      </div>
-    </div>
+    <div class="co-supp-line"><span>Total Suppliers</span><b>${(D.suppTotal||0).toLocaleString()}</b></div>
     ${D.catStaleSupplier?`
-    <div style="margin-top:8px;background:${staleBg};border:1px solid ${staleBd};border-radius:var(--r);padding:9px 12px">
+    <div style="margin-top:2px;background:${staleBg};border:1px solid ${staleBd};border-radius:var(--r);padding:9px 12px">
       <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:${staleColor};margin-bottom:3px">Least Catalog Updated</div>
       <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
         <span style="font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(D.catStaleSupplier)}</span>
@@ -1229,7 +1284,7 @@ function ovCloseDrawer(){
 async function silentRefresh(){
   if(!sb)return;
   const results=await Promise.allSettled([
-    loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadReplenishments(),
+    loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadOffers(),loadReplenishments(),
     loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
   ]);
   const failed=results.filter(r=>r.status==='rejected');
@@ -1393,27 +1448,97 @@ function ovOpenFBADrawer(){
 }
 function ovOpenCatalogDrawer(){
   const total=D.catTotal||0,approved=D.catApproved||0,rejected=D.catRejected||0,pending=D.catPending||0,suppTotal=D.suppTotal||0;
-  const pct=total>0?approved/total*100:0;
+  const reviewedTotal=approved+rejected;
+  const apct=reviewedTotal>0?approved/reviewedTotal*100:0;
+  const rpct=reviewedTotal>0?rejected/reviewedTotal*100:0;
   const avgPerSupplier=suppTotal?(total/suppTotal).toFixed(1):'—';
-  ovOpenDrawer('Catalog','Overview',`${total.toLocaleString()} total SKUs`,`
-    <div class="drw-sec-lbl">Review Status</div>
-    <div class="drw-row"><div class="drw-row-k">Needs Review</div><div class="drw-row-v" style="color:var(--amber)">${pending.toLocaleString()}</div></div>
-    <div class="drw-row"><div class="drw-row-k">Approved</div><div class="drw-row-v" style="color:var(--green)">${approved.toLocaleString()}</div></div>
-    <div class="drw-row"><div class="drw-row-k">Rejected</div><div class="drw-row-v" style="color:var(--red)">${rejected.toLocaleString()}</div></div>
-    <div class="drw-row"><div class="drw-row-k">Approval Rate</div><div class="drw-row-v">${pct.toFixed(1)}%</div></div>
-    <div style="margin-top:8px;margin-bottom:16px;height:6px;background:var(--surface3);border-radius:99px;overflow:hidden">
-      <div style="height:100%;width:${pct.toFixed(1)}%;background:var(--green);border-radius:99px;transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
+
+  const suppMap=D.catSupplierLastUpdate||{};
+  const now=Date.now();
+  const suppRows=Object.entries(suppMap).map(([name,t])=>({name,days:Math.floor((now-t)/86400000)})).sort((a,b)=>b.days-a.days);
+  const suppHtml=suppRows.length?suppRows.map(s=>`
+    <div class="drw-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="drw-card-t">${esc(s.name)}</div>
+        <div style="font-size:11.5px;font-weight:800;font-family:var(--mono);color:${s.days>=30?'var(--red)':s.days>=14?'var(--amber)':'var(--text3)'}">${s.days}d ago</div>
+      </div>
+    </div>`).join(''):'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No supplier activity yet</div>';
+
+  const offTotal=D.offTotal||0,offRejected=D.offRejected||0,offSuppliers=D.offSuppliers||0;
+  const offBySupplier=D.offBySupplier||{};
+  const offRows=Object.entries(offBySupplier).map(([name,v])=>({name,total:v.total,rejected:v.rejected})).sort((a,b)=>b.rejected-a.rejected);
+  const offHtml=offRows.length?offRows.map(s=>`
+    <div class="drw-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+        <div class="drw-card-t">${esc(s.name)}</div>
+        <div style="font-size:11.5px;font-weight:800;font-family:var(--mono);color:${s.rejected>0?'var(--red)':'var(--text3)'}">${s.rejected} rejected</div>
+      </div>
+      <div class="drw-card-s">${s.total} total offer${s.total!==1?'s':''}</div>
+    </div>`).join(''):'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No offers yet</div>';
+
+  ovOpenDrawer('Catalog & Offers','Catalog & Offers',`${total.toLocaleString()} SKUs · ${offTotal.toLocaleString()} offers`,`
+    <div class="drw-tabs">
+      <button class="drw-tab active" id="drwTabBtn-overview" onclick="ovDrwTab('overview')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Overview
+      </button>
+      <button class="drw-tab" id="drwTabBtn-suppliers" onclick="ovDrwTab('suppliers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        Suppliers
+      </button>
+      <button class="drw-tab" id="drwTabBtn-offers" onclick="ovDrwTab('offers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.5"/></svg>
+        Offers
+      </button>
     </div>
-   <div class="drw-sec-lbl">Activity</div>
-    <div class="drw-row"><div class="drw-row-k">New This Week</div><div class="drw-row-v">${(D.catNewThisWeek||0).toLocaleString()}</div></div>
-    <div class="drw-sec-lbl">Suppliers</div>
-    <div class="drw-row"><div class="drw-row-k">Total Suppliers</div><div class="drw-row-v">${suppTotal.toLocaleString()}</div></div>
-    <div class="drw-row"><div class="drw-row-k">Avg SKUs / Supplier</div><div class="drw-row-v">${avgPerSupplier}</div></div>
-    ${D.catStaleSupplier?`<div class="drw-row"><div class="drw-row-k">Least Catalog Updated</div><div class="drw-row-v" style="color:${D.catStaleSupplierDays>=30?'var(--red)':'var(--text2)'}">${esc(D.catStaleSupplier)} · ${D.catStaleSupplierDays}d</div></div>`:''}
-    <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('suppliers')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-      Open Suppliers & Catalog
-    </button>`);
+
+    <div class="drw-panel active" id="drwPanel-overview">
+      <div class="drw-sec-lbl">Review Status</div>
+      <div class="drw-row"><div class="drw-row-k">Needs Review</div><div class="drw-row-v" style="color:var(--amber)">${pending.toLocaleString()}</div></div>
+      <div class="drw-row"><div class="drw-row-k">Reviewed</div><div class="drw-row-v">${reviewedTotal.toLocaleString()}</div></div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:12px;margin-bottom:6px">
+        <span style="font-size:11.5px;font-weight:700;color:var(--green)">${approved.toLocaleString()} Approved (${apct.toFixed(1)}%)</span>
+        <span style="font-size:11.5px;font-weight:700;color:var(--red)">${rejected.toLocaleString()} Rejected (${rpct.toFixed(1)}%)</span>
+      </div>
+      <div style="height:8px;background:var(--surface3);border-radius:99px;overflow:hidden;display:flex;margin-bottom:16px">
+        <div style="height:100%;width:${apct.toFixed(1)}%;background:var(--green);transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
+        <div style="height:100%;width:${rpct.toFixed(1)}%;background:var(--red);transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
+      </div>
+      <div class="drw-sec-lbl">Activity</div>
+      <div class="drw-row"><div class="drw-row-k">New This Week</div><div class="drw-row-v">${(D.catNewThisWeek||0).toLocaleString()}</div></div>
+      <div class="drw-sec-lbl">Suppliers</div>
+      <div class="drw-row"><div class="drw-row-k">Total Suppliers</div><div class="drw-row-v">${suppTotal.toLocaleString()}</div></div>
+      <div class="drw-row"><div class="drw-row-k">Avg SKUs / Supplier</div><div class="drw-row-v">${avgPerSupplier}</div></div>
+      ${D.catStaleSupplier?`<div class="drw-row"><div class="drw-row-k">Least Catalog Updated</div><div class="drw-row-v" style="color:${D.catStaleSupplierDays>=30?'var(--red)':'var(--text2)'}">${esc(D.catStaleSupplier)} · ${D.catStaleSupplierDays}d</div></div>`:''}
+      <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('suppliers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        Open Suppliers & Catalog
+      </button>
+    </div>
+
+    <div class="drw-panel" id="drwPanel-suppliers">
+      <div class="drw-sec-lbl">Suppliers · Oldest Updated First</div>
+      ${suppHtml}
+    </div>
+
+    <div class="drw-panel" id="drwPanel-offers">
+      <div class="drw-sec-lbl">Offers Summary</div>
+      <div class="drw-row"><div class="drw-row-k">Total Offers</div><div class="drw-row-v">${offTotal.toLocaleString()}</div></div>
+      <div class="drw-row"><div class="drw-row-k">Rejected</div><div class="drw-row-v" style="color:var(--red)">${offRejected.toLocaleString()}</div></div>
+      <div class="drw-row"><div class="drw-row-k">Suppliers</div><div class="drw-row-v">${offSuppliers.toLocaleString()}</div></div>
+      <div class="drw-sec-lbl">By Supplier · Most Rejected First</div>
+      ${offHtml}
+      <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('offers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.5"/></svg>
+        Open Offers
+      </button>
+    </div>`);
+}
+function ovDrwTab(name){
+  ['overview','suppliers','offers'].forEach(k=>{
+    document.getElementById('drwTabBtn-'+k).classList.toggle('active',k===name);
+    document.getElementById('drwPanel-'+k).classList.toggle('active',k===name);
+  });
 }
 function ovOpenRotaDrawer(){
   const sched=D.rotaSched||[];const users=D.rotaUsers||[];
@@ -1632,6 +1757,7 @@ window.ovSetSourcingFilter=ovSetSourcingFilter;
 window.ovOpenFaultsDrawer=ovOpenFaultsDrawer;
 window.ovOpenFBADrawer=ovOpenFBADrawer;
 window.ovOpenCatalogDrawer=ovOpenCatalogDrawer;
+window.ovDrwTab=ovDrwTab;
 window.ovOpenRotaDrawer=ovOpenRotaDrawer;
 window.ovOpenPaycheckDrawer=ovOpenPaycheckDrawer;
 window.ovOpenPackingDrawer=ovOpenPackingDrawer;
