@@ -527,6 +527,47 @@ function getSourcingFilterCutoff(filter){
   return null;
 }
 function utcDateStr(d){return (d||new Date()).toISOString().slice(0,10);}
+
+
+function ovOpenAwaitingPaymentDrawer(){
+  const open=D.veeqoOpen||[];
+  const blocked=open.filter(o=>['awaiting_payment','payment_pending'].includes((o.status||'').toLowerCase()));
+  const totalValue=blocked.reduce((s,o)=>s+parseFloat(o.total_price||0),0);
+  const now=Date.now();
+  const byOldest=(a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0);
+  const sorted=blocked.slice().sort(byOldest);
+  const oldestHrs=sorted.length?Math.floor((now-new Date(sorted[0].created_at).getTime())/3600000):0;
+  const rows=sorted.map(o=>{
+    const hrs=o.created_at?Math.floor((now-new Date(o.created_at).getTime())/3600000):0;
+    const urgent=hrs>=48,warn=hrs>=24&&hrs<48;
+    const color=urgent?'var(--red)':warn?'var(--amber)':'var(--text3)';
+    return`<div class="drw-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div class="drw-card-t">#${esc(o.order_number||o.order_id||'—')}</div>
+          <div class="drw-card-s" style="margin-top:3px">${esc(o.deliver_to_name||'—')} · ${esc(o.channel||'—')} · ${esc((o.status||'').replace(/_/g,' '))}</div>
+        </div>
+        <div style="flex-shrink:0;text-align:right">
+          <div style="font-family:var(--mono);font-size:13px;font-weight:800;color:var(--text)">${fmtGBP(o.total_price)}</div>
+          <div style="font-size:10px;font-weight:700;color:${color};margin-top:2px">${fmtAge(hrs)} old</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('')||'<div class="attn-empty" style="padding:24px 0"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.5"><polyline points="20 6 9 17 4 12"/></svg><p style="font-size:13px;font-weight:700;color:var(--green)">All clear</p><span style="font-size:11px;color:var(--text4)">No orders blocked on payment</span></div>';
+  ovOpenDrawer('Awaiting Payment','Blocked Orders',`${blocked.length.toLocaleString()} order${blocked.length!==1?'s':''} · ${fmtGBP(totalValue)}`,`
+    <div class="mkpi-row" style="margin-bottom:14px">
+      <div class="mkpi"><div class="mkpi-lbl">Blocked</div><div class="mkpi-val red">${blocked.length.toLocaleString()}</div></div>
+      <div class="mkpi"><div class="mkpi-lbl">Total Value</div><div class="mkpi-val" style="color:var(--red)">${fmtGBP(totalValue)}</div></div>
+      <div class="mkpi"><div class="mkpi-lbl">Oldest</div><div class="mkpi-val" style="color:${oldestHrs>=48?'var(--red)':'var(--text)'}">${fmtAge(oldestHrs)}</div></div>
+    </div>
+    <div class="drw-sec-lbl">Orders — Oldest First</div>
+    ${rows}
+    <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('reports')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 10h8M8 14h4"/></svg>
+      Go to Veeqo Report
+    </button>`);
+}
+  
 /* ── PAGINATED FETCH — no caps, ever. Pages in batches of 1000 until exhausted. ── */
 async function fetchAll(table,cols,build,orderCol,pageSize){
   pageSize=pageSize||1000;
@@ -897,7 +938,7 @@ if(needApprovalCount>0){
   items.push({sev:isStale?'crit':'warn',t:`${needApprovalCount} sourcing product${needApprovalCount!==1?'s':''} need your approval`,s:(isStale?`Oldest has been waiting ${oldestDays} days — review needed`:'Agents have submitted products awaiting your decision')+valueNote,meta:'Sourcing',tag:{cls:isStale?'bg-crit':'bg-warn',txt:'Sourcing'},fn:'ovOpenSourcingApprovalDrawer()'});
 }
 const blocked=open.filter(o=>['awaiting_payment','payment_pending'].includes((o.status||'').toLowerCase()));
-  if(blocked.length)items.push({sev:'crit',t:`${blocked.length} order${blocked.length!==1?'s':''} blocked — payment required`,s:'These orders cannot be fulfilled until payment clears',meta:'Current',tag:{cls:'bg-crit',txt:'Critical'},fn:'ovOpenVeeqoDrawer()'});
+  if(blocked.length)items.push({sev:'crit',t:`${blocked.length} order${blocked.length!==1?'s':''} blocked — payment required`,s:'These orders cannot be fulfilled until payment clears',meta:'Current',tag:{cls:'bg-crit',txt:'Critical'},fn:'ovOpenAwaitingPaymentDrawer()'});
   const openFaults=faults.filter(f=>!f.resolved);
   const openFaultsCount=D.faultsOpenCount??openFaults.length;
   if(openFaults.length){
@@ -2017,6 +2058,7 @@ window.ovOpenVeeqoDrawer=ovOpenVeeqoDrawer;
 window.ovOpenSourcingDrawer=ovOpenSourcingDrawer;
 window.ovOpenSourcingApprovalDrawer=ovOpenSourcingApprovalDrawer;
 window.ovOpenReadyToShipDrawer=ovOpenReadyToShipDrawer;
+window.ovOpenAwaitingPaymentDrawer=ovOpenAwaitingPaymentDrawer;
 window.ovOpenRefundsDrawer=ovOpenRefundsDrawer;
 window.ovSetSourcingFilter=ovSetSourcingFilter;
 window.ovOpenFaultsDrawer=ovOpenFaultsDrawer;
