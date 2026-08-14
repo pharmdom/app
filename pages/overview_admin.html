@@ -645,7 +645,7 @@ async function loadLineItems(){
 
 async function loadSourcing(){
   const[rows,totalC,unapprovedC,approvedC,purchasedC]=await Promise.all([
-    fetchAll('sourcing','opportunity_id,product_name,supplier_name,agent,total_cost,approved,approved_by,approval_timestamp,purchased,purchased_at,created_at,sourcing_approvals(status)',null,'opportunity_id'),
+    fetchAll('sourcing','opportunity_id,product_name,supplier_name,agent,total_cost,cost_of_unit,unit_quantity,approved,approved_by,approval_timestamp,purchased,purchased_at,inquire,created_at,sourcing_approvals(status)',null,'opportunity_id'),
     sb.from('sourcing').select('*',{count:'exact',head:true}),
     sb.from('sourcing').select('*',{count:'exact',head:true}).eq('approved',false).is('approved_by',null),
     sb.from('sourcing').select('*',{count:'exact',head:true}).eq('approved',true),
@@ -726,7 +726,26 @@ async function loadOffers(){
   D.offersPending=active.slice().sort((a,b)=>new Date(a.date||0)-new Date(b.date||0));
 }
 async function loadReplenishments(){
-  D.replen=await fetchAll('replenishment_skus','sku,name,action,days_left,order_qty,urgency,cost_price',null,'sku');
+  D.replen=await fetchAll('replenishment_skus','sku,name,action,days_left,order_qty,urgency,cost_price,original_cost_price,supplier_name',null,'sku');
+}
+async function loadSuppliersMoq(){
+  D.suppliersMoq=await fetchAll('suppliers','name,moq',null,'name');
+}
+async function loadReplPriceHistory(){
+  const skus=[...new Set((D.replen||[]).map(r=>r.sku).filter(Boolean))];
+  if(!skus.length){D.replLastPrice={};return;}
+  const map={};
+  try{
+    const{data}=await sb.from('cb_price_history').select('item_id,price,changed_at').eq('item_type','repl').in('item_id',skus).order('changed_at',{ascending:true});
+    (data||[]).forEach(r=>{map[r.item_id]=r.price;});
+  }catch(e){console.warn('Repl price history fetch:',e);}
+  D.replLastPrice=map;
+}
+function replCurrentCost(r){
+  const tracked=(D.replLastPrice||{})[r.sku];
+  if(tracked!=null&&!isNaN(tracked))return parseFloat(tracked);
+  const oc=parseFloat(r.original_cost_price);
+  return(!isNaN(oc)&&oc>0)?oc:(parseFloat(r.cost_price)||0);
 }
 async function loadFBA(){
   const[prods,work]=await Promise.all([
@@ -835,7 +854,7 @@ async function init(){
   if(!sb)return;
   pStart();
   const fastGroup=[loadReplenishments(),loadFBA(),loadFaults(),loadRota(),loadPacking()];
-  const slowGroup=[loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadOffers(),loadRefunds(),loadPaycheck()];
+  const slowGroup=[loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadOffers(),loadRefunds(),loadPaycheck(),loadSuppliersMoq()];
   const fastResults=await Promise.allSettled(fastGroup);
   const fastFailed=fastResults.filter(r=>r.status==='rejected');
   if(fastFailed.length)fastFailed.forEach(f=>console.error('Overview load error (fast):',f.reason));
@@ -843,6 +862,7 @@ async function init(){
   const slowResults=await Promise.allSettled(slowGroup);
   const slowFailed=slowResults.filter(r=>r.status==='rejected');
   if(slowFailed.length){slowFailed.forEach(f=>console.error('Overview load error (slow):',f.reason));toast('Some data failed to load','error');}
+  await loadReplPriceHistory();
   renderSlow();
   pDone();
 }
@@ -956,6 +976,50 @@ const blocked=open.filter(o=>['awaiting_payment','payment_pending'].includes((o.
   if(critReplen.length)items.push({sev:'crit',t:`${critReplen.length} critical SKU${critReplen.length!==1?'s':''} need urgent replenishment`,s:'Out of stock or <7 days of cover — immediate action needed',meta:'This week',tag:{cls:'bg-crit',txt:'Stock Alert'},fn:'ovOpenReplenishModal()'});
   const pendingReplen=replen.filter(r=>!r.action);
   if(pendingReplen.length&&!critReplen.length)items.push({sev:'warn',t:`${pendingReplen.length} replenishment SKUs pending review`,s:'Upload weekly forecast and action pending items',meta:'This week',tag:{cls:'bg-warn',txt:'Replenishments'},fn:'ovOpenReplenishModal()'});
+  const readyToPurchase=sourcing.filter(p=>p.approved&&!p.purchased&&!p.inquire&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected'));
+  const replBasket=replen.filter(r=>r.action==='basket');
+  const rtpCount=readyToPurchase.length+replBasket.length;
+  if(rtpCount>0){
+    const rtpValue=readyToPurchase.reduce((s,p)=>s+((parseFloat(p.cost_of_unit)||0)*(parseFloat(p.unit_quantity)||0)),0)+replBasket.reduce((s,r)=>s+(replCurrentCost(r)*(parseFloat(r.order_qty)||0)),0);
+    const rtpOldestDays=readyToPurchase.length?Math.floor((Date.now()-Math.min(...readyToPurchase.map(p=>p.created_at?new Date(p.created_at).getTime():Date.now())))/86400000):0;
+    const rtpStale=rtpOldestDays>=7;
+    items.push({grp:'basket',sev:rtpStale?'warn':'info',t:`${rtpCount} approved item${rtpCount!==1?'s':''} ready to purchase`,s:(rtpStale?`Oldest approved ${rtpOldestDays} days ago — `:'Approved but not yet ordered — ')+`${fmtGBP(rtpValue)} not yet spent`,meta:'Basket',tag:{cls:rtpStale?'bg-warn':'sb-neutral',txt:'To Purchase'},fn:'ovOpenReadyToPurchaseDrawer()'});
+  }
+  const inquirySourcing=sourcing.filter(p=>p.approved&&p.inquire&&!p.purchased);
+  const inquiryReplen=replen.filter(r=>r.action==='inquire');
+  const inqOldestDays=inquirySourcing.length?Math.floor((Date.now()-Math.min(...inquirySourcing.map(p=>p.created_at?new Date(p.created_at).getTime():Date.now())))/86400000):0;
+  const staleInquiries=inquirySourcing.filter(p=>p.created_at&&Math.floor((Date.now()-new Date(p.created_at).getTime())/86400000)>=7).length+ (inqOldestDays>=7?inquiryReplen.length:0);
+  if(staleInquiries>0){
+    items.push({grp:'basket',sev:'warn',t:`${staleInquiries} supplier inquir${staleInquiries!==1?'ies':'y'} waiting 7+ days`,s:'No response yet — may need a follow-up',meta:'Basket',tag:{cls:'bg-warn',txt:'Inquiries'},fn:'ovOpenInquiriesDrawer()'});
+  }
+  const moqList=D.suppliersMoq||[];
+  const supplierValueMap={};
+  readyToPurchase.forEach(p=>{
+    const k=p.supplier_name||'No Supplier';
+    supplierValueMap[k]=(supplierValueMap[k]||0)+((parseFloat(p.cost_of_unit)||0)*(parseFloat(p.unit_quantity)||0));
+  });
+  replBasket.forEach(r=>{
+    const k=r.supplier_name||'No Supplier';
+    supplierValueMap[k]=(supplierValueMap[k]||0)+(replCurrentCost(r)*(parseFloat(r.order_qty)||0));
+  });
+  const moqMetSuppliers=[],moqCloseSuppliers=[];
+  Object.entries(supplierValueMap).forEach(([name,val])=>{
+    const sup=moqList.find(s=>s.name===name);
+    const moq=sup?parseFloat(sup.moq)||0:0;
+    if(moq<=0)return;
+    const pct=Math.min(999,Math.round(val/moq*100));
+    if(val>=moq)moqMetSuppliers.push({name,val,moq,pct});
+    else if(pct>=80)moqCloseSuppliers.push({name,val,moq,pct});
+  });
+  D.moqMetSuppliers=moqMetSuppliers;
+  D.moqCloseSuppliers=moqCloseSuppliers;
+  if(moqMetSuppliers.length>0){
+    const totalVal=moqMetSuppliers.reduce((s,x)=>s+x.val,0);
+    items.push({grp:'basket',sev:'info',t:`${moqMetSuppliers.length} supplier${moqMetSuppliers.length!==1?'s':''} hit MOQ — ready to order`,s:`${moqMetSuppliers.map(x=>x.name).join(', ')} · ${fmtGBP(totalVal)} combined`,meta:'Basket',tag:{cls:'bg-good',txt:'MOQ Met'},fn:'ovOpenMoqDrawer()'});
+  }
+  if(moqCloseSuppliers.length>0){
+    items.push({grp:'basket',sev:'info',t:`${moqCloseSuppliers.length} supplier${moqCloseSuppliers.length!==1?'s':''} nearing MOQ`,s:moqCloseSuppliers.map(x=>`${esc(x.name)} ${x.pct}%`).join(' · '),meta:'Basket',tag:{cls:'sb-neutral',txt:'Almost there'},fn:'ovOpenMoqDrawer()'});
+  }
   const pendPay=(D.paycheck||[]).filter(r=>r.paid!=='Yes');
   if(pendPay.length){
     const amt=pendPay.reduce((s,r)=>s+r.pay,0);
@@ -976,9 +1040,90 @@ const blocked=open.filter(o=>['awaiting_payment','payment_pending'].includes((o.
   const hr2=ukHourNow();
   if(hr2>=10&&hr2<22&&packToday===0)items.push({sev:'warn',t:'No packing activity recorded today',s:'Warehouse packing counts are at zero for today so far',meta:'Warehouse',tag:{cls:'bg-warn',txt:'Packing'},fn:'ovOpenPackingDrawer()'});
   const order={crit:0,warn:1,info:2};
-  return items.sort((a,b)=>order[a.sev]-order[b.sev]);
+  return items.sort((a,b)=>{
+    const ga=a.grp==='basket'?0:1,gb=b.grp==='basket'?0:1;
+    if(ga!==gb)return ga-gb;
+    return order[a.sev]-order[b.sev];
+  });
 }
 
+function ovOpenReadyToPurchaseDrawer(){
+  const sourcing=D.sourcing||[];
+  const replen=D.replen||[];
+  const readyToPurchase=sourcing.filter(p=>p.approved&&!p.purchased&&!p.inquire&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected'));
+  const replBasket=replen.filter(r=>r.action==='basket');
+  const now=Date.now();
+  const rows=readyToPurchase.map(p=>{
+    const days=p.created_at?Math.floor((now-new Date(p.created_at).getTime())/86400000):0;
+    return`<div class="drw-card"><div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="drw-card-t">${esc(p.product_name||'—')}</div>
+      <span style="font-family:var(--mono);font-size:12px;font-weight:700">${fmtGBP((parseFloat(p.cost_of_unit)||0)*(parseFloat(p.unit_quantity)||0))}</span>
+    </div><div class="drw-card-s" style="margin-top:3px">${esc(p.supplier_name||'—')} · ${days}d ago</div></div>`;
+  }).join('');
+  const replRows=replBasket.map(r=>`<div class="drw-card"><div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="drw-card-t">${esc(r.name||r.sku||'—')}</div>
+      <span style="font-family:var(--mono);font-size:12px;font-weight:700">${fmtGBP(replCurrentCost(r)*(parseFloat(r.order_qty)||0))}</span>
+    </div><div class="drw-card-s" style="margin-top:3px">${esc(r.supplier_name||'Replenishment')} · Qty ${r.order_qty||0}</div></div>`).join('');
+  const totalVal=readyToPurchase.reduce((s,p)=>s+((parseFloat(p.cost_of_unit)||0)*(parseFloat(p.unit_quantity)||0)),0)+replBasket.reduce((s,r)=>s+(replCurrentCost(r)*(parseFloat(r.order_qty)||0)),0);
+  ovOpenDrawer('Basket','Ready to Purchase',`${readyToPurchase.length+replBasket.length} items · ${fmtGBP(totalVal)}`,`
+    <div class="drw-sec-lbl">New Line Items</div>
+    ${rows||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None pending</div>'}
+    <div class="drw-sec-lbl">Replenishments</div>
+    ${replRows||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None pending</div>'}
+    <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('basket')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      Open Basket
+    </button>`);
+}
+function ovOpenInquiriesDrawer(){
+  const sourcing=D.sourcing||[];
+  const replen=D.replen||[];
+  const now=Date.now();
+  const inquirySourcing=sourcing.filter(p=>p.approved&&p.inquire&&!p.purchased);
+  const inquiryReplen=replen.filter(r=>r.action==='inquire');
+  const rows=inquirySourcing.map(p=>{
+    const days=p.created_at?Math.floor((now-new Date(p.created_at).getTime())/86400000):0;
+    return`<div class="drw-card"><div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="drw-card-t">${esc(p.product_name||'—')}</div>
+      <span style="font-size:11.5px;font-weight:800;font-family:var(--mono);color:${days>=7?'var(--amber)':'var(--text3)'}">${days}d waiting</span>
+    </div><div class="drw-card-s" style="margin-top:3px">${esc(p.supplier_name||'—')}</div></div>`;
+  }).join('');
+  const replRows=inquiryReplen.map(r=>`<div class="drw-card"><div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="drw-card-t">${esc(r.name||r.sku||'—')}</div>
+    </div><div class="drw-card-s" style="margin-top:3px">${esc(r.supplier_name||'Replenishment')}</div></div>`).join('');
+  ovOpenDrawer('Basket','Supplier Inquiries',`${inquirySourcing.length+inquiryReplen.length} pending`,`
+    <div class="drw-sec-lbl">New Line Items</div>
+    ${rows||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None pending</div>'}
+    <div class="drw-sec-lbl">Replenishments</div>
+    ${replRows||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">None pending</div>'}
+    <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('basket')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      Open Basket
+    </button>`);
+}
+function ovOpenMoqDrawer(){
+  const met=D.moqMetSuppliers||[];
+  const close=D.moqCloseSuppliers||[];
+  const rowFor=(s,color)=>`<div class="drw-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+      <div class="drw-card-t">${esc(s.name)}</div>
+      <span style="font-size:11.5px;font-weight:800;font-family:var(--mono);color:${color}">${s.pct}%</span>
+    </div>
+    <div class="drw-card-s" style="margin-bottom:5px">${fmtGBP(s.val)} of ${fmtGBP(s.moq)} MOQ</div>
+    <div style="height:4px;background:var(--surface3);border-radius:99px;overflow:hidden"><div style="height:100%;width:${Math.min(100,s.pct)}%;background:${color};border-radius:99px"></div></div>
+  </div>`;
+  const metHtml=met.map(s=>rowFor(s,'var(--green)')).join('')||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No suppliers have hit MOQ yet</div>';
+  const closeHtml=close.map(s=>rowFor(s,'var(--amber)')).join('')||'<div style="padding:8px 0;font-size:12px;color:var(--text4)">No suppliers currently close</div>';
+  ovOpenDrawer('Basket','Supplier MOQ',`${met.length} ready · ${close.length} nearing`,`
+    <div class="drw-sec-lbl">Ready to Order — MOQ Met</div>
+    ${metHtml}
+    <div class="drw-sec-lbl">Nearing MOQ (80%+)</div>
+    ${closeHtml}
+    <button class="drw-nav" onclick="ovCloseDrawer();window.loadModule&&loadModule('basket')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      Open Basket
+    </button>`);
+}
 function ovOpenOffersPendingDrawer(){
   const pending=D.offersPending||[];
   const now=Date.now();
@@ -1507,6 +1652,7 @@ async function silentRefresh(){
   ]);
   const failed=results.filter(r=>r.status==='rejected');
   if(failed.length)failed.forEach(f=>console.error('Silent refresh load error:',f.reason));
+  await loadReplPriceHistory();
   renderHero();renderAttention();renderRevenue();renderPacking();renderFunnel();renderDonut();
   renderCatalogKpis();renderPaycheck();renderRota();renderSyncBadge();
 }
@@ -2108,6 +2254,9 @@ window.ovOpenOffersPendingDrawer=ovOpenOffersPendingDrawer;
 window.ovOpenReadyToShipDrawer=ovOpenReadyToShipDrawer;
 window.ovOpenAwaitingPaymentDrawer=ovOpenAwaitingPaymentDrawer;
 window.ovOpenRefundsDrawer=ovOpenRefundsDrawer;
+window.ovOpenReadyToPurchaseDrawer=ovOpenReadyToPurchaseDrawer;
+window.ovOpenInquiriesDrawer=ovOpenInquiriesDrawer;
+window.ovOpenMoqDrawer=ovOpenMoqDrawer;
 window.ovSetSourcingFilter=ovSetSourcingFilter;
 window.ovOpenFaultsDrawer=ovOpenFaultsDrawer;
 window.ovOpenFBADrawer=ovOpenFBADrawer;
