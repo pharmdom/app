@@ -529,17 +529,17 @@
 .cb-more-item:hover { background:#f1f5f9; }
 .cb-more-item svg { width:13px; height:13px; color:#64748b; flex-shrink:0; }
 
-.cb-budget-widget { display:flex; align-items:center; gap:9px; padding:6px 12px; border-radius:10px; border:1.5px solid #e2e8f0; background:#f8fafc; cursor:pointer; transition:all .15s; min-width:190px; }
+.cb-budget-widget { display:flex; align-items:center; gap:14px; padding:8px 16px; border-radius:10px; border:1.5px solid #e2e8f0; background:#f8fafc; cursor:pointer; transition:all .15s; flex:1; min-width:0; }
 .cb-budget-widget:hover { border-color:#bfdbfe; background:#fff; }
-.cb-budget-icon { width:26px; height:26px; border-radius:7px; background:#eff6ff; color:#1d4ed8; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.cb-budget-icon svg { width:13px; height:13px; }
-.cb-budget-text { flex:1; min-width:0; }
-.cb-budget-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:3px; }
-.cb-budget-label { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#94a3b8; }
-.cb-budget-val { font-size:12px; font-weight:800; color:#0f172a; }
-.cb-budget-track { height:4px; background:#e2e8f0; border-radius:99px; overflow:hidden; margin-bottom:3px; }
+.cb-budget-icon { width:30px; height:30px; border-radius:8px; background:#eff6ff; color:#1d4ed8; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.cb-budget-icon svg { width:14px; height:14px; }
+.cb-budget-label-col { display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
+.cb-budget-label { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#94a3b8; white-space:nowrap; }
+.cb-budget-val { font-size:14px; font-weight:800; color:#0f172a; white-space:nowrap; }
+.cb-budget-track-wrap { flex:1; min-width:60px; }
+.cb-budget-track { height:6px; background:#e2e8f0; border-radius:99px; overflow:hidden; }
 .cb-budget-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,#2563eb,#4f80f7); transition:width .5s; }
-.cb-budget-sub { font-size:9.5px; color:#94a3b8; font-weight:600; }
+.cb-budget-sub { font-size:11px; color:#64748b; font-weight:600; white-space:nowrap; flex-shrink:0; }
 
 .cb-ins-summary-row { display:flex; gap:10px; flex-wrap:wrap; }
 .cb-ins-summary-card { flex:1; min-width:150px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:11px 13px; }
@@ -579,19 +579,19 @@
           <button class="cb-tab-btn" id="cbTabPurchased" onclick="window.setCbTab('purchased')">Purchased</button>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;">
+            <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;margin-left:16px;">
         <div class="cb-budget-widget" id="cbBudgetWidget" onclick="window.openCbBudgetModal()" title="Click to set weekly budget">
           <div class="cb-budget-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           </div>
-          <div class="cb-budget-text">
-            <div class="cb-budget-row">
-              <span class="cb-budget-label">Week Budget</span>
-              <span class="cb-budget-val" id="cbBudgetVal">…</span>
-            </div>
-            <div class="cb-budget-track"><div class="cb-budget-fill" id="cbBudgetFill" style="width:0%;"></div></div>
-            <div class="cb-budget-sub" id="cbBudgetSub">calculating…</div>
+          <div class="cb-budget-label-col">
+            <span class="cb-budget-label">Week Budget</span>
+            <span class="cb-budget-val" id="cbBudgetVal">…</span>
           </div>
+          <div class="cb-budget-track-wrap">
+            <div class="cb-budget-track"><div class="cb-budget-fill" id="cbBudgetFill" style="width:0%;"></div></div>
+          </div>
+          <div class="cb-budget-sub" id="cbBudgetSub">calculating…</div>
         </div>
         <button class="cb-btn" style="flex-shrink:0;background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'" onclick="window.openCbAddModal()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -832,11 +832,10 @@ function monthLabel(d) {
     return `${ws.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${we.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
   }
 
-
-   async function _cbLoadBudgetBar() {
+      async function _cbLoadBudgetBar() {
     const ws = _ymdLocal(_cbBudgetWeekStart);
     try {
-      const { data } = await sb.from('cb_budgets').select('budget').eq('week_start', ws).maybeSingle();
+      const { data } = await sb.from('sourcing_calendar_budgets').select('budget').eq('week_start', ws).maybeSingle();
       _cbWeeklyBudget = parseFloat((data&&data.budget)||0);
     } catch(e) { _cbWeeklyBudget = 0; console.warn('CB budget fetch:', e); }
     await _cbComputeWeekSpent();
@@ -910,7 +909,7 @@ window.openCbBudgetModal = function(weekStartOverride) {
     const v = parseFloat(document.getElementById('cbBudgetInput').value) || 0;
     const wsStr = document.getElementById('cbBudgetModal').dataset.weekStart || _ymdLocal(_cbBudgetWeekStart);
     try {
-      await sb.from('cb_budgets').upsert({ week_start: wsStr, budget: v }, { onConflict: 'week_start' });
+      await sb.from('sourcing_calendar_budgets').upsert({ week_start: wsStr, budget: v }, { onConflict: 'week_start' });
       if (wsStr === _ymdLocal(_cbBudgetWeekStart)) { _cbWeeklyBudget = v; _cbRenderBudgetWidget(); }
       window.closeCbBudgetModal();
       _cbToast('Budget updated','success');
@@ -943,8 +942,8 @@ window.openCbBudgetModal = function(weekStartOverride) {
     const start = _cbWeekISO(_cbInsWeekStart);
     const end = _cbWeekISO(_cbAddDays(_cbInsWeekStart,7));
     let budget = 0;
-    try {
-      const { data } = await sb.from('cb_budgets').select('budget').eq('week_start', _ymdLocal(_cbInsWeekStart)).maybeSingle();
+         try {
+      const { data } = await sb.from('sourcing_calendar_budgets').select('budget').eq('week_start', _ymdLocal(_cbInsWeekStart)).maybeSingle();
       budget = parseFloat((data&&data.budget)||0);
     } catch(e) {}
     let nlRows=[], replRows=[];
@@ -2465,7 +2464,7 @@ if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer();
     const v = parseFloat(document.getElementById('cbBudgetInput').value) || 0;
     const wsStr = document.getElementById('cbBudgetModal').dataset.weekStart || _ymdLocal(_cbBudgetWeekStart);
     try {
-      const { error } = await sb.from('cb_budgets').upsert({ week_start: wsStr, budget: v }, { onConflict: 'week_start' });
+      const { error } = await sb.from('sourcing_calendar_budgets').upsert({ week_start: wsStr, budget: v }, { onConflict: 'week_start' });
       if (error) throw error;
       if (wsStr === _ymdLocal(_cbBudgetWeekStart)) { _cbWeeklyBudget = v; _cbRenderBudgetWidget(); }
       window.closeCbBudgetModal();
