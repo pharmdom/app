@@ -1955,6 +1955,8 @@ function fmtDateShortRpt(d) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
 }
+
+
 async function generateSourcingReport() {
   const rows = getReportFilteredRows();
   if (!rows.length) { showToast('No products found in this range', 'error'); return; }
@@ -1963,7 +1965,6 @@ async function generateSourcingReport() {
   const btn = document.getElementById('rptGenerateBtn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;margin-right:5px"></span>Building…';
-  const currentStats = computeAgentStats(rows);
   let prevStats = null, prevRangeLabel = null;
   if (rptDateFrom && rptDateTo) {
     const prev = shiftPreviousPeriod(rptDateFrom, rptDateTo);
@@ -1978,60 +1979,20 @@ async function generateSourcingReport() {
       prevRangeLabel = fmtDateShortRpt(prev.from) + ' – ' + fmtDateShortRpt(prev.to);
     }
   }
-  const overall = { submitted:rows.length, approved:0, rejected:0, pending:0, purchased:0 };
-  rows.forEach(p => {
-    const st = productStatus(p);
-    if (st==='approved') overall.approved++; else if (st==='rejected') overall.rejected++; else overall.pending++;
-    if (p.purchased) overall.purchased++;
-  });
-  const overallApprovalRate = (overall.approved+overall.rejected) ? (overall.approved/(overall.approved+overall.rejected)*100).toFixed(0) : null;
-  const agentNames = Object.keys(currentStats).sort((a,b)=>currentStats[b].submitted-currentStats[a].submitted);
-  const agentRowsHtml = agentNames.map(name => {
-    const s = currentStats[name];
-    const rate = (s.approved+s.rejected) ? (s.approved/(s.approved+s.rejected)*100).toFixed(0)+'%' : '—';
-    const avgDays = s.decisionCount ? (s.decisionDaysSum/s.decisionCount).toFixed(1)+'d' : '—';
-    let deltaHtml = '<td style="color:#94a3b8;font-size:11px;">—</td>';
-    if (prevStats) {
-      const prev = prevStats[name];
-      const prevSubmitted = prev ? prev.submitted : 0;
-      const diff = s.submitted - prevSubmitted;
-      const dir = diff>0?'up':diff<0?'down':'flat';
-      const color = dir==='up'?'#15803d':dir==='down'?'#dc2626':'#64748b';
-      const arrow = dir==='up'?'▲':dir==='down'?'▼':'–';
-      deltaHtml = `<td style="color:${color};font-weight:700;">${arrow} ${diff>0?'+':''}${diff}</td>`;
-    }
-    return `<tr>
-      <td style="font-weight:700;">${escHtml(name)}</td>
-      <td style="text-align:center;">${s.submitted}</td>
-      <td style="text-align:center;color:#15803d;font-weight:700;">${s.approved}</td>
-      <td style="text-align:center;color:#dc2626;font-weight:700;">${s.rejected}</td>
-      <td style="text-align:center;color:#92400e;">${s.pending}</td>
-      <td style="text-align:center;color:#1d4ed8;">${s.purchased}</td>
-      <td style="text-align:center;">${rate}</td>
-      <td style="text-align:center;">${avgDays}</td>
-      ${deltaHtml}
-    </tr>`;
-  }).join('');
-  const detailRows = [...rows].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(p => {
-    const approvals = p.sourcing_approvals || [];
-    const apprCount = approvals.filter(a=>a.status==='approved').length;
-    const rejCount  = approvals.filter(a=>a.status==='rejected').length;
-    let apprText = 'Pending', apprColor = '#92400e';
-    if (apprCount>0 && rejCount===0) { apprText = apprCount+' Approved'; apprColor = '#15803d'; }
-    else if (rejCount>0 && apprCount===0) { apprText = rejCount+' Rejected'; apprColor = '#dc2626'; }
-    else if (apprCount>0 && rejCount>0) { apprText = apprCount+' Appr. / '+rejCount+' Rej.'; apprColor = '#c2410c'; }
-    const noteCount = (p.sourcing_notes||[]).length;
-    return `<tr>
-      <td>${fmtDateShortRpt(p.created_at)}</td>
-      <td style="font-weight:600;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(p.product_name||'—')}</td>
-      <td style="font-family:monospace;font-size:10.5px;">${escHtml(p.asins||'—')}</td>
-      <td>${escHtml(p.supplier_name||'—')}</td>
-      <td style="font-family:monospace;font-size:10.5px;">${escHtml(extractEans(p.code))}</td>
-      <td style="color:${apprColor};font-weight:600;">${apprText}</td>
-      <td style="text-align:center;">${noteCount||'—'}</td>
-      <td>${escHtml((p.agent||'—').split(' ')[0])}</td>
-    </tr>`;
-  }).join('');
+  const reportAgentNames = [...new Set(rows.map(p => (p.agent||'').trim()).filter(Boolean))].sort();
+  const agentOptionsHtml = reportAgentNames.map(n => `<option value="${escAttr(n)}">${escHtml(n)}</option>`).join('');
+  const rowsForExport = rows.map(p => ({
+    created_at: p.created_at,
+    product_name: p.product_name || '',
+    asins: p.asins || '',
+    supplier_name: p.supplier_name || '',
+    code: p.code || '',
+    agent: p.agent || '',
+    purchased: !!p.purchased,
+    approved: !!p.approved,
+    approvals: (p.sourcing_approvals||[]).map(a => ({ status: a.status, date: a.created_at })),
+    notes: (p.sourcing_notes||[]).map(n => ({ author: n.author_name || 'Unknown', text: n.text || '', date: n.created_at || null })),
+  }));
   const generatedAt = new Date().toLocaleString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
   <title>Sourcing Performance Report — ${escHtml(rptPeriodLabel)}</title>
@@ -2043,7 +2004,14 @@ async function generateSourcingReport() {
     .brand-name{font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.5px;}
     .brand-sub{font-size:11px;color:#64748b;}
     h1{font-size:17px;font-weight:800;margin-bottom:4px;}
-    .period{font-size:12px;color:#64748b;margin-bottom:20px;}
+    .period{font-size:12px;color:#64748b;margin-bottom:16px;}
+    .cbi-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:20px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;}
+    .cbi-toolbar input,.cbi-toolbar select{padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12.5px;font-family:inherit;}
+    .cbi-toolbar input[type=text]{min-width:220px;flex:1;}
+    .cbi-toggle-btn{padding:7px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;background:#fff;color:#374151;}
+    .cbi-toggle-btn.active{background:#0f172a;color:#fff;border-color:#0f172a;}
+    .cbi-print-btn{margin-left:auto;padding:8px 16px;border:none;border-radius:9px;background:#2563eb;color:#fff;font-weight:700;font-size:12.5px;cursor:pointer;}
+    .cbi-result-count{font-size:11px;color:#94a3b8;margin-bottom:16px;}
     .summary-chips{display:flex;gap:10px;margin-bottom:26px;flex-wrap:wrap;}
     .chip{background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:10px 15px;min-width:90px;}
     .chip-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin-bottom:3px;}
@@ -2057,44 +2025,183 @@ async function generateSourcingReport() {
     tr:nth-child(even) td{background:#fafbfc;}
     @media print{tr:nth-child(even) td{background:#fafbfc!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
     .prev-note{font-size:10px;color:#94a3b8;margin:-4px 0 10px;font-style:italic;}
+    .notes-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 13px;margin-bottom:8px;}
+    .notes-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+    .notes-card-product{font-size:11.5px;font-weight:700;color:#0f172a;}
+    .notes-card-meta{font-size:10px;color:#94a3b8;}
+    .notes-card-author{font-size:11px;font-weight:700;color:#1d4ed8;margin-bottom:2px;}
+    .notes-card-text{font-size:11.5px;color:#334155;line-height:1.5;}
     .footer{margin-top:30px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;}
-    .print-btn{position:fixed;top:16px;right:16px;padding:9px 18px;border:none;border-radius:9px;background:#2563eb;color:#fff;font-weight:700;font-size:12.5px;cursor:pointer;box-shadow:0 4px 14px rgba(37,99,235,.3);}
-    @media print{.print-btn{display:none;}body{padding:14px;}}
+    @media print{
+      @page{size:A4 landscape;margin:12mm;}
+      .cbi-toolbar{display:none;}
+      .cbi-result-count{display:none;}
+      body{padding:14px;}
+    }
   </style></head><body>
-  <button class="print-btn" onclick="window.print()">🖨 Print / Save as PDF</button>
   <div class="brand">
     <img src="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png" alt="Pharm & Dom" onerror="this.style.display='none'">
     <div><div class="brand-name">Pharm &amp; Dom</div><div class="brand-sub">Sourcing Performance Report</div></div>
   </div>
   <h1>Agent Sourcing Performance</h1>
   <div class="period">${escHtml(rptPeriodLabel)} · ${escHtml(agentScopeLabel)} · Generated ${generatedAt}</div>
-  <div class="summary-chips">
-    <div class="chip"><div class="chip-label">Submitted</div><div class="chip-val">${overall.submitted}</div></div>
-    <div class="chip"><div class="chip-label">Approved</div><div class="chip-val green">${overall.approved}</div></div>
-    <div class="chip"><div class="chip-label">Rejected</div><div class="chip-val red">${overall.rejected}</div></div>
-    <div class="chip"><div class="chip-label">Pending</div><div class="chip-val amber">${overall.pending}</div></div>
-    <div class="chip"><div class="chip-label">Purchased</div><div class="chip-val blue">${overall.purchased}</div></div>
-    <div class="chip"><div class="chip-label">Approval Rate</div><div class="chip-val">${overallApprovalRate!==null?overallApprovalRate+'%':'—'}</div></div>
+  <div class="cbi-toolbar">
+    <input type="text" id="rptSearch" placeholder="Search ASIN, EAN, or product…">
+    <select id="rptAgentSelect"><option value="__all__">All Agents</option>${agentOptionsHtml}</select>
+    <button type="button" class="cbi-toggle-btn" id="rptNotesToggle">Show Notes</button>
+    <button type="button" class="cbi-print-btn" onclick="window.print()">🖨 Print / Save as PDF</button>
   </div>
+  <div class="cbi-result-count" id="cbiResultCount"></div>
+  <div class="summary-chips" id="cbiSummaryChips"></div>
   <h2>Agent Performance</h2>
   ${prevStats ? `<div class="prev-note">Trend column compares submissions against the prior equivalent period (${escHtml(prevRangeLabel)})</div>` : ''}
-  <table>
-    <thead><tr>
-      <th>Agent</th><th style="text-align:center">Submitted</th><th style="text-align:center">Approved</th>
-      <th style="text-align:center">Rejected</th><th style="text-align:center">Pending</th><th style="text-align:center">Purchased</th>
-      <th style="text-align:center">Approval Rate</th><th style="text-align:center">Avg. Days to Decision</th>
-      ${prevStats?'<th style="text-align:center">Trend</th>':''}
-    </tr></thead>
-    <tbody>${agentRowsHtml}</tbody>
-  </table>
+  <div id="cbiAgentTable"></div>
   <h2>Product Detail</h2>
-  <table>
-    <thead><tr>
-      <th>Date</th><th>Product</th><th>ASIN</th><th>Supplier</th><th>EAN</th><th>Approvals</th><th style="text-align:center">Notes</th><th>Agent</th>
-    </tr></thead>
-    <tbody>${detailRows}</tbody>
-  </table>
+  <div id="cbiDetailTable"></div>
+  <h2>Comments &amp; Notes</h2>
+  <div id="cbiNotesSection" style="display:none"></div>
   <div class="footer"><span>Pharm &amp; Dom · Internal Use Only</span><span>Generated ${generatedAt}</span></div>
+  <script>
+    var ALL_ROWS = ${JSON.stringify(rowsForExport)};
+    var PREV_STATS = ${JSON.stringify(prevStats)};
+    var agentFilter = '__all__';
+    var searchQuery = '';
+    var showNotes = false;
+    function escHtmlJS(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function fmtDateJS(d){ if(!d) return '—'; var dt=new Date(d); return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
+    function extractEansJS(codeStr){
+      var s=(codeStr||'').trim();
+      if(!s) return '—';
+      var parts=s.split(',').map(function(p){return p.split(':')[0].trim();}).filter(Boolean);
+      return parts.length?parts.join(', '):'—';
+    }
+    function productStatusJS(r){
+      var rejected=false;
+      for(var i=0;i<r.approvals.length;i++){ if(r.approvals[i].status==='rejected'){rejected=true;break;} }
+      if(rejected) return 'rejected';
+      if(r.approved) return 'approved';
+      return 'pending';
+    }
+    function computeAgentStatsJS(rows){
+      var byAgent={};
+      rows.forEach(function(p){
+        var name=(p.agent||'Unknown').trim()||'Unknown';
+        if(!byAgent[name]) byAgent[name]={submitted:0,approved:0,rejected:0,pending:0,purchased:0,decisionDaysSum:0,decisionCount:0};
+        var st=byAgent[name];
+        st.submitted++;
+        var status=productStatusJS(p);
+        if(status==='approved') st.approved++;
+        else if(status==='rejected') st.rejected++;
+        else st.pending++;
+        if(p.purchased) st.purchased++;
+        if(p.approvals.length && p.created_at){
+          var dates=p.approvals.map(function(a){return new Date(a.date);}).sort(function(a,b){return a-b;});
+          var days=(dates[0]-new Date(p.created_at))/86400000;
+          if(days>=0){ st.decisionDaysSum+=days; st.decisionCount++; }
+        }
+      });
+      return byAgent;
+    }
+    function getFilteredRows(){
+      var q=searchQuery.trim().toLowerCase();
+      return ALL_ROWS.filter(function(r){
+        if(agentFilter!=='__all__' && (r.agent||'Unknown').trim()!==agentFilter) return false;
+        if(q){
+          var hay=((r.product_name||'')+' '+(r.asins||'')+' '+extractEansJS(r.code)).toLowerCase();
+          if(hay.indexOf(q)===-1) return false;
+        }
+        return true;
+      });
+    }
+    function buildSummaryChipsHtml(rows){
+      var overall={submitted:rows.length,approved:0,rejected:0,pending:0,purchased:0};
+      rows.forEach(function(p){
+        var st=productStatusJS(p);
+        if(st==='approved') overall.approved++; else if(st==='rejected') overall.rejected++; else overall.pending++;
+        if(p.purchased) overall.purchased++;
+      });
+      var rate=(overall.approved+overall.rejected)?Math.round(overall.approved/(overall.approved+overall.rejected)*100)+'%':'—';
+      return '<div class="chip"><div class="chip-label">Submitted</div><div class="chip-val">'+overall.submitted+'</div></div>'
+        +'<div class="chip"><div class="chip-label">Approved</div><div class="chip-val green">'+overall.approved+'</div></div>'
+        +'<div class="chip"><div class="chip-label">Rejected</div><div class="chip-val red">'+overall.rejected+'</div></div>'
+        +'<div class="chip"><div class="chip-label">Pending</div><div class="chip-val amber">'+overall.pending+'</div></div>'
+        +'<div class="chip"><div class="chip-label">Purchased</div><div class="chip-val blue">'+overall.purchased+'</div></div>'
+        +'<div class="chip"><div class="chip-label">Approval Rate</div><div class="chip-val">'+rate+'</div></div>';
+    }
+    function buildAgentTableHtml(rows){
+      var stats=computeAgentStatsJS(rows);
+      var names=Object.keys(stats).sort(function(a,b){return stats[b].submitted-stats[a].submitted;});
+      var hasTrend=!!PREV_STATS;
+      var thead='<tr><th>Agent</th><th style="text-align:center">Submitted</th><th style="text-align:center">Approved</th><th style="text-align:center">Rejected</th><th style="text-align:center">Pending</th><th style="text-align:center">Purchased</th><th style="text-align:center">Approval Rate</th><th style="text-align:center">Avg. Days to Decision</th>'+(hasTrend?'<th style="text-align:center">Trend</th>':'')+'</tr>';
+      var body=names.map(function(name){
+        var s=stats[name];
+        var rate=(s.approved+s.rejected)?Math.round(s.approved/(s.approved+s.rejected)*100)+'%':'—';
+        var avgDays=s.decisionCount?(s.decisionDaysSum/s.decisionCount).toFixed(1)+'d':'—';
+        var deltaCell='<td style="color:#94a3b8;font-size:11px">—</td>';
+        if(hasTrend){
+          var prev=PREV_STATS[name];
+          var prevSubmitted=prev?prev.submitted:0;
+          var diff=s.submitted-prevSubmitted;
+          var color=diff>0?'#15803d':diff<0?'#dc2626':'#64748b';
+          var arrow=diff>0?'▲':diff<0?'▼':'–';
+          deltaCell='<td style="color:'+color+';font-weight:700">'+arrow+' '+(diff>0?'+':'')+diff+'</td>';
+        }
+        return '<tr><td style="font-weight:700">'+escHtmlJS(name)+'</td><td style="text-align:center">'+s.submitted+'</td><td style="text-align:center;color:#15803d;font-weight:700">'+s.approved+'</td><td style="text-align:center;color:#dc2626;font-weight:700">'+s.rejected+'</td><td style="text-align:center;color:#92400e">'+s.pending+'</td><td style="text-align:center;color:#1d4ed8">'+s.purchased+'</td><td style="text-align:center">'+rate+'</td><td style="text-align:center">'+avgDays+'</td>'+deltaCell+'</tr>';
+      }).join('');
+      return '<table><thead>'+thead+'</thead><tbody>'+(body||'<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:16px">No matching agents</td></tr>')+'</tbody></table>';
+    }
+    function buildDetailTableHtml(rows){
+      var sorted=rows.slice().sort(function(a,b){return new Date(b.created_at)-new Date(a.created_at);});
+      var body=sorted.map(function(p){
+        var apprCount=0, rejCount=0;
+        p.approvals.forEach(function(a){ if(a.status==='approved') apprCount++; else if(a.status==='rejected') rejCount++; });
+        var apprText='Pending', apprColor='#92400e';
+        if(apprCount>0 && rejCount===0){ apprText=apprCount+' Approved'; apprColor='#15803d'; }
+        else if(rejCount>0 && apprCount===0){ apprText=rejCount+' Rejected'; apprColor='#dc2626'; }
+        else if(apprCount>0 && rejCount>0){ apprText=apprCount+' Appr. / '+rejCount+' Rej.'; apprColor='#c2410c'; }
+        var noteCount=p.notes.length;
+        return '<tr><td>'+fmtDateJS(p.created_at)+'</td><td style="font-weight:600;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtmlJS(p.product_name||'—')+'</td><td style="font-family:monospace;font-size:10.5px">'+escHtmlJS(p.asins||'—')+'</td><td>'+escHtmlJS(p.supplier_name||'—')+'</td><td style="font-family:monospace;font-size:10.5px">'+escHtmlJS(extractEansJS(p.code))+'</td><td style="color:'+apprColor+';font-weight:600">'+apprText+'</td><td style="text-align:center">'+(noteCount||'—')+'</td><td>'+escHtmlJS((p.agent||'—').split(' ')[0])+'</td></tr>';
+      }).join('');
+      var thead='<tr><th>Date</th><th>Product</th><th>ASIN</th><th>Supplier</th><th>EAN</th><th>Approvals</th><th style="text-align:center">Notes</th><th>Agent</th></tr>';
+      return '<table><thead>'+thead+'</thead><tbody>'+(body||'<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:20px">No products match these filters</td></tr>')+'</tbody></table>';
+    }
+    function buildNotesHtml(rows){
+      var items=[];
+      rows.forEach(function(p){
+        p.notes.forEach(function(n){
+          items.push({product:p.product_name, author:n.author, date:n.date, text:n.text});
+        });
+      });
+      if(!items.length) return '<div style="padding:16px;text-align:center;color:#94a3b8;font-size:12px">No comments on any product in this view</div>';
+      items.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+      return items.map(function(n){
+        return '<div class="notes-card"><div class="notes-card-head"><span class="notes-card-product">'+escHtmlJS(n.product||'—')+'</span><span class="notes-card-meta">'+fmtDateJS(n.date)+'</span></div><div class="notes-card-author">'+escHtmlJS(n.author||'Unknown')+'</div><div class="notes-card-text">'+escHtmlJS(n.text||'')+'</div></div>';
+      }).join('');
+    }
+    function render(){
+      var rows=getFilteredRows();
+      document.getElementById('cbiSummaryChips').innerHTML=buildSummaryChipsHtml(rows);
+      document.getElementById('cbiAgentTable').innerHTML=buildAgentTableHtml(rows);
+      document.getElementById('cbiDetailTable').innerHTML=buildDetailTableHtml(rows);
+      document.getElementById('cbiResultCount').textContent=rows.length+' of '+ALL_ROWS.length+' products shown';
+      var notesWrap=document.getElementById('cbiNotesSection');
+      if(showNotes){
+        notesWrap.style.display='block';
+        notesWrap.innerHTML=buildNotesHtml(rows);
+      } else {
+        notesWrap.style.display='none';
+      }
+    }
+    document.getElementById('rptSearch').addEventListener('input', function(e){ searchQuery=e.target.value; render(); });
+    document.getElementById('rptAgentSelect').addEventListener('change', function(e){ agentFilter=e.target.value; render(); });
+    document.getElementById('rptNotesToggle').addEventListener('click', function(){
+      showNotes=!showNotes;
+      this.classList.toggle('active', showNotes);
+      this.textContent = showNotes ? 'Hide Notes' : 'Show Notes';
+      render();
+    });
+    render();
+  <\/script>
   </body></html>`;
   const win = window.open('', '_blank');
   win.document.write(html);
@@ -2104,6 +2211,8 @@ async function generateSourcingReport() {
   closeReportModal();
   showToast('Report opened in a new tab', 'success');
 }
+
+   
 /* ══ QTY WARNING ══ */
  
 function checkQtyPurchased(id, inputEl) {
