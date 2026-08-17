@@ -980,10 +980,10 @@ window.openCbBudgetModal = function(weekStartOverride) {
     const outstanding = budget - spent;
     const pct = budget>0 ? Math.min(100, Math.round((spent/budget)*100)) : 0;
 
-    document.getElementById('cbInsSummaryRow').innerHTML = `
+        document.getElementById('cbInsSummaryRow').innerHTML = `
       <div class="cb-ins-summary-card">
         <div class="cb-ins-summary-label">Budget</div>
-        <div class="cb-ins-summary-val">${budget>0?fmtGBP(budget):'<span style="font-size:12px;font-weight:600;color:#2563eb;cursor:pointer;text-decoration:underline;" onclick="window.openCbBudgetModal(_cbInsWeekStart)">Set budget</span>'}</div>
+        <div class="cb-ins-summary-val">${budget>0?fmtGBP(budget):`<span style="font-size:12px;font-weight:600;color:#2563eb;cursor:pointer;text-decoration:underline;" onclick="window.openCbBudgetModal(new Date('${_ymdLocal(_cbInsWeekStart)}'))">Set budget</span>`}</div>
       </div>
       <div class="cb-ins-summary-card">
         <div class="cb-ins-summary-label">Spent</div>
@@ -2441,6 +2441,7 @@ window.cbUpdateNLCost = async function(id, val) {
 if (_drawerItem) { _drawerItem.data.cost_of_unit=cost; _renderCbDrawer(); }
       _cbToast('Cost updated','success');
       window.renderCentralBasket(true);
+     _cbLoadBudgetBar();
     } catch(e) { _cbToast('Failed to update cost','error'); }
   };
 
@@ -2455,9 +2456,24 @@ window.cbUpdateReplCost = async function(sku, val) {
 if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer(); }
       _cbToast('Cost updated','success');
       window.renderCentralBasket(true);
+     _cbLoadBudgetBar();
     } catch(e) { _cbToast('Failed to update cost','error'); }
   };
 
+
+ window.saveCbBudget = async function() {
+    const v = parseFloat(document.getElementById('cbBudgetInput').value) || 0;
+    const wsStr = document.getElementById('cbBudgetModal').dataset.weekStart || _ymdLocal(_cbBudgetWeekStart);
+    try {
+      const { error } = await sb.from('cb_budgets').upsert({ week_start: wsStr, budget: v }, { onConflict: 'week_start' });
+      if (error) throw error;
+      if (wsStr === _ymdLocal(_cbBudgetWeekStart)) { _cbWeeklyBudget = v; _cbRenderBudgetWidget(); }
+      window.closeCbBudgetModal();
+      _cbToast('Budget updated','success');
+      if (document.getElementById('cbInsightsOverlay').classList.contains('open')) _cbLoadInsightsData();
+    } catch(e) { console.warn('CB budget save:', e); _cbToast('Failed to save budget','error'); }
+  };
+ 
   window.cbMarkNewLinePurchased = async function(id) {
     const qty=parseFloat(document.getElementById('cbDrawerNLQty')?.value||'');
     if (!qty||qty<=0) { _cbToast('Enter a quantity','error'); return; }
