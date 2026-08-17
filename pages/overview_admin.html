@@ -114,6 +114,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .mkpi-val-sm{font-size:14px;letter-spacing:-.3px;}
 .mkpi-val.amber{color:var(--amber);}
 .mkpi-val.red{color:var(--red);}
+.mkpi-val.loading{color:var(--text4);letter-spacing:2px;animation:livePulse 1.3s ease infinite;}
 .mkpi-delta{font-size:9.5px;font-weight:700;margin-top:3px;}
 .mkpi-delta.up{color:var(--green);}
 .mkpi-delta.down{color:var(--red);}
@@ -875,7 +876,7 @@ function renderFast(){
   renderPacking();renderRota();renderDonut();renderAttention();
 }
 function renderSlow(){
-  renderHero();renderAttention();renderRevenue();renderFunnel();
+  renderHero();renderAttention();renderRevenue();renderPacking();renderFunnel();
   renderCatalogKpis();renderPaycheck();renderSyncBadge();
 }
 function renderAll(){
@@ -1378,32 +1379,44 @@ const avgPph=packerRates.length?(packerRates.reduce((s,r)=>s+r,0)/packerRates.le
   D.packRecentAvgPph=recentAvgPph;
   const cutoffToday=new Date(ukMidnight().getTime()+16.5*3600000);
   const cutoffYesterday=new Date(cutoffToday.getTime()-86400000);
-  const toShipStatuses=['shipped','dispatched','awaiting_fulfillment'];
-  const toShipOrders=(D.veeqo30||[]).filter(o=>o.created_at&&new Date(o.created_at)>=cutoffYesterday&&toShipStatuses.includes((o.status||'').toLowerCase()));
-  const toShip=toShipOrders.length;
-  document.getElementById('ovPackToShip').textContent=toShip.toLocaleString();
-  const balance=totalPacks-toShip;
+  const toShipEl=document.getElementById('ovPackToShip');
   const balanceEl=document.getElementById('ovPackBalance');
   const noteEl=document.getElementById('ovPackBalanceNote');
-  balanceEl.textContent=(balance>=0?'+':'')+balance.toLocaleString();
-  balanceEl.className='mkpi-val '+(balance>=0?'green':'red');
-  const now=new Date();
-  const hoursUntilCutoff=(cutoffToday.getTime()-now.getTime())/3600000;
-  D.packHoursUntilCutoff=hoursUntilCutoff;
-  D.packShortfall=balance<0?Math.abs(balance):0;
-  if(balance>=0){
-    noteEl.className='mkpi-delta up';noteEl.textContent='✓ On track';
-    D.packRecommendation=null;
-  }else if(hoursUntilCutoff<=0){
-    noteEl.className='mkpi-delta down';noteEl.textContent='Past 4:30pm cutoff';
-    D.packRecommendation={type:'passed'};
-  }else if(recentAvgPph>0){
-    const neededPackers=Math.ceil(D.packShortfall/(recentAvgPph*hoursUntilCutoff));
-    noteEl.className='mkpi-delta down';noteEl.textContent=`~${neededPackers} more packer${neededPackers!==1?'s':''} needed`;
-    D.packRecommendation={type:'need',count:neededPackers};
+  const veeqoReady=Array.isArray(D.veeqo30);
+  if(!veeqoReady){
+    toShipEl.textContent='···';toShipEl.className='mkpi-val loading';
+    balanceEl.textContent='···';balanceEl.className='mkpi-val loading';
+    noteEl.className='mkpi-delta';noteEl.textContent='Loading…';
+    D.packHoursUntilCutoff=(cutoffToday.getTime()-new Date().getTime())/3600000;
+    D.packShortfall=0;
+    D.packRecommendation={type:'loading'};
   }else{
-    noteEl.className='mkpi-delta down';noteEl.textContent='Behind — pace data pending';
-    D.packRecommendation={type:'unknown'};
+    toShipEl.className='mkpi-val';
+    const toShipStatuses=['shipped','dispatched','awaiting_fulfillment'];
+    const toShipOrders=D.veeqo30.filter(o=>o.created_at&&new Date(o.created_at)>=cutoffYesterday&&toShipStatuses.includes((o.status||'').toLowerCase()));
+    const toShip=toShipOrders.length;
+    toShipEl.textContent=toShip.toLocaleString();
+    const balance=totalPacks-toShip;
+    balanceEl.textContent=(balance>=0?'+':'')+balance.toLocaleString();
+    balanceEl.className='mkpi-val '+(balance>=0?'green':'red');
+    const now=new Date();
+    const hoursUntilCutoff=(cutoffToday.getTime()-now.getTime())/3600000;
+    D.packHoursUntilCutoff=hoursUntilCutoff;
+    D.packShortfall=balance<0?Math.abs(balance):0;
+    if(balance>=0){
+      noteEl.className='mkpi-delta up';noteEl.textContent='✓ On track';
+      D.packRecommendation=null;
+    }else if(hoursUntilCutoff<=0){
+      noteEl.className='mkpi-delta down';noteEl.textContent='Past 4:30pm cutoff';
+      D.packRecommendation={type:'passed'};
+    }else if(recentAvgPph>0){
+      const neededPackers=Math.ceil(D.packShortfall/(recentAvgPph*hoursUntilCutoff));
+      noteEl.className='mkpi-delta down';noteEl.textContent=`~${neededPackers} more packer${neededPackers!==1?'s':''} needed`;
+      D.packRecommendation={type:'need',count:neededPackers};
+    }else{
+      noteEl.className='mkpi-delta down';noteEl.textContent='Behind — pace data pending';
+      D.packRecommendation={type:'unknown'};
+    }
   }
   const paceVals=paceSeriesFromBucket(bucket,slots);
   const prevPace=lastWeekPaceAligned(slots);
@@ -2134,7 +2147,9 @@ function ovOpenPackingDrawer(){
   const hrsLeft=D.packHoursUntilCutoff||0;
   const shortfall=D.packShortfall||0;
   let recHtml;
-  if(!rec){
+  if(rec&&rec.type==='loading'){
+    recHtml=`<div class="drw-row"><div class="drw-row-k">Status</div><div class="drw-row-v" style="color:var(--text3)">Loading order data…</div></div>`;
+  }else if(!rec){
     recHtml=`<div class="drw-row"><div class="drw-row-k">Status</div><div class="drw-row-v" style="color:var(--green)">✓ On track — no shortfall</div></div>`;
   }else if(rec.type==='passed'){
     recHtml=`<div class="drw-row"><div class="drw-row-k">Status</div><div class="drw-row-v" style="color:var(--red)">Cutoff passed</div></div>
