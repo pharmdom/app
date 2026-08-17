@@ -832,10 +832,11 @@ function monthLabel(d) {
     return `${ws.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${we.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
   }
 
+
    async function _cbLoadBudgetBar() {
     const ws = _ymdLocal(_cbBudgetWeekStart);
     try {
-      const { data } = await sb.from('sourcing_calendar_budgets').select('budget').eq('week_start', ws).maybeSingle();
+      const { data } = await sb.from('cb_budgets').select('budget').eq('week_start', ws).maybeSingle();
       _cbWeeklyBudget = parseFloat((data&&data.budget)||0);
     } catch(e) { _cbWeeklyBudget = 0; console.warn('CB budget fetch:', e); }
     await _cbComputeWeekSpent();
@@ -942,8 +943,8 @@ window.openCbBudgetModal = function(weekStartOverride) {
     const start = _cbWeekISO(_cbInsWeekStart);
     const end = _cbWeekISO(_cbAddDays(_cbInsWeekStart,7));
     let budget = 0;
-        try {
-      const { data } = await sb.from('sourcing_calendar_budgets').select('budget').eq('week_start', _ymdLocal(_cbInsWeekStart)).maybeSingle();
+    try {
+      const { data } = await sb.from('cb_budgets').select('budget').eq('week_start', _ymdLocal(_cbInsWeekStart)).maybeSingle();
       budget = parseFloat((data&&data.budget)||0);
     } catch(e) {}
     let nlRows=[], replRows=[];
@@ -2464,7 +2465,7 @@ if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer();
     const v = parseFloat(document.getElementById('cbBudgetInput').value) || 0;
     const wsStr = document.getElementById('cbBudgetModal').dataset.weekStart || _ymdLocal(_cbBudgetWeekStart);
     try {
-      const { error } = await sb.from('sourcing_calendar_budgets').upsert({ week_start: wsStr, budget: v }, { onConflict: 'week_start' });
+      const { error } = await sb.from('cb_budgets').upsert({ week_start: wsStr, budget: v }, { onConflict: 'week_start' });
       if (error) throw error;
       if (wsStr === _ymdLocal(_cbBudgetWeekStart)) { _cbWeeklyBudget = v; _cbRenderBudgetWidget(); }
       window.closeCbBudgetModal();
