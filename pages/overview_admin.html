@@ -1271,6 +1271,7 @@ function ensureSparkTip(){
 function drawSparkline(id,vals,keys,color,xLabelFn,unit,opts){
   opts=opts||{};
   const prevVals=(opts.prevVals&&opts.prevVals.length===vals.length)?opts.prevVals:null;
+  const prevLabel=opts.prevLabel||'Prev';
   const svg=document.getElementById(id);if(!svg)return;
   const W=svg.parentElement.getBoundingClientRect().width||svg.parentElement.offsetWidth||500,H=90,pL=36,pR=8,pT=8,pB=20;
   const cW=W-pL-pR,cH=H-pT-pB,n=vals.length;
@@ -1325,7 +1326,7 @@ function drawSparkline(id,vals,keys,color,xLabelFn,unit,opts){
     const label=(keys&&keys[idx]!=null)?(xLabelFn?xLabelFn(keys[idx]):keys[idx]):'';
     const fmtV=v=>unit==='currency'?fmtGBP(v):unit==='pace'?v.toFixed(1)+'/hr':Math.round(v).toLocaleString();
     let html=`<div style="opacity:.65;font-size:9.5px;margin-bottom:2px">${esc(String(label))}</div><div>${fmtV(vals[idx])}</div>`;
-    if(prevVals&&prevVals[idx]!=null)html+=`<div style="opacity:.65;font-size:9.5px;margin-top:3px;border-top:1px solid rgba(255,255,255,.15);padding-top:3px">Prev: ${fmtV(prevVals[idx])}</div>`;
+    if(prevVals&&prevVals[idx]!=null)html+=`<div style="opacity:.65;font-size:9.5px;margin-top:3px;border-top:1px solid rgba(255,255,255,.15);padding-top:3px">${esc(prevLabel)}: ${fmtV(prevVals[idx])}</div>`;
     tip.innerHTML=html;
     tip.style.left=(e.clientX+14)+'px';
     tip.style.top=(e.clientY-14)+'px';
@@ -1415,7 +1416,7 @@ const avgPph=packerRates.length?(packerRates.reduce((s,r)=>s+r,0)/packerRates.le
       packLegendEl.style.display='none';
     }
   }
-  requestAnimationFrame(()=>drawSparkline('ovPackSparkline',paceVals,slots,'var(--accent)',k=>k,'pace',prevPace?{prevVals:prevPace}:{}));
+  requestAnimationFrame(()=>drawSparkline('ovPackSparkline',paceVals,slots,'var(--accent)',k=>k,'pace',prevPace?{prevVals:prevPace,prevLabel:'Last '+ukWeekdayName()}:{}));
 }
 function packingBucketBySlot(counts){
   const bucket={};
@@ -2164,7 +2165,7 @@ function ovOpenPackingDrawer(){
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
       Open Packing Detail (verify module key)
     </button>`);
-  requestAnimationFrame(()=>drawSparkline('ovPackDrawerSpark',paceVals,slots,'var(--accent)',k=>k,'pace',prevPace?{prevVals:prevPace}:{}));
+  requestAnimationFrame(()=>drawSparkline('ovPackDrawerSpark',paceVals,slots,'var(--accent)',k=>k,'pace',prevPace?{prevVals:prevPace,prevLabel:'Last '+ukWeekdayName()}:{}));
 }
   
 /* ── MODALS ── */
