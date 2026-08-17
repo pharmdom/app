@@ -518,21 +518,86 @@
 .cb-note-composer:focus-within { border-color:#2563eb; }
 .cb-note-textarea { width:100%; border:none; outline:none; resize:none; padding:10px 12px; font-size:12.5px; font-family:inherit; color:#0f172a; min-height:56px; }
 .cb-note-composer-bottom { display:flex; justify-content:flex-end; padding:8px 12px; border-top:1px solid #f1f5f9; background:#fafafa; }
+
+.cb-more-wrap { position: relative; }
+.cb-more-btn { width:34px; height:34px; border-radius:8px; border:1.5px solid #e2e8f0; background:#fff; color:#64748b; display:flex; align-items:center; justify-content:center; cursor:pointer; transition: all .15s; }
+.cb-more-btn:hover { border-color:#94a3b8; color:#334155; background:#f8fafc; }
+.cb-more-btn svg { width:15px; height:15px; }
+.cb-more-menu { position:absolute; top:calc(100% + 5px); left:0; z-index:300; background:#fff; border:1.5px solid #e2e8f0; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.1); padding:5px; min-width:150px; opacity:0; pointer-events:none; transform:translateY(-4px); transition:opacity .15s, transform .15s; }
+.cb-more-menu.open { opacity:1; pointer-events:all; transform:translateY(0); }
+.cb-more-item { display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:7px; font-size:12.5px; font-weight:600; cursor:pointer; color:#0f172a; transition:background .12s; }
+.cb-more-item:hover { background:#f1f5f9; }
+.cb-more-item svg { width:13px; height:13px; color:#64748b; flex-shrink:0; }
+
+.cb-budget-widget { display:flex; align-items:center; gap:9px; padding:6px 12px; border-radius:10px; border:1.5px solid #e2e8f0; background:#f8fafc; cursor:pointer; transition:all .15s; min-width:190px; }
+.cb-budget-widget:hover { border-color:#bfdbfe; background:#fff; }
+.cb-budget-icon { width:26px; height:26px; border-radius:7px; background:#eff6ff; color:#1d4ed8; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.cb-budget-icon svg { width:13px; height:13px; }
+.cb-budget-text { flex:1; min-width:0; }
+.cb-budget-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:3px; }
+.cb-budget-label { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#94a3b8; }
+.cb-budget-val { font-size:12px; font-weight:800; color:#0f172a; }
+.cb-budget-track { height:4px; background:#e2e8f0; border-radius:99px; overflow:hidden; margin-bottom:3px; }
+.cb-budget-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,#2563eb,#4f80f7); transition:width .5s; }
+.cb-budget-sub { font-size:9.5px; color:#94a3b8; font-weight:600; }
+
+.cb-ins-summary-row { display:flex; gap:10px; flex-wrap:wrap; }
+.cb-ins-summary-card { flex:1; min-width:150px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:11px 13px; }
+.cb-ins-summary-label { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:#94a3b8; margin-bottom:5px; }
+.cb-ins-summary-val { font-size:18px; font-weight:800; color:#0f172a; }
+.cb-ins-summary-val.green { color:#15803d; }
+.cb-ins-summary-val.red { color:#dc2626; }
+.cb-ins-loading { padding:16px; text-align:center; color:#94a3b8; font-size:12px; }
+.cb-ins-row { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid #f1f5f9; }
+.cb-ins-row:last-child { border-bottom:none; }
+.cb-ins-row-name { font-size:12px; font-weight:600; color:#334155; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cb-ins-row-bar { flex:1.6; height:6px; background:#f1f5f9; border-radius:99px; overflow:hidden; }
+.cb-ins-row-bar-fill { height:100%; border-radius:99px; background:#2563eb; transition:width .4s; }
+.cb-ins-row-val { font-size:11.5px; font-weight:700; color:#0f172a; font-family:monospace; flex-shrink:0; min-width:60px; text-align:right; }
+ 
 </style>
 
 <div class="cb-page">
   <!-- Header -->
   <div class="cb-header">
 <div class="cb-tabs" style="justify-content:space-between;">
-      <div class="cb-tabbar" id="cbTabBar">
-        <button class="cb-tab-btn active" id="cbTabToBuy" onclick="window.setCbTab('tobuy')">To Purchase <span class="cb-tab-count">0</span></button>
-        <button class="cb-tab-btn" id="cbTabInquire" onclick="window.setCbTab('inquire')">Inquire <span class="cb-tab-count">0</span></button>
-        <button class="cb-tab-btn" id="cbTabPurchased" onclick="window.setCbTab('purchased')">Purchased</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="cb-more-wrap" id="cbMoreWrap">
+          <button class="cb-more-btn" onclick="window.toggleCbMoreMenu(event)" title="More">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+          </button>
+          <div class="cb-more-menu" id="cbMoreMenu">
+            <div class="cb-more-item" onclick="window.openCbInsightsModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-6"/></svg>
+              Insights
+            </div>
+          </div>
+        </div>
+        <div class="cb-tabbar" id="cbTabBar">
+          <button class="cb-tab-btn active" id="cbTabToBuy" onclick="window.setCbTab('tobuy')">To Purchase <span class="cb-tab-count">0</span></button>
+          <button class="cb-tab-btn" id="cbTabInquire" onclick="window.setCbTab('inquire')">Inquire <span class="cb-tab-count">0</span></button>
+          <button class="cb-tab-btn" id="cbTabPurchased" onclick="window.setCbTab('purchased')">Purchased</button>
+        </div>
       </div>
-      <button class="cb-btn" style="flex-shrink:0;background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'" onclick="window.openCbAddModal()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Add to Basket
-      </button>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="cb-budget-widget" id="cbBudgetWidget" onclick="window.openCbBudgetModal()" title="Click to set weekly budget">
+          <div class="cb-budget-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="cb-budget-text">
+            <div class="cb-budget-row">
+              <span class="cb-budget-label">Week Budget</span>
+              <span class="cb-budget-val" id="cbBudgetVal">…</span>
+            </div>
+            <div class="cb-budget-track"><div class="cb-budget-fill" id="cbBudgetFill" style="width:0%;"></div></div>
+            <div class="cb-budget-sub" id="cbBudgetSub">calculating…</div>
+          </div>
+        </div>
+        <button class="cb-btn" style="flex-shrink:0;background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'" onclick="window.openCbAddModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add to Basket
+        </button>
+      </div>
     </div>
     <div class="cb-toolbar-row">
       <span id="cbCount"     class="cb-chip">0 items</span>
@@ -630,6 +695,53 @@
   </div>
 </div>
 
+
+<!-- Budget Modal -->
+<div class="cb-modal-overlay" id="cbBudgetModal" style="z-index:1300;">
+  <div class="cb-modal" style="width:380px;">
+    <div class="cb-modal-header">
+      <h3>Weekly Budget</h3>
+      <button class="cb-modal-close" onclick="window.closeCbBudgetModal()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="cb-modal-body">
+      <label class="cb-form-label" id="cbBudgetModalWeekLbl">This week</label>
+      <input type="number" class="cb-edit-input" id="cbBudgetInput" placeholder="0.00" min="0" step="10">
+    </div>
+    <div class="cb-modal-footer">
+      <button class="cb-btn cb-btn-slate" onclick="window.closeCbBudgetModal()">Cancel</button>
+      <button class="cb-btn cb-btn-green" onclick="window.saveCbBudget()">Save Budget</button>
+    </div>
+  </div>
+</div>
+
+<!-- Insights Modal -->
+<div class="cb-modal-overlay" id="cbInsightsOverlay" style="z-index:1200;">
+  <div class="cb-modal" style="width:820px;max-width:96vw;">
+    <div class="cb-modal-header">
+      <h3>Budget Insights</h3>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="cb-dr-cal-nav" onclick="window.shiftCbInsightsWeek(-1)">‹</button>
+        <span id="cbInsWeekLbl" style="font-size:12.5px;font-weight:700;color:#0f172a;min-width:150px;text-align:center;"></span>
+        <button class="cb-dr-cal-nav" onclick="window.shiftCbInsightsWeek(1)">›</button>
+        <button class="cb-modal-close" onclick="window.closeCbInsightsModal()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="cb-modal-body" style="max-height:70vh;overflow-y:auto;">
+      <div class="cb-ins-summary-row" id="cbInsSummaryRow"></div>
+      <div class="cb-sec-label" style="margin-top:16px;">Spend by Supplier</div>
+      <div id="cbInsSupplierRows" class="cb-ins-loading">Loading…</div>
+      <div class="cb-sec-label" style="margin-top:16px;">Purchases This Week</div>
+      <div style="overflow-x:auto;">
+        <table class="cb-catalog-table" id="cbInsTable"><tbody><tr><td style="padding:16px;text-align:center;color:#94a3b8;">Loading…</td></tr></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="cb-toasts" id="cbToastContainer"></div>
 
 <script>
@@ -647,6 +759,11 @@
   const PAGE_SIZE   = 25;
   let _cbSupplierFilter = '';
 let _cbTabCounts = { tobuy:0, inquire:0 };
+   let _cbBudgetWeekStart = _cbGetWeekStart(new Date());
+  let _cbWeeklyBudget = 0;
+  let _cbWeekSpent = 0;
+  let _cbBudgetLoaded = false;
+  let _cbInsWeekStart = null;
  
 let _cbFilteredNL = [];
   let _cbFilteredRepl = [];
@@ -702,6 +819,212 @@ function monthLabel(d) {
     return new Date(d).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
   }
 
+   function _cbGetWeekStart(d) {
+    const dt = new Date(d); dt.setHours(0,0,0,0);
+    const day = dt.getDay();
+    dt.setDate(dt.getDate() - day + (day===0?-6:1));
+    return dt;
+  }
+  function _cbAddDays(d,n) { const dt=new Date(d); dt.setDate(dt.getDate()+n); return dt; }
+  function _cbWeekISO(d) { return new Date(d).toISOString(); }
+  function _cbWeekRangeLabel(ws) {
+    const we = _cbAddDays(ws,6);
+    return `${ws.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${we.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
+  }
+
+
+   async function _cbLoadBudgetBar() {
+    const ws = _ymdLocal(_cbBudgetWeekStart);
+    try {
+      const { data } = await sb.from('cb_budgets').select('budget').eq('week_start', ws).maybeSingle();
+      _cbWeeklyBudget = parseFloat((data&&data.budget)||0);
+    } catch(e) { _cbWeeklyBudget = 0; console.warn('CB budget fetch:', e); }
+    await _cbComputeWeekSpent();
+    _cbBudgetLoaded = true;
+    _cbRenderBudgetWidget();
+  }
+
+  async function _cbComputeWeekSpent() {
+    const start = _cbWeekISO(_cbBudgetWeekStart);
+    const end = _cbWeekISO(_cbAddDays(_cbBudgetWeekStart,7));
+    let total = 0;
+    try {
+      const { data: nlData } = await sb.from('sourcing')
+        .select('cost_of_unit,unit_quantity,qty_purchased,purchased_at')
+        .eq('purchased', true).gte('purchased_at', start).lt('purchased_at', end);
+      (nlData||[]).forEach(p=>{
+        const qty = parseFloat(p.qty_purchased) || parseFloat(p.unit_quantity) || 0;
+        total += (parseFloat(p.cost_of_unit)||0) * qty;
+      });
+    } catch(e) { console.warn('CB week spent nl:', e); }
+    try {
+      const { data: replData } = await sb.from('replenishment_skus')
+        .select('sku,order_qty,cost_price,original_cost_price,actioned_at')
+        .eq('action','pur').gte('actioned_at', start).lt('actioned_at', end);
+      const rows = replData||[];
+      const costMap = await _cbBuildLastReplCostMap(rows.map(p=>p.sku));
+      rows.forEach(p=>{
+        const tracked = costMap[p.sku];
+        const cost = (tracked!=null && !isNaN(tracked)) ? parseFloat(tracked) : _cbReplDisplayCost(p);
+        total += cost * (parseInt(p.order_qty)||0);
+      });
+    } catch(e) { console.warn('CB week spent repl:', e); }
+    _cbWeekSpent = total;
+  }
+
+  function _cbRenderBudgetWidget() {
+    const valEl = document.getElementById('cbBudgetVal');
+    const fillEl = document.getElementById('cbBudgetFill');
+    const subEl = document.getElementById('cbBudgetSub');
+    if (!valEl) return;
+    if (!_cbBudgetLoaded) { valEl.textContent = '…'; return; }
+    if (_cbWeeklyBudget<=0) {
+      valEl.textContent = 'Set budget';
+      fillEl.style.width = '0%'; fillEl.style.background = '#cbd5e1';
+      subEl.textContent = `${fmtGBP(_cbWeekSpent)} spent this week`;
+      return;
+    }
+    const pct = Math.min(100, Math.round((_cbWeekSpent/_cbWeeklyBudget)*100));
+    const outstanding = _cbWeeklyBudget - _cbWeekSpent;
+    valEl.textContent = fmtGBP(_cbWeeklyBudget);
+    fillEl.style.width = pct+'%';
+    fillEl.style.background = pct>90?'linear-gradient(90deg,#ef4444,#b91c1c)':pct>70?'linear-gradient(90deg,#f59e0b,#d97706)':'linear-gradient(90deg,#2563eb,#4f80f7)';
+    subEl.textContent = `${fmtGBP(_cbWeekSpent)} spent · ${fmtGBP(outstanding)} left`;
+  }
+
+  window.toggleCbMoreMenu = function(e) {
+    e.stopPropagation();
+    document.getElementById('cbMoreMenu')?.classList.toggle('open');
+  };
+
+window.openCbBudgetModal = function(weekStartOverride) {
+    const ws = weekStartOverride || _cbBudgetWeekStart;
+    document.getElementById('cbBudgetModal').dataset.weekStart = _ymdLocal(ws);
+    document.getElementById('cbBudgetModalWeekLbl').textContent = 'Week of ' + _cbWeekRangeLabel(ws);
+    const isCurrentWeek = _ymdLocal(ws) === _ymdLocal(_cbBudgetWeekStart);
+    document.getElementById('cbBudgetInput').value = isCurrentWeek ? (_cbWeeklyBudget || '') : '';
+    document.getElementById('cbBudgetModal').classList.add('open');
+  };
+  window.closeCbBudgetModal = function() { document.getElementById('cbBudgetModal').classList.remove('open'); };
+  window.saveCbBudget = async function() {
+    const v = parseFloat(document.getElementById('cbBudgetInput').value) || 0;
+    const wsStr = document.getElementById('cbBudgetModal').dataset.weekStart || _ymdLocal(_cbBudgetWeekStart);
+    try {
+      await sb.from('cb_budgets').upsert({ week_start: wsStr, budget: v }, { onConflict: 'week_start' });
+      if (wsStr === _ymdLocal(_cbBudgetWeekStart)) { _cbWeeklyBudget = v; _cbRenderBudgetWidget(); }
+      window.closeCbBudgetModal();
+      _cbToast('Budget updated','success');
+      if (document.getElementById('cbInsightsOverlay').classList.contains('open')) _cbLoadInsightsData();
+    } catch(e) { _cbToast('Failed to save budget','error'); }
+  };
+
+
+   window.openCbInsightsModal = function() {
+    document.getElementById('cbMoreMenu')?.classList.remove('open');
+    if (!_cbInsWeekStart) _cbInsWeekStart = new Date(_cbBudgetWeekStart);
+    document.getElementById('cbInsightsOverlay').classList.add('open');
+    _cbUpdateInsWeekLabel();
+    _cbLoadInsightsData();
+  };
+  window.closeCbInsightsModal = function() { document.getElementById('cbInsightsOverlay').classList.remove('open'); };
+  function _cbUpdateInsWeekLabel() {
+    document.getElementById('cbInsWeekLbl').textContent = _cbWeekRangeLabel(_cbInsWeekStart);
+  }
+  window.shiftCbInsightsWeek = function(dir) {
+    _cbInsWeekStart = _cbAddDays(_cbInsWeekStart, dir*7);
+    _cbUpdateInsWeekLabel();
+    _cbLoadInsightsData();
+  };
+
+  async function _cbLoadInsightsData() {
+    document.getElementById('cbInsSummaryRow').innerHTML = `<div class="cb-ins-loading">Loading…</div>`;
+    document.getElementById('cbInsSupplierRows').innerHTML = `<div class="cb-ins-loading">Loading…</div>`;
+    document.getElementById('cbInsTable').innerHTML = `<tbody><tr><td style="padding:16px;text-align:center;color:#94a3b8;">Loading…</td></tr></tbody>`;
+    const start = _cbWeekISO(_cbInsWeekStart);
+    const end = _cbWeekISO(_cbAddDays(_cbInsWeekStart,7));
+    let budget = 0;
+    try {
+      const { data } = await sb.from('cb_budgets').select('budget').eq('week_start', _ymdLocal(_cbInsWeekStart)).maybeSingle();
+      budget = parseFloat((data&&data.budget)||0);
+    } catch(e) {}
+    let nlRows=[], replRows=[];
+    try {
+      const { data } = await sb.from('sourcing')
+        .select('opportunity_id,product_name,supplier_name,cost_of_unit,unit_quantity,qty_purchased,purchased_at')
+        .eq('purchased', true).gte('purchased_at', start).lt('purchased_at', end);
+      nlRows = data||[];
+    } catch(e) { console.warn('CB insights nl:', e); }
+    try {
+      const { data } = await sb.from('replenishment_skus')
+        .select('sku,name,supplier_name,order_qty,cost_price,original_cost_price,actioned_at')
+        .eq('action','pur').gte('actioned_at', start).lt('actioned_at', end);
+      replRows = data||[];
+    } catch(e) { console.warn('CB insights repl:', e); }
+    const replCostMap = await _cbBuildLastReplCostMap(replRows.map(p=>p.sku));
+
+    const items = [
+      ...nlRows.map(p=>{
+        const qty = parseFloat(p.qty_purchased)||parseFloat(p.unit_quantity)||0;
+        const cost = parseFloat(p.cost_of_unit)||0;
+        return { type:'New Line', name:p.product_name||'—', supplier:p.supplier_name||'No Supplier', qty, cost, total:qty*cost, date:p.purchased_at };
+      }),
+      ...replRows.map(p=>{
+        const tracked = replCostMap[p.sku];
+        const cost = (tracked!=null && !isNaN(tracked)) ? parseFloat(tracked) : _cbReplDisplayCost(p);
+        const qty = parseInt(p.order_qty)||0;
+        return { type:'Replenishment', name:p.name||'—', supplier:p.supplier_name||'No Supplier', qty, cost, total:qty*cost, date:p.actioned_at };
+      }),
+    ].sort((a,b)=> new Date(b.date) - new Date(a.date));
+
+    const spent = items.reduce((s,i)=>s+i.total,0);
+    const outstanding = budget - spent;
+    const pct = budget>0 ? Math.min(100, Math.round((spent/budget)*100)) : 0;
+
+    document.getElementById('cbInsSummaryRow').innerHTML = `
+      <div class="cb-ins-summary-card">
+        <div class="cb-ins-summary-label">Budget</div>
+        <div class="cb-ins-summary-val">${budget>0?fmtGBP(budget):'<span style="font-size:12px;font-weight:600;color:#2563eb;cursor:pointer;text-decoration:underline;" onclick="window.openCbBudgetModal(_cbInsWeekStart)">Set budget</span>'}</div>
+      </div>
+      <div class="cb-ins-summary-card">
+        <div class="cb-ins-summary-label">Spent</div>
+        <div class="cb-ins-summary-val red">${fmtGBP(spent)}</div>
+        <div style="font-size:10.5px;color:#94a3b8;margin-top:2px;">${items.length} item${items.length!==1?'s':''} purchased</div>
+      </div>
+      <div class="cb-ins-summary-card">
+        <div class="cb-ins-summary-label">Outstanding</div>
+        <div class="cb-ins-summary-val ${outstanding>=0?'green':'red'}">${budget>0?fmtGBP(outstanding):'—'}</div>
+        ${budget>0?`<div class="cb-budget-track" style="margin-top:6px;"><div class="cb-budget-fill" style="width:${pct}%;background:${pct>90?'#ef4444':pct>70?'#f59e0b':'#2563eb'};"></div></div>`:''}
+      </div>`;
+
+    const bySupplier = {};
+    items.forEach(i=>{ bySupplier[i.supplier] = (bySupplier[i.supplier]||0) + i.total; });
+    const supplierRows = Object.keys(bySupplier).map(k=>({name:k,value:bySupplier[k]})).sort((a,b)=>b.value-a.value);
+    const maxSup = supplierRows.length ? supplierRows[0].value : 1;
+    document.getElementById('cbInsSupplierRows').innerHTML = supplierRows.length
+      ? supplierRows.map(r=>`
+        <div class="cb-ins-row">
+          <span class="cb-ins-row-name" title="${escH(r.name)}">${escH(r.name)}</span>
+          <div class="cb-ins-row-bar"><div class="cb-ins-row-bar-fill" style="width:${maxSup>0?(r.value/maxSup*100):0}%;"></div></div>
+          <span class="cb-ins-row-val">${fmtGBP(r.value)}</span>
+        </div>`).join('')
+      : `<div class="cb-ins-loading">No purchases this week</div>`;
+
+    document.getElementById('cbInsTable').innerHTML = items.length ? `
+      <thead><tr><th>Item</th><th>Type</th><th>Supplier</th><th>Qty</th><th>Cost</th><th>Total</th><th>Date</th></tr></thead>
+      <tbody>${items.map(i=>`
+        <tr>
+          <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escH(i.name)}">${escH(i.name)}</td>
+          <td>${i.type}</td>
+          <td>${escH(i.supplier)}</td>
+          <td>${i.qty.toLocaleString()}</td>
+          <td>${fmtGBP(i.cost)}</td>
+          <td style="font-weight:700;">${fmtGBP(i.total)}</td>
+          <td>${fmtDate(i.date)}</td>
+        </tr>`).join('')}</tbody>`
+      : `<tbody><tr><td style="padding:16px;text-align:center;color:#94a3b8;">No purchases this week</td></tr></tbody>`;
+  }
+
+ 
   async function _cbBuildLastReplCostMap(skus) {
     const uniqueSkus = [...new Set((skus||[]).filter(Boolean))];
     if (!uniqueSkus.length) return {};
@@ -835,6 +1158,7 @@ function _debounce(fn, wait) {
       label: end!==_cbCalStart ? `${fmtDate(_cbCalStart)} – ${fmtDate(end)}` : fmtDate(_cbCalStart) };
     _updateDateRangeBtn(); _closeCbDateRangeMenu();
     window.renderCentralBasket(true);
+   _cbLoadBudgetBar();
   };
   window.cbSetDatePreset = function(key) {
     if (key==='all') { _cbDateRange=null; }
@@ -846,6 +1170,7 @@ function _debounce(fn, wait) {
     _cbCalStart=null; _cbCalEnd=null;
     _updateDateRangeBtn(); _closeCbDateRangeMenu();
     window.renderCentralBasket(true);
+   _cbLoadBudgetBar();
   };
  
   /* ── SUPPLIERS ── */
@@ -1208,9 +1533,11 @@ window.setCbTab = function(tab) {
     e.stopPropagation();
     document.getElementById('cbTypeMenu').classList.toggle('open');
   };
-  document.addEventListener('click', ()=>{
+  
+   document.addEventListener('click', ()=>{
     document.getElementById('cbTypeMenu')?.classList.remove('open');
     document.getElementById('cbDateRangeMenu')?.classList.remove('open');
+    document.getElementById('cbMoreMenu')?.classList.remove('open');
   });
 
  
@@ -1228,7 +1555,7 @@ window.setCbTab = function(tab) {
     });
     document.getElementById('cbTypeMenu')?.classList.remove('open');
   }
-window.setCbFilter = function(f) { _cbFilter=f; _cbPage=1; _updateTypeDropdown(); window.renderCentralBasket(true); };
+window.setCbFilter = function(f) { _cbFilter=f; _cbPage=1; _updateTypeDropdown(); window.renderCentralBasket(true); _cbLoadBudgetBar();};
 
   window.cbJumpToSection = function(sectionId) {
     document.getElementById(sectionId)?.scrollIntoView({ behavior:'smooth', block:'start' });
@@ -1627,6 +1954,7 @@ window.cbUpdateNLQty = async function(id, val) {
       if (_drawerItem) { _drawerItem.data.unit_quantity=qty; _renderCbDrawer(); }
       _cbToast('Qty updated','success');
       window.renderCentralBasket(true);
+     _cbLoadBudgetBar();
     } catch(e) { _cbToast('Failed to update qty','error'); }
   };
   window.cbUpdateReplQty = async function(sku, val) {
@@ -1636,6 +1964,7 @@ window.cbUpdateNLQty = async function(id, val) {
 if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
       _cbToast('Qty updated','success');
       window.renderCentralBasket(true);
+     _cbLoadBudgetBar();
     } catch(e) { _cbToast('Failed to update qty','error'); }
   };
 
@@ -1745,7 +2074,7 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
         });
         _cbToast('Added to basket','success');
         window.closeCbAddModal(); window.setCbTab('tobuy');
-        window.renderCentralBasket(true); _cbFetchTabCounts();
+        window.renderCentralBasket(true); _cbFetchTabCounts();_cbLoadBudgetBar();
       } catch(e) { console.error(e); _cbToast('Failed to add product','error'); }
       finally { btn.disabled = false; }
     } else {
@@ -2139,6 +2468,7 @@ if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer();
       }).eq('opportunity_id',id);
       _cbToast('Moved to Purchased ✓','success');
       window.closeCbDrawer(); window.renderCentralBasket(true);
+     _cbLoadBudgetBar();
       if (window.renderTable) window.renderTable();
       if (window.updateStats) window.updateStats();
     } catch(e) { _cbToast('Failed to save','error'); }
@@ -2149,6 +2479,7 @@ if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer();
       await sb.from('sourcing').update({ purchased:false, qty_purchased:null, purchased_at:null, last_updated:new Date().toISOString() }).eq('opportunity_id',id);
       _cbToast('Moved back to To Purchase','success');
       window.closeCbDrawer(); window.renderCentralBasket(true);
+     _cbLoadBudgetBar();
     } catch(e) { _cbToast('Failed to undo','error'); }
   };
 
@@ -2173,6 +2504,7 @@ if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer();
       await sb.from('replenishment_skus').update({ action:'pur', actioned_at:new Date().toISOString() }).eq('sku',sku);
       _cbToast('Moved to Purchased ✓','success');
       window.closeCbDrawer(); window.renderCentralBasket(true);
+     _cbLoadBudgetBar();
       if (window.render) window.render();
     } catch(e) { _cbToast('Failed to save','error'); }
   };
@@ -2182,6 +2514,7 @@ if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer();
       await sb.from('replenishment_skus').update({ action:'basket', actioned_at:new Date().toISOString() }).eq('sku',sku);
       _cbToast('Moved back to To Purchase','success');
       window.closeCbDrawer(); window.renderCentralBasket(true);
+     _cbLoadBudgetBar();
       if (window.render) window.render();
     } catch(e) { _cbToast('Failed to undo','error'); }
   };
@@ -2456,5 +2789,6 @@ function _cbPdfReplCost(p) {
   _updateTypeDropdown();
   window.renderCentralBasket(true);
   _cbFetchTabCounts();
+  _cbLoadBudgetBar();
 })();
 </script>
