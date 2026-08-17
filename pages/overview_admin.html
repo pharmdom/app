@@ -514,6 +514,9 @@ function ukTodayStr(){
   const p={};parts.forEach(x=>p[x.type]=x.value);
   return `${p.year}-${p.month}-${p.day}`;
 }
+function ukWeekdayName(){
+  return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',weekday:'long'}).format(new Date());
+}
 function addDaysToDateStr(dateStr,days){
   const[y,m,d]=dateStr.split('-').map(Number);
   const dt=new Date(Date.UTC(y,m-1,d));
@@ -843,14 +846,14 @@ async function loadPaycheck(){
 }
 async function loadPacking(){
   const todayStr=utcDateStr();
-  const y=new Date();y.setUTCDate(y.getUTCDate()-1);
-  const yStr=y.toISOString().split('T')[0];
-  const[counts,yCounts]=await Promise.all([
+  const lw=new Date();lw.setUTCDate(lw.getUTCDate()-7);
+  const lwStr=lw.toISOString().split('T')[0];
+  const[counts,lwCounts]=await Promise.all([
     fetchAll('manus_packing_counts','date,time_slot,packer_name,count',q=>q.eq('date',todayStr),'time_slot'),
-    fetchAll('manus_packing_counts','date,time_slot,packer_name,count',q=>q.eq('date',yStr),'time_slot'),
+    fetchAll('manus_packing_counts','date,time_slot,packer_name,count',q=>q.eq('date',lwStr),'time_slot'),
   ]);
   D.packingToday=counts;
-  D.packingYesterday=yCounts;
+  D.packingLastWeek=lwCounts;
 }
 async function init(){
   if(!sb)return;
@@ -950,7 +953,6 @@ function buildAttnItems(){
   const sourcing=D.sourcing||[];
   const faults=D.faults||[];
   const replen=D.replen||[];
-  const open=D.veeqoOpen||[];
   const needApproval=sourcing.filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected'));
 const needApprovalCount=D.sourcingNeedApproval??needApproval.length;
 if(needApprovalCount>0){
@@ -966,9 +968,7 @@ if(offersPending.length){
   const isOfferStale=oldestOfferDays>=7;
   items.push({sev:isOfferStale?'warn':'info',t:`${offersPending.length} offer${offersPending.length!==1?'s':''} pending review`,s:isOfferStale?`Oldest has been waiting ${oldestOfferDays} days — review needed`:'New supplier offers awaiting your decision',meta:'Offers',tag:{cls:isOfferStale?'bg-warn':'sb-neutral',txt:'Offers'},fn:'ovOpenOffersPendingDrawer()'});
 }
-const blocked=open.filter(o=>['awaiting_payment','payment_pending'].includes((o.status||'').toLowerCase()));
-  if(blocked.length)items.push({sev:'crit',t:`${blocked.length} order${blocked.length!==1?'s':''} blocked — payment required`,s:'These orders cannot be fulfilled until payment clears',meta:'Current',tag:{cls:'bg-crit',txt:'Critical'},fn:'ovOpenAwaitingPaymentDrawer()'});
-  const openFaults=faults.filter(f=>!f.resolved);
+ const openFaults=faults.filter(f=>!f.resolved);
   const openFaultsCount=D.faultsOpenCount??openFaults.length;
   if(openFaults.length){
     const tv=openFaults.reduce((s,f)=>s+parseFloat(f.order_value||0),0);
@@ -1363,16 +1363,22 @@ function renderPacking(){
     const cnt=parseInt(sorted[sorted.length-1].count)||0;
     return elapsedHours>0?cnt/elapsedHours:0;
   }).filter(r=>r>0);
-  const avgPph=packerRates.length?(packerRates.reduce((s,r)=>s+r,0)/packerRates.length):0;
+const avgPph=packerRates.length?(packerRates.reduce((s,r)=>s+r,0)/packerRates.length):0;
   const topPacker=Object.values(latestPerPacker).filter(c=>!isExcludedPacker(c.packer_name)).sort((a,b)=>(parseInt(b.count)||0)-(parseInt(a.count)||0))[0];
   document.getElementById('ovPackSub').textContent=Object.keys(latestPerPacker).length?'Warehouse Today · updated on the hour & half-hour':'No activity yet';
   document.getElementById('ovPackTotal').textContent=totalPacks.toLocaleString();
   D.packActiveNow=activeNow;
   D.packAvgPph=avgPph;
   D.packTopPacker=topPacker;
+  const bucket=packingBucketBySlot(counts);
+  const recentTeamPace=lastHourTeamPace(bucket,slots);
+  const recentAvgPph=activeNow>0?recentTeamPace/activeNow:0;
+  D.packRecentTeamPace=recentTeamPace;
+  D.packRecentAvgPph=recentAvgPph;
   const cutoffToday=new Date(ukMidnight().getTime()+16.5*3600000);
   const cutoffYesterday=new Date(cutoffToday.getTime()-86400000);
-  const toShipOrders=(D.veeqo30||[]).filter(o=>o.created_at&&new Date(o.created_at)>=cutoffYesterday);
+  const toShipStatuses=['shipped','dispatched','awaiting_fulfillment'];
+  const toShipOrders=(D.veeqo30||[]).filter(o=>o.created_at&&new Date(o.created_at)>=cutoffYesterday&&toShipStatuses.includes((o.status||'').toLowerCase()));
   const toShip=toShipOrders.length;
   document.getElementById('ovPackToShip').textContent=toShip.toLocaleString();
   const balance=totalPacks-toShip;
@@ -1390,21 +1396,20 @@ function renderPacking(){
   }else if(hoursUntilCutoff<=0){
     noteEl.className='mkpi-delta down';noteEl.textContent='Past 4:30pm cutoff';
     D.packRecommendation={type:'passed'};
-  }else if(avgPph>0){
-    const neededPackers=Math.ceil(D.packShortfall/(avgPph*hoursUntilCutoff));
+  }else if(recentAvgPph>0){
+    const neededPackers=Math.ceil(D.packShortfall/(recentAvgPph*hoursUntilCutoff));
     noteEl.className='mkpi-delta down';noteEl.textContent=`~${neededPackers} more packer${neededPackers!==1?'s':''} needed`;
     D.packRecommendation={type:'need',count:neededPackers};
   }else{
     noteEl.className='mkpi-delta down';noteEl.textContent='Behind — pace data pending';
     D.packRecommendation={type:'unknown'};
   }
-  const bucket=packingBucketBySlot(counts);
   const paceVals=paceSeriesFromBucket(bucket,slots);
-  const prevPace=yesterdayPaceAligned(slots);
+  const prevPace=lastWeekPaceAligned(slots);
   const packLegendEl=document.getElementById('ovPackSparkLegend');
   if(packLegendEl){
     if(prevPace){
-      packLegendEl.innerHTML='<span class="spark-legend-item"><span class="spark-legend-swatch" style="border-color:var(--accent)"></span>Today</span><span class="spark-legend-item"><span class="spark-legend-swatch dashed"></span>Yesterday</span>';
+      packLegendEl.innerHTML=`<span class="spark-legend-item"><span class="spark-legend-swatch" style="border-color:var(--accent)"></span>Today</span><span class="spark-legend-item"><span class="spark-legend-swatch dashed"></span>Last ${ukWeekdayName()}</span>`;
       packLegendEl.style.display='flex';
     }else{
       packLegendEl.style.display='none';
@@ -1426,18 +1431,33 @@ function paceSeriesFromBucket(bucket,slots){
     return dt>0?Math.max(0,dv/dt):0;
   });
 }
-function yesterdayPaceAligned(todaySlots){
-  const yCounts=D.packingYesterday||[];
-  if(!yCounts.length)return null;
-  const yBucket=packingBucketBySlot(yCounts);
-  const ySlots=[...new Set(yCounts.map(c=>c.time_slot))].sort();
-  if(!ySlots.length)return null;
+function lastHourTeamPace(bucket,slots){
+  if(!slots.length)return 0;
+  const latestSlot=slots[slots.length-1];
+  const latestMins=timeToMinsGlobal(latestSlot);
+  const windowStartMins=latestMins-60;
+  let baseIdx=0;
+  for(let i=0;i<slots.length;i++){
+    if(timeToMinsGlobal(slots[i])<=windowStartMins)baseIdx=i;else break;
+  }
+  const baseSlot=slots[baseIdx];
+  const elapsedHours=(latestMins-timeToMinsGlobal(baseSlot))/60;
+  if(elapsedHours<=0)return 0;
+  const diff=(bucket[latestSlot]||0)-(bucket[baseSlot]||0);
+  return Math.max(0,diff/elapsedHours);
+}
+function lastWeekPaceAligned(todaySlots){
+  const ywCounts=D.packingLastWeek||[];
+  if(!ywCounts.length)return null;
+  const ywBucket=packingBucketBySlot(ywCounts);
+  const ywSlots=[...new Set(ywCounts.map(c=>c.time_slot))].sort();
+  if(!ywSlots.length)return null;
   return todaySlots.map(sl=>{
     let idx=-1;
-    for(let i=0;i<ySlots.length;i++){if(ySlots[i]<=sl)idx=i;else break;}
+    for(let i=0;i<ywSlots.length;i++){if(ywSlots[i]<=sl)idx=i;else break;}
     if(idx<=0)return null;
-    const dt=(timeToMinsGlobal(ySlots[idx])-timeToMinsGlobal(ySlots[idx-1]))/60;
-    const dv=(yBucket[ySlots[idx]]||0)-(yBucket[ySlots[idx-1]]||0);
+    const dt=(timeToMinsGlobal(ywSlots[idx])-timeToMinsGlobal(ywSlots[idx-1]))/60;
+    const dv=(ywBucket[ywSlots[idx]]||0)-(ywBucket[ywSlots[idx-1]]||0);
     return dt>0?Math.max(0,dv/dt):0;
   });
 }
@@ -2085,7 +2105,7 @@ function ovOpenPackingDrawer(){
   const slots=[...new Set(counts.map(c=>c.time_slot))].sort();
   const bucket=packingBucketBySlot(counts);
   const paceVals=paceSeriesFromBucket(bucket,slots);
-  const prevPace=yesterdayPaceAligned(slots);
+  const prevPace=lastWeekPaceAligned(slots);
   const byPackerRows={};
   counts.forEach(c=>{
     if(!byPackerRows[c.packer_name])byPackerRows[c.packer_name]=[];
@@ -2122,7 +2142,7 @@ function ovOpenPackingDrawer(){
   }else if(rec.type==='need'){
     recHtml=`<div class="drw-row"><div class="drw-row-k">Shortfall</div><div class="drw-row-v" style="color:var(--red)">${shortfall.toLocaleString()} orders</div></div>
     <div class="drw-row"><div class="drw-row-k">Time to 4:30pm</div><div class="drw-row-v">${hrsLeft.toFixed(1)}h</div></div>
-    <div class="drw-row"><div class="drw-row-k">Team Avg Pace</div><div class="drw-row-v">${(D.packAvgPph||0).toFixed(1)}/hr</div></div>
+    <div class="drw-row"><div class="drw-row-k">Pace — Last Hour (per packer)</div><div class="drw-row-v">${(D.packRecentAvgPph||0).toFixed(1)}/hr</div></div>
     <div class="drw-row"><div class="drw-row-k">Recommended</div><div class="drw-row-v" style="color:var(--amber)">+${rec.count} packer${rec.count!==1?'s':''}</div></div>`;
   }else{
     recHtml=`<div class="drw-row"><div class="drw-row-k">Shortfall</div><div class="drw-row-v" style="color:var(--red)">${shortfall.toLocaleString()} orders</div></div>
@@ -2130,7 +2150,7 @@ function ovOpenPackingDrawer(){
   }
   ovOpenDrawer('Packing','Hourly Checkpoints',`${visibleStats.length} packer${visibleStats.length!==1?'s':''} tracked this week`,`
     <div class="drw-sec-lbl">Pace — Today</div>
-    ${prevPace?'<div class="spark-legend" style="margin-bottom:8px"><span class="spark-legend-item"><span class="spark-legend-swatch" style="border-color:var(--accent)"></span>Today</span><span class="spark-legend-item"><span class="spark-legend-swatch dashed"></span>Yesterday</span></div>':''}
+    ${prevPace?`<div class="spark-legend" style="margin-bottom:8px"><span class="spark-legend-item"><span class="spark-legend-swatch" style="border-color:var(--accent)"></span>Today</span><span class="spark-legend-item"><span class="spark-legend-swatch dashed"></span>Last ${ukWeekdayName()}</span></div>`:''}
     <div class="spark-wrap" style="height:150px;margin-bottom:16px"><svg id="ovPackDrawerSpark" style="width:100%;height:100%;display:block"></svg></div>
     <div class="drw-sec-lbl">Today's Totals</div>
     <div class="drw-row"><div class="drw-row-k">Active — Last Check</div><div class="drw-row-v">${D.packActiveNow||0}</div></div>
