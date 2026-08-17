@@ -377,7 +377,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
         <div class="pulse-card">
   <div class="pulse-hdr">
     <div>
-      <div class="pulse-title">Packing Pace (WH) - Hourly Checkpoints</div>
+      <div class="pulse-title">Packing Pace (WH)</div>
       <div class="pulse-sub" id="ovPackSub">Loading…</div>
     </div>
     <div class="pulse-link" onclick="ovOpenPackingDrawer()">Expand <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
@@ -1367,7 +1367,7 @@ function renderPacking(){
   }).filter(r=>r>0);
 const avgPph=packerRates.length?(packerRates.reduce((s,r)=>s+r,0)/packerRates.length):0;
   const topPacker=Object.values(latestPerPacker).filter(c=>!isExcludedPacker(c.packer_name)).sort((a,b)=>(parseInt(b.count)||0)-(parseInt(a.count)||0))[0];
-  document.getElementById('ovPackSub').textContent=Object.keys(latestPerPacker).length?'Warehouse Today · updated on the hour & half-hour':'No activity yet';
+  document.getElementById('ovPackSub').textContent=Object.keys(latestPerPacker).length?'Warehouse Today · updating every minute':'No activity yet';
   document.getElementById('ovPackTotal').textContent=totalPacks.toLocaleString();
   D.packActiveNow=activeNow;
   D.packAvgPph=avgPph;
@@ -1418,8 +1418,9 @@ const avgPph=packerRates.length?(packerRates.reduce((s,r)=>s+r,0)/packerRates.le
       D.packRecommendation={type:'unknown'};
     }
   }
-  const paceVals=paceSeriesFromBucket(bucket,slots);
-  const prevPace=lastWeekPaceAligned(slots);
+  const chartSlots=halfHourMarksOnly(slots);
+  const paceVals=paceSeriesFromBucket(bucket,chartSlots);
+  const prevPace=lastWeekPaceAligned(chartSlots);
   const packLegendEl=document.getElementById('ovPackSparkLegend');
   if(packLegendEl){
     if(prevPace){
@@ -1429,7 +1430,7 @@ const avgPph=packerRates.length?(packerRates.reduce((s,r)=>s+r,0)/packerRates.le
       packLegendEl.style.display='none';
     }
   }
-  requestAnimationFrame(()=>drawSparkline('ovPackSparkline',paceVals,slots,'var(--accent)',k=>k,'pace',prevPace?{prevVals:prevPace,prevLabel:'Last '+ukWeekdayName()}:{}));
+  requestAnimationFrame(()=>drawSparkline('ovPackSparkline',paceVals,chartSlots,'var(--accent)',k=>k,'pace',prevPace?{prevVals:prevPace,prevLabel:'Last '+ukWeekdayName()}:{}));
 }
 function packingBucketBySlot(counts){
   const bucket={};
@@ -1437,7 +1438,11 @@ function packingBucketBySlot(counts){
   return bucket;
 }
 function timeToMinsGlobal(t){if(!t)return 0;const[h,m]=String(t).slice(0,5).split(':').map(Number);return h*60+m;}
-function paceSeriesFromBucket(bucket,slots){
+function halfHourMarksOnly(slotsArr){
+  return slotsArr.filter(sl=>{const m=String(sl).slice(0,5).split(':')[1];return m==='00'||m==='30';});
+}
+  
+  function paceSeriesFromBucket(bucket,slots){
   return slots.map((sl,i)=>{
     if(i===0)return 0;
     const dt=(timeToMinsGlobal(sl)-timeToMinsGlobal(slots[i-1]))/60;
@@ -2116,7 +2121,7 @@ function ovOpenPaycheckDrawer(){
 
 function ovOpenPackingDrawer(){
   const counts=D.packingToday||[];
-  const slots=[...new Set(counts.map(c=>c.time_slot))].sort();
+  const slots=halfHourMarksOnly([...new Set(counts.map(c=>c.time_slot))].sort());
   const bucket=packingBucketBySlot(counts);
   const paceVals=paceSeriesFromBucket(bucket,slots);
   const prevPace=lastWeekPaceAligned(slots);
@@ -2164,7 +2169,7 @@ function ovOpenPackingDrawer(){
     recHtml=`<div class="drw-row"><div class="drw-row-k">Shortfall</div><div class="drw-row-v" style="color:var(--red)">${shortfall.toLocaleString()} orders</div></div>
     <div class="drw-row"><div class="drw-row-k">Note</div><div class="drw-row-v" style="color:var(--text3)">Not enough pace data yet to estimate</div></div>`;
   }
-  ovOpenDrawer('Packing','Hourly Checkpoints',`${visibleStats.length} packer${visibleStats.length!==1?'s':''} tracked this week`,`
+  ovOpenDrawer('Packing','Performance Checkpoints',`${visibleStats.length} packer${visibleStats.length!==1?'s':''} tracked this week`,`
     <div class="drw-sec-lbl">Pace — Today</div>
     ${prevPace?`<div class="spark-legend" style="margin-bottom:8px"><span class="spark-legend-item"><span class="spark-legend-swatch" style="border-color:var(--accent)"></span>Today</span><span class="spark-legend-item"><span class="spark-legend-swatch dashed"></span>Last ${ukWeekdayName()}</span></div>`:''}
     <div class="spark-wrap" style="height:150px;margin-bottom:16px"><svg id="ovPackDrawerSpark" style="width:100%;height:100%;display:block"></svg></div>
