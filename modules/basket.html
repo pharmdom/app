@@ -947,14 +947,16 @@ async function _cbFetchReplPage(pageIndex) {
 
 async function _cbFetchTabCounts(){
     try {
-      const [nlToBuy, replToBuy, nlInquire, replInquire] = await Promise.all([
-        sb.from('sourcing').select('opportunity_id', {count:'exact', head:true}).eq('approved',true).eq('purchased',false).not('inquire','is',true),
+      const [nlToBuyRes, replToBuy, nlInquireRes, replInquire] = await Promise.all([
+        sb.from('sourcing').select('opportunity_id,sourcing_approvals(status)').eq('approved',true).eq('purchased',false).not('inquire','is',true),
         sb.from('replenishment_skus').select('sku', {count:'exact', head:true}).eq('action','basket'),
-        sb.from('sourcing').select('opportunity_id', {count:'exact', head:true}).eq('approved',true).eq('purchased',false).eq('inquire',true),
+        sb.from('sourcing').select('opportunity_id,sourcing_approvals(status)').eq('approved',true).eq('purchased',false).eq('inquire',true),
         sb.from('replenishment_skus').select('sku', {count:'exact', head:true}).eq('action','inquire'),
       ]);
-      _cbTabCounts.tobuy = (nlToBuy.count||0) + (replToBuy.count||0);
-      _cbTabCounts.inquire = (nlInquire.count||0) + (replInquire.count||0);
+      const nlToBuyCount   = (nlToBuyRes.data||[]).filter(p=>!(p.sourcing_approvals||[]).some(a=>a.status==='rejected')).length;
+      const nlInquireCount = (nlInquireRes.data||[]).filter(p=>!(p.sourcing_approvals||[]).some(a=>a.status==='rejected')).length;
+      _cbTabCounts.tobuy   = nlToBuyCount + (replToBuy.count||0);
+      _cbTabCounts.inquire = nlInquireCount + (replInquire.count||0);
     } catch(e) { console.warn('CB tab counts:', e); }
     const tb=document.getElementById('cbTabToBuy')?.querySelector('.cb-tab-count');
     const iq=document.getElementById('cbTabInquire')?.querySelector('.cb-tab-count');
