@@ -455,8 +455,9 @@
     @keyframes miniCardIn{from{opacity:0;transform:translateY(12px) scale(.95)}to{opacity:1;transform:none}}
 
     /* ══ GLOBAL WIDGET (always-on, lives in the shell) ══ */
-    .gw-fab{position:fixed;bottom:24px;right:24px;width:52px;height:52px;border-radius:50%;background:var(--white);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.14);z-index:2950;transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;padding:0;}
+    .gw-fab{position:fixed;bottom:24px;right:24px;width:52px;height:52px;border-radius:50%;background:var(--white);border:1px solid var(--border);cursor:grab;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.14);z-index:2950;transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;padding:0;touch-action:none;user-select:none;}
     .gw-fab:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(0,0,0,.2);}
+    .gw-fab.dragging{cursor:grabbing;transition:none;transform:scale(1.04);box-shadow:0 8px 30px rgba(0,0,0,.28);}
     .gw-fab svg{width:24px;height:24px;flex-shrink:0;}
     .gw-fab.open{box-shadow:0 0 0 4px var(--accent-soft),0 6px 28px rgba(0,0,0,.2);}
     @keyframes gwPulse{0%,100%{box-shadow:0 4px 20px rgba(0,0,0,.14)}50%{box-shadow:0 4px 28px var(--accent-glow),0 0 0 8px var(--accent-soft)}}
@@ -1125,11 +1126,12 @@ function closeSidebar() {
   }
   function toggleWidgetMenu(e) {
     e.stopPropagation();
+    if (window.__gwDragMoved) return;
     const menu = document.getElementById('gwMenu');
     const fab  = document.getElementById('gwFab');
     const overlay = document.getElementById('gwMenuOverlay');
     const isOpen = menu.classList.contains('open');
-    if (!isOpen) gwUpdateGreeting();
+    if (!isOpen) { gwUpdateGreeting(); positionWidgetMenu(); }
     menu.classList.toggle('open', !isOpen);
     overlay.classList.toggle('open', !isOpen);
     fab.classList.toggle('open', !isOpen);
@@ -1188,10 +1190,98 @@ function closeSidebar() {
     closeWidgetPanel();
     setTimeout(() => {
       gwUpdateGreeting();
+      positionWidgetMenu();
       document.getElementById('gwMenu').classList.add('open');
       document.getElementById('gwMenuOverlay').classList.add('open');
       document.getElementById('gwFab').classList.add('open');
     }, 260);
+  }
+  // ── DRAGGABLE WIDGET ──
+  document.addEventListener('DOMContentLoaded', function initFabDrag(){
+    const fab = document.getElementById('gwFab');
+    if (!fab) return;
+    const STORAGE_KEY = 'gwFabPos';
+    const MARGIN = 8;
+    let dragging = false, moved = false, pointerId = null, startX, startY, startLeft, startTop;
+    function clampPos(left, top) {
+      const w = fab.offsetWidth, h = fab.offsetHeight;
+      left = Math.min(Math.max(MARGIN, left), window.innerWidth - w - MARGIN);
+      top  = Math.min(Math.max(MARGIN, top),  window.innerHeight - h - MARGIN);
+      return { left, top };
+    }
+    function applyPosition(left, top) {
+      const c = clampPos(left, top);
+      fab.style.left = c.left + 'px';
+      fab.style.top = c.top + 'px';
+      fab.style.right = 'auto';
+      fab.style.bottom = 'auto';
+      return c;
+    }
+    function restorePosition() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+        if (saved && typeof saved.left === 'number' && typeof saved.top === 'number') applyPosition(saved.left, saved.top);
+      } catch(e) {}
+    }
+    function savePosition() {
+      const r = fab.getBoundingClientRect();
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: r.left, top: r.top })); } catch(e) {}
+    }
+    fab.addEventListener('pointerdown', (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      dragging = true; moved = false; pointerId = e.pointerId;
+      const r = fab.getBoundingClientRect();
+      startX = e.clientX; startY = e.clientY;
+      startLeft = r.left; startTop = r.top;
+      fab.setPointerCapture(pointerId);
+    });
+    fab.addEventListener('pointermove', (e) => {
+      if (!dragging || e.pointerId !== pointerId) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (!moved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+        moved = true;
+        fab.classList.add('dragging');
+        closeWidgetMenu();
+      }
+      if (moved) applyPosition(startLeft + dx, startTop + dy);
+    });
+    function endDrag(e) {
+      if (!dragging || (pointerId !== null && e.pointerId !== pointerId)) return;
+      dragging = false;
+      fab.classList.remove('dragging');
+      try { fab.releasePointerCapture(pointerId); } catch(err) {}
+      pointerId = null;
+      if (moved) {
+        savePosition();
+        window.__gwDragMoved = true;
+        setTimeout(() => { window.__gwDragMoved = false; }, 50);
+      }
+    }
+    fab.addEventListener('pointerup', endDrag);
+    fab.addEventListener('pointercancel', endDrag);
+        window.addEventListener('resize', () => {
+      const r = fab.getBoundingClientRect();
+      applyPosition(r.left, r.top);
+    });
+    restorePosition();
+  });
+  function positionWidgetMenu() {
+    const fab = document.getElementById('gwFab');
+    const menu = document.getElementById('gwMenu');
+    if (!fab || !menu) return;
+    const margin = 12;
+    const fr = fab.getBoundingClientRect();
+    const mr = menu.getBoundingClientRect();
+    let top = fr.top - mr.height - margin;
+    if (top < margin) top = fr.bottom + margin;
+    top = Math.min(Math.max(margin, top), window.innerHeight - mr.height - margin);
+    let left = fr.right - mr.width;
+    if (left < margin) left = fr.left;
+    left = Math.min(Math.max(margin, left), window.innerWidth - mr.width - margin);
+    menu.style.top = top + 'px';
+    menu.style.left = left + 'px';
+    menu.style.right = 'auto';
+    menu.style.bottom = 'auto';
   }
   // Called by page_guides.html entries — navigates to the target page/module, then opens its guide once ready
   window.gwOpenPageGuide = function(key) {
