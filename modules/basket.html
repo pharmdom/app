@@ -759,8 +759,9 @@
   let _cbFilter     = 'all';
   let _cbTab        = 'tobuy';
   let _cbPage       = 1;
-  let _drawerTab    = 'details';
+    let _drawerTab    = 'details';
   let _drawerItem   = null;
+  let _drawerNoteCount = null;
   let _catalogCache = null;
   let _allPurchased = { nl: [], repl: [] };
   const PAGE_SIZE   = 25;
@@ -1582,10 +1583,34 @@ window.setCbFilter = function(f) { _cbFilter=f; _cbPage=1; _updateTypeDropdown()
     const data = typeof dataJson==='string' ? JSON.parse(dataJson) : dataJson;
     _drawerItem = { type, data };
     _drawerTab  = 'details';
+    _drawerNoteCount = null;
     _renderCbDrawer();
     document.getElementById('cbDrawer').classList.add('open');
     document.getElementById('cbDrawerOverlay').classList.add('open');
+    _fetchDrawerNoteCount(type, data);
   };
+  async function _fetchDrawerNoteCount(type, p) {
+    const table = type==='nl' ? 'sourcing_notes' : 'replenishment_notes';
+    const col   = type==='nl' ? 'opportunity_id' : 'sku';
+    const val   = type==='nl' ? p.opportunity_id : p.sku;
+    const { count, error } = await sb.from(table).select('id', { count:'exact', head:true }).eq(col, val);
+    if (error) return;
+    if (!_drawerItem || (type==='nl' ? _drawerItem.data.opportunity_id : _drawerItem.data.sku) !== val) return; // drawer moved on
+    _drawerNoteCount = count || 0;
+    _renderDrawerTabsOnly();
+  }
+  function _renderDrawerTabsOnly() {
+    if (!_drawerItem) return;
+    const tabs = [
+      { id:'details', label:'Details',    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>' },
+      { id:'prices',  label:'Catalog Prices', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
+      { id:'notes',   label: _drawerNoteCount ? `Notes (${_drawerNoteCount})` : 'Notes',
+        icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="15" y2="11"/></svg>' },
+    ];
+    document.getElementById('cbDrawerTabs').innerHTML = tabs.map(t=>
+      `<button class="cb-drawer-tab${_drawerTab===t.id?' active':''}" onclick="window.switchCbDrawerTab('${t.id}')">${t.icon}${t.label}</button>`
+    ).join('');
+  }
   window.closeCbDrawer = function() {
     document.getElementById('cbDrawer').classList.remove('open');
     document.getElementById('cbDrawerOverlay').classList.remove('open');
@@ -1648,15 +1673,8 @@ const imgUrl = p.image_url || '';
       </div>`;
 
     /* ── Tabs ── */
-const tabs = [
-      { id:'details', label:'Details',    icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>' },
-      { id:'prices',  label:'Catalog Prices', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
-    ];
-    tabs.push({ id:'notes', label:'Notes', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="15" y2="11"/></svg>' });
-    document.getElementById('cbDrawerTabs').innerHTML = tabs.map(t=>
-      `<button class="cb-drawer-tab${_drawerTab===t.id?' active':''}" onclick="window.switchCbDrawerTab('${t.id}')">${t.icon}${t.label}</button>`
-    ).join('');
-
+    _renderDrawerTabsOnly();
+   
 /* ── Body ── */
 if (_drawerTab==='details') { _renderDetailsTab(type, p, isPurchased, isInquire); _renderPriceHistoryInto(type, type==='nl'?p.opportunity_id:p.sku); }
     else if (_drawerTab==='prices') _renderPricesTab();
@@ -1827,36 +1845,33 @@ function _cbCurrentUserName(){
   function _cbInitials(name){ return (name||'?').split(' ').filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,2); }
 
   async function _renderNotesTab(type, p) {
-    if (type === 'repl') {
-      document.getElementById('cbDrawerBody').innerHTML = `
-        <div class="cb-sec-label">Notes</div>
-        <textarea id="cbReplNotes" class="cb-edit-input" style="min-height:160px;resize:vertical;font-family:inherit;line-height:1.5;" placeholder="Add notes about this product…">${escH(p.note||'')}</textarea>
-        <button class="cb-btn cb-btn-green" style="margin-top:10px;" onclick="window.cbSaveReplNotes('${escA(p.sku)}')">Save Notes</button>
-      `;
-      return;
-    }
-    // type === 'nl' — full thread, same source table Sourcing uses (sourcing_notes)
+    const table = type==='nl' ? 'sourcing_notes' : 'replenishment_notes';
+    const col   = type==='nl' ? 'opportunity_id' : 'sku';
+    const val   = type==='nl' ? p.opportunity_id : p.sku;
+    const addFn = type==='nl' ? 'cbAddNlNote' : 'cbAddReplNote';
     document.getElementById('cbDrawerBody').innerHTML = `
       <div class="cb-sec-label">Notes</div>
-      <div id="cbNlNotesList" style="margin-bottom:10px;">
+      <div id="cbNotesList" style="margin-bottom:10px;">
         <div style="display:flex;align-items:center;justify-content:center;padding:24px;color:#94a3b8;font-size:12px;gap:8px;">
           <div style="width:13px;height:13px;border:2px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin .65s linear infinite;"></div>
           Loading notes…
         </div>
       </div>
       <div class="cb-note-composer">
-        <textarea id="cbNlNoteInput" class="cb-note-textarea" placeholder="Write your note here…"></textarea>
+        <textarea id="cbNoteInput" class="cb-note-textarea" placeholder="Write your note here…"></textarea>
         <div class="cb-note-composer-bottom">
-          <button class="cb-btn cb-btn-green" onclick="window.cbAddNlNote('${escA(p.opportunity_id)}')">Add Note</button>
+          <button class="cb-btn cb-btn-green" onclick="window.${addFn}('${escA(val)}')">Add Note</button>
         </div>
       </div>`;
-    const { data, error } = await sb.from('sourcing_notes')
+    const { data, error } = await sb.from(table)
       .select('id,author_name,text,created_at')
-      .eq('opportunity_id', p.opportunity_id)
+      .eq(col, val)
       .order('created_at', { ascending:true });
-    const listEl = document.getElementById('cbNlNotesList');
+    const listEl = document.getElementById('cbNotesList');
     if (!listEl) return; // drawer closed / tab switched while this was loading
     if (error) { listEl.innerHTML = `<div style="font-size:12px;color:#dc2626;">Failed to load notes.</div>`; return; }
+    _drawerNoteCount = data ? data.length : 0;
+    _renderDrawerTabsOnly();
     if (!data || !data.length) { listEl.innerHTML = `<div style="font-size:12px;color:#94a3b8;">No notes yet.</div>`; return; }
     listEl.innerHTML = data.map(n => `
       <div class="cb-note-item">
@@ -1870,7 +1885,7 @@ function _cbCurrentUserName(){
   }
   window.cbAddNlNote = async function(opportunityId) {
     const author = _cbCurrentUserName();
-    const text = (document.getElementById('cbNlNoteInput')?.value || '').trim();
+    const text = (document.getElementById('cbNoteInput')?.value || '').trim();
     if (!author) { _cbToast('Unable to identify current user', 'error'); return; }
     if (!text) { _cbToast('Please write something', 'error'); return; }
     try {
@@ -1879,13 +1894,16 @@ function _cbCurrentUserName(){
       if (_drawerItem && _drawerItem.type==='nl') _renderNotesTab('nl', _drawerItem.data);
     } catch(e) { _cbToast('Failed to add note', 'error'); }
   };
-  window.cbSaveReplNotes = async function(sku) {
-    const val = document.getElementById('cbReplNotes')?.value || '';
+  window.cbAddReplNote = async function(sku) {
+    const author = _cbCurrentUserName();
+    const text = (document.getElementById('cbNoteInput')?.value || '').trim();
+    if (!author) { _cbToast('Unable to identify current user', 'error'); return; }
+    if (!text) { _cbToast('Please write something', 'error'); return; }
     try {
-      await sb.from('replenishment_skus').update({ note: val }).eq('sku', sku);
-      if (_drawerItem) _drawerItem.data.note = val;
-      _cbToast('Notes saved','success');
-    } catch(e) { _cbToast('Failed to save notes','error'); }
+      await sb.from('replenishment_notes').insert({ sku, author_name: author, text });
+      _cbToast('Note added', 'success');
+      if (_drawerItem && _drawerItem.type==='repl') _renderNotesTab('repl', _drawerItem.data);
+    } catch(e) { _cbToast('Failed to add note', 'error'); }
   };
 
 function _renderDrawerActions(type, p, isPurchased, isInquire) {
