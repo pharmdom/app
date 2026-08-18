@@ -1066,16 +1066,35 @@ async function loadSuppliers() {
   return _suppliers;
 }
   
+function _currentUserName() {
+  try {
+    const u = JSON.parse(sessionStorage.getItem('user') || '{}');
+    return ((u.firstName || '') + ' ' + (u.lastName || '')).trim();
+  } catch(e) { return ''; }
+}
+
 // ── DB: previously seen SKUs ──
 async function loadSeenSkus() {
   try {
-    const { data } = await sb.from('replenishment_skus').select('sku,action,note,actioned_at');
+    const [{ data }, latestNotes] = await Promise.all([
+      sb.from('replenishment_skus').select('sku,action,actioned_at'),
+      loadLatestReplNotes(),
+    ]);
     const seen = {};
-    (data || []).forEach(r => { seen[r.sku] = { action: r.action, note: r.note, actioned_at: r.actioned_at }; });
+    (data || []).forEach(r => { seen[r.sku] = { action: r.action, note: latestNotes[r.sku] || null, actioned_at: r.actioned_at }; });
     return seen;
   } catch(e) { return {}; }
 }
 
+// Returns { sku: latestNoteText } — one entry per SKU, using the most recent thread message
+async function loadLatestReplNotes() {
+  try {
+    const { data } = await sb.from('replenishment_notes').select('sku,text,created_at').order('created_at', { ascending: true });
+    const latest = {};
+    (data || []).forEach(n => { latest[n.sku] = n.text; }); // ascending order means last write wins = latest
+    return latest;
+  } catch(e) { return {}; }
+}
 async function saveSkusToDB(skus) {
   if (!sb) return;
   try {
@@ -1099,12 +1118,11 @@ async function saveSkusToDB(skus) {
   } catch(e) { console.warn('DB save error', e); }
 }
 
-async function saveActionToDB(sku, action, note) {
+async function saveActionToDB(sku, action) {
   if (!sb) return;
   try {
     await sb.from('replenishment_skus').update({
       action: action || null,
-      note: note || null,
       actioned_at: action ? new Date().toISOString() : null,
       supplier_name: (action === 'basket' || action === 'pur') ? (basketSuppliers[sku] || null) : null,
     }).eq('sku', sku);
@@ -1745,7 +1763,7 @@ function actAndAdvance(sku, key) {
   actsOrder = actsOrder.filter(s => s !== sku);
   actsOrder.unshift(sku);
   persist();
-  saveActionToDB(sku, key, notes[sku] || '');
+  saveActionToDB(sku, key);
   render();
 }
 
@@ -1784,11 +1802,11 @@ function confirmSupplierPick() {
   const sku = _pendingBasketSku;
   basketSuppliers[sku] = _selectedSupplier;
   closeSupplierDialog();
-  acts[sku] = 'basket';
+    acts[sku] = 'basket';
   actsOrder = actsOrder.filter(s => s !== sku);
   actsOrder.unshift(sku);
   persist();
-  saveActionToDB(sku, 'basket', notes[sku] || '');
+  saveActionToDB(sku, 'basket');
   render();
   toast('Added to basket', 'success');
 }
@@ -1818,7 +1836,7 @@ window.closeActionsMenu = closeActionsMenu;
 
 function markBasketPurchased(sku) {
   acts[sku] = 'pur';
-  saveActionToDB(sku, 'pur', notes[sku] || '');
+  saveActionToDB(sku, 'pur');
   render();
   renderBasketModal();
   toast('Marked as purchased', 'success');
@@ -1826,7 +1844,7 @@ function markBasketPurchased(sku) {
 
 function updateBasketSupplier(sku, supplierName) {
   basketSuppliers[sku] = supplierName;
-  saveActionToDB(sku, 'basket', notes[sku] || '');
+  saveActionToDB(sku, 'basket');
   renderBasketModal();
 }
 window.updateBasketSupplier = updateBasketSupplier;
@@ -1834,10 +1852,12 @@ window.updateBasketSupplier = updateBasketSupplier;
 function removeFromBasket(sku) {
   delete acts[sku];
   actsOrder = actsOrder.filter(s => s !== sku);
-  saveActionToDB(sku, null, null);
+  saveActionToDB(sku, null);
   render();
   renderBasketModal();
 }
+
+  
 window.markBasketPurchased = markBasketPurchased;
 window.removeFromBasket = removeFromBasket;
 
@@ -1846,7 +1866,7 @@ function undoAct(sku) {
   delete acts[sku];
   actsOrder = actsOrder.filter(s => s !== sku);
   persist();
-  saveActionToDB(sku, null, null);
+  saveActionToDB(sku, null);
   // Find where this SKU lands in the pending list after undo, then jump to it
   const pending = ALL.filter(x => !acts[x.s]);
   pending.sort((a, b) => a.d - b.d);
@@ -1865,10 +1885,17 @@ function queueNav(dir) {
 }
 function setBucketTab(t) { bucketTab = t; render(); }
 function setBucketSort(k) { bucketSort = k; render(); }
-function saveNote(sku, val) {
-  if (val.trim()) notes[sku] = val.trim(); else delete notes[sku];
+async function saveNote(sku, val) {
+  const text = val.trim();
+  if (!text) return;
+  if (notes[sku] === text) return; // unchanged — don't spam a duplicate thread entry
+  const author = _currentUserName();
+  if (!author) { toast('Unable to identify current user', 'error'); return; }
+  notes[sku] = text;
   persist();
-  if (acts[sku]) saveActionToDB(sku, acts[sku], val.trim());
+  try {
+    await sb.from('replenishment_notes').insert({ sku, author_name: author, text });
+  } catch(e) { console.warn('Failed to save note', e); }
 }
 
 // ── CHIPS ──
@@ -1948,7 +1975,10 @@ document.addEventListener('keydown', e => {
 async function restoreFromDB() {
   if (!sb) return;
   try {
-    const { data, error } = await sb.from('replenishment_skus').select('*').order('days_left', { ascending: true });
+    const [{ data, error }, latestNotes] = await Promise.all([
+      sb.from('replenishment_skus').select('*').order('days_left', { ascending: true }),
+      loadLatestReplNotes(),
+    ]);
     if (error || !data || !data.length) return;
 
     ALL = data.map(r => ({
@@ -1971,7 +2001,7 @@ async function restoreFromDB() {
     notes = {};
     data.forEach(r => {
       if (r.action) acts[r.sku] = r.action;
-      if (r.note)   notes[r.sku] = r.note;
+      if (latestNotes[r.sku]) notes[r.sku] = latestNotes[r.sku];
       if (r.action === 'basket' && r.supplier_name) basketSuppliers[r.sku] = r.supplier_name;
     });
 
