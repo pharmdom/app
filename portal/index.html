@@ -453,7 +453,40 @@
     }
 
     @keyframes miniCardIn{from{opacity:0;transform:translateY(12px) scale(.95)}to{opacity:1;transform:none}}
+
+    /* ══ GLOBAL WIDGET (always-on, lives in the shell) ══ */
+    .gw-fab{position:fixed;bottom:24px;right:24px;width:52px;height:52px;border-radius:50%;background:var(--white);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.14);z-index:2950;transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;padding:0;}
+    .gw-fab:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(0,0,0,.2);}
+    .gw-fab img{width:26px;height:26px;object-fit:contain;border-radius:50%;}
+    .gw-fab.open{box-shadow:0 0 0 4px var(--accent-soft),0 6px 28px rgba(0,0,0,.2);}
+    @keyframes gwPulse{0%,100%{box-shadow:0 4px 20px rgba(0,0,0,.14)}50%{box-shadow:0 4px 28px var(--accent-glow),0 0 0 8px var(--accent-soft)}}
+    .gw-fab.pulse{animation:gwPulse 2.4s ease-in-out 1s 3;}
+    .gw-menu{position:fixed;bottom:86px;right:24px;width:240px;background:var(--white);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-md);z-index:2950;padding:7px;opacity:0;transform:translateY(10px) scale(.96);pointer-events:none;transition:all .18s cubic-bezier(.16,1,.3,1);transform-origin:bottom right;}
+    .gw-menu.open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;}
+    .gw-menu-item{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:9px;cursor:pointer;transition:background .13s;user-select:none;}
+    .gw-menu-item:hover{background:var(--bg);}
+    .gw-menu-icon{width:32px;height:32px;border-radius:9px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .gw-menu-icon svg{width:16px;height:16px;}
+    .gw-menu-text{flex:1;min-width:0;}
+    .gw-menu-label{font-size:13px;font-weight:600;color:var(--text-primary);}
+    .gw-menu-sub{font-size:11px;color:var(--text-4);margin-top:1px;}
+    .gw-menu-badge{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:20px;background:var(--bg);color:var(--text-4);border:1px solid var(--border);flex-shrink:0;}
+    .gw-overlay{position:fixed;inset:0;background:rgba(12,15,20,.4);backdrop-filter:blur(2px);z-index:2900;opacity:0;pointer-events:none;transition:opacity .22s ease;}
+    .gw-overlay.open{opacity:1;pointer-events:auto;}
+    .gw-panel{position:fixed;top:0;right:0;bottom:0;width:460px;max-width:94vw;background:var(--bg);z-index:2960;box-shadow:-14px 0 50px rgba(0,0,0,.18);transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;}
+    .gw-panel.open{transform:translateX(0);}
+    .gw-panel-hdr{height:58px;flex-shrink:0;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 18px;}
+    .gw-panel-title{font-size:15px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:9px;}
+    .gw-panel-title-icon{width:28px;height:28px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .gw-panel-title-icon svg{width:14px;height:14px;}
+    .gw-panel-close{width:32px;height:32px;border-radius:9px;border:1px solid var(--border);background:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-3);transition:all .15s;}
+    .gw-panel-close:hover{background:var(--bg);color:var(--text-primary);}
+    .gw-panel-close svg{width:13px;height:13px;}
+    .gw-panel-body{flex:1;overflow-y:auto;position:relative;}
+    @media(max-width:640px){.gw-panel{width:100vw;}.gw-fab{bottom:18px;right:18px;}.gw-menu{right:18px;bottom:80px;width:calc(100vw - 36px);max-width:280px;}}
   </style>
+
+  
 </head>
 
 <body>
@@ -947,7 +980,7 @@ function setActiveNav(navId, groupId) {
     loadPage(key);
   }
 
-document.addEventListener('click', e => {
+  document.addEventListener('click', e => {
     const wrap = document.querySelector('.user-menu-wrap');
     if (wrap && !wrap.contains(e.target)) {
       document.getElementById('userDropdown').classList.remove('open');
@@ -956,6 +989,11 @@ document.addEventListener('click', e => {
 const footer = document.querySelector('.sidebar-footer');
     if (footer && !footer.contains(e.target)) {
       closeFooterFlyout();
+    }
+    const gwMenu = document.getElementById('gwMenu');
+    const gwFab  = document.getElementById('gwFab');
+    if (gwMenu && gwMenu.classList.contains('open') && !gwMenu.contains(e.target) && !gwFab.contains(e.target)) {
+      closeWidgetMenu();
     }
   });
 
@@ -1054,7 +1092,94 @@ function closeSidebar() {
     sessionStorage.removeItem('currentPage');
     window.location.href = '../login.html';
   }
-
+  // ── GLOBAL WIDGET ──
+  const GW_PANELS = {
+    guides:   { title: 'Page Guides',     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`, file: '../pages/page_guides.html' },
+    feedback: { title: 'Feedback & Bugs', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`, file: '../pages/feedbacks_bugs.html' },
+    chat:     { title: 'Chat',            icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`, file: null },
+  };
+  function toggleWidgetMenu(e) {
+    e.stopPropagation();
+    const menu = document.getElementById('gwMenu');
+    const fab  = document.getElementById('gwFab');
+    const isOpen = menu.classList.contains('open');
+    menu.classList.toggle('open', !isOpen);
+    fab.classList.toggle('open', !isOpen);
+    fab.classList.remove('pulse');
+  }
+  function closeWidgetMenu() {
+    document.getElementById('gwMenu')?.classList.remove('open');
+    document.getElementById('gwFab')?.classList.remove('open');
+  }
+  async function loadWidgetPanelContent(file) {
+    const body = document.getElementById('gwPanelBody');
+    body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;"><div class="loader-wrap"><div class="loader-ring"></div><div class="loader-text">Loading…</div></div></div>`;
+    try {
+      const res = await fetch(file, { cache: 'no-store' });
+      if (!res.ok) throw new Error('not found');
+      const html = await res.text();
+      body.innerHTML = html;
+      body.querySelectorAll('script').forEach(old => {
+        const s = document.createElement('script');
+        s.textContent = old.textContent;
+        document.body.appendChild(s);
+        document.body.removeChild(s);
+      });
+    } catch (e) {
+      body.innerHTML = `<div style="padding:60px 24px;text-align:center;color:var(--text-4);font-size:13px;line-height:1.6;">This panel isn't ready yet — check back soon.</div>`;
+    }
+  }
+  function openWidgetPanel(kind) {
+    const cfg = GW_PANELS[kind];
+    if (!cfg) return;
+    closeWidgetMenu();
+    document.getElementById('gwPanelTitle').textContent = cfg.title;
+    document.getElementById('gwPanelIcon').innerHTML = cfg.icon;
+    document.getElementById('gwOverlay').classList.add('open');
+    document.getElementById('gwPanel').classList.add('open');
+    const body = document.getElementById('gwPanelBody');
+    if (cfg.file) {
+      loadWidgetPanelContent(cfg.file);
+    } else {
+      body.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;padding:40px 24px;text-align:center;">
+        <div style="width:56px;height:56px;border-radius:16px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        </div>
+        <div style="font-size:15px;font-weight:700;color:var(--text-primary);">Chat is on its way</div>
+        <div style="font-size:13px;color:var(--text-3);line-height:1.6;max-width:280px;">We're building an in-app assistant so you can get help without leaving the page. Check back soon.</div>
+      </div>`;
+    }
+  }
+  function closeWidgetPanel() {
+    document.getElementById('gwOverlay').classList.remove('open');
+    document.getElementById('gwPanel').classList.remove('open');
+  }
+  // Called by page_guides.html entries — navigates to the target page/module, then opens its guide once ready
+  window.gwOpenPageGuide = function(key) {
+    closeWidgetPanel();
+    if (modules[key]) loadModule(key);
+    else if (pages[key]) loadPage(key);
+    else return;
+    let tries = 0;
+    const poll = setInterval(() => {
+      tries++;
+      if (typeof window.openGuide === 'function') {
+        clearInterval(poll);
+        setTimeout(() => window.openGuide(), 250);
+      } else if (tries > 20) {
+        clearInterval(poll);
+      }
+    }, 150);
+  };
+  window.openWidgetPanel  = openWidgetPanel;
+  window.closeWidgetPanel = closeWidgetPanel;
+  window.toggleWidgetMenu = toggleWidgetMenu;
+  window.closeWidgetMenu  = closeWidgetMenu;
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (document.getElementById('gwPanel')?.classList.contains('open')) { closeWidgetPanel(); return; }
+    if (document.getElementById('gwMenu')?.classList.contains('open')) { closeWidgetMenu(); }
+  });
   // ── INIT ──
   buildSidebar();
   const urlParams = new URLSearchParams(window.location.search);
@@ -1094,6 +1219,34 @@ function closeSidebar() {
     <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">Product Name</div>
     <div id="miniCardNameText" style="font-size:12.5px;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
   </div>
+</div>
+
+<!-- ══ GLOBAL WIDGET ══ -->
+<button class="gw-fab pulse" id="gwFab" onclick="toggleWidgetMenu(event)" title="Help & Feedback">
+  <img src="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png" alt="">
+</button>
+<div class="gw-menu" id="gwMenu">
+  <div class="gw-menu-item" onclick="openWidgetPanel('guides')">
+    <div class="gw-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
+    <div class="gw-menu-text"><div class="gw-menu-label">Page Guides</div><div class="gw-menu-sub">Learn how each page works</div></div>
+  </div>
+  <div class="gw-menu-item" onclick="openWidgetPanel('chat')">
+    <div class="gw-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></div>
+    <div class="gw-menu-text"><div class="gw-menu-label">Chat</div><div class="gw-menu-sub">Ask a question</div></div>
+    <span class="gw-menu-badge">Soon</span>
+  </div>
+  <div class="gw-menu-item" onclick="openWidgetPanel('feedback')">
+    <div class="gw-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
+    <div class="gw-menu-text"><div class="gw-menu-label">Feedback &amp; Bugs</div><div class="gw-menu-sub">Report an issue or idea</div></div>
+  </div>
+</div>
+<div class="gw-overlay" id="gwOverlay" onclick="closeWidgetPanel()"></div>
+<div class="gw-panel" id="gwPanel">
+  <div class="gw-panel-hdr">
+    <div class="gw-panel-title"><span class="gw-panel-title-icon" id="gwPanelIcon"></span><span id="gwPanelTitle">—</span></div>
+    <button class="gw-panel-close" onclick="closeWidgetPanel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="gw-panel-body" id="gwPanelBody"></div>
 </div>
 </body>
 </html>
