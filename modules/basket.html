@@ -1445,15 +1445,15 @@ function _cbPriceTrend(histArr, currentCost, fallbackOriginal){
  async function _cbFetchAllPurchased() {
     let nl=[], repl=[];
     try {
-      const { data } = await sb.from('sourcing')
-        .select('opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,qty_purchased,approved,purchased,created_at,purchased_at,sourcing_approvals(status)')
+         const { data } = await sb.from('sourcing')
+        .select('opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,qty_purchased,case_price,order_cases,approved,purchased,created_at,purchased_at,sourcing_approvals(status)')
         .eq('approved',true).eq('purchased',true)
         .order('purchased_at', { ascending:false, nullsFirst:false });
       nl = (data||[]).filter(p=>!(p.sourcing_approvals||[]).some(a=>a.status==='rejected'));
     } catch(e) { console.warn('CB pdf nl fetch:', e); }
     try {
-      const { data } = await sb.from('replenishment_skus')
-        .select('sku,name,ean,order_qty,cost_price,original_cost_price,days_left,urgency,image_url,supplier_name,action,actioned_at,uploaded_at,basket_added_at')
+         const { data } = await sb.from('replenishment_skus')
+        .select('sku,name,ean,order_qty,cost_price,original_cost_price,case_price,order_cases,days_left,urgency,image_url,supplier_name,action,actioned_at,uploaded_at,basket_added_at')
         .eq('action','pur')
         .order('actioned_at', { ascending:false, nullsFirst:false });
       repl = data||[];
@@ -2722,9 +2722,13 @@ function _cbPdfReplCost(p) {
       const costCell = trend.color
         ? `<span style="color:${trend.color};font-weight:700;">${trend.arrow} ${fmtGBP(c)}</span>`
         : fmtGBP(c);
+      const casePrice = (p.case_price!=null && p.case_price!=='') ? fmtGBP(p.case_price) : '—';
+      const orderCases = (p.order_cases!=null && p.order_cases!=='') ? Number(p.order_cases).toLocaleString() : '—';
       return `<tr data-sup="${escA(sup)}" data-date="${escA(when!=='—'?(isNL?p.purchased_at:p.actioned_at):'')}">
         <td style="font-family:monospace;font-size:10px;">${escH(ean)}</td><td>${escH(name)}</td><td>${added}</td><td>${when}</td>
         <td style="text-align:right;">${q.toLocaleString()}</td>
+        <td style="text-align:right;">${casePrice}</td>
+        <td style="text-align:right;">${orderCases}</td>
         ${isNL?'':`<td style="text-align:right;color:#94a3b8;">${origC>0?fmtGBP(origC):'—'}</td>`}
         <td style="text-align:right;">${costCell}</td>
         <td style="text-align:right;font-weight:600;">${fmtGBP(c*q)}</td>
@@ -2857,8 +2861,8 @@ function _cbPdfReplCost(p) {
           <div class="chip"><div class="chip-label">Replenishments</div><div class="chip-val">\${repl.length} item\${repl.length!==1?'s':''}</div></div>
           <div class="chip"><div class="chip-label">NL Total Value</div><div class="chip-val green">\${fmtGBPi(totalNLVal)}</div></div>
           <div class="chip"><div class="chip-label">Repl Total Value</div><div class="chip-val green">\${fmtGBPi(totalReplVal)}</div></div>\`;
-       const nlTh   = '<colgroup><col style="width:11%"><col style="width:31%"><col style="width:10%"><col style="width:10%"><col style="width:6%"><col style="width:8%"><col style="width:8%"><col style="width:16%"></colgroup><thead><tr><th>EAN</th><th>Product</th><th>Added to Basket</th><th>When Purchased</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Cost</th><th style="text-align:right">Total</th><th>Price History</th></tr></thead>';
-        const replTh = '<colgroup><col style="width:10%"><col style="width:28%"><col style="width:9%"><col style="width:9%"><col style="width:6%"><col style="width:7%"><col style="width:7%"><col style="width:8%"><col style="width:16%"></colgroup><thead><tr><th>EAN</th><th>Product</th><th>Added to Basket</th><th>When Purchased</th><th style="text-align:right">Qty</th><th style="text-align:right">Orig. Cost</th><th style="text-align:right">Purchase Cost</th><th style="text-align:right">Total</th><th>Price History</th></tr></thead>';
+              const nlTh   = '<colgroup><col style="width:9%"><col style="width:24%"><col style="width:9%"><col style="width:9%"><col style="width:5%"><col style="width:7%"><col style="width:7%"><col style="width:7%"><col style="width:7%"><col style="width:16%"></colgroup><thead><tr><th>EAN</th><th>Product</th><th>Added to Basket</th><th>When Purchased</th><th style="text-align:right">Qty</th><th style="text-align:right">Case Price</th><th style="text-align:right">Order Cases</th><th style="text-align:right">Unit Cost</th><th style="text-align:right">Total</th><th>Price History</th></tr></thead>';
+        const replTh = '<colgroup><col style="width:8%"><col style="width:22%"><col style="width:8%"><col style="width:8%"><col style="width:5%"><col style="width:6%"><col style="width:6%"><col style="width:6%"><col style="width:6%"><col style="width:6%"><col style="width:19%"></colgroup><thead><tr><th>EAN</th><th>Product</th><th>Added to Basket</th><th>When Purchased</th><th style="text-align:right">Qty</th><th style="text-align:right">Case Price</th><th style="text-align:right">Order Cases</th><th style="text-align:right">Orig. Cost</th><th style="text-align:right">Purchase Cost</th><th style="text-align:right">Total</th><th>Price History</th></tr></thead>';
         const supplierNames = [...new Set([...nl.map(p=>p.supplier_name||'Unknown'), ...repl.map(p=>p.supplier_name||'Unknown')])].sort();
         let tables='';
         supplierNames.forEach(sup=>{
