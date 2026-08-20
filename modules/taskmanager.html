@@ -5,7 +5,7 @@
 @keyframes tmFadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 .tm-toast{display:flex;align-items:center;gap:8px;padding:11px 16px;border-radius:11px;font-size:13px;font-weight:600;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.18);min-width:220px;animation:tmFadeIn .18s ease;}
 .tm-toast.success{background:#059669;} .tm-toast.error{background:#dc2626;} .tm-toast.info{background:#111827;}
-.tm-modal-overlay{position:fixed;inset:0;background:rgba(17,24,39,.4);z-index:2200;display:none;align-items:center;justify-content:center;padding:16px;}
+.tm-modal-overlay{position:fixed;inset:0;background:rgba(17,24,39,.65);z-index:2200;display:none;align-items:center;justify-content:center;padding:16px;}
 .tm-modal-overlay.open{display:flex;}
 .tm-confirm-box{background:#fff;border-radius:16px;padding:22px;width:360px;max-width:100%;box-shadow:0 20px 50px rgba(0,0,0,.2);}
 .tm-confirm-box h3{font-size:15px;font-weight:700;margin-bottom:6px;}
@@ -89,8 +89,13 @@
 .tm-list-deadline{display:flex;align-items:center;gap:6px;min-width:0;} .tm-list-deadline span{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .tm-list-empty{font-size:13px;color:#d1d5db;text-align:center;padding:44px 0;}
 /* form modal */
-.tm-form-box{background:#fff;border-radius:18px;box-shadow:0 25px 60px rgba(0,0,0,.22);width:100%;max-width:560px;max-height:92vh;overflow-y:auto;}
-.tm-modal-overlay.tm-drawer-mode{justify-content:flex-end;align-items:stretch;padding:0;background:rgba(15,23,42,.3);}
+.tm-form-box{background:#fff;border-radius:18px;box-shadow:0 25px 60px rgba(0,0,0,.22);width:100%;max-width:560px;max-height:92vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#e2e8f0 transparent;}
+.tm-form-box::-webkit-scrollbar{width:6px;}
+.tm-form-box::-webkit-scrollbar-track{background:transparent;margin:18px 0;}
+.tm-form-box::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:10px;}
+.tm-form-box::-webkit-scrollbar-thumb:hover{background:#cbd5e1;}
+  
+.tm-modal-overlay.tm-drawer-mode{justify-content:flex-end;align-items:stretch;padding:0;background:rgba(15,23,42,.65);}
 .tm-modal-overlay.tm-drawer-mode .tm-form-box{max-width:500px;width:100%;max-height:100vh;height:100%;border-radius:0;box-shadow:-8px 0 40px rgba(0,0,0,.13);animation:tmDrawerIn .28s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden;}
 @keyframes tmDrawerIn{from{transform:translateX(100%);}to{transform:translateX(0);}}
 @media(max-width:600px){.tm-modal-overlay.tm-drawer-mode .tm-form-box{max-width:100%;}}
@@ -172,8 +177,8 @@
     </div>
   </div>
 
-  <div class="tm-modal-overlay" id="tmFormOverlay"><div id="tmFormBoxHost"></div></div>
-
+  <div class="tm-modal-overlay" id="tmFormOverlay" onclick="if(event.target===this)window.tmCloseForm()"><div id="tmFormBoxHost"></div></div>
+  
   <div class="tm-header" id="tmHeader"></div>
   <div class="tm-toolbar" id="tmToolbar"></div>
   <div id="tmBoard"></div>
@@ -472,7 +477,7 @@
     }
     const columns = tmGroupBy==='status'
       ? STATUS_LIST.map(s=>({ key:s, tasks: filtered.filter(t=>t.status===s) }))
-      : tmMembers.map(m=>({ key:m.id, member:m, tasks: filtered.filter(t=>t.ownerIds[0]===m.id) }));
+      : tmWarehouseUsers.map(m=>({ key:m.id, member:m, tasks: filtered.filter(t=>t.ownerIds.includes(m.id)) }));
     host.innerHTML = `<div class="tm-board">${columns.map(col=>`
       <div class="tm-col">
         <div class="tm-col-head">
@@ -659,6 +664,10 @@
     document.getElementById('tmTabDetails').style.display = tab==='details'?'block':'none';
     document.getElementById('tmTabComments').style.display = tab==='comments'?'block':'none';
     document.getElementById('tmTabActivity').style.display = tab==='activity'?'block':'none';
+    const t = tmTasks.find(x=>x.id===tmFormEditingId);
+    if(!t) return;
+    if(tab==='activity') renderActivitySection(t);
+    if(tab==='comments') renderCommentsSection(t);
   };
 
   /* ── AUTO-SAVE + ACTIVITY LOG ── */
