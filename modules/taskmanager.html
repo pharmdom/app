@@ -1,1 +1,1043 @@
-<p>this is for warehouse task management</p>
+import { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  Plus, Search, X, Filter, ArrowUpDown, ChevronDown, Trash2, Check,
+  GripVertical, LayoutGrid, List, Calendar, MessageSquare, Paperclip,
+  UserPlus, Pencil, AlertCircle
+} from 'lucide-react';
+
+/* ---------------------------------- constants ---------------------------------- */
+
+const STATUS_LIST = ['To Do', 'Feedback', 'Complete'];
+const PRIORITY_LIST = ['Low', 'Medium', 'Urgent'];
+const CATEGORY_SUGGESTIONS = ['Frontend', 'Backend', 'QA', 'Design', 'UI/UX Design', 'DevOps', 'Marketing'];
+
+const PRIORITY_STYLES = {
+  Low: 'bg-sky-50 text-sky-600',
+  Medium: 'bg-orange-50 text-orange-600',
+  Urgent: 'bg-red-50 text-red-600',
+};
+const STATUS_STYLES = {
+  'To Do': 'bg-gray-100 text-gray-500',
+  Feedback: 'bg-purple-50 text-purple-600',
+  Complete: 'bg-emerald-50 text-emerald-600',
+};
+const CATEGORY_STYLE = 'bg-gray-100 text-gray-600';
+
+const AVATAR_PALETTE = [
+  'bg-indigo-500', 'bg-rose-500', 'bg-amber-500', 'bg-emerald-500',
+  'bg-sky-500', 'bg-fuchsia-500', 'bg-teal-500', 'bg-orange-500',
+];
+
+const COMMENT_POOL = [
+  'Looks good to me.', 'Can we get an update on this?', 'Nice work, approved.',
+  'Following up on this.', "Let's sync tomorrow.", 'Added the requested changes.',
+  'Ready for review.', 'Pushed the latest fix.',
+];
+const ATTACHMENT_POOL = ['brief.pdf', 'mockup.png', 'spec.docx', 'notes.txt', 'assets.zip', 'report.pdf', 'diagram.png'];
+
+/* ---------------------------------- helpers ---------------------------------- */
+
+function uid() {
+  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+function colorForId(id) {
+  let hash = 0;
+  for (const c of String(id)) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
+  return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
+}
+
+function firstName(name) {
+  return (name || '').trim().split(' ')[0];
+}
+
+function genComments(n, authorId) {
+  return Array.from({ length: n }).map((_, i) => ({
+    id: uid(),
+    authorId,
+    text: COMMENT_POOL[i % COMMENT_POOL.length],
+    createdAt: new Date(Date.now() - (n - i) * 86400000).toISOString(),
+  }));
+}
+function genAttachments(n) {
+  return Array.from({ length: n }).map((_, i) => ({ id: uid(), name: ATTACHMENT_POOL[i % ATTACHMENT_POOL.length] }));
+}
+
+function formatFull(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  const date = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return `${date} \u00b7 ${time}`;
+}
+
+function getDeadlineMeta(deadline, status) {
+  if (!deadline) return { full: 'No deadline set', cls: 'text-gray-400', badge: null };
+  const d = new Date(deadline);
+  const now = new Date();
+  const diffMs = d - now;
+  const diffDays = Math.ceil(diffMs / 86400000);
+  const full = formatFull(deadline);
+
+  if (status === 'Complete') {
+    return { full, cls: 'text-gray-400', badge: { text: 'Done', cls: 'bg-gray-100 text-gray-500' } };
+  }
+  if (diffMs < 0) {
+    const overdueDays = Math.abs(Math.floor(diffMs / 86400000));
+    return {
+      full, cls: 'text-red-600',
+      badge: { text: overdueDays < 1 ? 'Overdue' : `Overdue ${overdueDays}d`, cls: 'bg-red-50 text-red-600' },
+    };
+  }
+  if (diffDays === 0) return { full, cls: 'text-amber-600', badge: { text: 'Due today', cls: 'bg-amber-50 text-amber-600' } };
+  if (diffDays <= 2) return { full, cls: 'text-amber-600', badge: { text: `${diffDays}d left`, cls: 'bg-amber-50 text-amber-600' } };
+  if (diffDays <= 7) return { full, cls: 'text-gray-600', badge: { text: `${diffDays}d left`, cls: 'bg-blue-50 text-blue-600' } };
+  return { full, cls: 'text-gray-500', badge: { text: `${diffDays}d left`, cls: 'bg-gray-100 text-gray-500' } };
+}
+
+function sortTasks(tasks, sortBy) {
+  const arr = [...tasks];
+  if (sortBy === 'deadline') arr.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+  else if (sortBy === 'priority') {
+    const order = { Urgent: 0, Medium: 1, Low: 2 };
+    arr.sort((a, b) => order[a.priority] - order[b.priority]);
+  } else if (sortBy === 'created') arr.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  return arr;
+}
+
+function defaultDeadline() {
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  return { date: d.toISOString().slice(0, 10), time: '17:00' };
+}
+
+/* ---------------------------------- seed data ---------------------------------- */
+
+const seedMembers = [
+  { id: 'm1', name: 'Kael Josephyne' },
+  { id: 'm2', name: 'Adeline Haruki' },
+  { id: 'm3', name: 'Evelyn Jovanca' },
+  { id: 'm4', name: 'Raphael Levinders' },
+];
+
+function buildSeedTasks() {
+  const mk = (over) => ({
+    id: uid(),
+    title: '', description: '', category: 'Frontend', priority: 'Medium', status: 'To Do',
+    deadline: null, ownerIds: [], createdBy: 'm4', createdAt: '2026-07-01T09:00:00.000Z',
+    attachments: [], comments: [], ...over,
+  });
+  return [
+    mk({ title: 'Database Optimization', category: 'Backend', priority: 'Medium', status: 'Complete', deadline: '2026-03-25T09:30:00', ownerIds: ['m1'], attachments: genAttachments(2), comments: genComments(6, 'm1') }),
+    mk({ title: 'Homepage Redesign', description: 'FinPal', category: 'Frontend', priority: 'Urgent', status: 'Complete', deadline: '2024-11-08T16:45:00', ownerIds: ['m2'], attachments: genAttachments(1), comments: genComments(4, 'm2') }),
+    mk({ title: 'End-To-End Testing', category: 'QA', priority: 'Low', status: 'Feedback', deadline: '2026-08-03T11:15:00', ownerIds: ['m2'], attachments: genAttachments(3), comments: genComments(7, 'm2') }),
+    mk({ title: 'Style Guide Updates', category: 'UI/UX Design', priority: 'Urgent', status: 'Complete', deadline: '2026-02-19T13:00:00', ownerIds: ['m2'], attachments: genAttachments(2), comments: genComments(8, 'm2') }),
+    mk({ title: 'User Onboarding Flow', category: 'Frontend', priority: 'Medium', status: 'To Do', deadline: '2026-04-30T18:00:00', ownerIds: ['m3'], attachments: genAttachments(3), comments: genComments(6, 'm3') }),
+    mk({ title: 'Iconography Refresh', category: 'Design', priority: 'Medium', status: 'Complete', deadline: '2026-09-15T10:00:00', ownerIds: ['m3'], attachments: genAttachments(1), comments: genComments(7, 'm3') }),
+    mk({ title: 'Set Up Project Workspace', category: 'Backend', priority: 'Medium', status: 'To Do', deadline: '2026-08-25T17:00:00', ownerIds: ['m4'], attachments: [], comments: [] }),
+  ];
+}
+
+/* ---------------------------------- small components ---------------------------------- */
+
+function Avatar({ member, size = 'md' }) {
+  if (!member) return null;
+  const sizes = { sm: 'w-6 h-6 text-xs', md: 'w-8 h-8 text-sm', lg: 'w-11 h-11 text-base' };
+  const color = colorForId(member.id);
+  return (
+    <div
+      title={member.name}
+      className={`${sizes[size]} ${color} rounded-full flex items-center justify-center font-semibold text-white ring-2 ring-white shrink-0`}
+    >
+      {member.name.trim().charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
+function AvatarStack({ members, size = 'sm' }) {
+  if (!members.length) return null;
+  return (
+    <div className="flex -space-x-2">
+      {members.slice(0, 4).map((m) => <Avatar key={m.id} member={m} size={size} />)}
+      {members.length > 4 && (
+        <div className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs font-semibold flex items-center justify-center ring-2 ring-white">
+          +{members.length - 4}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Tag({ label, tone }) {
+  return <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${tone}`}>{label}</span>;
+}
+
+function Toast({ toast, onDismiss }) {
+  useEffect(() => {
+    const t = setTimeout(() => onDismiss(toast.id), 3000);
+    return () => clearTimeout(t);
+  }, [toast.id, onDismiss]);
+  const tone = toast.type === 'error' ? 'bg-red-600' : toast.type === 'info' ? 'bg-gray-900' : 'bg-emerald-600';
+  return (
+    <div className={`${tone} text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 min-w-64 animate-fade-in`}>
+      {toast.type !== 'error' && <Check size={16} className="shrink-0" />}
+      {toast.type === 'error' && <AlertCircle size={16} className="shrink-0" />}
+      <span>{toast.message}</span>
+    </div>
+  );
+}
+
+function ConfirmDialog({ open, title, message, confirmLabel = 'Delete', onConfirm, onCancel }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-40 px-4" onClick={onCancel}>
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-base font-semibold text-gray-900 mb-2">{title}</h3>
+        <p className="text-sm text-gray-500 mb-6">{message}</p>
+        <div className="flex justify-end gap-2">
+          <button onClick={onCancel} className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+            Cancel
+          </button>
+          <button onClick={onConfirm} className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors">
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Popover({ open, onClose, anchorClass = '', width = 'w-56', children }) {
+  if (!open) return null;
+  return (
+    <>
+      <div className="fixed inset-0 z-30" onClick={onClose} />
+      <div className={`absolute z-40 mt-2 ${width} bg-white rounded-xl shadow-lg border border-gray-100 p-2 ${anchorClass}`}>
+        {children}
+      </div>
+    </>
+  );
+}
+
+function SegmentedControl({ options, value, onChange, styles, size = 'md' }) {
+  const pad = size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-sm';
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((opt) => {
+        const active = value === opt;
+        return (
+          <button
+            type="button"
+            key={opt}
+            onClick={() => onChange(opt)}
+            className={`${pad} rounded-full font-medium border transition-colors ${
+              active ? `${styles[opt]} border-transparent ring-2 ring-offset-1 ring-gray-300` : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function OwnerPicker({ members, selectedIds, onChange, onAddMember }) {
+  const [open, setOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+  const selected = members.filter((m) => selectedIds.includes(m.id));
+
+  const toggle = (id) => {
+    if (selectedIds.includes(id)) onChange(selectedIds.filter((x) => x !== id));
+    else onChange([...selectedIds, id]);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center gap-2 flex-wrap px-3 py-2 rounded-lg border border-gray-200 text-sm text-left hover:border-gray-300 transition-colors min-h-11"
+      >
+        {selected.length === 0 && <span className="text-gray-400">Select owner or owners</span>}
+        {selected.map((m) => (
+          <span key={m.id} className="inline-flex items-center gap-1.5 bg-gray-100 rounded-full pl-1 pr-2 py-0.5">
+            <Avatar member={m} size="sm" />
+            <span className="text-xs font-medium text-gray-700">{firstName(m.name)}</span>
+          </span>
+        ))}
+        <ChevronDown size={16} className="ml-auto text-gray-400 shrink-0" />
+      </button>
+      <Popover open={open} onClose={() => setOpen(false)} width="w-64" anchorClass="left-0">
+        <div className="max-h-56 overflow-y-auto">
+          {members.map((m) => {
+            const active = selectedIds.includes(m.id);
+            return (
+              <button
+                type="button"
+                key={m.id}
+                onClick={() => toggle(m.id)}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Avatar member={m} size="sm" />
+                <span className="text-sm text-gray-700 font-medium">{firstName(m.name)}</span>
+                {active && <Check size={16} className="ml-auto text-blue-600" />}
+              </button>
+            );
+          })}
+        </div>
+        <div className="border-t border-gray-100 mt-2 pt-2 flex items-center gap-1.5 px-1">
+          <input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Add teammate"
+            className="flex-1 min-w-0 text-sm px-2 py-1.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newName.trim()) {
+                onAddMember(newName.trim());
+                setNewName('');
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (newName.trim()) {
+                onAddMember(newName.trim());
+                setNewName('');
+              }
+            }}
+            className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 shrink-0"
+          >
+            <UserPlus size={15} />
+          </button>
+        </div>
+      </Popover>
+    </div>
+  );
+}
+
+/* ---------------------------------- task card ---------------------------------- */
+
+function TaskCard({ task, members, onOpen, onDragStart, onToggleComplete, showOwners }) {
+  const owners = task.ownerIds.map((id) => members.find((m) => m.id === id)).filter(Boolean);
+  const meta = getDeadlineMeta(task.deadline, task.status);
+  const isComplete = task.status === 'Complete';
+
+  return (
+    <div
+      draggable
+      onDragStart={(e) => onDragStart(e, task.id)}
+      onClick={() => onOpen(task.id)}
+      className="relative bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer p-4 mb-3 group"
+    >
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onToggleComplete(task.id); }}
+        title={isComplete ? 'Mark as not complete' : 'Mark as complete'}
+        className={`absolute top-3.5 right-3.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+          isComplete ? 'bg-emerald-500 border-emerald-500' : 'border-gray-200 hover:border-emerald-400'
+        }`}
+      >
+        {isComplete && <Check size={12} className="text-white" strokeWidth={3} />}
+      </button>
+
+      <div className="flex items-center gap-1.5 mb-3 flex-wrap pr-7">
+        <GripVertical size={14} className="text-gray-300 shrink-0" />
+        <Tag label={task.category} tone={CATEGORY_STYLE} />
+        <Tag label={task.priority} tone={PRIORITY_STYLES[task.priority]} />
+        <Tag label={task.status} tone={STATUS_STYLES[task.status]} />
+      </div>
+
+      <h4 className="font-semibold text-gray-900 text-sm leading-snug mb-1 pr-2">{task.title}</h4>
+      {task.description && <p className="text-xs text-gray-400 mb-2 truncate">{task.description}</p>}
+
+      <div className="flex items-center justify-between mt-3">
+        <div className="flex items-center gap-1.5 text-xs min-w-0">
+          <Calendar size={13} className={`${meta.cls} shrink-0`} />
+          <span className={`${meta.cls} truncate`}>{meta.full}</span>
+        </div>
+        <div className="flex items-center gap-2 text-gray-400 text-xs shrink-0 ml-2">
+          {task.attachments.length > 0 && (
+            <span className="flex items-center gap-1"><Paperclip size={13} />{task.attachments.length}</span>
+          )}
+          <span className="flex items-center gap-1"><MessageSquare size={13} />{task.comments.length}</span>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between mt-2.5">
+        {meta.badge ? (
+          <span className={`inline-flex px-2 py-0.5 rounded-md text-xs font-semibold ${meta.badge.cls}`}>{meta.badge.text}</span>
+        ) : <span />}
+        {showOwners && owners.length > 0 && <AvatarStack members={owners} size="sm" />}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------- column ---------------------------------- */
+
+function Column({ colKey, headerLeft, count, tasks, members, onOpen, onDragStart, onDrop, onToggleComplete, onQuickCreate, showOwners }) {
+  const [over, setOver] = useState(false);
+  return (
+    <div
+      className="flex flex-col w-80 shrink-0"
+      onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => { e.preventDefault(); setOver(false); onDrop(colKey); }}
+    >
+      <div className="flex items-center justify-between mb-3 px-0.5">
+        <div className="flex items-center gap-2 min-w-0">
+          {headerLeft}
+          <span className="text-xs font-medium text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{count}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => onQuickCreate(colKey)}
+          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
+          aria-label="Add task"
+        >
+          <Plus size={16} />
+        </button>
+      </div>
+      <div className={`flex-1 rounded-2xl p-1 min-h-24 transition-colors ${over ? 'bg-blue-50 ring-2 ring-blue-200' : ''}`}>
+        {tasks.length === 0 && (
+          <div className="text-xs text-gray-300 text-center py-8 border border-dashed border-gray-200 rounded-2xl">
+            No tasks here yet
+          </div>
+        )}
+        {tasks.map((t) => (
+          <TaskCard key={t.id} task={t} members={members} onOpen={onOpen} onDragStart={onDragStart} onToggleComplete={onToggleComplete} showOwners={showOwners} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------- task form modal (create / edit) ---------------------------------- */
+
+function TaskFormModal({ open, mode, initialTask, members, currentUser, defaults, onClose, onSave, onDelete, onAddMember, onAddComment, onAddAttachment, onRemoveAttachment }) {
+  const isEdit = mode === 'edit';
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState(CATEGORY_SUGGESTIONS[0]);
+  const [priority, setPriority] = useState('Medium');
+  const [status, setStatus] = useState('To Do');
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [ownerIds, setOwnerIds] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [newAttachment, setNewAttachment] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    if (isEdit && initialTask) {
+      setTitle(initialTask.title);
+      setDescription(initialTask.description || '');
+      setCategory(initialTask.category);
+      setPriority(initialTask.priority);
+      setStatus(initialTask.status);
+      const d = initialTask.deadline ? new Date(initialTask.deadline) : new Date();
+      setDate(d.toISOString().slice(0, 10));
+      setTime(d.toTimeString().slice(0, 5));
+      setOwnerIds(initialTask.ownerIds);
+    } else {
+      const dd = defaultDeadline();
+      setTitle('');
+      setDescription('');
+      setCategory((defaults && defaults.category) || CATEGORY_SUGGESTIONS[0]);
+      setPriority('Medium');
+      setStatus((defaults && defaults.status) || 'To Do');
+      setDate(dd.date);
+      setTime(dd.time);
+      setOwnerIds((defaults && defaults.ownerIds) || (currentUser ? [currentUser.id] : []));
+    }
+    setError('');
+    setNewComment('');
+    setNewAttachment('');
+  }, [open, isEdit, initialTask, defaults, currentUser]);
+
+  if (!open) return null;
+
+  const handleSave = () => {
+    if (!title.trim()) { setError('Give this task a title first.'); return; }
+    const deadlineIso = date ? new Date(`${date}T${time || '17:00'}:00`).toISOString() : null;
+    const finalOwnerIds = ownerIds.length ? ownerIds : (currentUser ? [currentUser.id] : []);
+    onSave({
+      title: title.trim(),
+      description: description.trim(),
+      category: category.trim() || 'General',
+      priority, status, deadline: deadlineIso, ownerIds: finalOwnerIds,
+    });
+  };
+
+  const createdByMember = isEdit && initialTask ? members.find((m) => m.id === initialTask.createdBy) : currentUser;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-40 px-4 py-6" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-full overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
+          <h3 className="text-base font-semibold text-gray-900">{isEdit ? 'Task details' : 'Create task'}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100" aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Title</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Redesign onboarding flow"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+            {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional details"
+              rows={2}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Category</label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {CATEGORY_SUGGESTIONS.map((c) => (
+                <button
+                  type="button"
+                  key={c}
+                  onClick={() => setCategory(c)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    category === c ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+            <input
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Priority</label>
+            <SegmentedControl options={PRIORITY_LIST} value={priority} onChange={setPriority} styles={PRIORITY_STYLES} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Status &middot; where to mark this complete</label>
+            <SegmentedControl options={STATUS_LIST} value={status} onChange={setStatus} styles={STATUS_STYLES} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Deadline</label>
+            <div className="flex gap-2">
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-28 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+            </div>
+            {date && <p className={`text-xs mt-1.5 ${getDeadlineMeta(new Date(`${date}T${time || '17:00'}:00`).toISOString(), status).cls}`}>
+              {getDeadlineMeta(new Date(`${date}T${time || '17:00'}:00`).toISOString(), status).badge?.text}
+            </p>}
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Owner or owners</label>
+            <OwnerPicker members={members} selectedIds={ownerIds} onChange={setOwnerIds} onAddMember={onAddMember} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 pt-1">
+            <div>
+              <span className="block text-xs font-semibold text-gray-500 mb-1.5">Created</span>
+              <p className="text-sm text-gray-600">{isEdit && initialTask ? formatFull(initialTask.createdAt) : 'Now, on save'}</p>
+            </div>
+            <div>
+              <span className="block text-xs font-semibold text-gray-500 mb-1.5">Created by</span>
+              {createdByMember && (
+                <div className="flex items-center gap-2">
+                  <Avatar member={createdByMember} size="sm" />
+                  <span className="text-sm text-gray-600">{createdByMember.name}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {isEdit && initialTask && (
+            <>
+              <div className="border-t border-gray-100 pt-5">
+                <label className="block text-xs font-semibold text-gray-500 mb-2">Attachments</label>
+                <div className="space-y-1.5 mb-2">
+                  {initialTask.attachments.map((a) => (
+                    <div key={a.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-1.5">
+                      <span className="flex items-center gap-2 text-sm text-gray-600 truncate"><Paperclip size={13} className="shrink-0 text-gray-400" />{a.name}</span>
+                      <button onClick={() => onRemoveAttachment(initialTask.id, a.id)} className="text-gray-300 hover:text-red-500 shrink-0">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    value={newAttachment}
+                    onChange={(e) => setNewAttachment(e.target.value)}
+                    placeholder="Attachment file name"
+                    className="flex-1 px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newAttachment.trim()) { onAddAttachment(initialTask.id, newAttachment.trim()); setNewAttachment(''); }
+                    }}
+                  />
+                  <button
+                    onClick={() => { if (newAttachment.trim()) { onAddAttachment(initialTask.id, newAttachment.trim()); setNewAttachment(''); } }}
+                    className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm font-medium text-gray-600"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-5">
+                <label className="block text-xs font-semibold text-gray-500 mb-2">Comments</label>
+                <div className="space-y-3 mb-3 max-h-40 overflow-y-auto">
+                  {initialTask.comments.map((c) => {
+                    const author = members.find((m) => m.id === c.authorId);
+                    return (
+                      <div key={c.id} className="flex items-start gap-2.5">
+                        {author && <Avatar member={author} size="sm" />}
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-gray-700">{author ? author.name : 'Unknown'}</p>
+                          <p className="text-sm text-gray-600 break-words">{c.text}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {initialTask.comments.length === 0 && <p className="text-xs text-gray-300">No comments yet.</p>}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Write a comment"
+                    className="flex-1 px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newComment.trim()) { onAddComment(initialTask.id, newComment.trim()); setNewComment(''); }
+                    }}
+                  />
+                  <button
+                    onClick={() => { if (newComment.trim()) { onAddComment(initialTask.id, newComment.trim()); setNewComment(''); } }}
+                    className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm font-medium text-gray-600"
+                  >
+                    Post
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 sticky bottom-0 bg-white rounded-b-2xl">
+          {isEdit ? (
+            <button onClick={() => onDelete(initialTask.id)} className="flex items-center gap-1.5 text-sm font-medium text-red-500 hover:text-red-600 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors">
+              <Trash2 size={15} /> Delete
+            </button>
+          ) : <span />}
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">Cancel</button>
+            <button onClick={handleSave} className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors">
+              {isEdit ? 'Save changes' : 'Create task'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------- list view ---------------------------------- */
+
+function ListView({ tasks, members, onOpen, onToggleComplete }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="grid grid-cols-12 gap-3 px-5 py-3 border-b border-gray-100 text-xs font-semibold text-gray-400">
+        <div className="col-span-4">Task</div>
+        <div className="col-span-2">Tags</div>
+        <div className="col-span-2">Owners</div>
+        <div className="col-span-3">Deadline</div>
+        <div className="col-span-1 text-center">Done</div>
+      </div>
+      <div className="max-h-full">
+        {tasks.length === 0 && <div className="text-sm text-gray-300 text-center py-12">No tasks match your filters</div>}
+        {tasks.map((t) => {
+          const owners = t.ownerIds.map((id) => members.find((m) => m.id === id)).filter(Boolean);
+          const meta = getDeadlineMeta(t.deadline, t.status);
+          return (
+            <div
+              key={t.id}
+              onClick={() => onOpen(t.id)}
+              className="grid grid-cols-12 gap-3 px-5 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer items-center transition-colors"
+            >
+              <div className="col-span-4 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{t.title}</p>
+              </div>
+              <div className="col-span-2 flex flex-wrap gap-1">
+                <Tag label={t.priority} tone={PRIORITY_STYLES[t.priority]} />
+              </div>
+              <div className="col-span-2"><AvatarStack members={owners} size="sm" /></div>
+              <div className="col-span-3 flex items-center gap-2 min-w-0">
+                <span className={`text-xs ${meta.cls} truncate`}>{meta.full}</span>
+                {meta.badge && <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${meta.badge.cls}`}>{meta.badge.text}</span>}
+              </div>
+              <div className="col-span-1 flex justify-center">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onToggleComplete(t.id); }}
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                    t.status === 'Complete' ? 'bg-emerald-500 border-emerald-500' : 'border-gray-200 hover:border-emerald-400'
+                  }`}
+                >
+                  {t.status === 'Complete' && <Check size={12} className="text-white" strokeWidth={3} />}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------- main app ---------------------------------- */
+
+export default function App() {
+  const [loaded, setLoaded] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [members, setMembers] = useState(seedMembers);
+  const [currentUserId, setCurrentUserId] = useState('m4');
+
+  const [view, setView] = useState('kanban');
+  const [groupBy, setGroupBy] = useState('owner');
+  const [sortBy, setSortBy] = useState('deadline');
+  const [priorityFilter, setPriorityFilter] = useState([]);
+  const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const [openPopover, setOpenPopover] = useState(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState('create');
+  const [editingId, setEditingId] = useState(null);
+  const [formDefaults, setFormDefaults] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [toasts, setToasts] = useState([]);
+  const dragTaskId = useRef(null);
+
+  const pushToast = useCallback((message, type = 'success') => {
+    setToasts((t) => [...t, { id: uid(), message, type }]);
+  }, []);
+  const dismissToast = useCallback((id) => setToasts((t) => t.filter((x) => x.id !== id)), []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await window.storage.get('tm:state');
+        if (res && res.value) {
+          const parsed = JSON.parse(res.value);
+          setTasks(parsed.tasks && parsed.tasks.length ? parsed.tasks : buildSeedTasks());
+          setMembers(parsed.members && parsed.members.length ? parsed.members : seedMembers);
+          setCurrentUserId(parsed.currentUserId || 'm4');
+        } else {
+          setTasks(buildSeedTasks());
+        }
+      } catch (e) {
+        setTasks(buildSeedTasks());
+      }
+      setLoaded(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    (async () => {
+      try {
+        await window.storage.set('tm:state', JSON.stringify({ tasks, members, currentUserId }));
+      } catch (e) {
+        // best-effort persistence
+      }
+    })();
+  }, [tasks, members, currentUserId, loaded]);
+
+  const currentUser = members.find((m) => m.id === currentUserId) || members[0];
+
+  const addMember = (name) => {
+    const m = { id: uid(), name };
+    setMembers((prev) => [...prev, m]);
+    pushToast(`${firstName(name)} added to the team`);
+    return m.id;
+  };
+
+  const openCreate = (defaults) => {
+    setFormMode('create');
+    setEditingId(null);
+    setFormDefaults(defaults || null);
+    setFormOpen(true);
+  };
+  const openEdit = (id) => {
+    setFormMode('edit');
+    setEditingId(id);
+    setFormOpen(true);
+  };
+  const closeForm = () => setFormOpen(false);
+
+  const handleSave = (data) => {
+    if (formMode === 'edit' && editingId) {
+      setTasks((prev) => prev.map((t) => (t.id === editingId ? { ...t, ...data } : t)));
+      pushToast('Task updated');
+    } else {
+      const newTask = {
+        id: uid(), ...data, createdBy: currentUserId, createdAt: new Date().toISOString(),
+        attachments: [], comments: [],
+      };
+      setTasks((prev) => [newTask, ...prev]);
+      pushToast('Task created');
+    }
+    setFormOpen(false);
+  };
+
+  const requestDelete = (id) => setConfirmDeleteId(id);
+  const confirmDelete = () => {
+    setTasks((prev) => prev.filter((t) => t.id !== confirmDeleteId));
+    setConfirmDeleteId(null);
+    setFormOpen(false);
+    pushToast('Task deleted', 'info');
+  };
+
+  const toggleComplete = (id) => {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: t.status === 'Complete' ? 'To Do' : 'Complete' } : t)));
+  };
+
+  const addComment = (taskId, text) => {
+    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, comments: [...t.comments, { id: uid(), authorId: currentUserId, text, createdAt: new Date().toISOString() }] } : t));
+  };
+  const addAttachment = (taskId, name) => {
+    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, attachments: [...t.attachments, { id: uid(), name }] } : t));
+  };
+  const removeAttachment = (taskId, attId) => {
+    setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, attachments: t.attachments.filter((a) => a.id !== attId) } : t));
+  };
+
+  const handleDrop = (colKey) => {
+    const id = dragTaskId.current;
+    if (!id) return;
+    setTasks((prev) => prev.map((t) => {
+      if (t.id !== id) return t;
+      if (groupBy === 'owner') return { ...t, ownerIds: [colKey] };
+      return { ...t, status: colKey };
+    }));
+    dragTaskId.current = null;
+  };
+
+  const editingTask = tasks.find((t) => t.id === editingId) || null;
+
+  const filtered = tasks.filter((t) => {
+    if (search && !`${t.title} ${t.category}`.toLowerCase().includes(search.toLowerCase())) return false;
+    if (priorityFilter.length && !priorityFilter.includes(t.priority)) return false;
+    return true;
+  });
+  const sorted = sortTasks(filtered, sortBy);
+
+  const columns = groupBy === 'status'
+    ? STATUS_LIST.map((s) => ({ key: s, tasks: sorted.filter((t) => t.status === s) }))
+    : members.map((m) => ({ key: m.id, member: m, tasks: sorted.filter((t) => t.ownerIds[0] === m.id) }));
+
+  if (!loaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-8 h-8 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 items-end">
+        {toasts.map((t) => <Toast key={t.id} toast={t} onDismiss={dismissToast} />)}
+      </div>
+
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        title="Delete this task?"
+        message="This can't be undone. The task and its comments will be removed."
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
+
+      <TaskFormModal
+        open={formOpen}
+        mode={formMode}
+        initialTask={editingTask}
+        members={members}
+        currentUser={currentUser}
+        defaults={formDefaults}
+        onClose={closeForm}
+        onSave={handleSave}
+        onDelete={requestDelete}
+        onAddMember={addMember}
+        onAddComment={addComment}
+        onAddAttachment={addAttachment}
+        onRemoveAttachment={removeAttachment}
+      />
+
+      <div className="max-w-screen-2xl mx-auto px-6 py-6">
+        {/* header row */}
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+          <div className="flex items-center gap-1 bg-white rounded-xl border border-gray-100 p-1 shadow-sm">
+            <button
+              onClick={() => setView('kanban')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${view === 'kanban' ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}
+            >
+              <LayoutGrid size={15} /> Kanban
+            </button>
+            <button
+              onClick={() => setView('list')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${view === 'list' ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}
+            >
+              <List size={15} /> List
+            </button>
+          </div>
+
+          <div className="relative">
+            <button onClick={() => setOpenPopover(openPopover === 'user' ? null : 'user')} className="flex items-center gap-2 bg-white border border-gray-100 shadow-sm rounded-xl pl-2 pr-3 py-1.5">
+              <Avatar member={currentUser} size="sm" />
+              <span className="text-sm font-medium text-gray-700">{currentUser?.name}</span>
+              <ChevronDown size={14} className="text-gray-400" />
+            </button>
+            <Popover open={openPopover === 'user'} onClose={() => setOpenPopover(null)} anchorClass="right-0" width="w-56">
+              <p className="text-xs text-gray-400 px-2.5 py-1.5">Viewing as</p>
+              {members.map((m) => (
+                <button key={m.id} onClick={() => { setCurrentUserId(m.id); setOpenPopover(null); }} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-gray-50">
+                  <Avatar member={m} size="sm" />
+                  <span className="text-sm text-gray-700 font-medium">{m.name}</span>
+                  {m.id === currentUserId && <Check size={15} className="ml-auto text-blue-600" />}
+                </button>
+              ))}
+            </Popover>
+          </div>
+        </div>
+
+        {/* toolbar row */}
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <button onClick={() => setOpenPopover(openPopover === 'filter' ? null : 'filter')} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                <Filter size={14} /> Filter {priorityFilter.length > 0 && <span className="bg-blue-100 text-blue-600 text-xs font-semibold rounded-full px-1.5">{priorityFilter.length}</span>}
+              </button>
+              <Popover open={openPopover === 'filter'} onClose={() => setOpenPopover(null)} width="w-44">
+                <p className="text-xs font-semibold text-gray-400 px-2 py-1">Priority</p>
+                {PRIORITY_LIST.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPriorityFilter((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p])}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-50 text-sm text-gray-600"
+                  >
+                    {p}
+                    {priorityFilter.includes(p) && <Check size={14} className="text-blue-600" />}
+                  </button>
+                ))}
+                {priorityFilter.length > 0 && (
+                  <button onClick={() => setPriorityFilter([])} className="w-full text-left px-2.5 py-1.5 text-xs text-gray-400 hover:text-gray-600">Clear filters</button>
+                )}
+              </Popover>
+            </div>
+
+            <div className="relative">
+              <button onClick={() => setOpenPopover(openPopover === 'sort' ? null : 'sort')} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                <ArrowUpDown size={14} /> Sort by
+              </button>
+              <Popover open={openPopover === 'sort'} onClose={() => setOpenPopover(null)} width="w-40">
+                {[['deadline', 'Deadline'], ['priority', 'Priority'], ['created', 'Newest']].map(([key, label]) => (
+                  <button key={key} onClick={() => { setSortBy(key); setOpenPopover(null); }} className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-50 text-sm text-gray-600">
+                    {label}
+                    {sortBy === key && <Check size={14} className="text-blue-600" />}
+                  </button>
+                ))}
+              </Popover>
+            </div>
+
+            {view === 'kanban' && (
+              <div className="relative">
+                <button onClick={() => setOpenPopover(openPopover === 'group' ? null : 'group')} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                  Group by {groupBy === 'owner' ? 'owner' : 'status'}
+                </button>
+                <Popover open={openPopover === 'group'} onClose={() => setOpenPopover(null)} width="w-36">
+                  {[['owner', 'Owner'], ['status', 'Status']].map(([key, label]) => (
+                    <button key={key} onClick={() => { setGroupBy(key); setOpenPopover(null); }} className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-50 text-sm text-gray-600">
+                      {label}
+                      {groupBy === key && <Check size={14} className="text-blue-600" />}
+                    </button>
+                  ))}
+                </Popover>
+              </div>
+            )}
+
+            <div className={`flex items-center rounded-lg border border-gray-200 bg-white transition-all ${searchOpen ? 'w-56' : 'w-9'}`}>
+              <button onClick={() => setSearchOpen((s) => !s)} className="p-2 text-gray-500 shrink-0">
+                <Search size={15} />
+              </button>
+              {searchOpen && (
+                <input
+                  autoFocus
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search tasks"
+                  className="flex-1 min-w-0 pr-3 text-sm focus:outline-none bg-transparent"
+                />
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={() => openCreate(null)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm transition-colors"
+          >
+            <Plus size={16} /> Create Task
+          </button>
+        </div>
+
+        {/* board */}
+        {view === 'kanban' ? (
+          <div className="flex gap-5 overflow-x-auto pb-4">
+            {columns.map((col) => (
+              <Column
+                key={col.key}
+                colKey={col.key}
+                headerLeft={
+                  groupBy === 'owner'
+                    ? <div className="flex items-center gap-2 min-w-0"><Avatar member={col.member} size="sm" /><span className="text-sm font-semibold text-gray-900 truncate">{col.member.name}</span></div>
+                    : <div className="flex items-center gap-2 min-w-0"><span className={`w-2 h-2 rounded-full ${col.key === 'Complete' ? 'bg-emerald-500' : col.key === 'Feedback' ? 'bg-purple-500' : 'bg-gray-400'}`} /><span className="text-sm font-semibold text-gray-900">{col.key}</span></div>
+                }
+                count={col.tasks.length}
+                tasks={col.tasks}
+                members={members}
+                onOpen={openEdit}
+                onDragStart={(e, id) => { dragTaskId.current = id; }}
+                onDrop={handleDrop}
+                onToggleComplete={toggleComplete}
+                showOwners={groupBy === 'status'}
+                onQuickCreate={(key) => openCreate(groupBy === 'owner' ? { ownerIds: [key] } : { status: key })}
+              />
+            ))}
+          </div>
+        ) : (
+          <ListView tasks={sorted} members={members} onOpen={openEdit} onToggleComplete={toggleComplete} />
+        )}
+      </div>
+    </div>
+  );
+}
