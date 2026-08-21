@@ -2015,12 +2015,15 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
      _cbLoadBudgetBar();
     } catch(e) { _cbToast('Failed to update qty','error'); }
   };
-  window.cbUpdateNLCasePrice = async function(id, val) {
+  
+
+   window.cbUpdateNLCasePrice = async function(id, val) {
     const price = val===''?null:parseFloat(val);
     try {
       await sb.from('sourcing').update({ case_price:price, last_updated:new Date().toISOString() }).eq('opportunity_id',id);
       if (_drawerItem) { _drawerItem.data.case_price=price; }
       _cbToast('Case price updated','success');
+      window.renderCentralBasket(true);
     } catch(e) { _cbToast('Failed to update case price','error'); }
   };
   window.cbUpdateNLOrderCases = async function(id, val) {
@@ -2029,6 +2032,7 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
       await sb.from('sourcing').update({ order_cases:cases, last_updated:new Date().toISOString() }).eq('opportunity_id',id);
       if (_drawerItem) { _drawerItem.data.order_cases=cases; }
       _cbToast('Order cases updated','success');
+      window.renderCentralBasket(true);
     } catch(e) { _cbToast('Failed to update order cases','error'); }
   };
   window.cbUpdateReplCasePrice = async function(sku, val) {
@@ -2037,6 +2041,7 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
       await sb.from('replenishment_skus').update({ case_price:price }).eq('sku',sku);
       if (_drawerItem) { _drawerItem.data.case_price=price; }
       _cbToast('Case price updated','success');
+      window.renderCentralBasket(true);
     } catch(e) { _cbToast('Failed to update case price','error'); }
   };
   window.cbUpdateReplOrderCases = async function(sku, val) {
@@ -2045,6 +2050,7 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
       await sb.from('replenishment_skus').update({ order_cases:cases }).eq('sku',sku);
       if (_drawerItem) { _drawerItem.data.order_cases=cases; }
       _cbToast('Order cases updated','success');
+      window.renderCentralBasket(true);
     } catch(e) { _cbToast('Failed to update order cases','error'); }
   };
 
@@ -2069,7 +2075,8 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
   };
   function _cbSupplierOptions(selected) {
     return '<option value="">— Select Supplier —</option>' +
-      _cbSupplierList.map(s=>`<option value="${escA(s.name)}"${s.name===selected?' selected':''}>${escH(s.name)}</option>`).join('');
+      _cbSupplierList.map(s=>`<option value="${escA(s.name)}"${s.name===selected?' selected':''}>${escH(s.name)}</option>`).join('')
+      + `<option value="Inquiry" style="color:#c2410c;font-weight:700;"${selected==='Inquiry'?' selected':''}>Inquiry</option>`;
   }
   function _renderCbAddForm() {
     const body = document.getElementById('cbAddFormBody');
