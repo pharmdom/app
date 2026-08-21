@@ -2673,7 +2673,7 @@ async function parseImportOffersPDF(file){
   }
 }
 
- async function doImportOffers() {
+async function doImportOffers() {
   const supplierName = document.getElementById('importOffersSupplierSel')?.value?.trim();
   if (!supplierName) { toast('Select a supplier first', 'error'); return; }
   // Sync mapping from dropdowns at import time
@@ -2683,10 +2683,8 @@ async function parseImportOffersPDF(file){
   });
   if (!_importOffersMapping.product_name) { toast('Map the Product Name column first', 'error'); return; }
   if (!_importOffersRows.length) { toast('No rows to import', 'error'); return; }
-
   const today = new Date().toISOString().split('T')[0];
   const getVal = (row, field) => (_importOffersMapping[field] ? (row[_importOffersMapping[field]] || '').trim() : '');
-
   const validRows = [];
   let skipped = 0;
   _importOffersRows.forEach(row => {
@@ -2722,22 +2720,39 @@ async function parseImportOffersPDF(file){
     const caseQty = getVal(row, 'case_qty'); if (caseQty) rowData.case_qty = caseQty;
     validRows.push(rowData);
   });
-
   if (!validRows.length) { toast('No valid rows found — check Product Name mapping', 'error'); return; }
-
-  const existingOffers = offersData.filter(r => (r.approval || '').toLowerCase() !== 'rejected');
-  const existingKeys = new Set(existingOffers.map(r => `${String(r.ean || '').trim().toLowerCase()}|${String(r.supplier_name || '').trim().toLowerCase()}`));
-
+  const tidCheck = toast('Checking for duplicates…', 'loading', 0);
+  const rowEans = [...new Set(validRows.map(r => String(r.ean || '').trim().toLowerCase()).filter(Boolean))];
+  let existingEanSet = new Set();
+  try {
+    if (rowEans.length) {
+      const { data: existingRows, error: existingErr } = await sb
+        .from('offers')
+        .select('ean')
+        .in('ean', rowEans)
+        .neq('approval', 'Rejected');
+      if (existingErr) throw existingErr;
+      (existingRows || []).forEach(r => {
+        const k = String(r.ean || '').trim().toLowerCase();
+        if (k) existingEanSet.add(k);
+      });
+    }
+  } catch (e) {
+    removeToast(tidCheck);
+    toast('Failed to check for duplicates: ' + e.message, 'error');
+    return;
+  }
+  removeToast(tidCheck);
   const toInsert = [];
   let duplicates = 0;
   validRows.forEach(row => {
-    const key = `${String(row.ean || '').trim().toLowerCase()}|${String(row.supplier_name || '').trim().toLowerCase()}`;
-    if (row.ean && existingKeys.has(key)) { duplicates++; return; }
+    const key = String(row.ean || '').trim().toLowerCase();
+    if (row.ean && existingEanSet.has(key)) { duplicates++; return; }
     toInsert.push(row);
   });
-
   showImportOffersSummary(toInsert, duplicates, skipped, supplierName);
 }
+  
 window.doImportOffers = doImportOffers;
 
 function showImportOffersSummary(toInsert, duplicates, skipped, supplierName) {
