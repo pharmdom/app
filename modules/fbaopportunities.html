@@ -598,23 +598,10 @@ function fmtDate(v){if(!v)return '—';try{const d=new Date(v);return isNaN(d.ge
 
 /* ── STATUS CALCULATION ── */
 function calculateStatus(row){
-  const dg = row.dg;
-  const profit = parseFloat(row.profit_dg);
-  const standardPack = row.standard_pack_size;
-  const underOneKg = row.under_1kg;
-  const competition = parseInt(row.competition);
-  const asinSales = parseFloat(row.asin_sales);
-
-  if(dg===null||dg===undefined||isNaN(profit)||standardPack===null||standardPack===undefined||isNaN(competition)||isNaN(asinSales)){
-    return 'pending';
-  }
-  let profitOk=false;
-  if(dg===true&&profit>=45) profitOk=true;
-  if(dg===false&&profit>=35) profitOk=true;
-  let compOk=false;
-  if((competition===1||competition===2)&&asinSales>=75) compOk=true;
-  if(competition===0&&asinSales>=10) compOk=true;
-  return (profitOk&&standardPack===true&&underOneKg===true&&compOk)?'approved':'rejected';
+  const answered=FBA_FIELD_ORDER.map(f=>row[f.id]);
+  if(answered.some(v=>v===null||v===undefined)) return 'pending';
+  if(answered.some(v=>v===false)) return 'rejected';
+  return 'approved';
 }
 
 function getRowStatus(row){
@@ -630,11 +617,11 @@ function getRowStatus(row){
 async function loadData(){
   pStart();
   try{
-    const {data,error}=await sb
-      .from('listing')
+        const {data,error}=await sb
+      .from('fba_opportunity')
       .select('*')
-      .eq('fba_opportunity','Yes')
-      .order('date',{ascending:false});
+      .eq('is_active',true)
+      .order('created_at',{ascending:false});
     if(error) throw error;
     allData=data||[];
     renderView();
@@ -658,7 +645,7 @@ async function persistRow(opportunityId, changes){
   const ind=document.getElementById('save-indicator');
   if(ind){ind.textContent='Saving…';ind.style.color='var(--text4)';}
   try{
-    const {error}=await sb.from('listing').update(changes).eq('opportunity_id',opportunityId);
+    const {error}=await sb.from('fba_opportunity').update(changes).eq('opportunity_id',opportunityId);
     if(error) throw error;
     // Update local cache
     const idx=allData.findIndex(r=>r.opportunity_id===opportunityId);
@@ -706,7 +693,7 @@ function getFiltered(){
   const q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
   return allData.filter(r=>{
     if(q){
-      const s=(String(r.listing_name||'')+' '+String(r.asins||'')+' '+String(r.supplier_name||'')).toLowerCase();
+      const s=(String(r.product_name||'')+' '+String(r.asins||'')+' '+String(r.supplier_name||'')).toLowerCase();
       if(!s.includes(q)) return false;
     }
     if(_statusFilter&&getRowStatus(r)!==_statusFilter) return false;
@@ -753,9 +740,9 @@ function buildCard(r){
   const card=document.createElement('div');
   const{cls,label}=getStatusInfo(r);
   card.className='fba-card '+cls;
-  const dateStr=fmtDate(r.date);
+  const dateStr=fmtDate(r.created_at);
   let h='';
-  h+='<div class="fba-card-top"><div class="fba-card-name">'+esc(r.listing_name||'—')+'</div><span class="fba-status-badge '+cls+'">'+esc(label)+'</span></div>';
+  h+='<div class="fba-card-top"><div class="fba-card-name">'+esc(r.product_name||'—')+'</div><span class="fba-status-badge '+cls+'">'+esc(label)+'</span></div>';
   h+='<div class="fba-card-meta">';
   if(r.asins) h+='<span class="fba-card-asin">'+esc(r.asins.split(',')[0].trim())+'</span>';
   if(r.asins&&dateStr!=='—') h+='<span class="fba-card-sep"></span>';
@@ -763,31 +750,25 @@ function buildCard(r){
   h+='</div>';
   h+='<div class="fba-card-stats">'
     +'<div class="fba-stat"><div class="fba-stat-label">QTY</div><div class="fba-stat-val">'+esc(String(r.qty_purchased||'—'))+'</div></div>'
-    +'<div class="fba-stat"><div class="fba-stat-label">Sales</div><div class="fba-stat-val">'+esc(fmtNum(r.sales))+'</div></div>'
-    +'<div class="fba-stat"><div class="fba-stat-label">FBA Fees</div><div class="fba-stat-val">'+esc(fmt(r.fba_fees))+'</div></div>'
+    +'<div class="fba-stat"><div class="fba-stat-label">SAS</div><div class="fba-stat-val">'+esc(fmtNum(r.sas))+'</div></div>'
+    +'<div class="fba-stat"><div class="fba-stat-label">Unit Cost</div><div class="fba-stat-val">'+esc(fmt(r.cost_of_unit))+'</div></div>'
     +'</div>';
-  h+='<div class="fba-card-flags">';
-  if(r.dg!==null&&r.dg!==undefined) h+='<span class="fba-flag '+(r.dg?'yes':'no')+'">DG: '+(r.dg?'Yes':'No')+'</span>';
-  if(r.competition!==null&&r.competition!==undefined) h+='<span class="fba-flag na">Competition: '+esc(String(r.competition))+'</span>';
-  h+='</div>';
   card.innerHTML=h;
   card.addEventListener('click',()=>openDrawer(r.opportunity_id));
   return card;
 }
-
 function buildListItem(r){
   const item=document.createElement('div');
   const{cls,label}=getStatusInfo(r);
   item.className='fba-list-item '+cls;
   item.innerHTML=
-    '<div class="fba-list-name">'+esc(r.listing_name||'—')+'</div>'
+    '<div class="fba-list-name">'+esc(r.product_name||'—')+'</div>'
     +'<div class="fba-list-asin">'+esc(r.asins?r.asins.split(',')[0].trim():'—')+'</div>'
-    +'<div class="fba-list-date">'+esc(fmtDate(r.date))+'</div>'
+    +'<div class="fba-list-date">'+esc(fmtDate(r.created_at))+'</div>'
     +'<div class="fba-list-stat"><div class="fba-list-stat-lbl">QTY</div><div class="fba-list-stat-val">'+esc(String(r.qty_purchased||'—'))+'</div></div>'
-    +'<div class="fba-list-stat"><div class="fba-list-stat-lbl">Sales</div><div class="fba-list-stat-val">'+esc(fmtNum(r.sales))+'</div></div>'
+    +'<div class="fba-list-stat"><div class="fba-list-stat-lbl">SAS</div><div class="fba-list-stat-val">'+esc(fmtNum(r.sas))+'</div></div>'
     +'<div class="fba-list-badges">'
     +'<span class="fba-status-badge '+cls+'">'+esc(label)+'</span>'
-    +(r.dg!==null&&r.dg!==undefined?'<span class="fba-flag '+(r.dg?'yes':'no')+'">DG: '+(r.dg?'Yes':'No')+'</span>':'')
     +'</div>';
   item.addEventListener('click',()=>openDrawer(r.opportunity_id));
   return item;
@@ -854,16 +835,16 @@ function renderDrawer(row){
     +'<button class="drw-close" onclick="closeDrawer()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
     +'</div>'
     +'<div class="drw-stage-badge '+badgeCls+'">'+badgeIcon+esc(badgeLabel)+'</div>'
-    +'<div class="drw-name">'+esc(row.listing_name||'—')+'</div>'
+    +'<div class="drw-name">'+esc(row.product_name||'—')+'</div>'
     +'<div class="drw-meta-row">'
     +(row.asins?'<span class="drw-asin">'+esc(row.asins.split(',')[0].trim())+'</span>':'')
-    +(row.asins&&fmtDate(row.date)!=='—'?'<span class="drw-meta-sep"></span>':'')
-    +(fmtDate(row.date)!=='—'?'<span class="drw-date">'+esc(fmtDate(row.date))+'</span>':'')
+    +(row.asins&&fmtDate(row.created_at)!=='—'?'<span class="drw-meta-sep"></span>':'')
+    +(fmtDate(row.created_at)!=='—'?'<span class="drw-date">'+esc(fmtDate(row.created_at))+'</span>':'')
     +'</div>'
     +'<div class="drw-kpis">'
     +drwKpi('QTY',String(row.qty_purchased||'—'))
-    +drwKpi('Unit Cost',fmt(row.unit_cost))
-    +drwKpi('FBA Fees',fmt(row.fba_fees))
+    +drwKpi('Cost/Unit',fmt(row.cost_of_unit))
+    +drwKpi('SAS',fmtNum(row.sas))
     +'</div>'
     +'</div>';
 
@@ -873,68 +854,25 @@ function renderDrawer(row){
 
   let body='';
 
-  if(activeTab==='overview'){
-    body+=sec('Listing Info')
+    if(activeTab==='overview'){
+    body+=sec('Product Info')
       +'<div class="info-grid">'
       +readCard('Supplier',row.supplier_name||'—','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3z"/><path d="M8 11c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3z"/><path d="M2 20v-2a4 4 0 0 1 4-4"/><path d="M22 20v-2a4 4 0 0 0-4-4"/></svg>')
       +readCard('Code / EAN',row.code||'—','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>')
       +readCard('ASINs',row.asins||'—','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>')
-      +readCard('Arrived',row.arrived===true?'Yes':row.arrived===false?'No':'—','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>')
       +'</div></div>'
-      +sec('Financials')
+      +sec('Purchase Details')
       +'<div class="info-grid">'
       +readCard('QTY Purchased',String(row.qty_purchased||'—'),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>')
-      +readCard('Sales',fmtNum(row.sales),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>')
-      +readCard('Unit Cost',fmt(row.unit_cost),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>')
-      +readCard('ASIN Cost',fmt(row.asin_cost),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>')
+      +readCard('SAS Combined Sales',fmtNum(row.sas),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>')
+      +readCard('Cost of Unit',fmt(row.cost_of_unit),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>')
       +'</div></div>';
   }
 
-  if(activeTab==='fba'){
-    body+=sec('FBA Assessment')
-      +'<div class="info-grid">'
-      +inputBoolCard('fba-profitable','Profitable',row.profitable,'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>','Is profit £1 or more?')
-      +inputAmountCard('fba-fees','FBA Fees (£)',row.fba_fees,'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>')
-      +inputBoolCard('fba-dg','DG (Dangerous Goods)',row.dg,'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>')
-      +inputWholeCard('fba-competition','Competition',row.competition,'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>')
-      +'</div></div>'
-      +sec('Recommendations')
-      +'<div id="recFields">'
-      // Parcel Weight — always visible
-      +'<div class="rec-field visible" id="rec-parcel-weight"><div class="rec-field-inner">'
-      +'<label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Parcel Weight (kg)</label>'
-      +'<input type="number" id="rec-parcel-weight-val" step="0.01" min="0" placeholder="e.g. 0.5"'+(row.parcel_weight!=null?' value="'+esc(String(row.parcel_weight))+'"':'')+' oninput="onRecChange()" style="padding-left:10px!important">'
-      +'</div></div>'
-      // Standard Pack Size
-      +'<div class="rec-field" id="rec-standard-pack"><div class="rec-field-inner">'
-      +'<label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Standard Pack Size</label>'
-      +'<div class="select-wrap"><select id="rec-standard-pack-val" onchange="updateSelectColour(this);onRecChange();" class="'+(row.standard_pack_size===true?'val-yes':row.standard_pack_size===false?'val-no':'val-empty')+'">'
-      +'<option value="">Select…</option>'
-      +'<option value="Yes"'+(row.standard_pack_size===true?' selected':'')+'>Yes</option>'
-      +'<option value="No"'+(row.standard_pack_size===false?' selected':'')+'>No</option>'
-      +'</select><svg class="sel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>'
-      +'</div></div>'
-      // ASIN Sales
-      +'<div class="rec-field" id="rec-asin-sales"><div class="rec-field-inner">'
-      +'<label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>ASIN Sales</label>'
-      +'<input type="number" id="rec-asin-sales-val" step="1" min="0" placeholder="e.g. 120"'+(row.asin_sales!=null?' value="'+esc(String(row.asin_sales))+'"':'')+' oninput="onRecChange()">'
-      +'</div></div>'
-      // Profit ROI
-      +'<div class="rec-field" id="rec-profit-dg"><div class="rec-field-inner">'
-      +'<label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Profit ROI (%)</label>'
-      +'<input type="number" id="rec-profit-dg-val" step="1" min="0" placeholder="e.g. 38"'+(row.profit_dg!=null?' value="'+esc(String(row.profit_dg))+'"':'')+' oninput="onRecChange()" style="padding-left:10px!important">'
-      +'</div></div>'
-      // Status result
-      +'<div class="status-result" id="rec-status-result"><div class="status-result-inner" id="rec-status-inner">'
-      +'<div class="status-result-icon" id="rec-status-icon"></div>'
-      +'<div><div class="status-result-label" id="rec-status-label">Status</div>'
-      +'<div class="status-result-val" id="rec-status-val"></div>'
-      +'<div class="status-result-sub" id="rec-status-sub"></div></div>'
-      +'</div></div>'
-      +'</div></div>';
-
+   if(activeTab==='fba'){
+    body+=buildFbaFormHtml(row);
     document.getElementById('drawerBody').innerHTML=body;
-    setTimeout(()=>evaluateRec(row),80);
+    setTimeout(()=>evaluateFbaForm(row),80);
     renderFooter(id);
     return;
   }
@@ -974,8 +912,8 @@ async function confirmRemove(){
   closeDrawer();
   updateChips();
   toast('Removing from FBA…','info');
-  try{
-    const{error}=await sb.from('listing').update({fba_opportunity:'No'}).eq('opportunity_id',id);
+    try{
+    const{error}=await sb.from('fba_opportunity').delete().eq('opportunity_id',id);
     if(error) throw error;
     toast('Removed from FBA opportunities','success');
   }catch(e){
@@ -996,76 +934,76 @@ function updateSelectColour(el){
   else el.classList.add('val-empty');
 }
 
-function getRecValues(){
-  return{
-    parcelWeight: parseFloat(document.getElementById('rec-parcel-weight-val')?.value??''),
-    standardPack: document.getElementById('rec-standard-pack-val')?.value||'',
-    asinSales: parseFloat(document.getElementById('rec-asin-sales-val')?.value??''),
-    profitDg: parseFloat(document.getElementById('rec-profit-dg-val')?.value??'')
-  };
+const FBA_FIELD_ORDER = [
+  { id:'asin_hazmat_clear',   num:'1',  label:'ASIN is not under Hazmat review',
+    rejectMsg:'ASIN is under Hazmat review.' },
+  { id:'stock_competition_ok', num:'2', label:'50% or less stock is held by FBA competition at or below target price',
+    rejectMsg:'More than 50% of stock is held by competition at or below target price.' },
+  { id:'no_amazon_at_target',  num:'3', label:'There is no Amazon offer at or below target price',
+    rejectMsg:'Amazon is selling at or below target price.' },
+  { id:'profit_at_target_ok', num:'4a', label:'At least £1 profit is achievable at the target price', group:'Target Price',
+    rejectMsg:'Less than £1 profit is achievable at the target price.' },
+  { id:'roi_at_target_ok',    num:'4b', label:'30% ROI is achievable at the target price', group:'Target Price',
+    rejectMsg:'ROI falls below 30% at the target price.' },
+  { id:'target_price_min_met', num:'4c', label:'Target price is £8 or above', group:'Target Price',
+    rejectMsg:'Target price is below £8.' },
+];
+function gateField(id,num,question,currentVal){
+  const cls=currentVal===true?'val-yes':currentVal===false?'val-no':'val-empty';
+  return '<div class="rec-field" id="rec-'+id+'"><div class="rec-field-inner">'
+    +'<label><span style="display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:var(--accent-bg);color:var(--accent);font-size:9px;font-weight:800;flex-shrink:0;">'+num+'</span>'+esc(question)+'</label>'
+    +'<div class="select-wrap"><select id="fba-'+id+'" class="'+cls+'" onchange="updateSelectColour(this);onFbaChange();">'
+    +'<option value="">Select…</option>'
+    +'<option value="Yes"'+(currentVal===true?' selected':'')+'>Yes</option>'
+    +'<option value="No"'+(currentVal===false?' selected':'')+'>No</option>'
+    +'</select><svg class="sel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>'
+    +'</div></div>';
 }
-
-function onRecChange(){
-  const spEl=document.getElementById('rec-standard-pack-val');
-  if(spEl) updateSelectColour(spEl);
-  // Update FBA Fees KPI in hero live
-  const feesEl=document.getElementById('fba-fees');
-  if(feesEl){
-    document.querySelectorAll('.drw-kpi').forEach(kpi=>{
-      const lbl=kpi.querySelector('.drw-kpi-lbl');
-      if(lbl&&lbl.textContent.trim().toUpperCase()==='FBA FEES'){
-        const val=kpi.querySelector('.drw-kpi-val');
-        if(val){const n=parseFloat(feesEl.value);val.textContent=isNaN(n)?'—':'£'+n.toFixed(2);}
-      }
-    });
+function buildFbaFormHtml(row){
+  let html=sec('FBA Eligibility')+'<div id="fbaGateFields">';
+  let groupOpened=false;
+  FBA_FIELD_ORDER.forEach(f=>{
+    if(f.group && !groupOpened){
+      html+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin:14px 0 8px;display:flex;align-items:center;gap:8px;">Target Price<span style="flex:1;height:1px;background:var(--border2);"></span></div>';
+      groupOpened=true;
+    }
+    html+=gateField(f.id,f.num,f.label,row[f.id]);
+  });
+  html+='<div class="status-result" id="rec-status-result"><div class="status-result-inner" id="rec-status-inner">'
+    +'<div class="status-result-icon" id="rec-status-icon"></div>'
+    +'<div><div class="status-result-label" id="rec-status-label">Status</div>'
+    +'<div class="status-result-val" id="rec-status-val"></div>'
+    +'<div class="status-result-sub" id="rec-status-sub"></div></div>'
+    +'</div></div>'
+    +'</div></div>';
+  return html;
+}
+function hideRemainingAfter(idx){
+  for(let j=idx+1;j<FBA_FIELD_ORDER.length;j++) hideF('rec-'+FBA_FIELD_ORDER[j].id);
+}
+function evaluateFbaForm(row){
+  for(let i=0;i<FBA_FIELD_ORDER.length;i++){
+    const f=FBA_FIELD_ORDER[i];
+    showF('rec-'+f.id);
+    const sel=document.getElementById('fba-'+f.id);
+    const val=sel?sel.value:'';
+    if(val===''){
+      hideRemainingAfter(i);
+      hideF('rec-status-result');
+      return;
+    }
+    if(val==='No'){
+      hideRemainingAfter(i);
+      showResult('rejected',f.rejectMsg);
+      return;
+    }
   }
-const row=allData.find(r=>r.opportunity_id===_openId);
-  if(row) evaluateRec(row);
+  showResult('approved','All eligibility checks passed — ready for FBA.');
+}
+function onFbaChange(){
+  const row=allData.find(r=>r.opportunity_id===_openId);
+  if(row) evaluateFbaForm(row);
   saveFbaFields();
-}
-
-function evaluateRec(row){
-  const dgEl=document.getElementById('fba-dg');
-  const dgVal=dgEl?dgEl.value:(row.dg===true?'Yes':row.dg===false?'No':'');
-  const compEl=document.getElementById('fba-competition');
-  const comp=compEl&&compEl.value!==''?parseInt(compEl.value):(row.competition!=null?parseInt(row.competition):NaN);
-  const v=getRecValues();
-
-  showF('rec-parcel-weight');
-
-  if(isNaN(v.parcelWeight)){
-    hideF('rec-standard-pack');hideF('rec-asin-sales');hideF('rec-profit-dg');hideF('rec-status-result');return;
-  }
-  showF('rec-standard-pack');
-
-  // <=1kg
-  if(v.parcelWeight>1){
-    hideF('rec-asin-sales');hideF('rec-profit-dg');
-    showResult('rejected','Parcel weight exceeds 1kg.');return;
-  }
-
-  if(!v.standardPack){hideF('rec-asin-sales');hideF('rec-profit-dg');hideF('rec-status-result');return;}
-  if(v.standardPack==='No'){hideF('rec-asin-sales');hideF('rec-profit-dg');showResult('rejected','Non-standard pack size.');return;}
-
-  showF('rec-asin-sales');
-  if(isNaN(v.asinSales)){hideF('rec-profit-dg');hideF('rec-status-result');return;}
-
-  let compOk=false;
-  if(!isNaN(comp)){
-    if((comp===1||comp===2)&&v.asinSales>=75) compOk=true;
-    if(comp===0&&v.asinSales>=10) compOk=true;
-  }
-  if(!compOk){hideF('rec-profit-dg');showResult('rejected','Competition/sales threshold not met.');return;}
-
-  showF('rec-profit-dg');
-  if(isNaN(v.profitDg)){hideF('rec-status-result');return;}
-
-  const dg=String(dgVal||'').trim().toLowerCase();
-  let profitOk=false;
-  if(dg==='yes'&&v.profitDg>=45) profitOk=true;
-  if(dg==='no'&&v.profitDg>=35) profitOk=true;
-
-  showResult(profitOk?'approved':'rejected', profitOk?'All conditions met — ready for FBA.':'Profit threshold not met.');
 }
 
 function showResult(status, reason){
@@ -1094,38 +1032,17 @@ function showResult(status, reason){
 function saveFbaFields(){
   const row=allData.find(r=>r.opportunity_id===_openId);
   if(!row) return;
-
   const changes={};
-  const dgEl=document.getElementById('fba-dg');
-  const profEl=document.getElementById('fba-profitable');
-  const feesEl=document.getElementById('fba-fees');
-  const compEl=document.getElementById('fba-competition');
-  const pwEl=document.getElementById('rec-parcel-weight-val');
-  const spEl=document.getElementById('rec-standard-pack-val');
-  const asEl=document.getElementById('rec-asin-sales-val');
-  const pdEl=document.getElementById('rec-profit-dg-val');
-
-  if(dgEl&&dgEl.value!=='') changes.dg=dgEl.value==='Yes';
-  if(profEl&&profEl.value!=='') changes.profitable=profEl.value==='Yes';
-  if(feesEl&&feesEl.value!=='') changes.fba_fees=parseFloat(feesEl.value)||null;
-  if(compEl&&compEl.value!=='') changes.competition=parseInt(compEl.value);
-  if(pwEl&&pwEl.value!==''){
-    const pw=parseFloat(pwEl.value);
-    if(!isNaN(pw)){changes.parcel_weight=pw;changes.under_1kg=pw<=1;}
-  }
-  if(spEl&&spEl.value!=='') changes.standard_pack_size=spEl.value==='Yes';
-  if(asEl&&asEl.value!=='') changes.asin_sales=parseFloat(asEl.value)||null;
-  if(pdEl&&pdEl.value!=='') changes.profit_dg=parseFloat(pdEl.value)||null;
-
-  // Capture calculated status
+  FBA_FIELD_ORDER.forEach(f=>{
+    const el=document.getElementById('fba-'+f.id);
+    if(el&&el.value!=='') changes[f.id]=el.value==='Yes';
+  });
   const statusInner=document.getElementById('rec-status-inner');
   if(statusInner){
     if(statusInner.classList.contains('approved')) changes.fba_status='Approved';
     else if(statusInner.classList.contains('rejected')) changes.fba_status='Rejected';
   }
-
   if(Object.keys(changes).length===0){toast('No changes to save','info');return;}
-
   clearTimeout(_saveTimer);
   _saveTimer=setTimeout(()=>persistRow(_openId,changes),300);
 }
@@ -1195,7 +1112,7 @@ window.refreshData=refreshData;
 window.renderView=renderView;
 window.setView=setView;
 window.navDrawer=navDrawer;
-window.onRecChange=onRecChange;
+window.onFbaChange=onFbaChange;
 window.filterByStatus=filterByStatus;
 window.updateSelectColour=updateSelectColour;
 window.startRemove=startRemove;
