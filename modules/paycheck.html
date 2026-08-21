@@ -438,6 +438,28 @@
 
     .payment-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
+    /* ── WEEK NOTES TOGGLE (Digital Ops) ── */
+    .week-notes-toggle {
+      display: flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; border: none; background: none; cursor: pointer;
+      color: #94a3b8; flex-shrink: 0; padding: 0; border-radius: 6px;
+      transition: background .12s, color .12s;
+    }
+    .week-notes-toggle:hover { background: #f1f5f9; color: #475569; }
+    .week-notes-toggle-icon { transition: transform .18s; }
+    .week-notes-toggle-icon.open { transform: rotate(90deg); }
+    .week-notes-panel {
+      display: none;
+      background: #faf9ff; border: 1px solid #ede9fe; border-radius: 10px;
+      padding: 10px 14px; margin-top: 6px;
+    }
+    .week-notes-panel.open { display: block; }
+    .week-notes-day { margin-bottom: 8px; }
+    .week-notes-day:last-child { margin-bottom: 0; }
+    .week-notes-day-label { font-size: 10.5px; font-weight: 700; color: #7c3aed; margin-bottom: 2px; }
+    .week-notes-day-text { font-size: 12px; color: #475569; line-height: 1.5; white-space: pre-wrap; }
+
+    
     .mark-paid-btn {
       display: inline-flex; align-items: center; gap: 5px;
       padding: 6px 11px; border-radius: 8px; border: none; cursor: pointer;
@@ -1031,18 +1053,20 @@ let allData         = [];
     showPageLoading();
     try {
       // Two separate queries — no FK so no join
-const [shiftsRes, usersRes, closuresRes] = await Promise.all([
+const [shiftsRes, usersRes, closuresRes, tasksRes] = await Promise.all([
         sb.from('rota_schedule')
-          .select('id, employee_id, date, start_time, end_time, type, paid, hourly_rate, bonus, bonus_note')
+          .select('id, employee_id, date, start_time, end_time, type, paid, hourly_rate, bonus, bonus_note, task_id, notes')
           .order('date', { ascending: true }),
         sb.from('users')
           .select('user_id, first_name, last_name, role, holiday_hours'),
-        sb.from('rota_closures').select('*')
+        sb.from('rota_closures').select('*'),
+        sb.from('rota_tasks').select('id, name')
       ]);
 
       if (shiftsRes.error) throw shiftsRes.error;
       if (usersRes.error) throw usersRes.error;
       if (closuresRes.error) throw closuresRes.error;
+      if (tasksRes.error) throw tasksRes.error;
 
       const myUserRow = (usersRes.data||[]).find(u=>String(u.user_id)===String(currentUser.userId));
       myHolidayHours = Array.isArray(myUserRow?.holiday_hours) ? myUserRow.holiday_hours : [];
@@ -1058,7 +1082,7 @@ const [shiftsRes, usersRes, closuresRes] = await Promise.all([
         shiftId: c.shift_id ? String(c.shift_id) : null
       }));
 
-      // Build user lookup map
+           // Build user lookup map
      const userMap = {};
       (usersRes.data || []).forEach(u => {
       userMap[String(u.user_id)] = {
@@ -1067,10 +1091,18 @@ const [shiftsRes, usersRes, closuresRes] = await Promise.all([
         };
       });
 
+      // Digital Ops task ids — shifts on this task carry Notes we surface in Paycheck
+      const digitalOpsTaskIds = new Set(
+        (tasksRes.data || [])
+          .filter(t => (t.name || '').toLowerCase().trim() === 'digital ops')
+          .map(t => String(t.id))
+      );
+
 // Shifts linked to a Holiday closure row (via shift_id) are excluded from pay entirely
+      
       const holidayShiftIds = new Set(myClosures.filter(c => c.shiftId).map(c => c.shiftId));
       // Map shifts to paycheck records
-      allData = (shiftsRes.data || [])
+            allData = (shiftsRes.data || [])
         .filter(r => r.type !== 'break' && !holidayShiftIds.has(String(r.id))) // exclude breaks and Holiday shifts from pay
         .map(r => {
           const user  = userMap[String(r.employee_id)] || {};
@@ -1087,7 +1119,10 @@ const [shiftsRes, usersRes, closuresRes] = await Promise.all([
             totalPay:     parseFloat((hours * rate).toFixed(2)),
             paid:         r.paid ? 'Yes' : 'No',
             bonus:        parseFloat(r.bonus || 0),
-            bonusNote:    r.bonus_note || ''
+            bonusNote:    r.bonus_note || '',
+            taskId:       String(r.task_id || ''),
+            notes:        r.notes || '',
+            isDigitalOps: digitalOpsTaskIds.has(String(r.task_id || ''))
           };
         });
 
@@ -1340,6 +1375,7 @@ function employeeWeekRow(week) {
   const isPaid   = week.paid === 'Yes';
     const hasBonus = week.bonus > 0;
     const holHours = getHolidayHoursForWeek(week.weekKey);
+    const rowKey = escAttr('my_' + week.weekKey);
     const badge = isPaid
       ? `<span style="font-size:11px;font-weight:600;color:#15803d;background:#dcfce7;padding:3px 9px;border-radius:6px;border:1px solid #bbf7d0;">Paid</span>`
       : `<span style="font-size:11px;font-weight:600;color:#f59e0b;background:#fef3c7;padding:3px 9px;border-radius:6px;border:1px solid #fde68a;">Unpaid</span>`;
@@ -1349,7 +1385,9 @@ function employeeWeekRow(week) {
     const holLine = holHours > 0
       ? `<div style="font-size:11px;color:#b45309;font-weight:600;margin-top:2px;">🌴 ${fmtHM(holHours)} holiday this week (not included in pay)</div>`
       : '';
-    return `<div class="payment-row ${isPaid?'paid-row':'pending-row'}">
+    return `<div class="payment-row-wrap">
+    <div class="payment-row ${isPaid?'paid-row':'pending-row'}">
+      ${weekNotesToggleHTML(week, rowKey)}
       <div class="payment-date-box" style="min-width:70px;"><div style="font-size:11px;font-weight:700;color:#0f172a;line-height:1.3;">${escHtml(week.weekLabel)}</div></div>
       <div class="payment-info">
         <div class="payment-hours-row"><span class="payment-hours">${fmtHM(week.totalHours)}</span><span class="payment-rate">@ £${fmt(week.hourlyRate)}/hr</span></div>
@@ -1358,6 +1396,8 @@ function employeeWeekRow(week) {
         ${holLine}
       </div>
       <div class="payment-actions">${badge}</div>
+    </div>
+    ${weekNotesHTML(week, rowKey)}
     </div>`;
   }
 
@@ -1986,16 +2026,22 @@ function getWeekKey(dateStr) {
       weeks[key].records.push(r);
       if (r.paid !== 'Yes') weeks[key].paid = 'No';
     });
-return Object.values(weeks).sort((a,b) => b.weekKey.localeCompare(a.weekKey)).map(w => {
+
+    return Object.values(weeks).sort((a,b) => b.weekKey.localeCompare(a.weekKey)).map(w => {
       const bonus     = w.records.reduce((s,r) => s + r.bonus, 0);
       const bonusNote = w.records.find(r => r.bonusNote)?.bonusNote || '';
       const basePay   = w.records.reduce((s,r) => s+r.totalPay, 0);
+      const notesList = w.records
+        .filter(r => r.isDigitalOps && r.notes && r.notes.trim())
+        .sort((a,b) => a.date.localeCompare(b.date))
+        .map(r => ({ date: r.date, notes: r.notes.trim() }));
       return {
         ...w,
         totalHours:   w.records.reduce((s,r) => s+r.totalHours, 0),
         basePay,
         bonus,
         bonusNote,
+        notesList,
         totalPay:     parseFloat((basePay + bonus).toFixed(2)),
         hourlyRate:   w.records[0]?.hourlyRate || 0,
         employeeId:   w.records[0]?.employeeId || '',
@@ -2234,8 +2280,32 @@ document.getElementById('drawerFilterBar').innerHTML =
     '</div>';
   }
 
+function weekNotesToggleHTML(week, rowKey) {
+    if (!week.notesList.length) return '';
+    return `<button class="week-notes-toggle" id="notesToggle_${rowKey}" onclick="event.stopPropagation();toggleWeekNotes('${rowKey}')" title="Show notes">
+      <svg class="week-notes-toggle-icon" id="notesToggleIcon_${rowKey}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>`;
+  }
+  function weekNotesHTML(week, rowKey) {
+    if (!week.notesList.length) return '';
+    const days = week.notesList.map(n => {
+      const d = new Date(n.date);
+      const dayLabel = d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
+      return `<div class="week-notes-day"><div class="week-notes-day-label">${escHtml(dayLabel)}</div><div class="week-notes-day-text">${escHtml(n.notes)}</div></div>`;
+    }).join('');
+    return `<div class="week-notes-panel" id="notesPanel_${rowKey}">${days}</div>`;
+  }
+  function toggleWeekNotes(rowKey) {
+    const panel = document.getElementById('notesPanel_' + rowKey);
+    const icon  = document.getElementById('notesToggleIcon_' + rowKey);
+    if (!panel) return;
+    const isOpen = panel.classList.toggle('open');
+    if (icon) icon.classList.toggle('open', isOpen);
+  }
+  window.toggleWeekNotes = toggleWeekNotes;
+
 function paymentRow(week, empId) {
-    const isPaid  = week.paid === 'Yes';
+  const isPaid  = week.paid === 'Yes';
     const rowKey  = escAttr(empId + '_' + week.weekKey);
     const hasBonus = week.bonus > 0;
     const holHoursAdmin = getHolidayHoursForWeekEmp(week.weekKey, empId);
@@ -2251,8 +2321,10 @@ function paymentRow(week, empId) {
     const bonusBtn = !isPaid
       ? `<button class="mark-paid-btn" style="background:#f5f3ff;color:#7c3aed;border:1.5px solid #ddd6fe;" onclick="event.stopPropagation();openBonusModal('${escAttr(empId)}','${escAttr(week.weekKey)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>${hasBonus ? 'Bonus' : 'Bonus'}</button>`
       : '';
-    return `<div class="payment-row ${isPaid?'paid-row':'pending-row'}" id="row_${rowKey}">
+        return `<div class="payment-row-wrap">
+    <div class="payment-row ${isPaid?'paid-row':'pending-row'}" id="row_${rowKey}">
       <div class="row-saving" id="saving_${rowKey}"><div class="spinner"></div></div>
+      ${weekNotesToggleHTML(week, rowKey)}
       <div class="payment-date-box" style="min-width:70px;"><div style="font-size:11px;font-weight:700;color:#0f172a;line-height:1.3;">${escHtml(week.weekLabel)}</div></div>
       <div class="payment-info">
         <div class="payment-hours-row"><span class="payment-hours">${fmtHM(week.totalHours)}</span><span class="payment-rate">@ £${fmt(week.hourlyRate)}/hr</span>${bonusTag}${holTag}</div>
@@ -2262,6 +2334,8 @@ function paymentRow(week, empId) {
         </div>
       </div>
       <div class="payment-actions">${bonusBtn}${actionBtn}</div>
+    </div>
+    ${weekNotesHTML(week, rowKey)}
     </div>`;
   }
 
