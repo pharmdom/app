@@ -217,6 +217,9 @@ body { overflow: hidden; }
 .field input, .field select { width: 100%; padding: 8px 11px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; transition: border-color .15s; }
 .field input:focus, .field select:focus { border-color: #2563eb; }
 
+.field textarea { width: 100%; padding: 8px 11px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; transition: border-color .15s; resize: vertical; }
+.field textarea:focus { border-color: #2563eb; }
+  
 /* ── TIME PICKER ── */
 .time-section { margin-bottom: 14px; }
 .time-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
@@ -272,7 +275,8 @@ body { overflow: hidden; }
 .shift-item-name { font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
 .shift-item-meta { font-size: 10px; color: #64748b; }
 .shift-item-dur { font-size: 10px; font-weight: 700; color: #64748b; white-space: nowrap; margin-left: auto; }
-
+.shift-item-notes { font-size: 10.5px; color: #475569; font-style: italic; margin-top: 3px; line-height: 1.4; word-break: break-word; }
+  
 /* ── TEAM MODAL ── */
 .team-modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 1060; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; backdrop-filter: blur(3px); padding: 16px; }
 .team-modal-overlay.visible { opacity: 1; pointer-events: all; }
@@ -868,9 +872,13 @@ body { overflow: hidden; }
         <label>Employee</label>
         <select id="empSelect" onchange="checkConflict()"></select>
       </div>
-      <div class="field" id="taskFieldWrap">
+            <div class="field" id="taskFieldWrap">
         <label>Task</label>
-        <select id="taskSelect"></select>
+        <select id="taskSelect" onchange="toggleNotesField()"></select>
+      </div>
+      <div class="field" id="notesFieldWrap" style="display:none">
+        <label>Notes</label>
+        <textarea id="notesInput" rows="3" placeholder="Add any notes for this Digital Ops shift…"></textarea>
       </div>
       <div class="field">
         <label>Date</label>
@@ -1521,7 +1529,8 @@ function _openShiftModalCore(empId,date,time){
   const et=pad(Math.min(sh+2,H_END))+':00';
   document.getElementById('empSelect').innerHTML=S.employees.map(e=>`<option value="${esc(e.id)}"${String(e.id)===String(empId)?' selected':''}>${esc(e.name)}</option>`).join('');
   document.getElementById('taskSelect').innerHTML=S.tasks.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
-  document.getElementById('dateInput').value=date||S.currentDate;
+    document.getElementById('dateInput').value=date||S.currentDate;
+  document.getElementById('notesInput').value='';
   renderTimeBtns('startBtnGrid','startInput','startBadge',pad(sh)+':00',false);
   renderTimeBtns('endBtnGrid','endInput','endBadge',et,true);
   document.getElementById('modalTitle').textContent='Add Shift';
@@ -1541,6 +1550,7 @@ function editShift(id){
   document.getElementById('empSelect').innerHTML=S.employees.map(e=>`<option value="${esc(e.id)}"${String(e.id)===String(shift.employeeId)?' selected':''}>${esc(e.name)}</option>`).join('');
   document.getElementById('taskSelect').innerHTML=S.tasks.map(t=>`<option value="${esc(t.id)}"${String(t.id)===String(shift.taskId)?' selected':''}>${esc(t.name)}</option>`).join('');
   document.getElementById('dateInput').value=shift.date;
+  document.getElementById('notesInput').value=shift.notes||'';
   renderTimeBtns('startBtnGrid','startInput','startBadge',shift.start,false);
   renderTimeBtns('endBtnGrid','endInput','endBadge',shift.end,true);
   document.getElementById('modalTitle').textContent='Edit Shift';
@@ -1557,6 +1567,7 @@ function switchType(type){
   document.getElementById('btnTask').classList.toggle('active',type==='task');
   document.getElementById('btnBreak').classList.toggle('active',type==='break');
   document.getElementById('taskFieldWrap').style.display=type==='task'?'block':'none';
+  toggleNotesField();
 }
 function setSaveState(loading){
   const btn=document.getElementById('saveShiftBtn');
@@ -1572,7 +1583,7 @@ async function saveShift(replaceConflicts){
     date:document.getElementById('dateInput').value,
     start:document.getElementById('startInput').value,
     end:document.getElementById('endInput').value,
-    notes:'', type:S.shiftType,
+    notes:(document.getElementById('notesInput').value||'').trim(), type:S.shiftType,
   };
   if(!payload.employeeId||!payload.date||!payload.start||!payload.end){showToast('Please fill all required fields','error');return;}
   if(payload.start>=payload.end){showToast('End time must be after start time','error');return;}
@@ -1767,6 +1778,17 @@ function isHolidayTask(taskId){
   return !!t && (t.name||'').toLowerCase().trim()==='holiday';
 }
 
+function isDigitalOpsTask(taskId){
+  const t = S.tasks.find(x=>String(x.id)===String(taskId));
+  return !!t && (t.name||'').toLowerCase().trim()==='digital ops';
+}
+function toggleNotesField(){
+  const wrap = document.getElementById('notesFieldWrap');
+  if (!wrap) return;
+  const taskId = document.getElementById('taskSelect').value;
+  wrap.style.display = (S.shiftType==='task' && isDigitalOpsTask(taskId)) ? 'block' : 'none';
+}
+  
 function findActiveHolidayPeriodChain(periods, allHolidayShifts){
   if (!periods || !periods.length) return null;
   const sorted = [...periods].sort((a,b)=>a.start.localeCompare(b.start));
@@ -1879,9 +1901,14 @@ function shiftItemHTML(s,tm){
   const color=isBreak?'#64748b':(task?.color||'#475569');
   const taskName=isBreak?'Break':(task?.name||'Task');
   const icon=isBreak?TASK_ICONS['break']:getTaskIcon(taskName);
+  const showNotes=!isBreak && isDigitalOpsTask(s.taskId) && s.notes && s.notes.trim();
   return `<div class="shift-item" style="background:${bg};border-color:${border}">
     <div class="shift-bar" style="background:${color}"></div>
-    <div style="flex:1;min-width:0"><div class="shift-item-name" style="color:${color}">${icon} ${esc(taskName)}</div><div class="shift-item-meta">${s.start} – ${s.end}</div></div>
+    <div style="flex:1;min-width:0">
+      <div class="shift-item-name" style="color:${color}">${icon} ${esc(taskName)}</div>
+      <div class="shift-item-meta">${s.start} – ${s.end}</div>
+      ${showNotes?`<div class="shift-item-notes">📝 ${esc(s.notes)}</div>`:''}
+    </div>
     <div class="shift-item-dur">${fmtHM(d)}</div>
   </div>`;
 }
@@ -2425,6 +2452,7 @@ window.navigate=navigate; window.changeView=changeView; window.toggleCalendar=to
 window.calNav=calNav; window.calSelectDate=calSelectDate;
 window.openShiftModal=openShiftModal; window.closeShiftModal=closeShiftModal;
 window.switchType=switchType; window.saveShift=saveShift; window.checkConflict=checkConflict;
+window.toggleNotesField=toggleNotesField;
 window.selectTime=selectTime; window.timePickHour=timePickHour;
 window.deleteShift=deleteShift; window.editShift=editShift;
 window.openDrawer=openDrawer; window.closeDrawer=closeDrawer; window.toggleDay=toggleDay;
