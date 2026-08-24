@@ -587,7 +587,7 @@
     }));
   }
 
-  function wpDaySlotPace(dateStr){
+    function wpDaySlotPace(dateStr){
     const dayRows = wpAllCounts.filter(r => r.date === dateStr && wpNameMatchesRoleFilter(r.name));
     const bySlot = {};
     dayRows.forEach(r => { bySlot[r.timeSlot] = (bySlot[r.timeSlot]||0) + r.count; });
@@ -601,6 +601,28 @@
     return { slots, pace };
   }
 
+  function wpTimeToMins(t){ const [h,m] = String(t).split(':').map(Number); return h*60+(m||0); }
+
+  // Team's total pace (packs/hr) for one calendar day, from manus_packing_counts.
+  // Uses each person's LAST recorded count that day (cumulative, not summed) divided by their elapsed active hours.
+  function wpDailyTeamPace(dateStr){
+    const dayRows = wpAllCounts.filter(r => r.date === dateStr && wpNameMatchesRoleFilter(r.name));
+    const byPacker = {};
+    dayRows.forEach(r => {
+      if (!byPacker[r.name]) byPacker[r.name] = { first: r.timeSlot, last: r.timeSlot, lastCount: r.count };
+      else {
+        if (r.timeSlot < byPacker[r.name].first) byPacker[r.name].first = r.timeSlot;
+        if (r.timeSlot >= byPacker[r.name].last) { byPacker[r.name].last = r.timeSlot; byPacker[r.name].lastCount = r.count; }
+      }
+    });
+    let teamPace = 0;
+    Object.values(byPacker).forEach(p => {
+      const elapsedHours = (wpTimeToMins(p.last) - wpTimeToMins(p.first)) / 60;
+      teamPace += elapsedHours > 0 ? p.lastCount / elapsedHours : 0;
+    });
+    return teamPace;
+  }
+
   function wpTeamTrendSeries(period){
     if (period === 'today') {
       const cur = wpDaySlotPace(wpSelectedDate);
@@ -612,25 +634,20 @@
       return { labels: cur.slots, values: cur.slots.map(s => cur.pace[s]), prevValues: hasPrev ? prevValues : null, prevLabel: 'Yesterday' };
     }
 
-    const table = period === 'week' ? wpAllWeek : wpAllMonth;
-    const dates = period === 'week' ? wpWeekDates : wpMonthDates;
-    const byDate = {};
-    table.filter(r => wpNameMatchesRoleFilter(r.name)).forEach(r => { byDate[r.date] = (byDate[r.date]||0) + (r.pace||0); });
+    const allCountDates = [...new Set(wpAllCounts.map(r => r.date))].sort();
+    const windowSize = period === 'week' ? 7 : 30;
+    const dates = allCountDates.slice(-windowSize);
+    const values = dates.map(d => wpDailyTeamPace(d));
 
     let prevValues = null;
     if (dates.length) {
       const earliestCurrent = dates[0];
-      const priorDates = wpMonthDates.filter(d => d < earliestCurrent).slice(-dates.length);
+      const priorDates = allCountDates.filter(d => d < earliestCurrent).slice(-dates.length);
       if (priorDates.length === dates.length) {
-        const byDatePrev = {};
-        wpAllMonth.filter(r => wpNameMatchesRoleFilter(r.name) && priorDates.includes(r.date))
-          .forEach(r => { byDatePrev[r.date] = (byDatePrev[r.date]||0) + (r.pace||0); });
-        prevValues = priorDates.map(d => byDatePrev[d]||0);
+        prevValues = priorDates.map(d => wpDailyTeamPace(d));
       }
     }
-    return { labels: dates, values: dates.map(d => byDate[d]||0), prevValues, prevLabel: period==='week' ? 'Previous 7 Days' : 'Previous Period' };
-  }
-
+    return { labels: dates, values, prevValues, prevLabel: period==='week' ? 'Previous 7 Days' : 'Previous 30 Days' };
   
   /* ── RENDER: MASTER ── */
   function wpRenderAll(){
