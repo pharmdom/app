@@ -362,8 +362,15 @@
   function timeToMin(t){ const [h,m]=String(t).slice(0,5).split(':').map(Number); return h*60+(m||0); }
   function fmtDateLong(d){ if(!d) return '—'; return new Date(d+'T00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
   function fmtDateShort(d){ if(!d) return '—'; return new Date(d+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }
-  function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
+    function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function wpAddDays(dateStr, days){
+    const [y,m,d] = dateStr.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m-1, d));
+    dt.setUTCDate(dt.getUTCDate() + days);
+    return dt.getUTCFullYear()+'-'+String(dt.getUTCMonth()+1).padStart(2,'0')+'-'+String(dt.getUTCDate()).padStart(2,'0');
+  }
+  
   function wpShowToast(msg, type){
     const c = document.getElementById('wpToastContainer');
     const t = document.createElement('div');
@@ -570,26 +577,51 @@
     }));
   }
 
+  function wpDaySlotPace(dateStr){
+    const dayRows = wpAllCounts.filter(r => r.date === dateStr && wpNameMatchesRoleFilter(r.name));
+    const bySlot = {};
+    dayRows.forEach(r => { bySlot[r.timeSlot] = (bySlot[r.timeSlot]||0) + r.count; });
+    const slots = Object.keys(bySlot).sort();
+    const pace = {};
+    slots.forEach((s,i) => {
+      if (i === 0) { pace[s] = 0; return; }
+      const delta = (bySlot[s]||0) - (bySlot[slots[i-1]]||0);
+      pace[s] = Math.max(0, delta / (SLOT_MIN/60));
+    });
+    return { slots, pace };
+  }
+
   function wpTeamTrendSeries(period){
     if (period === 'today') {
-      const dayRows = wpAllCounts.filter(r => r.date === wpSelectedDate && wpNameMatchesRoleFilter(r.name));
-      const bySlot = {};
-      dayRows.forEach(r => { bySlot[r.timeSlot] = (bySlot[r.timeSlot]||0) + r.count; });
-      const slots = Object.keys(bySlot).sort();
-      // Team pace per slot = increase in team cumulative count since the previous slot, per hour.
-      const paceVals = slots.map((s, i) => {
-        if (i === 0) return 0;
-        const delta = (bySlot[s]||0) - (bySlot[slots[i-1]]||0);
-        return Math.max(0, delta / (SLOT_MIN/60));
-      });
-      return { labels: slots, values: paceVals };
+      const cur = wpDaySlotPace(wpSelectedDate);
+      const prev = wpDaySlotPace(wpAddDays(wpSelectedDate, -1));
+      const prevValues = cur.slots.length && prev.slots.length
+        ? cur.slots.map(s => prev.pace[s] != null ? prev.pace[s] : null)
+        : null;
+      const hasPrev = prevValues && prevValues.some(v => v != null);
+      return { labels: cur.slots, values: cur.slots.map(s => cur.pace[s]), prevValues: hasPrev ? prevValues : null, prevLabel: 'Yesterday' };
     }
+
     const table = period === 'week' ? wpAllWeek : wpAllMonth;
     const dates = period === 'week' ? wpWeekDates : wpMonthDates;
     const byDate = {};
     table.filter(r => wpNameMatchesRoleFilter(r.name)).forEach(r => { byDate[r.date] = (byDate[r.date]||0) + (r.pace||0); });
-    return { labels: dates, values: dates.map(d => byDate[d]||0) };
+
+    let prevValues = null;
+    if (dates.length) {
+      const earliestCurrent = dates[0];
+      const priorDates = wpMonthDates.filter(d => d < earliestCurrent).slice(-dates.length);
+      if (priorDates.length === dates.length) {
+        const byDatePrev = {};
+        wpAllMonth.filter(r => wpNameMatchesRoleFilter(r.name) && priorDates.includes(r.date))
+          .forEach(r => { byDatePrev[r.date] = (byDatePrev[r.date]||0) + (r.pace||0); });
+        prevValues = priorDates.map(d => byDatePrev[d]||0);
+      }
+    }
+    return { labels: dates, values: dates.map(d => byDate[d]||0), prevValues, prevLabel: period==='week' ? 'Previous 7 Days' : 'Previous Period' };
   }
+
+  
   /* ── RENDER: MASTER ── */
   function wpRenderAll(){
         let rows = wpGetRowsForPeriod(wpPeriod, wpSelectedDate);
@@ -725,15 +757,28 @@
     const labels = wpPeriod==='today' ? series.labels : series.labels.map(fmtDateShort);
 
     if (wpCharts.trend) wpCharts.trend.destroy();
+    const trendColor = wpActiveFilterColor();
+        const hasPrev = !!series.prevValues;
+    const currentLabel = wpPeriod==='today' ? 'Today' : (wpPeriod==='week' ? 'This Week' : 'This Period');
+    const datasets = [{
+      label: hasPrev ? currentLabel : undefined,
+      data: series.values, borderColor: trendColor, backgroundColor: wpHexToRgba(trendColor, .08),
+      borderWidth: 2.5, fill: true, tension: .35, pointRadius: labels.length>25?0:3, pointBackgroundColor: trendColor, pointHoverRadius:5, order: 1,
+    }];
+    if (hasPrev) {
+      datasets.push({
+        label: series.prevLabel || 'Previous Period',
+        data: series.prevValues, borderColor: '#94a3b8', backgroundColor: 'transparent',
+        borderWidth: 2, borderDash: [5,4], fill: false, tension: .35,
+        pointRadius: labels.length>25?0:3, pointBackgroundColor:'#94a3b8', pointHoverRadius:5, order: 2,
+      });
+    }
     wpCharts.trend = new Chart(el.getContext('2d'), {
       type: 'line',
-      data: { labels, datasets: [{
-        data: series.values, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,.08)',
-        borderWidth: 2.5, fill: true, tension: .35, pointRadius: labels.length>25?0:3, pointBackgroundColor:'#2563eb', pointHoverRadius:5,
-      }]},
+      data: { labels, datasets },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend:{display:false}, tooltip:{ callbacks: { label: (ctx)=> fmtNum(ctx.parsed.y)+' packs/hr' } } },
+        plugins: { legend:{display:hasPrev, position:'bottom', labels:{font:{size:10.5}, boxWidth:9, padding:10}}, tooltip:{ callbacks: { label: (ctx)=> ctx.dataset.label ? (ctx.dataset.label+': '+fmtNum(ctx.parsed.y)+' packs/hr') : (fmtNum(ctx.parsed.y)+' packs/hr') } } },
         scales: { x:{ grid:{display:false}, ticks:{font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:12} }, y:{ beginAtZero:true, grid:{color:'#f1f5f9'}, ticks:{font:{size:10.5}} } }
       }
     });
