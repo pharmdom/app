@@ -449,10 +449,21 @@
       wpAllWeek   = (weekRes.data||[]).map(r => ({ date:String(r.date), name:r.name, total:r.total_packs||0, daysWorked:r.days_worked||0, pace:r.packs_per_hour||0 }));
       wpAllMonth  = (monthRes.data||[]).map(r => ({ date:String(r.date), name:r.name, total:r.total_packs||0, daysWorked:r.days_worked||0, pace:r.packs_per_hour||0, activeMinutes:r.active_minutes||0 }));
 
-      wpRoleMap = {};
+            wpRoleMap = {};
       (usersRes.data||[]).forEach(u => {
-        const key = `${u.first_name||''} ${u.last_name||''}`.trim().toLowerCase();
-        if (key) wpRoleMap[key] = u.role_type || null;
+        const fn = (u.first_name||'').trim();
+        const ln = (u.last_name||'').trim();
+        const lnInitial = ln.charAt(0);
+        const variants = [
+          fn,
+          ln,
+          `${fn} ${ln}`.trim(),
+          `${ln} ${fn}`.trim(),
+          `${fn} ${lnInitial}`.trim(),
+        ]
+          .filter(Boolean)
+          .map(s => s.toLowerCase());
+        variants.forEach(v => { wpRoleMap[v] = u.role_type || null; });
       });
       
       wpCountsDates = [...new Set(wpAllCounts.map(r=>r.date))].sort();
