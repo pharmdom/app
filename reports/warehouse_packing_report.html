@@ -264,9 +264,9 @@
 
     <div class="wp-card wp-table-card">
       <div class="wp-card-title-row">
-        <div class="wp-card-title">
+                <div class="wp-card-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          All Packers <span id="wpTableCount" style="color:#94a3b8;font-weight:500;"></span>
+          <span id="wpTableTitleLabel">All Packers</span> <span id="wpTableCount" style="color:#94a3b8;font-weight:500;"></span>
         </div>
         <div class="wp-table-search-wrap">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -485,8 +485,15 @@
     }
   }
 
+  function wpRoleOf(name){ return wpRoleMap[(name||'').trim().toLowerCase()] || null; }
+  function wpRoleColor(name){
+    const rt = wpRoleOf(name);
+    if (rt === 'Packer') return '#2563eb';
+    if (rt === 'Pickers and Packers') return '#7c3aed';
+    return '#94a3b8';
+  }
   function wpRoleBadgeHtml(name){
-    const rt = wpRoleMap[(name||'').trim().toLowerCase()];
+    const rt = wpRoleOf(name);
     if (rt === 'Packer') return `<span class="wp-role-badge wp-role-packer">Packer</span>`;
     if (rt === 'Pickers and Packers') return `<span class="wp-role-badge wp-role-both">Pickers and Packers</span>`;
     return `<span class="wp-role-badge wp-role-unknown">Unassigned</span>`;
@@ -495,6 +502,8 @@
   function wpSetRoleFilter(role){
     wpRoleFilter = role;
     document.querySelectorAll('#wpRoleToggle .wp-period-btn').forEach(b => b.classList.toggle('active', b.dataset.role===role));
+    const titleMap = { all: 'All Packers', 'Packer': 'Packers', 'Pickers and Packers': 'Pickers and Packers' };
+    document.getElementById('wpTableTitleLabel').textContent = titleMap[role] || 'All Packers';
     wpRenderAll();
   }
 
@@ -653,7 +662,7 @@
       type: 'bar',
       data: {
         labels: top.map(r=>r.name),
-        datasets: [{ data: top.map(r=>r.total), backgroundColor: top.map((_,i)=>PALETTE[i%PALETTE.length]), borderRadius: 6, maxBarThickness: 42 }]
+        datasets: [{ data: top.map(r=>r.total), backgroundColor: top.map(r=>wpRoleColor(r.name)), borderRadius: 6, maxBarThickness: 42 }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -675,7 +684,7 @@
     const visibleRows = rows.filter(r => String(r.name||'').trim().toLowerCase()!=='awais').slice().sort((a,b)=>(b.pace||0)-(a.pace||0));
     const labels = visibleRows.map(r=>r.name);
     const values = visibleRows.map(r=>r.pace||0);
-    const colors = visibleRows.map((_,i)=>PALETTE[i%PALETTE.length]);
+    const colors = visibleRows.map(r=>wpRoleColor(r.name));
 
     if (wpCharts.share) wpCharts.share.destroy();
     wpCharts.share = new Chart(el.getContext('2d'), {
@@ -739,7 +748,7 @@
       data: {
         labels: top.map(r=>r.name),
         datasets: [
-          { type:'bar', label:'Total Packs', data: top.map(r=>r.total), backgroundColor:'#bfdbfe', borderRadius:5, yAxisID:'y', order:2, maxBarThickness: 46 },
+          { type:'bar', label:'Total Packs', data: top.map(r=>r.total), backgroundColor: top.map(r=>wpRoleColor(r.name)), borderRadius:5, yAxisID:'y', order:2, maxBarThickness: 46 },
           { type:'line', label:'Packs / hr', data: top.map(r=>r.pace||0), borderColor:'#7c3aed', backgroundColor:'#7c3aed', borderWidth:2.5, tension:.3, pointRadius:4, pointBackgroundColor:'#7c3aed', yAxisID:'y1', order:1 },
         ]
       },
@@ -811,7 +820,7 @@
       const firstSlot = r.slots ? r.slots[0].timeSlot : '';
       const lastSlot = r.slots ? r.slots[r.slots.length-1].timeSlot : '';
       const cells = cols.map(c => {
-        if (c.key==='name') return `<td><div class="wp-table-name"><div class="wp-mini-avatar">${initials(r.name)}</div>${esc(r.name)}${wpRoleBadgeHtml(r.name)}</div></td>`;
+        if (c.key==='name') return `<td><div class="wp-table-name"><div class="wp-mini-avatar">${initials(r.name)}</div>${esc(r.name)}</div></td>`;
         if (c.key==='total') return `<td class="wp-table-total">${fmtNum(r.total)}</td>`;
         if (c.key==='daysWorked') return `<td>${r.daysWorked!=null?r.daysWorked:'—'}</td>`;
         if (c.key==='activeMinutes') return `<td>${r.activeMinutes!=null?fmtNum(r.activeMinutes):'—'}</td>`;
