@@ -86,6 +86,10 @@
 .wp-rank-badge.wp-rank-2 { background: #e2e8f0; color: #475569; }
 .wp-rank-badge.wp-rank-3 { background: #fed7aa; color: #c2410c; }
 .wp-table-name { font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+.wp-role-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.wp-role-badge.wp-role-packer { background: #eff6ff; color: #2563eb; }
+.wp-role-badge.wp-role-both { background: #f5f3ff; color: #7c3aed; }
+.wp-role-badge.wp-role-unknown { background: #f8fafc; color: #94a3b8; }
 .wp-mini-avatar { width: 24px; height: 24px; border-radius: 50%; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 700; flex-shrink: 0; }
 .wp-table-total { font-weight: 700; color: #0f172a; }
 .wp-empty-state { text-align: center; padding: 40px 20px; color: #94a3b8; font-size: 13px; }
@@ -481,6 +485,13 @@
     }
   }
 
+  function wpRoleBadgeHtml(name){
+    const rt = wpRoleMap[(name||'').trim().toLowerCase()];
+    if (rt === 'Packer') return `<span class="wp-role-badge wp-role-packer">Packer</span>`;
+    if (rt === 'Pickers and Packers') return `<span class="wp-role-badge wp-role-both">Pickers and Packers</span>`;
+    return `<span class="wp-role-badge wp-role-unknown">Unassigned</span>`;
+  }
+
   function wpSetRoleFilter(role){
     wpRoleFilter = role;
     document.querySelectorAll('#wpRoleToggle .wp-period-btn').forEach(b => b.classList.toggle('active', b.dataset.role===role));
@@ -800,7 +811,7 @@
       const firstSlot = r.slots ? r.slots[0].timeSlot : '';
       const lastSlot = r.slots ? r.slots[r.slots.length-1].timeSlot : '';
       const cells = cols.map(c => {
-        if (c.key==='name') return `<td><div class="wp-table-name"><div class="wp-mini-avatar">${initials(r.name)}</div>${esc(r.name)}</div></td>`;
+        if (c.key==='name') return `<td><div class="wp-table-name"><div class="wp-mini-avatar">${initials(r.name)}</div>${esc(r.name)}${wpRoleBadgeHtml(r.name)}</div></td>`;
         if (c.key==='total') return `<td class="wp-table-total">${fmtNum(r.total)}</td>`;
         if (c.key==='daysWorked') return `<td>${r.daysWorked!=null?r.daysWorked:'—'}</td>`;
         if (c.key==='activeMinutes') return `<td>${r.activeMinutes!=null?fmtNum(r.activeMinutes):'—'}</td>`;
@@ -964,8 +975,8 @@ function wpComparisonFor(name){
 
     document.getElementById('wpDrawerAvatar').textContent = initials(name);
     document.getElementById('wpDrawerName').textContent = name;
-    document.getElementById('wpDrawerRank').textContent = rankIdx>-1 ? ('Ranked #'+(rankIdx+1)+' of '+wpCurrentRows.length+' this period') : 'No activity this period';
-
+    document.getElementById('wpDrawerRank').innerHTML = (rankIdx>-1 ? ('Ranked #'+(rankIdx+1)+' of '+wpCurrentRows.length+' this period') : 'No activity this period') + ' &nbsp;·&nbsp; ' + wpRoleBadgeHtml(name);
+    
     const t = wpLatestStatFor(name,'today'), w = wpLatestStatFor(name,'week'), m = wpLatestStatFor(name,'month');
     document.getElementById('wpDrawerKpiToday').textContent = t!=null ? fmtNum(t) : '—';
     document.getElementById('wpDrawerKpiWeek').textContent = w!=null ? fmtNum(w) : '—';
