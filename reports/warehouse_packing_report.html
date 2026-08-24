@@ -27,7 +27,8 @@
 .wp-btn.wp-spinning svg { animation: wpSpin .7s linear infinite; }
 
 /* ── TOOLBAR ── */
-.wp-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.wp-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.wp-toolbar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .wp-period-toggle { display: inline-flex; background: #f1f5f9; border-radius: 10px; padding: 3px; gap: 2px; }
 .wp-period-btn { padding: 7px 16px; border: none; background: transparent; border-radius: 8px; font-size: 12.5px; font-weight: 600; font-family: inherit; color: #64748b; cursor: pointer; transition: all .15s; }
 .wp-period-btn:hover { color: #334155; }
@@ -173,22 +174,29 @@
   </div>
 
   <div class="wp-toolbar">
-    <div class="wp-period-toggle" id="wpPeriodToggle">
-      <button data-period="today" class="wp-period-btn active" onclick="wpSetPeriod('today')">Today</button>
-      <button data-period="week" class="wp-period-btn" onclick="wpSetPeriod('week')">Last 7 Days</button>
-      <button data-period="month" class="wp-period-btn" onclick="wpSetPeriod('month')">This Month</button>
+    <div class="wp-period-toggle" id="wpRoleToggle">
+      <button data-role="all" class="wp-period-btn active" onclick="wpSetRoleFilter('all')">All</button>
+      <button data-role="Packer" class="wp-period-btn" onclick="wpSetRoleFilter('Packer')">Packers</button>
+      <button data-role="Pickers and Packers" class="wp-period-btn" onclick="wpSetRoleFilter('Pickers and Packers')">Pickers &amp; Packers</button>
     </div>
-    <div class="wp-date-wrap">
-      <span class="wp-date-label" id="wpDateLabel">Date</span>
-      <div class="wp-date-nudge">
-        <button id="wpDatePrev" onclick="wpNudgeDate(-1)" title="Previous">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <button id="wpDateNext" onclick="wpNudgeDate(1)" title="Next">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
+    <div class="wp-toolbar-right">
+      <div class="wp-period-toggle" id="wpPeriodToggle">
+        <button data-period="today" class="wp-period-btn active" onclick="wpSetPeriod('today')">Today</button>
+        <button data-period="week" class="wp-period-btn" onclick="wpSetPeriod('week')">Last 7 Days</button>
+        <button data-period="month" class="wp-period-btn" onclick="wpSetPeriod('month')">This Month</button>
       </div>
-      <input type="date" id="wpDatePicker" class="wp-date-input" onchange="wpOnDateChange()">
+      <div class="wp-date-wrap">
+        <span class="wp-date-label" id="wpDateLabel">Date</span>
+        <div class="wp-date-nudge">
+          <button id="wpDatePrev" onclick="wpNudgeDate(-1)" title="Previous">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button id="wpDateNext" onclick="wpNudgeDate(1)" title="Next">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+        <input type="date" id="wpDatePicker" class="wp-date-input" onchange="wpOnDateChange()">
+      </div>
     </div>
   </div>
 
@@ -327,7 +335,9 @@
   const PALETTE = ['#2563eb','#7c3aed','#0d9488','#b45309','#dc2626','#0891b2','#65a30d','#c026d3','#ea580c','#4338ca'];
   const SLOT_MIN = 30; // batch interval, in minutes
 
-  let wpPeriod = 'today';
+    let wpPeriod = 'today';
+  let wpRoleFilter = 'all';
+  let wpRoleMap = {};
   let wpSelectedDate = null;
   let wpAllCounts = [];   // manus_packing_counts (raw)
   let wpAllWeek = [];     // manus_packing_week_stats
@@ -425,10 +435,11 @@
     document.getElementById('wpLoading').style.display = 'flex';
     document.getElementById('wpContent').style.display = 'none';
     try {
-      const [countsRes, weekRes, monthRes] = await Promise.all([
+            const [countsRes, weekRes, monthRes, usersRes] = await Promise.all([
         sb.from('manus_packing_counts').select('*'),
         sb.from('manus_packing_week_stats').select('*'),
         sb.from('manus_packing_month_stats').select('*'),
+        sb.from('users').select('first_name,last_name,role_type'),
       ]);
       if (countsRes.error) throw countsRes.error;
       if (weekRes.error) throw weekRes.error;
@@ -438,6 +449,12 @@
       wpAllWeek   = (weekRes.data||[]).map(r => ({ date:String(r.date), name:r.name, total:r.total_packs||0, daysWorked:r.days_worked||0, pace:r.packs_per_hour||0 }));
       wpAllMonth  = (monthRes.data||[]).map(r => ({ date:String(r.date), name:r.name, total:r.total_packs||0, daysWorked:r.days_worked||0, pace:r.packs_per_hour||0, activeMinutes:r.active_minutes||0 }));
 
+      wpRoleMap = {};
+      (usersRes.data||[]).forEach(u => {
+        const key = `${u.first_name||''} ${u.last_name||''}`.trim().toLowerCase();
+        if (key) wpRoleMap[key] = u.role_type || null;
+      });
+      
       wpCountsDates = [...new Set(wpAllCounts.map(r=>r.date))].sort();
       
       wpWeekDates   = [...new Set(wpAllWeek.map(r=>r.date))].sort();
@@ -450,6 +467,12 @@
       document.getElementById('wpLoading').innerHTML = '<span style="color:#dc2626;">Failed to load packing data. Check your connection and try refreshing.</span>';
       console.error('Warehouse Packing load error:', e);
     }
+  }
+
+  function wpSetRoleFilter(role){
+    wpRoleFilter = role;
+    document.querySelectorAll('#wpRoleToggle .wp-period-btn').forEach(b => b.classList.toggle('active', b.dataset.role===role));
+    wpRenderAll();
   }
 
   function wpRefresh(){
@@ -476,6 +499,7 @@
     wpRenderAll();
   }
   window.wpSetPeriod = wpSetPeriod;
+  window.wpSetRoleFilter = wpSetRoleFilter;
 
   function wpOnDateChange(){
     wpSelectedDate = document.getElementById('wpDatePicker').value;
@@ -533,7 +557,12 @@
 
   /* ── RENDER: MASTER ── */
   function wpRenderAll(){
-    wpCurrentRows = wpGetRowsForPeriod(wpPeriod, wpSelectedDate).sort((a,b)=>b.total-a.total);
+        let rows = wpGetRowsForPeriod(wpPeriod, wpSelectedDate);
+    if (wpRoleFilter !== 'all') {
+      rows = rows.filter(r => wpRoleMap[(r.name||'').trim().toLowerCase()] === wpRoleFilter);
+    }
+    wpCurrentRows = rows.sort((a,b)=>b.total-a.total);
+    
     const dates = wpDatesForPeriod(wpPeriod);
     document.getElementById('wpDatePrev').disabled = dates.indexOf(wpSelectedDate) <= 0;
     document.getElementById('wpDateNext').disabled = dates.indexOf(wpSelectedDate) >= dates.length-1;
