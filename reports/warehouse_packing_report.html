@@ -514,11 +514,15 @@
     document.querySelectorAll('#wpPeriodToggle .wp-period-btn').forEach(b => b.classList.toggle('active', b.dataset.period===period));
     document.getElementById('wpDateLabel').textContent = period==='today' ? 'Date' : 'As of';
     const dates = wpDatesForPeriod(period);
-    const latest = dates.length ? dates[dates.length-1] : todayStr();
-    wpSelectedDate = latest;
+    wpSelectedDate = period==='today' ? todayStr() : (dates.length ? dates[dates.length-1] : todayStr());
     const picker = document.getElementById('wpDatePicker');
     picker.value = wpSelectedDate;
-    if (dates.length) { picker.min = dates[0]; picker.max = dates[dates.length-1]; }
+    if (period==='today') {
+      picker.min = dates.length ? dates[0] : todayStr();
+      picker.max = todayStr();
+    } else if (dates.length) {
+      picker.min = dates[0]; picker.max = dates[dates.length-1];
+    }
     wpRenderAll();
   }
   window.wpSetPeriod = wpSetPeriod;
