@@ -443,9 +443,11 @@
   }
 
   /* ── LOAD ── */
-  async function wpLoadAll(){
-    document.getElementById('wpLoading').style.display = 'flex';
-    document.getElementById('wpContent').style.display = 'none';
+  async function wpLoadAll(showLoader){
+    if (showLoader) {
+      document.getElementById('wpLoading').style.display = 'flex';
+      document.getElementById('wpContent').style.display = 'none';
+    }
     try {
             const [countsRes, weekRes, monthRes, usersRes] = await Promise.all([
         sb.from('manus_packing_counts').select('*'),
@@ -485,12 +487,18 @@
 
       document.getElementById('wpLoading').style.display = 'none';
       document.getElementById('wpContent').style.display = 'block';
-      wpSetPeriod('today', true);
+      wpSetPeriod(wpPeriod||'today', !wpInitialLoadDone);
+      wpInitialLoadDone = true;
     } catch(e) {
-      document.getElementById('wpLoading').innerHTML = '<span style="color:#dc2626;">Failed to load packing data. Check your connection and try refreshing.</span>';
+      if (showLoader) {
+        document.getElementById('wpLoading').innerHTML = '<span style="color:#dc2626;">Failed to load packing data. Check your connection and try refreshing.</span>';
+      }
       console.error('Warehouse Packing load error:', e);
     }
   }
+  let wpInitialLoadDone = false;
+
+  
 
   function wpRoleBadgeHtml(name){
     const rt = wpRoleMap[(name||'').trim().toLowerCase()];
@@ -521,7 +529,7 @@
   function wpRefresh(){
     const btn = document.getElementById('wpRefreshBtn');
     btn.classList.add('wp-spinning');
-    wpLoadAll().finally(() => { btn.classList.remove('wp-spinning'); wpShowToast('Data refreshed', 'wp-success'); });
+    wpLoadAll(true).finally(() => { btn.classList.remove('wp-spinning'); wpShowToast('Data refreshed', 'wp-success'); });
   }
 
   /* ── PERIOD / DATE CONTROL ── */
@@ -1176,6 +1184,20 @@ if (!labels.length) { el.style.display='none'; empty.style.display='block'; if(w
   window.wpCloseDrawer = wpCloseDrawer;
   window.wpRefresh = wpRefresh;
 
-  wpLoadAll();
-})();
+    wpLoadAll(true);
+
+  let wpRefreshTimer = null;
+  function wpStartAutoRefresh(){
+    if (wpRefreshTimer) return;
+    wpRefreshTimer = setInterval(() => { wpLoadAll(false); }, 60000);
+  }
+  function wpStopAutoRefresh(){
+    if (wpRefreshTimer) { clearInterval(wpRefreshTimer); wpRefreshTimer = null; }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { wpStopAutoRefresh(); }
+    else { wpLoadAll(false); wpStartAutoRefresh(); }
+  });
+  if (!document.hidden) wpStartAutoRefresh();
+  })();
 </script>
