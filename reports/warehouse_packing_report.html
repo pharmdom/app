@@ -615,29 +615,40 @@
     return { slots, pace };
   }
 
-  // Team's cumulative packs-so-far for one calendar day — each slot is the running
-  // total at that point in the day, not a per-slot rate. Carries the last known
-  // value forward for anyone who hasn't logged a fresh count in a given slot,
-  // so the total never dips just because someone's next scan hasn't landed yet.
-  function wpDaySlotCumulative(dateStr){
+    // Team's average pace at each point in the day — for every active packer as of
+  // that slot, compute their own packs-per-hour rate since their first scan today,
+  // then average those individual rates together. This is the same "average of
+  // individual pace" definition used by the Avg Pace KPI card, just sampled at
+  // every slot instead of only at day's end.
+  function wpDaySlotAvgPace(dateStr){
     const dayRows = wpAllCounts.filter(r => r.date === dateStr && wpNameMatchesRoleFilter(r.name));
     const slots = [...new Set(dayRows.map(r=>r.timeSlot))].sort();
     const byPacker = {};
     dayRows.forEach(r => { (byPacker[r.name] = byPacker[r.name]||{})[r.timeSlot] = r.count; });
     const names = Object.keys(byPacker);
-    const last = {}; names.forEach(n => last[n]=0);
-    const cumulative = {};
+    const firstSlot = {}; names.forEach(n => { firstSlot[n] = Object.keys(byPacker[n]).sort()[0]; });
+    const lastKnown = {}; names.forEach(n => lastKnown[n]=0);
+    const avgPace = {};
     slots.forEach(s => {
-      names.forEach(n => { if (byPacker[n][s] != null) last[n] = byPacker[n][s]; });
-      cumulative[s] = names.reduce((sum,n)=>sum+last[n],0);
+      names.forEach(n => { if (byPacker[n][s] != null) lastKnown[n] = byPacker[n][s]; });
+      let sum = 0, cnt = 0;
+      names.forEach(n => {
+        if (s < firstSlot[n]) return;
+        const elapsedHours = Math.max(timeToMin(s) - timeToMin(firstSlot[n]), SLOT_MIN) / 60;
+        sum += lastKnown[n] / elapsedHours;
+        cnt++;
+      });
+      avgPace[s] = cnt ? sum/cnt : 0;
     });
-    return { slots, cumulative };
+    return { slots, avgPace };
   }
+  
 
   function wpTimeToMins(t){ const [h,m] = String(t).split(':').map(Number); return h*60+(m||0); }
 
-  // Team's total pace (packs/hr) for one calendar day, from manus_packing_counts.
-  // Uses each person's LAST recorded count that day (cumulative, not summed) divided by their elapsed active hours.
+  // Team's average pace (packs/hr) for one calendar day, from manus_packing_counts.
+  // Uses each person's LAST recorded count that day divided by their elapsed active
+  // hours, then averages those individual rates across everyone active that day.
   function wpDailyTeamPace(dateStr){
     const dayRows = wpAllCounts.filter(r => r.date === dateStr && wpNameMatchesRoleFilter(r.name));
     const byPacker = {};
@@ -648,23 +659,23 @@
         if (r.timeSlot >= byPacker[r.name].last) { byPacker[r.name].last = r.timeSlot; byPacker[r.name].lastCount = r.count; }
       }
     });
-    let teamPace = 0;
+    const paceVals = [];
     Object.values(byPacker).forEach(p => {
       const elapsedHours = (wpTimeToMins(p.last) - wpTimeToMins(p.first)) / 60;
-      teamPace += elapsedHours > 0 ? p.lastCount / elapsedHours : 0;
+      if (elapsedHours > 0) paceVals.push(p.lastCount / elapsedHours);
     });
-    return teamPace;
+    return paceVals.length ? paceVals.reduce((a,b)=>a+b,0)/paceVals.length : 0;
   }
 
   function wpTeamTrendSeries(period){
     if (period === 'today') {
-      const cur = wpDaySlotCumulative(wpSelectedDate);
-      const prev = wpDaySlotCumulative(wpAddDays(wpSelectedDate, -1));
+      const cur = wpDaySlotAvgPace(wpSelectedDate);
+      const prev = wpDaySlotAvgPace(wpAddDays(wpSelectedDate, -1));
       const prevValues = cur.slots.length && prev.slots.length
-        ? cur.slots.map(s => prev.cumulative[s] != null ? prev.cumulative[s] : null)
+        ? cur.slots.map(s => prev.avgPace[s] != null ? prev.avgPace[s] : null)
         : null;
       const hasPrev = prevValues && prevValues.some(v => v != null);
-      return { labels: cur.slots, values: cur.slots.map(s => cur.cumulative[s]), prevValues: hasPrev ? prevValues : null, prevLabel: 'Yesterday' };
+      return { labels: cur.slots, values: cur.slots.map(s => cur.avgPace[s]), prevValues: hasPrev ? prevValues : null, prevLabel: 'Yesterday' };
     }
 
     const allCountDates = [...new Set(wpAllCounts.map(r => r.date))].sort();
@@ -805,10 +816,10 @@
 
         const roleLabel = wpRoleFilter==='all' ? 'Team' : wpRoleFilter;
     if (wpPeriod === 'today') {
-      titleEl.textContent = roleLabel + " Progress Today";
+      titleEl.textContent = roleLabel + " Average Pace Today";
       noteEl.textContent = fmtDateLong(wpSelectedDate);
     } else {
-      titleEl.textContent = roleLabel + ' Pace Trend (' + (wpPeriod==='week'?'last 7 days':'trailing 30-day') + ')';
+      titleEl.textContent = roleLabel + ' Average Pace Trend (' + (wpPeriod==='week'?'last 7 days':'trailing 30-day') + ')';
       noteEl.textContent = series.labels.length + ' snapshot' + (series.labels.length===1?'':'s');
     }
 
@@ -846,10 +857,10 @@
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend:{display:hasPrev, position:'top', align:'start', labels:{font:{size:10.5}, boxWidth:9, padding:10}},
-                    tooltip:{
+                                      tooltip:{
             mode: 'index', intersect: false,
             callbacks: { label: (ctx)=> {
-              const unit = wpPeriod === 'today' ? ' packs' : ' packs/hr';
+              const unit = ' packs/hr';
               return ctx.dataset.label ? (ctx.dataset.label+': '+fmtNum(ctx.parsed.y)+unit) : (fmtNum(ctx.parsed.y)+unit);
             } }
           }
