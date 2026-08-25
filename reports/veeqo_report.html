@@ -84,6 +84,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .pulse-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
 .pulse-title{font-size:13px;font-weight:700;color:var(--text);}
 .pulse-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.pulse-sub-range{display:inline-flex;align-items:center;padding:1px 8px;border-radius:100px;background:var(--accent-bg);color:var(--accent);font-weight:700;font-family:var(--mono);font-size:10.5px;margin-left:4px;}
 .mkpi-row-plain{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px;}
 .mkpi-plain{min-width:0;}
 .mkpi-plain.mkpi-div{border-left:1px solid var(--border2);padding-left:16px;}
@@ -100,7 +101,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .spark-legend-item{display:flex;align-items:center;gap:5px;}
 .spark-legend-swatch{width:14px;height:0;border-top:2px solid;display:inline-block;border-radius:2px;}
 .spark-legend-swatch.dashed{border-top-style:dashed;border-color:var(--text4)!important;}
-.spark-wrap{height:120px;margin-top:6px;}
+.spark-wrap{height:220px;margin-top:10px;}
 
 /* ── CHART CARDS ── */
 .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px;}
@@ -319,7 +320,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
           <div class="mkpi-val" id="vrPackTotal">—</div>
         </div>
         <div class="mkpi-plain mkpi-div">
-          <div class="mkpi-lbl">To Ship</div>
+          <div class="mkpi-lbl" id="vrPackToShipLbl">To Ship</div>
           <div class="mkpi-val" id="vrPackToShip">—</div>
           <div class="mkpi-sub-breakdown" id="vrPackToShipBreakdown"></div>
         </div>
@@ -532,8 +533,17 @@ function dailyPackTotal(rowsForDate){
   return total;
 }
 function packingBucketBySlot(rows){
+  var slots = [].concat(new Set(rows.map(function(c){return c.time_slot;}))).sort();
+  var byPacker = {};
+  rows.forEach(function(c){ (byPacker[c.packer_name]=byPacker[c.packer_name]||{})[c.time_slot]=parseInt(c.count)||0; });
+  var names = Object.keys(byPacker);
+  var last = {}; names.forEach(function(n){ last[n]=0; });
   var bucket = {};
-  rows.forEach(function(c){ bucket[c.time_slot]=(bucket[c.time_slot]||0)+(parseInt(c.count)||0); });
+  slots.forEach(function(s){
+    names.forEach(function(n){ if (byPacker[n][s]!=null) last[n]=byPacker[n][s]; });
+    var sum=0; names.forEach(function(n){ sum+=last[n]; });
+    bucket[s]=sum;
+  });
   return bucket;
 }
 function halfHourMarksOnly(slots){
@@ -587,7 +597,9 @@ function ensurePackTip(){
 function drawPackSparkline(keys, vals, prevVals, xLabelFn, unit){
   var svg = document.getElementById('vrPackSparkline');
   if (!svg) return;
-  var W = svg.parentElement.getBoundingClientRect().width || svg.parentElement.offsetWidth || 500, H = 120, pL=36, pR=8, pT=8, pB=20;
+  var W = svg.parentElement.getBoundingClientRect().width || svg.parentElement.offsetWidth || 500;
+  var H = svg.parentElement.getBoundingClientRect().height || svg.parentElement.offsetHeight || 200;
+  var pL=36, pR=8, pT=8, pB=20;
   var cW=W-pL-pR, cH=H-pT-pB, n=vals.length;
   var maxV = Math.max.apply(null, vals.concat(prevVals||[]).concat([1]));
   var pts = vals.map(function(v,i){ return [pL+(n>1?i*cW/(n-1):0), pT+cH-(v/maxV*cH)]; });
@@ -648,8 +660,9 @@ function renderPackingCard(){
   var subEl = document.getElementById('vrPackSub');
   var toShipStatuses = ['shipped','dispatched','awaiting_fulfillment'];
 
-  if (_range === 'today') {
+    if (_range === 'today') {
     labelEl.textContent = 'Packs Today';
+    document.getElementById('vrPackToShipLbl').textContent = 'To Ship';
     var todayRows = (_packCounts||[]).filter(function(c){return c.date===r.start;});
     var totalPacks = dailyPackTotal(todayRows);
     subEl.textContent = todayRows.length ? 'Warehouse Today · updating every minute' : 'No activity yet';
@@ -684,7 +697,7 @@ function renderPackingCard(){
       var toShipToday = win.filter(function(o){ return new Date(o.created_at) >= todayMidnight; }).length;
       var toShip = toShipYesterday + toShipToday;
       toShipEl.textContent = toShip.toLocaleString();
-      breakdownEl.textContent = 'Since 4:30pm yesterday: '+toShipYesterday.toLocaleString()+' · Today: '+toShipToday.toLocaleString();
+      breakdownEl.textContent = 'Yesterday (4.30pm): '+toShipYesterday.toLocaleString()+' · Today: '+toShipToday.toLocaleString();
 
       var balance = totalPacks - toShip;
       balanceEl.textContent = (balance>=0?'+':'')+balance.toLocaleString();
@@ -722,13 +735,15 @@ function renderPackingCard(){
     var dateList = []; for (var i=0;i<span;i++) dateList.push(addDaysToDateStr(r.start,i));
     var dailyTotals = dateList.map(function(d){ return dailyPackTotal(byDate[d]||[]); });
     var periodTotal = dailyTotals.reduce(function(a,b){return a+b;},0);
-    subEl.textContent = periodTotal ? 'Warehouse · '+r.start+' to '+r.end : 'No activity in this range';
+    var rangeLbl = '<span class="pulse-sub-range">'+esc(fmtDateShort(r.start))+' \u2013 '+esc(fmtDateShort(r.end))+'</span>';
+    subEl.innerHTML = periodTotal ? 'Warehouse '+rangeLbl : 'No activity in this range '+rangeLbl;
     document.getElementById('vrPackTotal').textContent = periodTotal.toLocaleString();
 
     var prevByDate = groupCountsByDate(_packPrevCounts||[]);
     var prevDateList = []; for (var j=0;j<span;j++) prevDateList.push(addDaysToDateStr(r.prevStart,j));
     var prevDailyTotals = prevDateList.map(function(d){ return dailyPackTotal(prevByDate[d]||[]); });
 
+        document.getElementById('vrPackToShipLbl').textContent = 'Total Orders ('+span+'d)';
     var toShipEl = document.getElementById('vrPackToShip');
     var breakdownEl = document.getElementById('vrPackToShipBreakdown');
     var balanceEl = document.getElementById('vrPackBalance');
@@ -741,11 +756,11 @@ function renderPackingCard(){
       breakdownEl.textContent='';
     } else {
       toShipEl.className='mkpi-val';
-      var toShip = (_orders||[]).filter(function(o){ return toShipStatuses.indexOf((o.status||'').toLowerCase())>-1; }).length;
-      toShipEl.textContent = toShip.toLocaleString();
-      breakdownEl.textContent = 'Avg '+Math.round(toShip/span).toLocaleString()+'/day';
+      var totalOrders = (_orders||[]).length;
+      toShipEl.textContent = totalOrders.toLocaleString();
+      breakdownEl.textContent = 'Avg '+Math.round(totalOrders/span).toLocaleString()+'/day';
 
-      var balance = periodTotal - toShip;
+      var balance = periodTotal - totalOrders;
       balanceEl.textContent = (balance>=0?'+':'')+balance.toLocaleString();
       balanceEl.className = 'mkpi-val '+(balance>=0?'green':'red');
       noteEl.className = 'mkpi-delta '+(balance>=0?'up':'down');
