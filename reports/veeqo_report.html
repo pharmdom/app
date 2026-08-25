@@ -424,6 +424,14 @@ var _primeCount = 0;
 var _readyToShipCount = 0;
 var _paymentReqCount = 0;
 var _cityData = [];
+var _toShipYesterdayCount = 0;
+var _toShipTodayCount = 0;
+var _readyPrimeCount = 0;
+var _heatmapData = [];
+var _channelData = [];
+var _statusData = [];
+var _trendData = [];
+var _revenueSum = 0;
 var _lineItems = [];
 var _allOrders = [];
 var _whClockInt = null;
@@ -503,19 +511,30 @@ async function loadPackingData(){
   if (!sb) return;
   var r = getPackDateRange();
   var promises = [
-    sb.from('manus_packing_counts').select('date,time_slot,packer_name,count').gte('date', r.start).lte('date', r.end).order('time_slot',{ascending:true}).limit(20000),
-    sb.from('manus_packing_counts').select('date,time_slot,packer_name,count').gte('date', r.prevStart).lte('date', r.prevEnd).order('time_slot',{ascending:true}).limit(20000),
+        sb.from('manus_packing_counts').select('date,time_slot,packer_name,count').gte('date', r.start).lte('date', r.end).order('time_slot',{ascending:true}).limit(200000),
+    sb.from('manus_packing_counts').select('date,time_slot,packer_name,count').gte('date', r.prevStart).lte('date', r.prevEnd).order('time_slot',{ascending:true}).limit(200000),
+  
   ];
-  if (_range === 'today') {
+    if (_range === 'today') {
     var cutoffs = getShipCutoffs();
+    var todayMid = getUKMidnight();
     promises.push(
-      sb.from('veeqo_orders').select('order_id,created_at,status').gte('created_at', cutoffs.cutoffYesterday.toISOString()).limit(5000)
+      sb.from('veeqo_orders').select('order_id', { count: 'exact', head: true })
+        .gte('created_at', cutoffs.cutoffYesterday.toISOString()).lt('created_at', todayMid.toISOString())
+        .in('status', ['shipped','dispatched','awaiting_fulfillment']),
+      sb.from('veeqo_orders').select('order_id', { count: 'exact', head: true })
+        .gte('created_at', todayMid.toISOString())
+        .in('status', ['shipped','dispatched','awaiting_fulfillment']),
+      sb.from('veeqo_orders').select('order_id', { count: 'exact', head: true })
+        .eq('status', 'awaiting_fulfillment').eq('is_amazon_prime', true)
     );
   }
   var results = await Promise.all(promises);
   _packCounts = results[0].data || [];
   _packPrevCounts = results[1].data || [];
-  _packWindowOrders = (_range === 'today' && results[2]) ? (results[2].data || []) : [];
+  _toShipYesterdayCount = (_range === 'today' && results[2]) ? (results[2].count || 0) : 0;
+  _toShipTodayCount = (_range === 'today' && results[3]) ? (results[3].count || 0) : 0;
+  _readyPrimeCount = (_range === 'today' && results[4]) ? (results[4].count || 0) : 0;
 }
 function groupCountsByDate(rows){
   var byDate = {};
@@ -689,16 +708,14 @@ function renderPackingCard(){
       noteEl.className='mkpi-delta'; noteEl.textContent='Loading…';
       breakdownEl.textContent='';
         } else {
-      toShipEl.className='mkpi-val';
-      var win = (_packWindowOrders||[]).filter(function(o){
-        return o.created_at && new Date(o.created_at) >= cutoffYesterday && toShipStatuses.indexOf((o.status||'').toLowerCase())>-1;
-      });
-      var toShipYesterday = win.filter(function(o){ return new Date(o.created_at) < todayMidnight; }).length;
-      var toShipToday = win.filter(function(o){ return new Date(o.created_at) >= todayMidnight; }).length;
+      
+            toShipEl.className='mkpi-val';
+      var toShipYesterday = _toShipYesterdayCount;
+      var toShipToday = _toShipTodayCount;
       var toShip = toShipYesterday + toShipToday;
       toShipEl.textContent = toShip.toLocaleString();
       breakdownEl.textContent = 'Yesterday (4.30pm): '+toShipYesterday.toLocaleString()+' · Today: '+toShipToday.toLocaleString();
-
+          
       var balance = totalPacks - toShip;
       balanceEl.textContent = (balance>=0?'+':'')+balance.toLocaleString();
       balanceEl.className = 'mkpi-val '+(balance>=0?'green':'red');
@@ -713,9 +730,9 @@ function renderPackingCard(){
       } else { noteEl.className='mkpi-delta down'; noteEl.textContent='Behind — pace data pending'; }
     }
 
-    var readyPrime = (_orders||[]).filter(function(o){ return (o.status||'')==='awaiting_fulfillment' && o.is_amazon_prime; }).length;
+    var readyPrime = _readyPrimeCount;
     document.getElementById('vrPackReadyPrime').textContent = readyPrime.toLocaleString();
-
+      
     var chartSlots = halfHourMarksOnly(slots);
     var paceVals = paceSeriesFromBucket(bucket, chartSlots);
     var prevRows = (_packPrevCounts||[]).filter(function(c){return c.date===r.prevStart;});
@@ -743,7 +760,7 @@ function renderPackingCard(){
     var prevDateList = []; for (var j=0;j<span;j++) prevDateList.push(addDaysToDateStr(r.prevStart,j));
     var prevDailyTotals = prevDateList.map(function(d){ return dailyPackTotal(prevByDate[d]||[]); });
 
-        document.getElementById('vrPackToShipLbl').textContent = 'Total Orders ('+span+'d)';
+        document.getElementById('vrPackToShipLbl').textContent = 'To Ship ('+span+'d)';
     var toShipEl = document.getElementById('vrPackToShip');
     var breakdownEl = document.getElementById('vrPackToShipBreakdown');
     var balanceEl = document.getElementById('vrPackBalance');
@@ -756,10 +773,9 @@ function renderPackingCard(){
       breakdownEl.textContent='';
     } else {
       toShipEl.className='mkpi-val';
-      var totalOrders = _totalOrdersCount || (_orders||[]).length;
+      var totalOrders = _readyToShipCount + _shippedCount;
       toShipEl.textContent = totalOrders.toLocaleString();
       breakdownEl.textContent = 'Avg '+Math.round(totalOrders/span).toLocaleString()+'/day';
-
       var balance = periodTotal - totalOrders;
       balanceEl.textContent = (balance>=0?'+':'')+balance.toLocaleString();
       balanceEl.className = 'mkpi-val '+(balance>=0?'green':'red');
@@ -767,7 +783,7 @@ function renderPackingCard(){
       noteEl.textContent = balance>=0 ? '✓ Ahead of demand' : 'Behind by '+Math.abs(balance).toLocaleString();
     }
 
-    var readyPrime = (_orders||[]).filter(function(o){ return (o.status||'')==='awaiting_fulfillment' && o.is_amazon_prime; }).length;
+    var readyPrime = _readyPrimeCount;
     document.getElementById('vrPackReadyPrime').textContent = readyPrime.toLocaleString();
 
     var legendEl = document.getElementById('vrPackSparkLegend');
@@ -882,10 +898,15 @@ if (!sb) {
         .select('order_id', { count: 'exact', head: true })
         .gte('created_at', startISO).lte('created_at', endISO)
         .eq('status', 'awaiting_fulfillment'),
-      sb.from('veeqo_orders')
+            sb.from('veeqo_orders')
         .select('order_id', { count: 'exact', head: true })
         .gte('created_at', startISO).lte('created_at', endISO)
         .in('status', ['awaiting_payment','payment_pending']),
+      sb.rpc('veeqo_orders_heatmap', { start_date: startISO, end_date: endISO }),
+      sb.rpc('veeqo_orders_by_channel', { start_date: startISO, end_date: endISO }),
+      sb.rpc('veeqo_orders_by_status', { start_date: startISO, end_date: endISO }),
+      sb.rpc('veeqo_orders_trend', { start_date: startISO, end_date: endISO, granularity: (_range==='today'?'hour':'day') }),
+      sb.rpc('veeqo_revenue_sum', { start_date: startISO, end_date: endISO }),
       loadPackingData(),
     ]);
 
@@ -897,6 +918,12 @@ if (!sb) {
     _shippedCount = results[3].count || 0;
     _primeCount = results[4].count || 0;
     _readyToShipCount = results[5].count || 0;
+    _paymentReqCount = results[6].count || 0;
+    _heatmapData = results[7].data || [];
+    _channelData = results[8].data || [];
+    _statusData = results[9].data || [];
+    _trendData = results[10].data || [];
+    _revenueSum = parseFloat(results[11].data) || 0;
     _paymentReqCount = results[6].count || 0;
     _allOrders = _orders.slice();
     _dataReady = true;
@@ -965,12 +992,12 @@ function computeStats() {
     revenue += parseFloat(r.total_price)||0;
   });
 
-  return {
+    return {
     shipped: _shippedCount || shipped,
     prime: _primeCount || prime,
     readyToShip: _readyToShipCount || readyToShip,
     paymentReq: _paymentReqCount || paymentReq,
-    revenue: revenue,
+    revenue: _revenueSum || revenue,
     total: _totalOrdersCount || o.length,
     qtyMap: qtyMap
   };
@@ -986,31 +1013,23 @@ function renderAll() {
 
   
 function buildTrendBuckets() {
-  var o = _orders, buckets = {};
+  var buckets = {};
   var b = getRangeBounds();
   if (_range === 'today') {
-    for (var h=0; h<24; h++) buckets[h] = 0;
-    o.forEach(function(r) {
-      if (!r.created_at) return;
-      /* Show hour in UK time */
-      var d = new Date(r.created_at);
-      var ukHour = parseInt(d.toLocaleString('en-GB',{timeZone:'Europe/London',hour:'numeric',hour12:false}));
-      buckets[ukHour] = (buckets[ukHour]||0) + 1;
-    });
+    for (var h=0; h<24; h++) buckets[String(h).padStart(2,'0')] = 0;
   } else {
     var cur = new Date(b.start);
     while (cur <= b.end) {
-      var k = cur.toLocaleDateString('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'});
+      var k = cur.toISOString().slice(0,10);
       buckets[k] = 0;
       cur.setUTCDate(cur.getUTCDate()+1);
     }
-    o.forEach(function(r) {
-      if (!r.created_at) return;
-      var d = new Date(r.created_at);
-      var k = d.toLocaleDateString('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'});
-      if (k in buckets) buckets[k]++;
-    });
   }
+  _trendData.forEach(function(row){
+    var key = _range==='today' ? row.bucket_label : row.bucket_label;
+    if (_range==='today') { if (key in buckets) buckets[key] = row.order_count; }
+    else { if (key in buckets) buckets[key] = row.order_count; }
+  });
   return buckets;
 }
 
@@ -1024,6 +1043,8 @@ function renderTrend() {
     return a.localeCompare(b);
   });
   var vals = keys.map(function(k){return buckets[k];});
+  keys = keys.map(function(k){ return _range==='today' ? k : k; });
+  
   var maxV = Math.max.apply(null,vals)||1;
   var svg = document.getElementById('trendChart');
   var W = svg.parentElement.offsetWidth||580;
@@ -1076,18 +1097,9 @@ function renderTrend() {
 function renderHeatmap() {
   var grid = [];
   for (var d=0;d<7;d++) grid.push(new Array(24).fill(0));
-  _orders.forEach(function(r) {
-    if (!r.created_at) return;
-    var dt = new Date(r.created_at);
-    /* Day of week in UK time: Mon=0…Sun=6 */
-    var ukDay = parseInt(dt.toLocaleDateString('en-GB',{timeZone:'Europe/London',weekday:'short'}).slice(0,3)==='Mon'?0
-      :dt.toLocaleDateString('en-GB',{timeZone:'Europe/London',weekday:'short'}).slice(0,3)==='Tue'?1
-      :dt.toLocaleDateString('en-GB',{timeZone:'Europe/London',weekday:'short'}).slice(0,3)==='Wed'?2
-      :dt.toLocaleDateString('en-GB',{timeZone:'Europe/London',weekday:'short'}).slice(0,3)==='Thu'?3
-      :dt.toLocaleDateString('en-GB',{timeZone:'Europe/London',weekday:'short'}).slice(0,3)==='Fri'?4
-      :dt.toLocaleDateString('en-GB',{timeZone:'Europe/London',weekday:'short'}).slice(0,3)==='Sat'?5:6);
-    var ukHour = parseInt(dt.toLocaleString('en-GB',{timeZone:'Europe/London',hour:'numeric',hour12:false}));
-    if (ukDay>=0&&ukDay<7&&ukHour>=0&&ukHour<24) grid[ukDay][ukHour]++;
+  _heatmapData.forEach(function(row) {
+    var ukDay = row.uk_dow, ukHour = row.uk_hour;
+    if (ukDay>=0&&ukDay<7&&ukHour>=0&&ukHour<24) grid[ukDay][ukHour] = row.order_count;
   });
   var maxV=0;
   grid.forEach(function(row){row.forEach(function(v){if(v>maxV)maxV=v;});});
@@ -1110,7 +1122,7 @@ function renderHeatmap() {
 /* ── CHANNEL PIE ── */
 function renderChannelPie() {
   var cMap={};
-  _orders.forEach(function(r){var c=(r.channel||'Unknown').trim();cMap[c]=(cMap[c]||0)+1;});
+  _channelData.forEach(function(row){cMap[row.channel]=row.order_count;});
   var rows=Object.keys(cMap).map(function(k){return{name:k,count:cMap[k]};}).sort(function(a,b){return b.count-a.count;});
   var total=rows.reduce(function(a,r){return a+r.count;},0)||1;
   var cx=60,cy=60,r=48,circ=2*Math.PI*r;
@@ -1144,10 +1156,7 @@ function renderChannelPie() {
 /* ── STATUS BARS ── */
 function renderStatusBars() {
   var sMap={};
-  _orders.forEach(function(r){
-    var k=(r.status||'unknown').toLowerCase().trim();
-    sMap[k]=(sMap[k]||0)+1;
-  });
+  _statusData.forEach(function(row){ sMap[row.status]=row.order_count; });
   var rows=Object.keys(sMap).map(function(k){return{key:k,count:sMap[k]};}).sort(function(a,b){return b.count-a.count;});
   var maxV=rows.length?rows[0].count:1;
   document.getElementById('statusBars').innerHTML = rows.slice(0,8).map(function(row){
@@ -1423,7 +1432,7 @@ function renderWHTrend() {
 }
 function renderWHPie() {
   var cMap={};
-  _orders.forEach(function(r){var c=(r.channel||'Unknown').trim();cMap[c]=(cMap[c]||0)+1;});
+    _channelData.forEach(function(row){cMap[row.channel]=row.order_count;});
   var rows=Object.keys(cMap).map(function(k){return{name:k,count:cMap[k]};}).sort(function(a,b){return b.count-a.count;});
   var total=rows.reduce(function(a,r){return a+r.count;},0)||1;
   var cx=70,cy=70,r=54,circ=2*Math.PI*r,offset=0,segs='';
