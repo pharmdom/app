@@ -416,6 +416,7 @@ function initSB() {
 /* ── STATE ── */
 var _range = 'today';
 var _orders = [];
+var _totalOrdersCount = 0;
 var _lineItems = [];
 var _allOrders = [];
 var _whClockInt = null;
@@ -748,7 +749,7 @@ function renderPackingCard(){
       breakdownEl.textContent='';
     } else {
       toShipEl.className='mkpi-val';
-      var totalOrders = (_orders||[]).length;
+      var totalOrders = _totalOrdersCount || (_orders||[]).length;
       toShipEl.textContent = totalOrders.toLocaleString();
       breakdownEl.textContent = 'Avg '+Math.round(totalOrders/span).toLocaleString()+'/day';
 
@@ -846,7 +847,7 @@ if (!sb) {
     var startISO = b.start.toISOString();
     var endISO = b.end.toISOString();
 
-        var results = await Promise.all([
+               var results = await Promise.all([
       sb.from('veeqo_orders')
         .select('order_id,order_number,status,picked_status,created_at,shipped_at,total_price,channel,is_amazon_prime,deliver_to_name,customer_email,tracking_number')
         .gte('created_at', startISO)
@@ -857,6 +858,10 @@ if (!sb) {
         .select('order_id,quantity')
         .gte('created_at', startISO)
         .lte('created_at', endISO),
+      sb.from('veeqo_orders')
+        .select('order_id', { count: 'exact', head: true })
+        .gte('created_at', startISO)
+        .lte('created_at', endISO),
       loadPackingData(),
     ]);
 
@@ -864,6 +869,7 @@ if (!sb) {
 
     _orders = results[0].data || [];
     _lineItems = results[1].data || [];
+    _totalOrdersCount = results[2].count || 0;
     _allOrders = _orders.slice();
     _dataReady = true;
 
@@ -930,7 +936,7 @@ function computeStats() {
     revenue += parseFloat(r.total_price)||0;
   });
 
-  return { shipped, prime, readyToShip, paymentReq, revenue, total: o.length, qtyMap };
+  return { shipped, prime, readyToShip, paymentReq, revenue, total: _totalOrdersCount || o.length, qtyMap };
 }
 
 /* ── RENDER ALL ── */
