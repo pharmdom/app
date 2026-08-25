@@ -145,7 +145,12 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .city-bubble:hover{fill-opacity:.85;}
 .city-dot-label{font-size:8px;fill:var(--text3,#64748b);font-family:var(--font);pointer-events:none;}
 .city-unmapped-panel{flex:1;min-width:220px;}
-.city-unmapped-title{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text4,#94a3b8);margin-bottom:8px;}
+.city-legend-title,.city-unmapped-title{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text4,#94a3b8);margin-bottom:8px;}
+.city-legend{margin-bottom:18px;}
+.city-legend-item{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+.city-legend-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+.city-legend-name{flex:1;font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.city-legend-count{font-size:11.5px;font-weight:700;color:var(--text3,#64748b);font-family:var(--mono,monospace);}
 .city-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:default;}
 .city-name{width:110px;flex-shrink:0;font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .city-bar-track{flex:1;height:14px;background:var(--surface2,#f1f5f9);border-radius:5px;overflow:hidden;position:relative;}
@@ -1211,8 +1216,16 @@ var UK_CITY_COORDS = {
   'Wrexham':[138,286],'Londonderry':[26,140],'Derry':[26,140],'Swindon':[152,392],
   'Bournemouth':[152,438],'Poole':[148,440],'Dover':[254,424],'Ashford':[240,420]
 };
-function normCityKey(s){ return String(s||'').trim(); }
 
+function normCityKey(s){ return String(s||'').trim(); }
+function cityColorForCount(count, maxCount){
+  var ratio = maxCount>0 ? count/maxCount : 0;
+  if (ratio >= 0.75) return '#1d4ed8';
+  if (ratio >= 0.5) return '#3b82f6';
+  if (ratio >= 0.25) return '#60a5fa';
+  return '#93c5fd';
+}
+  
 function renderCityChart() {
   var wrap = document.getElementById('cityChartWrap');
   var titleEl = document.getElementById('cityTitle');
@@ -1236,9 +1249,20 @@ function renderCityChart() {
   var bubbles = mapped.map(function(c){
     var xy = UK_CITY_COORDS[normCityKey(c.city)];
     var r = minR + Math.sqrt(c.order_count / maxCount) * (maxR - minR);
+    var col = cityColorForCount(c.order_count, maxCount);
     return '<circle class="city-bubble" cx="'+xy[0]+'" cy="'+xy[1]+'" r="'+r.toFixed(1)+'" '
+      + 'style="fill:'+col+';stroke:'+col+';" '
       + 'data-city="'+esc(c.city)+'" data-orders="'+c.order_count+'" data-revenue="'+c.revenue+'" data-customers="'+c.customer_count+'"></circle>';
   }).join('');
+
+  var legendHtml = mapped.length ? mapped.map(function(c){
+    var col = cityColorForCount(c.order_count, maxCount);
+    return '<div class="city-legend-item">'
+      + '<div class="city-legend-dot" style="background:'+col+';"></div>'
+      + '<div class="city-legend-name">' + esc(c.city) + '</div>'
+      + '<div class="city-legend-count">' + c.order_count.toLocaleString() + '</div>'
+      + '</div>';
+  }).join('') : '<div class="city-empty">No cities plotted</div>';
 
   var svgHtml = '<svg id="cityMapSvg" viewBox="0 0 280 520" style="width:100%;height:auto;max-height:420px;display:block;">'
     + '<path d="M120,20 L145,25 L160,45 L155,70 L172,90 L165,115 L145,110 L130,130 L140,150 L165,165 L195,170 L210,195 L200,225 L215,235 L225,265 L210,280 L195,300 L200,320 L185,335 L195,355 L215,365 L235,390 L245,415 L235,425 L215,435 L220,450 L200,430 L190,410 L175,420 L160,405 L140,415 L120,400 L110,380 L95,385 L90,410 L75,455 L65,485 L55,460 L70,430 L85,400 L95,375 L105,340 L100,310 L115,280 L110,250 L125,220 L120,190 L135,160 L125,130 L115,100 L105,75 L115,45 Z" '
@@ -1262,9 +1286,13 @@ function renderCityChart() {
     }).join('');
   }
 
-  wrap.innerHTML = '<div class="city-map-layout">'
+    wrap.innerHTML = '<div class="city-map-layout">'
     + '<div class="city-map-svg-wrap">' + svgHtml + '</div>'
     + '<div class="city-unmapped-panel">'
+      + '<div class="city-legend">'
+        + '<div class="city-legend-title">Cities on map (' + mapped.length + ')</div>'
+        + legendHtml
+      + '</div>'
       + '<div class="city-unmapped-title">Not shown on map (' + unmapped.length + ')</div>'
       + unmappedHtml
     + '</div>'
