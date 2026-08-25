@@ -525,7 +525,7 @@ function dailyPackTotal(rowsForDate){
   return total;
 }
 function packingBucketBySlot(rows){
-  var slots = [].concat(new Set(rows.map(function(c){return c.time_slot;}))).sort();
+  var slots = [...new Set(rows.map(function(c){return c.time_slot;}))].sort();
   var byPacker = {};
   rows.forEach(function(c){ (byPacker[c.packer_name]=byPacker[c.packer_name]||{})[c.time_slot]=parseInt(c.count)||0; });
   var names = Object.keys(byPacker);
@@ -539,17 +539,7 @@ function packingBucketBySlot(rows){
   return bucket;
 }
 function halfHourMarksOnly(slots){
-  var hourMarks = slots.filter(function(sl){ var m=String(sl).slice(0,5).split(':')[1]; return m==='00'; });
-  if (hourMarks.length >= 4) return hourMarks;
-  // Not enough hour-boundaries yet today — fall back to a readable spread so the chart isn't empty.
-  var target = 10;
-  if (slots.length <= target) return slots;
-  var step = Math.ceil(slots.length / target);
-  var out = [];
-  for (var i=0;i<slots.length;i+=step) out.push(slots[i]);
-  var last = slots[slots.length-1];
-  if (out[out.length-1] !== last) out.push(last);
-  return out;
+  return slots.filter(function(sl){ var m=String(sl).slice(0,5).split(':')[1]; return m==='00'; });
 }
 function paceSeriesFromBucket(bucket,slots){
   return slots.map(function(sl,i){
@@ -670,7 +660,7 @@ function renderPackingCard(){
     subEl.textContent = todayRows.length ? 'Warehouse Today · updating every minute' : 'No activity yet';
     document.getElementById('vrPackTotal').textContent = totalPacks.toLocaleString();
 
-    var slots = [].concat(new Set(todayRows.map(function(c){return c.time_slot;}))).sort();
+    var slots = [...new Set(todayRows.map(function(c){return c.time_slot;}))].sort();
     var bucket = packingBucketBySlot(todayRows);
     var recentTeamPace = lastHourTeamPace(bucket, slots);
     var latestSlot = slots[slots.length-1];
