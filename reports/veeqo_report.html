@@ -76,7 +76,31 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sc-prime{--sc-accent:var(--amber);--sc-icon-bg:var(--amber-bg);--sc-icon-color:var(--amber);}
 .sc-ready{--sc-accent:var(--cyan);--sc-icon-bg:var(--cyan-bg);--sc-icon-color:var(--cyan);}
 .sc-payment{--sc-accent:var(--red);--sc-icon-bg:var(--red-bg);--sc-icon-color:var(--red);}
+
 .sc-revenue{--sc-accent:var(--purple);--sc-icon-bg:var(--purple-bg);--sc-icon-color:var(--purple);}
+
+/* ── PACKING PACE CARD (ported from Overview) ── */
+.pulse-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 18px;box-shadow:var(--sh-sm);margin-bottom:22px;}
+.pulse-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
+.pulse-title{font-size:13px;font-weight:700;color:var(--text);}
+.pulse-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.mkpi-row-plain{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px;}
+.mkpi-plain{min-width:0;}
+.mkpi-plain.mkpi-div{border-left:1px solid var(--border2);padding-left:16px;}
+.mkpi-lbl{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);margin-bottom:5px;}
+.mkpi-val{font-size:24px;font-weight:800;color:var(--text);font-family:var(--mono);line-height:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mkpi-val.green{color:var(--green);}
+.mkpi-val.red{color:var(--red);}
+.mkpi-val.loading{color:var(--text4);letter-spacing:2px;animation:livePulse 1.3s ease infinite;}
+.mkpi-delta{font-size:10.5px;font-weight:700;margin-top:4px;}
+.mkpi-delta.up{color:var(--green);}
+.mkpi-delta.down{color:var(--red);}
+.mkpi-sub-breakdown{font-size:10.5px;color:var(--text3);margin-top:4px;font-weight:600;}
+.spark-legend{display:flex;align-items:center;gap:14px;font-size:10px;font-weight:600;color:var(--text3);margin-bottom:6px;}
+.spark-legend-item{display:flex;align-items:center;gap:5px;}
+.spark-legend-swatch{width:14px;height:0;border-top:2px solid;display:inline-block;border-radius:2px;}
+.spark-legend-swatch.dashed{border-top-style:dashed;border-color:var(--text4)!important;}
+.spark-wrap{height:120px;margin-top:6px;}
 
 /* ── CHART CARDS ── */
 .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px;}
@@ -259,16 +283,11 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 <div class="app">
   <nav class="topnav">
     <a class="nav-brand" href="#">
-      <img class="nav-logo-img" id="navLogo"
-        src="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png"
-        alt="Pharm & Dom"
-        onerror="this.style.display='none';document.getElementById('navLogoFallback').style.display='flex'">
+      
       <div class="nav-logo-fallback" id="navLogoFallback">
-        <div class="nav-logo-mark">P&D</div>
-        <span class="nav-logo-text">Pharm & Dom</span>
+      
       </div>
       <div class="nav-sep"></div>
-      <span class="nav-module">Veeqo Operations</span>
     </a>
     <div class="nav-center">
       <button class="range-btn active" data-range="today" onclick="setRange('today')">Today</button>
@@ -286,14 +305,37 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
   </nav>
 
   <main class="main">
-    <div class="sec-lbl">Key Metrics</div>
-    <div class="sc-grid" id="scGrid">
-      <div class="sc shimmer" style="height:106px;"></div>
-      <div class="sc shimmer" style="height:106px;"></div>
-      <div class="sc shimmer" style="height:106px;"></div>
-      <div class="sc shimmer" style="height:106px;"></div>
-      <div class="sc shimmer" style="height:106px;"></div>
-      <div class="sc shimmer" style="height:106px;"></div>
+        <div class="sec-lbl">Key Metrics</div>
+    <div class="pulse-card">
+      <div class="pulse-hdr">
+        <div>
+          <div class="pulse-title">Packing Pace (WH)</div>
+          <div class="pulse-sub" id="vrPackSub">Loading…</div>
+        </div>
+      </div>
+      <div class="mkpi-row-plain">
+        <div class="mkpi-plain">
+          <div class="mkpi-lbl" id="vrPackTotalLbl">Packs Today</div>
+          <div class="mkpi-val" id="vrPackTotal">—</div>
+        </div>
+        <div class="mkpi-plain mkpi-div">
+          <div class="mkpi-lbl">To Ship</div>
+          <div class="mkpi-val" id="vrPackToShip">—</div>
+          <div class="mkpi-sub-breakdown" id="vrPackToShipBreakdown"></div>
+        </div>
+        <div class="mkpi-plain mkpi-div">
+          <div class="mkpi-lbl">Packing Balance</div>
+          <div class="mkpi-val" id="vrPackBalance">—</div>
+          <div class="mkpi-delta" id="vrPackBalanceNote"></div>
+        </div>
+        <div class="mkpi-plain mkpi-div">
+          <div class="mkpi-lbl">Ready to Ship</div>
+          <div class="mkpi-val" id="vrPackReadyPrime">—</div>
+          <div class="mkpi-sub-breakdown">Amazon Prime</div>
+        </div>
+      </div>
+      <div class="spark-legend" id="vrPackSparkLegend" style="display:none"></div>
+      <div class="spark-wrap"><svg id="vrPackSparkline" style="width:100%;height:100%;display:block;"></svg></div>
     </div>
 
     <div class="chart-row">
@@ -385,6 +427,9 @@ var _lineItems = [];
 var _allOrders = [];
 var _whClockInt = null;
 var _refreshInt = null;
+var _packCounts = [];
+var _packPrevCounts = [];
+var _dataReady = false;
 
 /* ── STATUS MAPPING ──
    Maps Veeqo's snake_case status strings to display labels and CSS classes.
@@ -413,7 +458,299 @@ function fmtGBP(v){var n=parseFloat(v)||0;return '\u00a3'+n.toLocaleString('en-G
 function pad(n){return String(n).padStart(2,'0');}
 function toISO(d){var dt=new Date(d);return dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());}
 function fmtDate(s){if(!s)return'\u2014';var d=new Date(s);return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
+
 function fmtDateShort(s){if(!s)return'\u2014';var d=new Date(s);return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});}
+
+/* ── PACKING PACE (ported from Overview, range-aware) ── */
+function timeToMinsPack(t){ if(!t) return 0; var parts=String(t).slice(0,5).split(':'); return (parseInt(parts[0])||0)*60+(parseInt(parts[1])||0); }
+  
+function ukDateStrFor(d){
+  var fmt=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'});
+  var parts=fmt.formatToParts(d);var p={};parts.forEach(function(x){p[x.type]=x.value;});
+  return p.year+'-'+p.month+'-'+p.day;
+}
+function addDaysToDateStr(dateStr,days){
+  var parts=dateStr.split('-').map(Number);
+  var dt=new Date(Date.UTC(parts[0],parts[1]-1,parts[2]));
+  dt.setUTCDate(dt.getUTCDate()+days);
+  return dt.getUTCFullYear()+'-'+pad(dt.getUTCMonth()+1)+'-'+pad(dt.getUTCDate());
+}
+function ukWeekdayNameNow(){
+  return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',weekday:'long'}).format(new Date());
+}
+function getPackDateRange(){
+  if (_range === 'today') {
+    var todayUK = ukDateStrFor(new Date());
+    var lwStr = addDaysToDateStr(todayUK, -7);
+    return { start: todayUK, end: todayUK, prevStart: lwStr, prevEnd: lwStr, days: 1 };
+  }
+  var span = _range === '7d' ? 7 : 30;
+  var endStr = ukDateStrFor(new Date());
+  var start = addDaysToDateStr(endStr, -(span-1));
+  var prevEnd = addDaysToDateStr(start, -1);
+  var prevStart = addDaysToDateStr(prevEnd, -(span-1));
+  return { start: start, end: endStr, prevStart: prevStart, prevEnd: prevEnd, days: span };
+}
+async function loadPackingData(){
+  sb = initSB();
+  if (!sb) return;
+  var r = getPackDateRange();
+  var results = await Promise.all([
+    sb.from('manus_packing_counts').select('date,time_slot,packer_name,count').gte('date', r.start).lte('date', r.end).order('time_slot',{ascending:true}).limit(20000),
+    sb.from('manus_packing_counts').select('date,time_slot,packer_name,count').gte('date', r.prevStart).lte('date', r.prevEnd).order('time_slot',{ascending:true}).limit(20000),
+  ]);
+  _packCounts = results[0].data || [];
+  _packPrevCounts = results[1].data || [];
+}
+function groupCountsByDate(rows){
+  var byDate = {};
+  rows.forEach(function(c){ (byDate[c.date] = byDate[c.date]||[]).push(c); });
+  return byDate;
+}
+function dailyPackTotal(rowsForDate){
+  var latest = {};
+  rowsForDate.forEach(function(c){
+    var ex = latest[c.packer_name];
+    if (!ex || c.time_slot > ex.time_slot) latest[c.packer_name] = c;
+  });
+  var total = 0;
+  Object.keys(latest).forEach(function(n){ total += parseInt(latest[n].count)||0; });
+  return total;
+}
+function packingBucketBySlot(rows){
+  var bucket = {};
+  rows.forEach(function(c){ bucket[c.time_slot]=(bucket[c.time_slot]||0)+(parseInt(c.count)||0); });
+  return bucket;
+}
+function halfHourMarksOnly(slots){
+  return slots.filter(function(sl){ var m=String(sl).slice(0,5).split(':')[1]; return m==='00'||m==='30'; });
+}
+function paceSeriesFromBucket(bucket,slots){
+  return slots.map(function(sl,i){
+    if (i===0) return 0;
+    var dt=(timeToMinsPack(sl)-timeToMinsPack(slots[i-1]))/60;
+    var dv=(bucket[sl]||0)-(bucket[slots[i-1]]||0);
+    return dt>0?Math.max(0,dv/dt):0;
+  });
+}
+function lastHourTeamPace(bucket,slots){
+  if (!slots.length) return 0;
+  var latestSlot = slots[slots.length-1];
+  var latestMins = timeToMinsPack(latestSlot);
+  var windowStart = latestMins-60;
+  var baseIdx = 0;
+  for (var i=0;i<slots.length;i++){ if (timeToMinsPack(slots[i])<=windowStart) baseIdx=i; else break; }
+  var baseSlot = slots[baseIdx];
+  var hrs = (latestMins-timeToMinsPack(baseSlot))/60;
+  if (hrs<=0) return 0;
+  var diff = (bucket[latestSlot]||0)-(bucket[baseSlot]||0);
+  return Math.max(0,diff/hrs);
+}
+function alignedPrevPace(todaySlots, prevRowsForDate){
+  if (!prevRowsForDate.length) return null;
+  var prevBucket = packingBucketBySlot(prevRowsForDate);
+  var prevSlots = Object.keys(prevBucket).sort();
+  if (!prevSlots.length) return null;
+  return todaySlots.map(function(sl){
+    var idx=-1;
+    for (var i=0;i<prevSlots.length;i++){ if (prevSlots[i]<=sl) idx=i; else break; }
+    if (idx<=0) return null;
+    var dt=(timeToMinsPack(prevSlots[idx])-timeToMinsPack(prevSlots[idx-1]))/60;
+    var dv=(prevBucket[prevSlots[idx]]||0)-(prevBucket[prevSlots[idx-1]]||0);
+    return dt>0?Math.max(0,dv/dt):0;
+  });
+}
+function ensurePackTip(){
+  var tip = document.getElementById('vrPackSparkTip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'vrPackSparkTip';
+    tip.style.cssText = 'position:fixed;z-index:5000;pointer-events:none;background:var(--navy2);color:#fff;font-size:11px;font-weight:600;padding:6px 9px;border-radius:7px;box-shadow:var(--sh-lg);opacity:0;transition:opacity .1s;white-space:nowrap;font-family:var(--font);line-height:1.5;';
+    document.body.appendChild(tip);
+  }
+  return tip;
+}
+function drawPackSparkline(keys, vals, prevVals, xLabelFn, unit){
+  var svg = document.getElementById('vrPackSparkline');
+  if (!svg) return;
+  var W = svg.parentElement.getBoundingClientRect().width || svg.parentElement.offsetWidth || 500, H = 120, pL=36, pR=8, pT=8, pB=20;
+  var cW=W-pL-pR, cH=H-pT-pB, n=vals.length;
+  var maxV = Math.max.apply(null, vals.concat(prevVals||[]).concat([1]));
+  var pts = vals.map(function(v,i){ return [pL+(n>1?i*cW/(n-1):0), pT+cH-(v/maxV*cH)]; });
+  var pathD = 'M '+pts.map(function(p){return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' L ');
+  var areaD = pathD+' L '+(pL+cW).toFixed(1)+','+(pT+cH)+' L '+pL+','+(pT+cH)+' Z';
+  var prevPathD = '';
+  if (prevVals) {
+    var prevPts = prevVals.map(function(v,i){ return [pL+(n>1?i*cW/(n-1):0), pT+cH-(v/maxV*cH)]; });
+    prevPathD = 'M '+prevPts.map(function(p){return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' L ');
+  }
+  var gid = 'vrpg'+Math.random().toString(36).slice(2);
+  var grid = '';
+  [0,0.5,1].forEach(function(f){
+    var y = pT+cH-(cH*f);
+    var rawVal = maxV*f;
+    var label = unit==='pace' ? rawVal.toFixed(0) : Math.round(rawVal).toLocaleString();
+    grid += '<line x1="'+pL+'" y1="'+y.toFixed(1)+'" x2="'+(pL+cW).toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="var(--border2)" stroke-width="1" stroke-dasharray="3,3"/>';
+    grid += '<text x="'+(pL-5).toFixed(1)+'" y="'+(y+3.5).toFixed(1)+'" text-anchor="end" font-size="9" fill="var(--text4)" font-family="var(--mono)">'+label+'</text>';
+  });
+  var xLabels = '';
+  var step = Math.max(1, Math.floor(n/6));
+  keys.forEach(function(k,i){
+    if (i%step!==0 && i!==n-1) return;
+    var x = pL+(n>1?i*cW/(n-1):0);
+    xLabels += '<text x="'+x.toFixed(1)+'" y="'+(H-4)+'" text-anchor="middle" font-size="9" fill="var(--text4)" font-family="var(--mono)">'+esc(xLabelFn(k))+'</text>';
+  });
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  svg.innerHTML = '<defs><linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1">'
+    +'<stop offset="0%" stop-color="var(--accent)" stop-opacity=".18"/>'
+    +'<stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>'
+    +grid
+    +'<path d="'+areaD+'" fill="url(#'+gid+')"/>'
+    +(prevPathD?'<path d="'+prevPathD+'" fill="none" stroke="var(--text4)" stroke-width="1.5" stroke-dasharray="4,3" stroke-linecap="round" stroke-linejoin="round"/>':'')
+    +'<path d="'+pathD+'" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+    +xLabels;
+  svg.onmousemove = function(e){
+    var rect = svg.getBoundingClientRect();
+    if (!rect.width) return;
+    var scaleX = W/rect.width;
+    var localX = (e.clientX-rect.left)*scaleX;
+    var idx=0, best=Infinity;
+    pts.forEach(function(p,i){ var d=Math.abs(p[0]-localX); if (d<best){best=d;idx=i;} });
+    var tip = ensurePackTip();
+    var label = keys[idx]!=null ? xLabelFn(keys[idx]) : '';
+    var fmtV = function(v){ return unit==='pace' ? v.toFixed(1)+'/hr' : Math.round(v).toLocaleString(); };
+    var html = '<div style="opacity:.65;font-size:9.5px;margin-bottom:2px">'+esc(String(label))+'</div><div>'+fmtV(vals[idx])+'</div>';
+    if (prevVals && prevVals[idx]!=null) html += '<div style="opacity:.65;font-size:9.5px;margin-top:3px;border-top:1px solid rgba(255,255,255,.15);padding-top:3px">'+fmtV(prevVals[idx])+'</div>';
+    tip.innerHTML = html;
+    tip.style.left = (e.clientX+14)+'px';
+    tip.style.top = (e.clientY-14)+'px';
+    tip.style.opacity = '1';
+  };
+  svg.onmouseleave = function(){ var t=document.getElementById('vrPackSparkTip'); if (t) t.style.opacity='0'; };
+}
+function renderPackingCard(){
+  var r = getPackDateRange();
+  var labelEl = document.getElementById('vrPackTotalLbl');
+  var subEl = document.getElementById('vrPackSub');
+  var toShipStatuses = ['shipped','dispatched','awaiting_fulfillment'];
+
+  if (_range === 'today') {
+    labelEl.textContent = 'Packs Today';
+    var todayRows = (_packCounts||[]).filter(function(c){return c.date===r.start;});
+    var totalPacks = dailyPackTotal(todayRows);
+    subEl.textContent = todayRows.length ? 'Warehouse Today · updating every minute' : 'No activity yet';
+    document.getElementById('vrPackTotal').textContent = totalPacks.toLocaleString();
+
+    var slots = [].concat(new Set(todayRows.map(function(c){return c.time_slot;}))).sort();
+    var bucket = packingBucketBySlot(todayRows);
+    var recentTeamPace = lastHourTeamPace(bucket, slots);
+    var latestSlot = slots[slots.length-1];
+    var activeNow = latestSlot ? new Set(todayRows.filter(function(c){return c.time_slot===latestSlot && (parseInt(c.count)||0)>0;}).map(function(c){return c.packer_name;})).size : 0;
+    var recentAvgPph = activeNow>0 ? recentTeamPace/activeNow : 0;
+
+    var cutoffToday = new Date(getUKMidnight().getTime()+16.5*3600000);
+    var cutoffYesterday = new Date(cutoffToday.getTime()-86400000);
+    var todayMidnight = getUKMidnight();
+    var toShipEl = document.getElementById('vrPackToShip');
+    var breakdownEl = document.getElementById('vrPackToShipBreakdown');
+    var balanceEl = document.getElementById('vrPackBalance');
+    var noteEl = document.getElementById('vrPackBalanceNote');
+
+        if (!_dataReady) {
+      toShipEl.textContent='···'; toShipEl.className='mkpi-val loading';
+      balanceEl.textContent='···'; balanceEl.className='mkpi-val loading';
+      noteEl.className='mkpi-delta'; noteEl.textContent='Loading…';
+      breakdownEl.textContent='';
+    } else {
+      toShipEl.className='mkpi-val';
+      var win = (_orders||[]).filter(function(o){
+        return o.created_at && new Date(o.created_at) >= cutoffYesterday && toShipStatuses.indexOf((o.status||'').toLowerCase())>-1;
+      });
+      var toShipYesterday = win.filter(function(o){ return new Date(o.created_at) < todayMidnight; }).length;
+      var toShipToday = win.filter(function(o){ return new Date(o.created_at) >= todayMidnight; }).length;
+      var toShip = toShipYesterday + toShipToday;
+      toShipEl.textContent = toShip.toLocaleString();
+      breakdownEl.textContent = 'Since 4:30pm yesterday: '+toShipYesterday.toLocaleString()+' · Today: '+toShipToday.toLocaleString();
+
+      var balance = totalPacks - toShip;
+      balanceEl.textContent = (balance>=0?'+':'')+balance.toLocaleString();
+      balanceEl.className = 'mkpi-val '+(balance>=0?'green':'red');
+      var now = new Date();
+      var hoursUntilCutoff = (cutoffToday.getTime()-now.getTime())/3600000;
+      var shortfall = balance<0 ? Math.abs(balance) : 0;
+      if (balance>=0) { noteEl.className='mkpi-delta up'; noteEl.textContent='✓ On track'; }
+      else if (hoursUntilCutoff<=0) { noteEl.className='mkpi-delta down'; noteEl.textContent='Past 4:30pm cutoff'; }
+      else if (recentAvgPph>0) {
+        var needed = Math.ceil(shortfall/(recentAvgPph*hoursUntilCutoff));
+        noteEl.className='mkpi-delta down'; noteEl.textContent='~'+needed+' more packer'+(needed!==1?'s':'')+' needed';
+      } else { noteEl.className='mkpi-delta down'; noteEl.textContent='Behind — pace data pending'; }
+    }
+
+    var readyPrime = (_orders||[]).filter(function(o){ return (o.status||'')==='awaiting_fulfillment' && o.is_amazon_prime; }).length;
+    document.getElementById('vrPackReadyPrime').textContent = readyPrime.toLocaleString();
+
+    var chartSlots = halfHourMarksOnly(slots);
+    var paceVals = paceSeriesFromBucket(bucket, chartSlots);
+    var prevRows = (_packPrevCounts||[]).filter(function(c){return c.date===r.prevStart;});
+    var prevPace = alignedPrevPace(chartSlots, prevRows);
+    var legendEl = document.getElementById('vrPackSparkLegend');
+    if (prevPace) {
+      legendEl.innerHTML = '<span class="spark-legend-item"><span class="spark-legend-swatch" style="border-color:var(--accent)"></span>Today</span>'
+        +'<span class="spark-legend-item"><span class="spark-legend-swatch dashed"></span>Last '+ukWeekdayNameNow()+'</span>';
+      legendEl.style.display='flex';
+    } else { legendEl.style.display='none'; }
+    requestAnimationFrame(function(){ drawPackSparkline(chartSlots, paceVals, prevPace, function(k){return k;}, 'pace'); });
+
+  } else {
+    var span = r.days;
+    labelEl.textContent = 'Total Packs ('+span+'d)';
+    var byDate = groupCountsByDate(_packCounts||[]);
+    var dateList = []; for (var i=0;i<span;i++) dateList.push(addDaysToDateStr(r.start,i));
+    var dailyTotals = dateList.map(function(d){ return dailyPackTotal(byDate[d]||[]); });
+    var periodTotal = dailyTotals.reduce(function(a,b){return a+b;},0);
+    subEl.textContent = periodTotal ? 'Warehouse · '+r.start+' to '+r.end : 'No activity in this range';
+    document.getElementById('vrPackTotal').textContent = periodTotal.toLocaleString();
+
+    var prevByDate = groupCountsByDate(_packPrevCounts||[]);
+    var prevDateList = []; for (var j=0;j<span;j++) prevDateList.push(addDaysToDateStr(r.prevStart,j));
+    var prevDailyTotals = prevDateList.map(function(d){ return dailyPackTotal(prevByDate[d]||[]); });
+
+    var toShipEl = document.getElementById('vrPackToShip');
+    var breakdownEl = document.getElementById('vrPackToShipBreakdown');
+    var balanceEl = document.getElementById('vrPackBalance');
+    var noteEl = document.getElementById('vrPackBalanceNote');
+
+    if (!_dataReady) {
+      toShipEl.textContent='···'; toShipEl.className='mkpi-val loading';
+      balanceEl.textContent='···'; balanceEl.className='mkpi-val loading';
+      noteEl.className='mkpi-delta'; noteEl.textContent='Loading…';
+      breakdownEl.textContent='';
+    } else {
+      toShipEl.className='mkpi-val';
+      var toShip = (_orders||[]).filter(function(o){ return toShipStatuses.indexOf((o.status||'').toLowerCase())>-1; }).length;
+      toShipEl.textContent = toShip.toLocaleString();
+      breakdownEl.textContent = 'Avg '+Math.round(toShip/span).toLocaleString()+'/day';
+
+      var balance = periodTotal - toShip;
+      balanceEl.textContent = (balance>=0?'+':'')+balance.toLocaleString();
+      balanceEl.className = 'mkpi-val '+(balance>=0?'green':'red');
+      noteEl.className = 'mkpi-delta '+(balance>=0?'up':'down');
+      noteEl.textContent = balance>=0 ? '✓ Ahead of demand' : 'Behind by '+Math.abs(balance).toLocaleString();
+    }
+
+    var readyPrime = (_orders||[]).filter(function(o){ return (o.status||'')==='awaiting_fulfillment' && o.is_amazon_prime; }).length;
+    document.getElementById('vrPackReadyPrime').textContent = readyPrime.toLocaleString();
+
+    var legendEl = document.getElementById('vrPackSparkLegend');
+    var hasPrev = prevDailyTotals.some(function(v){return v>0;});
+    if (hasPrev) {
+      legendEl.innerHTML = '<span class="spark-legend-item"><span class="spark-legend-swatch" style="border-color:var(--accent)"></span>This Period</span>'
+        +'<span class="spark-legend-item"><span class="spark-legend-swatch dashed"></span>Previous Period</span>';
+      legendEl.style.display='flex';
+    } else { legendEl.style.display='none'; }
+    requestAnimationFrame(function(){ drawPackSparkline(dateList, dailyTotals, hasPrev?prevDailyTotals:null, function(k){return k.slice(8)+'/'+k.slice(5,7);}, 'count'); });
+  }
+}
 
 /* ── PROGRESS BAR ── */
 var _pv=0,_pt=null;
@@ -488,7 +825,7 @@ if (!sb) {
     var startISO = b.start.toISOString();
     var endISO = b.end.toISOString();
 
-    var results = await Promise.all([
+        var results = await Promise.all([
       sb.from('veeqo_orders')
         .select('order_id,order_number,status,picked_status,created_at,shipped_at,total_price,channel,is_amazon_prime,deliver_to_name,customer_email,tracking_number')
         .gte('created_at', startISO)
@@ -498,7 +835,8 @@ if (!sb) {
       sb.from('veeqo_order_line_items')
         .select('order_id,quantity')
         .gte('created_at', startISO)
-        .lte('created_at', endISO)
+        .lte('created_at', endISO),
+      loadPackingData(),
     ]);
 
     if (results[0].error) throw results[0].error;
@@ -506,8 +844,10 @@ if (!sb) {
     _orders = results[0].data || [];
     _lineItems = results[1].data || [];
     _allOrders = _orders.slice();
+    _dataReady = true;
 
     renderAll();
+    renderPackingCard();
 
     var now = new Date();
     document.getElementById('navUpdated').textContent =
@@ -524,12 +864,21 @@ if (!sb) {
 }
 
 function showError(msg) {
-  document.getElementById('scGrid').innerHTML =
-    '<div class="state-wrap" style="grid-column:1/-1">'
-    +'<div class="state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>'
-    +'<p>'+esc(msg)+'</p>'
-    +'<span>Open the browser console for details</span>'
-    +'</div>';
+  var target = document.getElementById('vrPackSub');
+  if (target) target.textContent = 'Failed to load — ' + msg;
+  var el = document.getElementById('main-error-banner');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'main-error-banner';
+    el.className = 'state-wrap';
+    el.innerHTML = '<div class="state-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>'
+      +'<p>'+esc(msg)+'</p>'
+      +'<span>Open the browser console for details</span>';
+    var main = document.querySelector('.main');
+    if (main) main.insertBefore(el, main.firstChild);
+  } else {
+    el.querySelector('p').textContent = msg;
+  }
 }
 
 /* ── COMPUTE STATS ── */
@@ -565,8 +914,6 @@ function computeStats() {
 
 /* ── RENDER ALL ── */
 function renderAll() {
-  var stats = computeStats();
-  renderScorecards(stats);
   renderTrend();
   renderHeatmap();
   renderChannelPie();
@@ -574,35 +921,7 @@ function renderAll() {
   renderTable(_allOrders.slice(0, 100));
 }
 
-/* ── SCORECARDS ── */
-function renderScorecards(stats) {
-  var rangeLbl = _range==='today' ? 'today' : (_range==='7d' ? 'last 7 days' : 'last 30 days');
-  var cards = [
-    { cls:'sc-shipped', label:'Shipped',          val:stats.shipped,         sub:'Orders dispatched '+rangeLbl,
-      icon:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>' },
-    { cls:'sc-total',   label:'Total Orders',     val:stats.total,           sub:'Orders received '+rangeLbl,
-      icon:'<rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 10h8M8 14h4"/>' },
-    { cls:'sc-prime',   label:'Amazon Prime',     val:stats.prime,           sub:'Prime-eligible orders',
-      icon:'<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>' },
-    { cls:'sc-ready',   label:'Ready to Ship',    val:stats.readyToShip,     sub:'Picked or allocated',
-      icon:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
-    { cls:'sc-payment', label:'Awaiting Payment', val:stats.paymentReq,      sub:'Action needed',
-      icon:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' },
-    { cls:'sc-revenue', label:'Revenue',          val:fmtGBP(stats.revenue), sub:'Total order value '+rangeLbl, isStr:true,
-      icon:'<rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>' },
-  ];
-  document.getElementById('scGrid').innerHTML = cards.map(function(c) {
-    var disp = c.isStr ? c.val : c.val.toLocaleString();
-    return '<div class="sc '+c.cls+'">'
-      +'<div class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+c.icon+'</svg></div>'
-      +'<div class="sc-label">'+esc(c.label)+'</div>'
-      +'<div class="sc-val entering">'+esc(disp)+'</div>'
-      +'<div class="sc-sub">'+esc(c.sub)+'</div>'
-      +'</div>';
-  }).join('');
-}
-
-/* ── TREND CHART ── */
+  
 function buildTrendBuckets() {
   var o = _orders, buckets = {};
   var b = getRangeBounds();
