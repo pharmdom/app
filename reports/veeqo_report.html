@@ -539,7 +539,17 @@ function packingBucketBySlot(rows){
   return bucket;
 }
 function halfHourMarksOnly(slots){
-  return slots.filter(function(sl){ var m=String(sl).slice(0,5).split(':')[1]; return m==='00'; });
+  var hourMarks = slots.filter(function(sl){ var m=String(sl).slice(0,5).split(':')[1]; return m==='00'; });
+  if (hourMarks.length >= 4) return hourMarks;
+  // Not enough hour-boundaries yet today — fall back to a readable spread so the chart isn't empty.
+  var target = 10;
+  if (slots.length <= target) return slots;
+  var step = Math.ceil(slots.length / target);
+  var out = [];
+  for (var i=0;i<slots.length;i+=step) out.push(slots[i]);
+  var last = slots[slots.length-1];
+  if (out[out.length-1] !== last) out.push(last);
+  return out;
 }
 function paceSeriesFromBucket(bucket,slots){
   return slots.map(function(sl,i){
