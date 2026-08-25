@@ -138,6 +138,12 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .tbl-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 18px;box-shadow:var(--sh-sm);margin-bottom:22px;}
 .tbl-hdr{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
 .tbl-title{font-size:13px;font-weight:700;color:var(--text);}
+.city-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.city-name{width:130px;flex-shrink:0;font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.city-bar-track{flex:1;height:18px;background:var(--surface2,#f1f5f9);border-radius:6px;overflow:hidden;position:relative;}
+.city-bar-fill{height:100%;background:var(--accent);border-radius:6px;transition:width .4s ease;}
+.city-count{width:52px;flex-shrink:0;text-align:right;font-size:12.5px;font-weight:700;color:var(--text);font-family:var(--mono,monospace);}
+.city-empty{font-size:12.5px;color:var(--text4,#94a3b8);text-align:center;padding:30px 0;}
 .tbl-search{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--r-sm);background:var(--surface2);border:1px solid var(--border);}
 .tbl-search svg{width:13px;height:13px;color:var(--text4);flex-shrink:0;}
 .tbl-search input{background:transparent;border:none;outline:none;font-family:var(--font);font-size:12px;color:var(--text);width:170px;}
@@ -361,31 +367,17 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
         <div class="status-bars" id="statusBars"><div class="shimmer" style="height:80px;"></div></div>
       </div>
     </div>
-
-    <div class="sec-lbl">Recent Orders</div>
+    <div class="sec-lbl">Orders by City</div>
     <div class="tbl-card">
       <div class="tbl-hdr">
-        <div class="tbl-title" id="tblTitle">Recent Orders</div>
-        <div class="tbl-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="tblSearch" placeholder="Order, customer, channel…" oninput="onSearch(this.value)">
-        </div>
+        <div class="tbl-title" id="cityTitle">Top Cities</div>
       </div>
-      <div class="tbl-scroll">
-        <table class="data-tbl">
-          <thead><tr>
-            <th>Order #</th><th>Customer</th><th>Channel</th>
-            <th>Status</th><th style="text-align:center">Items</th>
-            <th style="text-align:right">Total</th><th>Created</th><th>Shipped</th>
-          </tr></thead>
-          <tbody id="tblBody">
-            <tr><td colspan="8"><div class="shimmer" style="height:13px;margin:6px 0;"></div></td></tr>
-            <tr><td colspan="8"><div class="shimmer" style="height:13px;margin:6px 0;width:80%;"></div></td></tr>
-            <tr><td colspan="8"><div class="shimmer" style="height:13px;margin:6px 0;width:65%;"></div></td></tr>
-          </tbody>
-        </table>
+      <div id="cityChartWrap" style="padding:16px 20px 20px;">
+        <div class="shimmer" style="height:220px;"></div>
       </div>
     </div>
+
+    
   </main>
 </div>
 
@@ -417,6 +409,11 @@ function initSB() {
 var _range = 'today';
 var _orders = [];
 var _totalOrdersCount = 0;
+var _shippedCount = 0;
+var _primeCount = 0;
+var _readyToShipCount = 0;
+var _paymentReqCount = 0;
+var _cityData = [];
 var _lineItems = [];
 var _allOrders = [];
 var _whClockInt = null;
@@ -782,6 +779,7 @@ function pDone(){clearInterval(_pt);var b=document.getElementById('pbar');b.styl
 /* ── RANGE ── */
 window.setRange = function(r) {
   _range = r;
+  renderCityChart();
   document.querySelectorAll('.range-btn').forEach(function(b){b.classList.toggle('active',b.dataset.range===r);});
   loadData();
 };
@@ -858,10 +856,26 @@ if (!sb) {
         .select('order_id,quantity')
         .gte('created_at', startISO)
         .lte('created_at', endISO),
-      sb.from('veeqo_orders')
+            sb.from('veeqo_orders')
         .select('order_id', { count: 'exact', head: true })
         .gte('created_at', startISO)
         .lte('created_at', endISO),
+      sb.from('veeqo_orders')
+        .select('order_id', { count: 'exact', head: true })
+        .gte('created_at', startISO).lte('created_at', endISO)
+        .in('status', ['shipped','dispatched']),
+      sb.from('veeqo_orders')
+        .select('order_id', { count: 'exact', head: true })
+        .gte('created_at', startISO).lte('created_at', endISO)
+        .eq('is_amazon_prime', true),
+      sb.from('veeqo_orders')
+        .select('order_id', { count: 'exact', head: true })
+        .gte('created_at', startISO).lte('created_at', endISO)
+        .eq('status', 'awaiting_fulfillment'),
+      sb.from('veeqo_orders')
+        .select('order_id', { count: 'exact', head: true })
+        .gte('created_at', startISO).lte('created_at', endISO)
+        .in('status', ['awaiting_payment','payment_pending']),
       loadPackingData(),
     ]);
 
@@ -870,9 +884,14 @@ if (!sb) {
     _orders = results[0].data || [];
     _lineItems = results[1].data || [];
     _totalOrdersCount = results[2].count || 0;
+    _shippedCount = results[3].count || 0;
+    _primeCount = results[4].count || 0;
+    _readyToShipCount = results[5].count || 0;
+    _paymentReqCount = results[6].count || 0;
     _allOrders = _orders.slice();
     _dataReady = true;
 
+    loadCityData(startISO, endISO);
     renderAll();
     renderPackingCard();
 
@@ -936,7 +955,15 @@ function computeStats() {
     revenue += parseFloat(r.total_price)||0;
   });
 
-  return { shipped, prime, readyToShip, paymentReq, revenue, total: _totalOrdersCount || o.length, qtyMap };
+  return {
+    shipped: _shippedCount || shipped,
+    prime: _primeCount || prime,
+    readyToShip: _readyToShipCount || readyToShip,
+    paymentReq: _paymentReqCount || paymentReq,
+    revenue: revenue,
+    total: _totalOrdersCount || o.length,
+    qtyMap: qtyMap
+  };
 }
 
 /* ── RENDER ALL ── */
@@ -945,7 +972,6 @@ function renderAll() {
   renderHeatmap();
   renderChannelPie();
   renderStatusBars();
-  renderTable(_allOrders.slice(0, 100));
 }
 
   
@@ -1128,6 +1154,40 @@ function renderStatusBars() {
 }
 
 /* ── TABLE ── */
+async function loadCityData(startISO, endISO) {
+  var wrap = document.getElementById('cityChartWrap');
+  if (wrap) wrap.innerHTML = '<div class="shimmer" style="height:220px;"></div>';
+  try {
+    var res = await sb.rpc('veeqo_orders_by_city', { start_date: startISO, end_date: endISO, limit_n: 10 });
+    if (res.error) throw res.error;
+    _cityData = res.data || [];
+  } catch(e) {
+    console.warn('City data load error:', e);
+    _cityData = [];
+  }
+  renderCityChart();
+}
+function renderCityChart() {
+  var wrap = document.getElementById('cityChartWrap');
+  var titleEl = document.getElementById('cityTitle');
+  if (!wrap) return;
+  var periodLbl = _range==='today' ? 'Today' : (_range==='7d' ? 'Last 7 Days' : 'Last 30 Days');
+  if (titleEl) titleEl.textContent = 'Top Cities \u2014 ' + periodLbl;
+  if (!_cityData.length) {
+    wrap.innerHTML = '<div class="city-empty">No location data for this period</div>';
+    return;
+  }
+  var maxCount = _cityData[0].order_count || 1;
+  wrap.innerHTML = _cityData.map(function(c){
+    var pct = Math.max(4, Math.round((c.order_count / maxCount) * 100));
+    return '<div class="city-row">'
+      + '<div class="city-name">' + esc(c.city) + '</div>'
+      + '<div class="city-bar-track"><div class="city-bar-fill" style="width:' + pct + '%"></div></div>'
+      + '<div class="city-count">' + c.order_count.toLocaleString() + '</div>'
+      + '</div>';
+  }).join('');
+}
+
 function renderTable(rows) {
   document.getElementById('tblTitle').textContent = 'Recent Orders ('+_allOrders.length.toLocaleString()+' total)';
   if (!rows.length) {
