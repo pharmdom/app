@@ -429,6 +429,7 @@ var _whClockInt = null;
 var _refreshInt = null;
 var _packCounts = [];
 var _packPrevCounts = [];
+var _packWindowOrders = [];
 var _dataReady = false;
 
 /* ── STATUS MAPPING ──
@@ -478,6 +479,11 @@ function addDaysToDateStr(dateStr,days){
 function ukWeekdayNameNow(){
   return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',weekday:'long'}).format(new Date());
 }
+function getShipCutoffs(){
+  var cutoffToday = new Date(getUKMidnight().getTime()+16.5*3600000);
+  var cutoffYesterday = new Date(cutoffToday.getTime()-86400000);
+  return { cutoffToday: cutoffToday, cutoffYesterday: cutoffYesterday };
+}
 function getPackDateRange(){
   if (_range === 'today') {
     var todayUK = ukDateStrFor(new Date());
@@ -495,12 +501,20 @@ async function loadPackingData(){
   sb = initSB();
   if (!sb) return;
   var r = getPackDateRange();
-  var results = await Promise.all([
+  var promises = [
     sb.from('manus_packing_counts').select('date,time_slot,packer_name,count').gte('date', r.start).lte('date', r.end).order('time_slot',{ascending:true}).limit(20000),
     sb.from('manus_packing_counts').select('date,time_slot,packer_name,count').gte('date', r.prevStart).lte('date', r.prevEnd).order('time_slot',{ascending:true}).limit(20000),
-  ]);
+  ];
+  if (_range === 'today') {
+    var cutoffs = getShipCutoffs();
+    promises.push(
+      sb.from('veeqo_orders').select('order_id,created_at,status').gte('created_at', cutoffs.cutoffYesterday.toISOString()).limit(5000)
+    );
+  }
+  var results = await Promise.all(promises);
   _packCounts = results[0].data || [];
   _packPrevCounts = results[1].data || [];
+  _packWindowOrders = (_range === 'today' && results[2]) ? (results[2].data || []) : [];
 }
 function groupCountsByDate(rows){
   var byDate = {};
@@ -661,9 +675,9 @@ function renderPackingCard(){
       balanceEl.textContent='···'; balanceEl.className='mkpi-val loading';
       noteEl.className='mkpi-delta'; noteEl.textContent='Loading…';
       breakdownEl.textContent='';
-    } else {
+        } else {
       toShipEl.className='mkpi-val';
-      var win = (_orders||[]).filter(function(o){
+      var win = (_packWindowOrders||[]).filter(function(o){
         return o.created_at && new Date(o.created_at) >= cutoffYesterday && toShipStatuses.indexOf((o.status||'').toLowerCase())>-1;
       });
       var toShipYesterday = win.filter(function(o){ return new Date(o.created_at) < todayMidnight; }).length;
