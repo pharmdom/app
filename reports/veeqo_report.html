@@ -138,12 +138,22 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .tbl-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 18px;box-shadow:var(--sh-sm);margin-bottom:22px;}
 .tbl-hdr{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
 .tbl-title{font-size:13px;font-weight:700;color:var(--text);}
-.city-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
-.city-name{width:130px;flex-shrink:0;font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.city-bar-track{flex:1;height:18px;background:var(--surface2,#f1f5f9);border-radius:6px;overflow:hidden;position:relative;}
-.city-bar-fill{height:100%;background:var(--accent);border-radius:6px;transition:width .4s ease;}
-.city-count{width:52px;flex-shrink:0;text-align:right;font-size:12.5px;font-weight:700;color:var(--text);font-family:var(--mono,monospace);}
+
+.city-map-layout{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;}
+.city-map-svg-wrap{flex:1;min-width:280px;max-width:400px;}
+.city-bubble{fill:var(--accent);fill-opacity:.55;stroke:var(--accent);stroke-width:1.2;cursor:pointer;transition:fill-opacity .15s;}
+.city-bubble:hover{fill-opacity:.85;}
+.city-dot-label{font-size:8px;fill:var(--text3,#64748b);font-family:var(--font);pointer-events:none;}
+.city-unmapped-panel{flex:1;min-width:220px;}
+.city-unmapped-title{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text4,#94a3b8);margin-bottom:8px;}
+.city-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:default;}
+.city-name{width:110px;flex-shrink:0;font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.city-bar-track{flex:1;height:14px;background:var(--surface2,#f1f5f9);border-radius:5px;overflow:hidden;position:relative;}
+.city-bar-fill{height:100%;background:var(--accent);border-radius:5px;transition:width .4s ease;}
+.city-count{width:44px;flex-shrink:0;text-align:right;font-size:11.5px;font-weight:700;color:var(--text);font-family:var(--mono,monospace);}
 .city-empty{font-size:12.5px;color:var(--text4,#94a3b8);text-align:center;padding:30px 0;}
+@media(max-width:700px){.city-map-layout{flex-direction:column;}.city-map-svg-wrap{max-width:100%;}}
+  
 .tbl-search{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--r-sm);background:var(--surface2);border:1px solid var(--border);}
 .tbl-search svg{width:13px;height:13px;color:var(--text4);flex-shrink:0;}
 .tbl-search input{background:transparent;border:none;outline:none;font-family:var(--font);font-size:12px;color:var(--text);width:170px;}
@@ -1158,7 +1168,7 @@ async function loadCityData(startISO, endISO) {
   var wrap = document.getElementById('cityChartWrap');
   if (wrap) wrap.innerHTML = '<div class="shimmer" style="height:220px;"></div>';
   try {
-    var res = await sb.rpc('veeqo_orders_by_city', { start_date: startISO, end_date: endISO, limit_n: 10 });
+    var res = await sb.rpc('veeqo_orders_by_city', { start_date: startISO, end_date: endISO, limit_n: 40 });
     if (res.error) throw res.error;
     _cityData = res.data || [];
   } catch(e) {
@@ -1167,6 +1177,33 @@ async function loadCityData(startISO, endISO) {
   }
   renderCityChart();
 }
+
+
+var UK_CITY_COORDS = {
+  'London':[218,430],'Birmingham':[168,340],'Manchester':[168,262],'Leeds':[190,236],
+  'Glasgow':[132,116],'Edinburgh':[160,110],'Liverpool':[150,262],'Bristol':[130,380],
+  'Sheffield':[186,252],'Newcastle':[196,166],'Newcastle Upon Tyne':[196,166],'Nottingham':[192,300],
+  'Leicester':[188,314],'Cardiff':[110,378],'Belfast':[46,180],'Coventry':[172,326],
+  'Bradford':[184,232],'Stoke On Trent':[168,288],'Stoke-on-trent':[168,288],'Wolverhampton':[160,320],
+  'Plymouth':[86,470],'Southampton':[176,420],'Reading':[190,402],'Derby':[182,300],
+  'Portsmouth':[186,424],'Brighton':[210,432],'Hull':[214,240],'Kingston Upon Hull':[214,240],
+  'Preston':[164,246],'Sunderland':[200,172],'Norwich':[254,326],'Swansea':[92,384],
+  'Southend On Sea':[240,412],'Southend-on-sea':[240,412],'Middlesbrough':[198,196],'Peterborough':[214,318],
+  'Cambridge':[228,338],'Oxford':[178,378],'York':[196,222],'Ipswich':[248,346],
+  'Blackpool':[150,244],'Bolton':[164,258],'Stockport':[170,266],'Luton':[204,368],
+  'Milton Keynes':[196,358],'Aberdeen':[168,64],'Dundee':[158,86],'Warrington':[160,266],
+  'Slough':[198,398],'Gloucester':[144,366],'Northampton':[196,340],'Exeter':[104,452],
+  'Chester':[152,272],'Colchester':[240,352],'Basildon':[236,400],'Chelmsford':[236,388],
+  'Worcester':[152,336],'Cheltenham':[144,358],'Doncaster':[196,244],'Rotherham':[190,250],
+  'Wakefield':[188,238],'Huddersfield':[178,240],'Bath':[132,388],'Watford':[204,384],
+  'Guildford':[194,412],'Maidstone':[232,414],'Canterbury':[246,418],'Blackburn':[164,252],
+  'Carlisle':[158,168],'Lincoln':[204,272],'Telford':[156,312],'Shrewsbury':[148,308],
+  'Truro':[64,486],'Inverness':[142,42],'Stirling':[142,104],'Newport':[116,376],
+  'Wrexham':[138,286],'Londonderry':[26,140],'Derry':[26,140],'Swindon':[152,392],
+  'Bournemouth':[152,438],'Poole':[148,440],'Dover':[254,424],'Ashford':[240,420]
+};
+function normCityKey(s){ return String(s||'').trim(); }
+
 function renderCityChart() {
   var wrap = document.getElementById('cityChartWrap');
   var titleEl = document.getElementById('cityTitle');
@@ -1177,17 +1214,88 @@ function renderCityChart() {
     wrap.innerHTML = '<div class="city-empty">No location data for this period</div>';
     return;
   }
+
+  var mapped = [], unmapped = [];
+  _cityData.forEach(function(c){
+    if (UK_CITY_COORDS[normCityKey(c.city)]) mapped.push(c); else unmapped.push(c);
+  });
+
   var maxCount = _cityData[0].order_count || 1;
-  wrap.innerHTML = _cityData.map(function(c){
-    var pct = Math.max(4, Math.round((c.order_count / maxCount) * 100));
-    return '<div class="city-row">'
-      + '<div class="city-name">' + esc(c.city) + '</div>'
-      + '<div class="city-bar-track"><div class="city-bar-fill" style="width:' + pct + '%"></div></div>'
-      + '<div class="city-count">' + c.order_count.toLocaleString() + '</div>'
-      + '</div>';
+  var minR = 4, maxR = 20;
+
+  var bubbles = mapped.map(function(c){
+    var xy = UK_CITY_COORDS[normCityKey(c.city)];
+    var r = minR + Math.sqrt(c.order_count / maxCount) * (maxR - minR);
+    return '<circle class="city-bubble" cx="'+xy[0]+'" cy="'+xy[1]+'" r="'+r.toFixed(1)+'" '
+      + 'data-city="'+esc(c.city)+'" data-orders="'+c.order_count+'" data-revenue="'+c.revenue+'" data-customers="'+c.customer_count+'"></circle>';
   }).join('');
+
+  var svgHtml = '<svg id="cityMapSvg" viewBox="0 0 280 520" style="width:100%;height:auto;max-height:420px;display:block;">'
+    + '<path d="M120,20 L145,25 L160,45 L155,70 L172,90 L165,115 L145,110 L130,130 L140,150 L165,165 L195,170 L210,195 L200,225 L215,235 L225,265 L210,280 L195,300 L200,320 L185,335 L195,355 L215,365 L235,390 L245,415 L235,425 L215,435 L220,450 L200,430 L190,410 L175,420 L160,405 L140,415 L120,400 L110,380 L95,385 L90,410 L75,455 L65,485 L55,460 L70,430 L85,400 L95,375 L105,340 L100,310 L115,280 L110,250 L125,220 L120,190 L135,160 L125,130 L115,100 L105,75 L115,45 Z" '
+    + 'fill="var(--surface2,#eef2f7)" stroke="var(--border,#dbe2ea)" stroke-width="1.5"/>'
+    + '<path d="M20,120 L50,110 L58,140 L45,175 L30,180 L18,155 Z" fill="var(--surface2,#eef2f7)" stroke="var(--border,#dbe2ea)" stroke-width="1.5"/>'
+    + bubbles
+    + '</svg>';
+
+  var unmappedHtml;
+  if (!unmapped.length) {
+    unmappedHtml = '<div class="city-empty">All cities plotted on the map</div>';
+  } else {
+    var maxU = Math.max.apply(null, unmapped.map(function(c){return c.order_count;}).concat([1]));
+    unmappedHtml = unmapped.map(function(c){
+      var pct = Math.max(4, Math.round((c.order_count / maxU) * 100));
+      return '<div class="city-row" data-city="'+esc(c.city)+'" data-orders="'+c.order_count+'" data-revenue="'+c.revenue+'" data-customers="'+c.customer_count+'">'
+        + '<div class="city-name">' + esc(c.city) + '</div>'
+        + '<div class="city-bar-track"><div class="city-bar-fill" style="width:' + pct + '%"></div></div>'
+        + '<div class="city-count">' + c.order_count.toLocaleString() + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  wrap.innerHTML = '<div class="city-map-layout">'
+    + '<div class="city-map-svg-wrap">' + svgHtml + '</div>'
+    + '<div class="city-unmapped-panel">'
+      + '<div class="city-unmapped-title">Not shown on map (' + unmapped.length + ')</div>'
+      + unmappedHtml
+    + '</div>'
+    + '</div>';
+
+  bindCityHoverHandlers();
 }
 
+function bindCityHoverHandlers(){
+  var els = document.querySelectorAll('.city-bubble, .city-row[data-city]');
+  els.forEach(function(el){
+    el.onmousemove = function(e){
+      var tip = ensureCityTip();
+      var orders = parseInt(el.getAttribute('data-orders'))||0;
+      var revenue = parseFloat(el.getAttribute('data-revenue'))||0;
+      var customers = parseInt(el.getAttribute('data-customers'))||0;
+      tip.innerHTML = '<div style="font-weight:700;margin-bottom:3px;">'+esc(el.getAttribute('data-city'))+'</div>'
+        + '<div>'+orders.toLocaleString()+' order'+(orders===1?'':'s')+'</div>'
+        + '<div>'+fmtGBP(revenue)+'</div>'
+        + '<div>'+customers.toLocaleString()+' customer'+(customers===1?'':'s')+'</div>';
+      tip.style.left = (e.clientX+12)+'px';
+      tip.style.top = (e.clientY+12)+'px';
+      tip.style.opacity = '1';
+    };
+    el.onmouseleave = function(){
+      var tip = document.getElementById('cityMapTip');
+      if (tip) tip.style.opacity = '0';
+    };
+  });
+}
+function ensureCityTip(){
+  var tip = document.getElementById('cityMapTip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'cityMapTip';
+    tip.style.cssText = 'position:fixed;z-index:5000;pointer-events:none;background:var(--navy2);color:#fff;font-size:11px;font-weight:600;padding:7px 10px;border-radius:7px;box-shadow:var(--sh-lg);opacity:0;transition:opacity .1s;white-space:nowrap;font-family:var(--font);line-height:1.6;';
+    document.body.appendChild(tip);
+  }
+  return tip;
+}
+        
 function renderTable(rows) {
   document.getElementById('tblTitle').textContent = 'Recent Orders ('+_allOrders.length.toLocaleString()+' total)';
   if (!rows.length) {
