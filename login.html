@@ -135,6 +135,8 @@
     .btn-loader { position: absolute; width: 20px; height: 20px; border: 2.5px solid rgba(255,255,255,0.25); border-top-color: #fff; border-radius: 50%; opacity: 0; transform: scale(0.6); transition: all 0.3s ease; }
     .btn-check { position: absolute; opacity: 0; transform: scale(0.5); transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1); }
     .btn-submit.is-loading { pointer-events: none; background: rgba(59,110,248,0.7); }
+    .btn-submit.is-cooldown { pointer-events: none; background: rgba(255,255,255,0.05); border: 1px solid var(--border); box-shadow: none; color: var(--text-dim); }
+    .btn-submit.is-cooldown:hover { transform: none; box-shadow: none; }
     .btn-submit.is-loading .btn-label { opacity: 0; transform: scale(0.8); }
     .btn-submit.is-loading .btn-loader { opacity: 1; transform: scale(1); animation: spin 0.75s linear infinite; }
     .btn-submit.is-success { background: var(--success); pointer-events: none; box-shadow: 0 4px 20px rgba(34,197,94,0.3); }
@@ -356,7 +358,11 @@ function routeByRole(role) {
       document.getElementById('forgotForm').style.display = 'block';
       document.querySelector('.form-title').textContent = 'Reset your password';
       document.querySelector('.form-subtitle').textContent = "Enter your email and we'll send you a secure link to reset it.";
+      // Cooldown state (if any) persists correctly since we never reset the
+      // button's label/class here — it just reflects whatever startForgotCooldown
+      // last left it as.
     }
+    
     function showLoginForm(e) {
       if (e) e.preventDefault();
       document.getElementById('forgotForm').style.display = 'none';
@@ -364,6 +370,29 @@ function routeByRole(role) {
       document.querySelector('.form-title').textContent = 'Welcome back 👋';
       document.querySelector('.form-subtitle').textContent = 'Sign in to your account to continue';
     }
+
+
+      let forgotCooldownInterval = null;
+
+    function startForgotCooldown(seconds) {
+      const btn = document.getElementById('forgotBtn');
+      const label = btn.querySelector('.btn-label');
+      btn.classList.add('is-cooldown');
+      clearInterval(forgotCooldownInterval);
+      let remaining = seconds;
+      label.textContent = `Resend in ${remaining}s`;
+      forgotCooldownInterval = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+          clearInterval(forgotCooldownInterval);
+          btn.classList.remove('is-cooldown');
+          label.textContent = 'Send Reset Link';
+        } else {
+          label.textContent = `Resend in ${remaining}s`;
+        }
+      }, 1000);
+    }
+
     async function handleForgotPassword(e) {
       e.preventDefault();
       const email = document.getElementById('forgotEmail').value.trim();
@@ -380,16 +409,23 @@ function routeByRole(role) {
         });
         btn.classList.remove('is-loading');
         if (error) {
-          toast('Something went wrong. Please try again.');
+          if (error.status === 429 || /rate limit/i.test(error.message || '')) {
+            toast("You've requested this too many times — please wait a minute and try again.");
+            startForgotCooldown(60);
+          } else {
+            toast('Something went wrong. Please try again.');
+          }
           return;
         }
         toast('If an account exists for that email, a reset link is on its way.', 'success');
+        startForgotCooldown(60);
         setTimeout(() => showLoginForm(), 1800);
       } catch (err) {
         btn.classList.remove('is-loading');
         toast('Connection error. Please try again.');
       }
     }
+    
 
     // ── LOGIN HANDLER ──
     async function handleLogin(e) {
