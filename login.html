@@ -203,8 +203,8 @@
           </div>
           <div class="field-error-msg" id="emailErr">Please enter a valid email address</div>
         </div>
-        <div class="field" id="fieldPassword">
-          <div class="field-label"><label for="password">Password</label></div>
+          <div class="field" id="fieldPassword">
+          <div class="field-label"><label for="password">Password</label><a href="#" onclick="showForgotForm(event)" style="font-size:12.5px;color:var(--blue);text-decoration:none;">Forgot password?</a></div>
           <div class="input-wrap">
             <svg class="icon-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password">
@@ -216,13 +216,34 @@
           </div>
           <div class="field-error-msg" id="passwordErr">Password is required</div>
         </div>
-        <button type="submit" class="btn-submit" id="loginBtn">
+        
+                <button type="submit" class="btn-submit" id="loginBtn">
           <div class="btn-inner">
             <span class="btn-label">Sign In</span>
             <div class="btn-loader"></div>
             <svg class="btn-check" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
         </button>
+      </form>
+      <form id="forgotForm" onsubmit="handleForgotPassword(event)" novalidate style="display:none">
+        <div class="field" id="fieldForgotEmail">
+          <div class="field-label"><label for="forgotEmail">Email address</label></div>
+          <div class="input-wrap">
+            <svg class="icon-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            <input type="email" id="forgotEmail" placeholder="you@pharmdom.com" autocomplete="email">
+          </div>
+          <div class="field-error-msg" id="forgotEmailErr">Please enter a valid email address</div>
+        </div>
+        <button type="submit" class="btn-submit" id="forgotBtn">
+          <div class="btn-inner">
+            <span class="btn-label">Send Reset Link</span>
+            <div class="btn-loader"></div>
+            <svg class="btn-check" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+        </button>
+        <p style="text-align:center;margin-top:20px;font-size:13px;color:var(--text-dim);">
+          <a href="#" onclick="showLoginForm(event)" style="color:var(--blue);text-decoration:none;">← Back to sign in</a>
+        </p>
       </form>
     </div>
   </div>
@@ -326,6 +347,48 @@ function routeByRole(role) {
       f.classList.add('has-error');
       if (message) e.textContent = message;
       f.querySelector('input').addEventListener('input', () => f.classList.remove('has-error'), { once: true });
+    }
+
+    // ── FORGOT PASSWORD TOGGLE ──
+    function showForgotForm(e) {
+      e.preventDefault();
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('forgotForm').style.display = 'block';
+      document.querySelector('.form-title').textContent = 'Reset your password';
+      document.querySelector('.form-subtitle').textContent = "Enter your email and we'll send you a secure link to reset it.";
+    }
+    function showLoginForm(e) {
+      if (e) e.preventDefault();
+      document.getElementById('forgotForm').style.display = 'none';
+      document.getElementById('loginForm').style.display = 'block';
+      document.querySelector('.form-title').textContent = 'Welcome back 👋';
+      document.querySelector('.form-subtitle').textContent = 'Sign in to your account to continue';
+    }
+    async function handleForgotPassword(e) {
+      e.preventDefault();
+      const email = document.getElementById('forgotEmail').value.trim();
+      const btn = document.getElementById('forgotBtn');
+      document.getElementById('fieldForgotEmail').classList.remove('has-error');
+
+      if (!email) { setError('fieldForgotEmail', 'forgotEmailErr', 'Email address is required'); return; }
+      if (!/\S+@\S+\.\S+/.test(email)) { setError('fieldForgotEmail', 'forgotEmailErr', 'Please enter a valid email'); return; }
+
+      btn.classList.add('is-loading');
+      try {
+        const { error } = await sb.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + '/reset-password.html'
+        });
+        btn.classList.remove('is-loading');
+        if (error) {
+          toast('Something went wrong. Please try again.');
+          return;
+        }
+        toast('If an account exists for that email, a reset link is on its way.', 'success');
+        setTimeout(() => showLoginForm(), 1800);
+      } catch (err) {
+        btn.classList.remove('is-loading');
+        toast('Connection error. Please try again.');
+      }
     }
 
     // ── LOGIN HANDLER ──
