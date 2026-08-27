@@ -247,16 +247,28 @@ col.col-agent     { width: 110px; }
 
 .analyzer-chart-card { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px 4px; }
 .analyzer-side-panel {
-  position: fixed; top: 90px; right: 600px; width: 340px; max-width: 38vw;
-  background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
-  box-shadow: 0 20px 50px rgba(0,0,0,.18), 0 6px 16px rgba(0,0,0,.08);
-  padding: 16px 18px; z-index: 999;
+  position: fixed; top: 0; bottom: 0; right: 600px; width: 340px; max-width: 38vw;
+  background: #fff; border-left: 1px solid #e2e8f0;
+  box-shadow: -8px 0 40px rgba(0,0,0,.12);
+  z-index: 999;
+  display: flex; flex-direction: column; overflow: hidden;
   opacity: 0; transform: translateX(12px);
   pointer-events: none; transition: opacity .22s ease, transform .22s ease;
 }
 .analyzer-side-panel.open { opacity: 1; transform: translateX(0); pointer-events: all; }
+.analyzer-side-panel-body { flex: 1; overflow-y: auto; padding: 18px; }
 @media (max-width: 1100px) { .analyzer-side-panel { display: none; } }
- 
+.analyzer-product-head { display:flex; gap:10px; padding-bottom:12px; margin-bottom:12px; border-bottom:1px solid #f1f5f9; }
+.analyzer-product-img { width:56px; height:56px; border-radius:8px; object-fit:contain; background:#f8fafc; border:1px solid #f1f5f9; flex-shrink:0; }
+.analyzer-product-title { font-size:12.5px; font-weight:700; color:#0f172a; line-height:1.35; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.analyzer-product-meta { display:flex; align-items:center; gap:5px; margin-top:4px; font-size:11px; color:#64748b; }
+.analyzer-stars { color:#f59e0b; font-size:11px; letter-spacing:1px; }
+.rp-table { border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; }
+.rp-row { display:flex; align-items:center; justify-content:space-between; padding:7px 10px; font-size:12px; border-bottom:1px solid #f1f5f9; }
+.rp-row:last-child { border-bottom:none; }
+.rp-row:nth-child(even) { background:#fafbfc; }
+.rp-label { color:#64748b; font-weight:600; }
+.rp-val { font-weight:700; color:#0f172a; font-family:monospace; }
  
 .analyzer-summary-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; margin-bottom:10px; }
 .asc-row { display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:13px; color:#334155; }
@@ -1482,7 +1494,7 @@ function keepaPriceToGBP(v) {
   return v / 100; // verify this scaling against a real response
 }
 async function fetchKeepaProduct(asin) {
-  const url = `https://api.keepa.com/product?key=${KEEPA_API_KEY}&domain=${KEEPA_DOMAIN}&asin=${encodeURIComponent(asin)}&stats=30&offers=20&buybox=1&stock=1&history=1`;
+  const url = `https://api.keepa.com/product?key=${KEEPA_API_KEY}&domain=${KEEPA_DOMAIN}&asin=${encodeURIComponent(asin)}&stats=30&offers=20&buybox=1&stock=1&history=1&rating=1`;
   const res = await fetch(url);
   const data = await res.json();
   if (!data.products || !data.products.length) throw new Error('ASIN not found or Keepa returned no data');
@@ -1494,6 +1506,8 @@ function keepaMinutesToDate(m) {
   // Keepa Time: minutes since 2011-01-01 00:00 UTC — offset is 21564000 minutes
   return new Date((m + 21564000) * 60000);
 }
+
+
 function parseSalesRankHistory(product) {
   const raw = (product.csv && product.csv[3]) || []; // csv index 3 = SALES_RANK
   const points = [];
@@ -1504,6 +1518,20 @@ function parseSalesRankHistory(product) {
   }
   const cutoff = Date.now() - 90 * 86400000; // keep the last 90 days readable
   return points.filter(p => p.date.getTime() >= cutoff);
+}
+function countRecentChanges(product, csvIndex, days) {
+  const raw = (product.csv && product.csv[csvIndex]) || [];
+  const cutoff = Date.now() - days * 86400000;
+  let changes = 0, lastVal = null;
+  for (let i = 0; i < raw.length; i += 2) {
+    const t = raw[i], v = raw[i + 1];
+    if (v == null || v < 0) continue;
+    const date = keepaMinutesToDate(t);
+    if (date.getTime() < cutoff) { lastVal = v; continue; }
+    if (lastVal !== null && v !== lastVal) changes++;
+    lastVal = v;
+  }
+  return changes;
 }
 function parseKeepaMarketData(product) {
   const referralPct = (product.referralFeePercentage != null ? product.referralFeePercentage : 15) / 100;
@@ -1524,8 +1552,27 @@ function parseKeepaMarketData(product) {
   const salesRankDrops30 = stats.salesRankDrops30 != null ? stats.salesRankDrops30 : null;
   const salesRankHistory = parseSalesRankHistory(product);
 
+  const fbaOffers = offersRaw.filter(o => o.isFBA && !o.isAmazon);
+  const fbmOffers = offersRaw.filter(o => !o.isFBA && !o.isAmazon);
+  const lowestFBA = { price: fbaOffers.length ? fbaOffers[0].price : null, count: fbaOffers.length };
+  const lowestFBM = { price: fbmOffers.length ? fbmOffers[0].price : null, count: fbmOffers.length };
+
+  const imgName = (product.imagesCSV || '').split(',')[0];
+  const imageUrl = imgName ? `https://m.media-amazon.com/images/I/${imgName}` : null; // verify domain
+  const rating = stats.current && stats.current[16] != null && stats.current[16] >= 0 ? stats.current[16] / 10 : null; // verify scale
+  const reviewCount = stats.current && stats.current[17] != null && stats.current[17] >= 0 ? stats.current[17] : null;
+  const category = product.categoryTree && product.categoryTree.length
+    ? product.categoryTree[product.categoryTree.length - 1].name
+    : null;
+  const currentBSR = stats.current && stats.current[3] != null && stats.current[3] >= 0 ? stats.current[3] : null;
+  const buyBoxPrice = keepaPriceToGBP(stats.buyBoxPrice);
+  const amazonPrice = keepaPriceToGBP(stats.current ? stats.current[0] : null);
+  const bbPriceChanges30 = countRecentChanges(product, 18, 30);
+
   return {
     title: product.title || '',
+    imageUrl, rating, reviewCount, category,
+    currentBSR, buyBoxPrice, amazonPrice, lowestFBA, lowestFBM, bbPriceChanges30,
     offersRaw,
     avg30BuyBox,
     salesRankDrops30,
@@ -1535,6 +1582,7 @@ function parseKeepaMarketData(product) {
     fetchedAt: new Date().toISOString(),
   };
 }
+   
    
 // Pure calculation, run live from whatever cost values are currently typed
 // into the tab. Nothing here is persisted anywhere.
@@ -1734,20 +1782,52 @@ function renderAnalyzerTab(row) {
     </div>
     <div id="analyzerResultsArea">${resultsHtml}</div>`);
 }
+
+
 function renderAnalyzerSidePanelContent(row) {
   const id = row.opportunity_id;
   const asins = getAnalyzerAsins(row);
   if (!asins.length) return '';
   const activeAsin = _analyzerState.asin;
+  const cache = _analyzerCache[id + '::' + activeAsin];
   const asinTabs = asins.map(a =>
     `<button class="analyzer-asin-pill ${a === activeAsin ? 'active' : ''}" onclick="switchAnalyzerAsin('${escAttr(id)}','${escAttr(a)}')">${escHtml(a)}</button>`
   ).join('');
+
+  const productHead = cache
+    ? `<div class="analyzer-product-head">
+        ${cache.imageUrl ? `<img class="analyzer-product-img" src="${escAttr(cache.imageUrl)}" alt="">` : `<div class="analyzer-product-img"></div>`}
+        <div style="min-width:0">
+          <div class="analyzer-product-title">${escHtml(cache.title || 'Untitled product')}</div>
+          <div class="analyzer-product-meta">
+            ${cache.rating != null ? `<span class="analyzer-stars">${'★'.repeat(Math.round(cache.rating))}${'☆'.repeat(5 - Math.round(cache.rating))}</span>` : ''}
+            ${cache.reviewCount != null ? `<span>${cache.reviewCount.toLocaleString()}</span>` : ''}
+          </div>
+          <div class="analyzer-product-meta" style="margin-top:2px">${escHtml(cache.category || '—')}</div>
+        </div>
+      </div>`
+    : '';
+
+  const ranksTable = cache
+    ? `<div class="section-label" style="margin-top:2px">Ranks &amp; Prices</div>
+      <div class="rp-table" style="margin-bottom:12px">
+        <div class="rp-row"><span class="rp-label">Sales Rank (BSR)</span><span class="rp-val">${cache.currentBSR != null ? cache.currentBSR.toLocaleString() : '—'}</span></div>
+        <div class="rp-row"><span class="rp-label">Buy Box</span><span class="rp-val">${cache.buyBoxPrice != null ? '£' + cache.buyBoxPrice.toFixed(2) : '—'}</span></div>
+        <div class="rp-row"><span class="rp-label">Amazon</span><span class="rp-val">${cache.amazonPrice != null ? '£' + cache.amazonPrice.toFixed(2) : '—'}</span></div>
+        <div class="rp-row"><span class="rp-label">Lowest FBA</span><span class="rp-val">${cache.lowestFBA.price != null ? '£' + cache.lowestFBA.price.toFixed(2) + ' (' + cache.lowestFBA.count + ')' : '—'}</span></div>
+        <div class="rp-row"><span class="rp-label">Lowest FBM</span><span class="rp-val">${cache.lowestFBM.price != null ? '£' + cache.lowestFBM.price.toFixed(2) + ' (' + cache.lowestFBM.count + ')' : '—'}</span></div>
+        <div class="rp-row"><span class="rp-label">Keepa BSR Drops (30d)</span><span class="rp-val">${cache.salesRankDrops30 != null ? cache.salesRankDrops30 : '—'}</span></div>
+        <div class="rp-row"><span class="rp-label">BB Price Changes (30d)</span><span class="rp-val">${cache.bbPriceChanges30 != null ? cache.bbPriceChanges30 : '—'}</span></div>
+      </div>`
+    : '';
+
   return `<div class="section-label">Analyzer</div>
+    ${productHead}
     <div class="info-card full-width" style="margin-bottom:10px">
       <label>ASIN</label>
       <div class="analyzer-asin-tabs">${asinTabs}</div>
     </div>
-    <div class="info-grid">
+    <div class="info-grid" style="margin-bottom:12px">
       <div class="info-card">
         <label>Cost of Unit (this analysis only)</label>
         <input type="number" class="edit-input" step="0.01" value="${escAttr(String(_analyzerState.costOfUnit))}" oninput="updateAnalyzerCost('${escAttr(id)}','costOfUnit',this.value)">
@@ -1756,14 +1836,18 @@ function renderAnalyzerSidePanelContent(row) {
         <label>Cost of Sale (this analysis only)</label>
         <input type="number" class="edit-input" step="0.01" value="${escAttr(String(_analyzerState.costOfSale))}" oninput="updateAnalyzerCost('${escAttr(id)}','costOfSale',this.value)">
       </div>
-    </div>`;
+    </div>
+    ${ranksTable}`;
 }
+   
 function showAnalyzerSidePanel(row) {
   const panel = document.getElementById('analyzerSidePanel');
   if (!panel) return;
-  panel.innerHTML = renderAnalyzerSidePanelContent(row);
+  panel.innerHTML = `<div class="analyzer-side-panel-body">${renderAnalyzerSidePanelContent(row)}</div>`;
   panel.classList.add('open');
 }
+
+   
 function hideAnalyzerSidePanel() {
   const panel = document.getElementById('analyzerSidePanel');
   if (!panel) return;
@@ -1771,8 +1855,13 @@ function hideAnalyzerSidePanel() {
 }
 function switchAnalyzerAsin(id, asin) {
   _analyzerState.asin = asin;
-  const row = allData.find(p => p.opportunity_id === id);
-  if (row) renderDrawer(row);
+  const alreadyCached = !!_analyzerCache[id + '::' + asin];
+  if (alreadyCached) {
+    const row = allData.find(p => p.opportunity_id === id);
+    if (row) renderDrawer(row);
+  } else {
+    runAnalyzer(id, asin);
+  }
 }
 function updateAnalyzerCost(id, key, value) {
   _analyzerState[key] = value;
