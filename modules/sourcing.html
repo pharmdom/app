@@ -227,6 +227,19 @@ col.col-agent     { width: 110px; }
   cursor: pointer; transition: all .15s; margin-top: 6px; width: auto; justify-content: center; white-space: nowrap; 
 }
 .asin-add-btn:hover { border-color: #2563eb; background: #eff6ff; }
+.analyzer-asin-tabs { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.analyzer-asin-pill { padding:5px 12px; border-radius:100px; border:1.5px solid #e2e8f0; background:#fff; font-size:12px; font-weight:600; font-family:monospace; color:#475569; cursor:pointer; transition:all .15s; }
+.analyzer-asin-pill:hover { border-color:#2563eb; color:#2563eb; }
+.analyzer-asin-pill.active { background:#eff6ff; border-color:#2563eb; color:#1d4ed8; }
+.analyzer-offers-list { display:flex; flex-direction:column; gap:6px; }
+.analyzer-offer-row { display:grid; grid-template-columns:56px 1fr 90px 70px 55px; align-items:center; gap:10px; padding:9px 12px; background:#f8fafc; border:1px solid #f1f5f9; border-radius:9px; font-size:12.5px; }
+.ao-price { font-weight:700; color:#0f172a; }
+.ao-stock { color:#64748b; font-size:11.5px; }
+.ao-profit, .ao-roi { font-weight:700; text-align:right; }
+.analyzer-summary-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; margin-bottom:10px; }
+.asc-row { display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:13px; color:#334155; }
+.asc-row strong { font-family:monospace; font-size:14px; }
+ 
 .purchased-extra { margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0; display: none; }
 .purchased-extra.show { display: block; }
 .purchased-extra label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 4px; display: flex; align-items: center; gap: 5px; }
@@ -1180,12 +1193,13 @@ function renderDrawer(row) {
         ${kpiCard('ROI',        !isNaN(roi)       ? (roi*100).toFixed(1)+'%' : '—', roi >= 0       ? 'positive' : 'negative', 'roi')}
       </div>
     </div>
-    <div class="drawer-tabs">
+      <div class="drawer-tabs">
       ${tabBtn('overview',   id, 'Overview')}
       ${tabBtn('financials', id, 'Financials')}
       ${tabBtn('attributes', id, 'Attributes')}
       ${tabBtn('notes',      id, 'Notes' + (notes.length ? ` <span class="badge badge-blue" style="font-size:10px;padding:1px 6px;">${notes.length}</span>` : ''))}
       ${tabBtn('approvals',  id, 'Approvals' + (approvedCount ? ` <span class="badge badge-green" style="font-size:10px;padding:1px 6px;">${approvedCount}</span>` : '') + (rejectedCount ? ` <span class="badge badge-red" style="font-size:10px;padding:1px 6px;">${rejectedCount}</span>` : ''))}
+      ${tabBtn('analyzer',   id, 'Analyzer')}
     </div>`;
   let body = '';
   if (activeTab === 'overview') {
@@ -1248,13 +1262,16 @@ function renderDrawer(row) {
         ${staticCard('After Pack', row.after_pack != null ? '£'+parseFloat(row.after_pack).toFixed(2) : '—')}
       </div>`);
   }
-  if (activeTab === 'attributes') {
+    if (activeTab === 'attributes') {
     body = section('Product Attributes',
       `<div class="info-grid">
         ${editCard(id,'packing',row.packing||'','select:Fast,Good,Medium,Large')}
         ${editCard(id,'seasonality',row.seasonality||'','select:Yes,No')}
         ${editCard(id,'competition',row.competition||'','select:Low,Medium,High')}
       </div>`);
+  }
+  if (activeTab === 'analyzer') {
+    body = renderAnalyzerTab(row);
   }
   if (activeTab === 'notes') {
     const noteItems = notes.length
@@ -1420,6 +1437,224 @@ function asinCard(id, asinValue) {
     </button>
   </div>`;
 }
+
+
+/* ══ ANALYZER (Keepa) — self-contained, never writes to any sourcing field ══ */
+const KEEPA_API_KEY = '3aq7cr8atsqmkqus7ap9g74dfk70om4e26ts9f63j0sel4egmipd8bc2q447th2l'; // TODO: move behind a proxy before wider rollout
+const KEEPA_DOMAIN = 2; // 2 = amazon.co.uk
+let _analyzerState = { id: null, asin: null, costOfUnit: '', costOfSale: '', loading: false, error: null };
+let _analyzerCache = {}; // session-only — lives in memory, cleared on page reload, never touches Supabase
+   
+function getAnalyzerAsins(row) {
+  return (row.asins || '').split(',').map(a => a.trim()).filter(Boolean);
+}
+function keepaPriceToGBP(v) {
+  if (v == null || v < 0) return null;
+  return v / 100; // verify this scaling against a real response
+}
+async function fetchKeepaProduct(asin) {
+  const url = `https://api.keepa.com/product?key=${KEEPA_API_KEY}&domain=${KEEPA_DOMAIN}&asin=${encodeURIComponent(asin)}&stats=30&offers=20&buybox=1&stock=1`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (!data.products || !data.products.length) throw new Error('ASIN not found or Keepa returned no data');
+  return data.products[0];
+}
+// Only market facts get cached — no profit/ROI, since those depend on cost
+// inputs that live purely in the Analyzer's own local state, never persisted.
+function parseKeepaMarketData(product) {
+  const referralPct = (product.referralFeePercentage != null ? product.referralFeePercentage : 15) / 100;
+  const fbaFee = keepaPriceToGBP(product.fbaFees && product.fbaFees.pickAndPackFee) || 0;
+
+  const offersRaw = (product.offers || []).map(o => {
+    const csv = o.offerCSV || [];
+    const price = keepaPriceToGBP(csv[csv.length - 2]);
+    const shipping = keepaPriceToGBP(csv[csv.length - 1]) || 0;
+    const totalPrice = price != null ? price + shipping : null;
+    const stockCsv = o.stockCSV || [];
+    const stock = stockCsv.length ? stockCsv[stockCsv.length - 1] : null;
+    return { isFBA: !!o.isFBA, price: totalPrice, stock };
+  }).filter(o => o.price != null).sort((a, b) => a.price - b.price);
+
+  const stats = product.stats || {};
+  const avg30BuyBox = keepaPriceToGBP(stats.avg30 ? stats.avg30[18] : null); // 18 = BUY_BOX_SHIPPING
+  const salesRankDrops30 = stats.salesRankDrops30 != null ? stats.salesRankDrops30 : null;
+
+  return {
+    title: product.title || '',
+    offersRaw,
+    avg30BuyBox,
+    salesRankDrops30,
+    referralPct,
+    fbaFee,
+    fetchedAt: new Date().toISOString(),
+  };
+}
+// Pure calculation, run live from whatever cost values are currently typed
+// into the tab. Nothing here is persisted anywhere.
+function deriveProfitMetrics(marketData, costOfUnit, costOfSale) {
+  const cost = parseFloat(costOfUnit) || 0;
+  const extraCost = parseFloat(costOfSale) || 0;
+  const { referralPct, fbaFee } = marketData;
+
+  const offers = marketData.offersRaw.map(o => {
+    const referralFee = o.price * referralPct;
+    const fulfillmentFee = o.isFBA ? fbaFee : 0;
+    const profit = o.price - cost - extraCost - referralFee - fulfillmentFee;
+    const roi = cost > 0 ? (profit / cost) * 100 : null;
+    return { ...o, profit, roi };
+  });
+
+  let recommendedPrice = null, recProfit = null, recRoi = null;
+  if (marketData.avg30BuyBox != null) {
+    recommendedPrice = marketData.avg30BuyBox;
+    const referralFee = recommendedPrice * referralPct;
+    recProfit = recommendedPrice - cost - extraCost - referralFee - fbaFee;
+    recRoi = cost > 0 ? (recProfit / cost) * 100 : null;
+  }
+
+  return { offers, recommendedPrice, recProfit, recRoi, recommendedQty: marketData.salesRankDrops30 };
+}
+function fmtRelativeTime(iso) {
+  if (!iso) return '';
+  const diffMin = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return diffMin + 'm ago';
+  const diffHr = Math.round(diffMin / 60);
+  if (diffHr < 24) return diffHr + 'h ago';
+  return Math.round(diffHr / 24) + 'd ago';
+}
+function renderAnalyzerResults(marketData, costOfUnit, costOfSale) {
+  const results = deriveProfitMetrics(marketData, costOfUnit, costOfSale);
+  const offerRows = results.offers.map(o => {
+    const profitColor = o.profit >= 0 ? '#15803d' : '#dc2626';
+    return `<div class="analyzer-offer-row">
+      <span class="badge ${o.isFBA ? 'badge-blue' : 'badge-gray'}">${o.isFBA ? 'FBA' : 'FBM'}</span>
+      <span class="ao-price">£${o.price.toFixed(2)}</span>
+      <span class="ao-stock">${o.stock != null ? o.stock + ' in stock' : '—'}</span>
+      <span class="ao-profit" style="color:${profitColor}">£${o.profit.toFixed(2)}</span>
+      <span class="ao-roi" style="color:${profitColor}">${o.roi != null ? o.roi.toFixed(0) + '%' : '—'}</span>
+    </div>`;
+  }).join('') || `<div style="padding:12px;color:#94a3b8;font-size:12.5px">No live offers found.</div>`;
+
+  const recCard = results.recommendedPrice != null
+    ? `<div class="analyzer-summary-card">
+        <div class="asc-row"><span>Recommended Price</span><strong>£${results.recommendedPrice.toFixed(2)}</strong></div>
+        <div class="asc-row"><span>Profit at this price</span><strong style="color:${results.recProfit >= 0 ? '#15803d' : '#dc2626'}">£${results.recProfit.toFixed(2)}</strong></div>
+        <div class="asc-row"><span>ROI at this price</span><strong style="color:${results.recRoi >= 0 ? '#15803d' : '#dc2626'}">${results.recRoi.toFixed(0)}%</strong></div>
+      </div>`
+    : `<div class="analyzer-summary-card"><div style="color:#94a3b8;font-size:12.5px">Not enough 30-day price history to recommend a price.</div></div>`;
+
+  const qtyCard = results.recommendedQty != null
+    ? `<div class="analyzer-summary-card">
+        <div class="asc-row"><span>Est. Units Sold (30d)</span><strong>${results.recommendedQty}</strong></div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px">Based on Keepa sales rank drops — a rough proxy, not an exact count. Display only — nothing is saved automatically.</div>
+      </div>`
+    : `<div class="analyzer-summary-card"><div style="color:#94a3b8;font-size:12.5px">No sales rank history available.</div></div>`;
+
+  return `<div class="section-label" style="margin-top:14px">Live Offers</div>
+    <div class="analyzer-offers-list">${offerRows}</div>
+    <div class="section-label" style="margin-top:14px">Recommended Price (Last 30 Days)</div>
+    ${recCard}
+    <div class="section-label" style="margin-top:14px">Estimated Purchase Quantity</div>
+    ${qtyCard}`;
+}
+function renderAnalyzerTab(row) {
+  const id = row.opportunity_id;
+  const asins = getAnalyzerAsins(row);
+  if (!asins.length) {
+    return section('Analyzer', `<div class="info-card"><div class="val" style="color:#94a3b8">Add an ASIN in Overview first.</div></div>`);
+  }
+  // Local-only state, seeded once from the row's current values purely as a
+  // starting point — edits here NEVER write back to cost_of_unit/cost_of_sale.
+  if (_analyzerState.id !== id) {
+    _analyzerState = {
+      id, asin: asins[0],
+      costOfUnit: row.cost_of_unit || '',
+      costOfSale: row.cost_of_sale || '',
+      loading: false, error: null,
+    };
+  }
+  if (!asins.includes(_analyzerState.asin)) { _analyzerState.asin = asins[0]; }
+
+  const activeAsin = _analyzerState.asin;
+  const cache = _analyzerCache[id + '::' + activeAsin];
+
+  const asinTabs = asins.map(a =>
+    `<button class="analyzer-asin-pill ${a === activeAsin ? 'active' : ''}" onclick="switchAnalyzerAsin('${escAttr(id)}','${escAttr(a)}')">${escHtml(a)}</button>`
+  ).join('');
+
+  let resultsHtml = '';
+  if (_analyzerState.loading) {
+    resultsHtml = `<div class="info-card" style="text-align:center;padding:24px"><span class="spinner"></span>Fetching Keepa data…</div>`;
+  } else if (_analyzerState.error) {
+    resultsHtml = `<div class="info-card" style="color:#dc2626">${escHtml(_analyzerState.error)}</div>`;
+  } else if (cache) {
+    resultsHtml = renderAnalyzerResults(cache, _analyzerState.costOfUnit, _analyzerState.costOfSale);
+  } else {
+    resultsHtml = `<div class="info-card" style="text-align:center;padding:20px;color:#94a3b8">No data yet for this ASIN — click Analyze.</div>`;
+  }
+
+  const fetchedLabel = cache ? `Last checked ${fmtRelativeTime(cache.fetchedAt)}` : '';
+
+  return section('Analyzer',
+    `<div class="info-grid">
+      <div class="info-card full-width">
+        <label>ASIN</label>
+        <div class="analyzer-asin-tabs">${asinTabs}</div>
+      </div>
+      <div class="info-card">
+        <label>Cost of Unit (this analysis only)</label>
+        <input type="number" class="edit-input" step="0.01" value="${escAttr(String(_analyzerState.costOfUnit))}" oninput="updateAnalyzerCost('${escAttr(id)}','costOfUnit',this.value)">
+      </div>
+      <div class="info-card">
+        <label>Cost of Sale (this analysis only)</label>
+        <input type="number" class="edit-input" step="0.01" value="${escAttr(String(_analyzerState.costOfSale))}" oninput="updateAnalyzerCost('${escAttr(id)}','costOfSale',this.value)">
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin:12px 0">
+      <button class="btn btn-primary btn-sm" onclick="runAnalyzer('${escAttr(id)}','${escAttr(activeAsin)}')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-4.35-4.35"/><circle cx="10" cy="10" r="7"/></svg>
+        ${cache ? 'Refresh' : 'Analyze'}
+      </button>
+      <span style="font-size:11.5px;color:#94a3b8">${fetchedLabel}</span>
+    </div>
+    <div id="analyzerResultsArea">${resultsHtml}</div>`);
+}
+function switchAnalyzerAsin(id, asin) {
+  _analyzerState.asin = asin;
+  const row = allData.find(p => p.opportunity_id === id);
+  if (row) renderDrawer(row);
+}
+function updateAnalyzerCost(id, key, value) {
+  _analyzerState[key] = value;
+  // Patch only the results area live — no save, no re-fetch, and typing
+  // doesn't lose focus by re-rendering the whole drawer.
+  const row = allData.find(p => p.opportunity_id === id);
+  if (!row) return;
+  const cache = _analyzerCache[id + '::' + _analyzerState.asin];
+  const resultsEl = document.getElementById('analyzerResultsArea');
+  if (cache && resultsEl) {
+    resultsEl.innerHTML = renderAnalyzerResults(cache, _analyzerState.costOfUnit, _analyzerState.costOfSale);
+  }
+}
+async function runAnalyzer(id, asin) {
+  const row = allData.find(p => p.opportunity_id === id);
+  if (!row) return;
+  _analyzerState.loading = true; _analyzerState.error = null;
+  renderDrawer(row);
+  try {
+        const product = await fetchKeepaProduct(asin);
+    const marketData = parseKeepaMarketData(product);
+    _analyzerCache[id + '::' + asin] = marketData;
+    _analyzerState.loading = false; _analyzerState.error = null;
+    showToast('Analysis updated', 'success');
+  } catch (e) {
+    _analyzerState.loading = false; _analyzerState.error = e.message || 'Failed to fetch Keepa data';
+    showToast('Analyzer failed: ' + (e.message || ''), 'error');
+  }
+  if (currentDrawerId === id) renderDrawer(row);
+}
+
 /* ══ SAVE FIELD ══ */
 async function saveField(opportunityId, field, value) {
   // Cast supplier_cheapest to boolean before saving
@@ -2534,8 +2769,12 @@ window.addAsinRow = addAsinRow; window.removeAsinRow = removeAsinRow;
 window.saveAsins = saveAsins; window.addModalAsin = addModalAsin;
 window.removeModalAsin = removeModalAsin; window.onPurchasedChange = onPurchasedChange;
 window.applyYNColors = applyYNColors; window.deleteProduct = deleteProduct;
-window.showDeleteConfirm = showDeleteConfirm; window.onDrawerSupplierChange = onDrawerSupplierChange;
+window.showDeleteConfirm = showDeleteConfirm;
+window.onDrawerSupplierChange = onDrawerSupplierChange;
 window.fillSupplierCode = fillSupplierCode;
+window.switchAnalyzerAsin = switchAnalyzerAsin;
+window.updateAnalyzerCost = updateAnalyzerCost;
+window.runAnalyzer = runAnalyzer;
 window.toggleSrcActionsMenu = toggleSrcActionsMenu;
 window.closeSrcActionsMenu = closeSrcActionsMenu;
 window.checkQtyPurchased = checkQtyPurchased;
