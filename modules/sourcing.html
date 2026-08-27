@@ -244,8 +244,19 @@ col.col-agent     { width: 110px; }
 .aot-price { font-weight:700; color:#0f172a; font-family:monospace; }
 .aot-profit { font-weight:700; font-family:monospace; }
 .aot-roi-pill { display:inline-flex; padding:2px 8px; border-radius:100px; font-size:11px; font-weight:700; }
-.analyzer-chart-card { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px 4px; }
 
+.analyzer-chart-card { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px 4px; }
+.analyzer-side-panel {
+  position: fixed; top: 90px; right: 600px; width: 340px; max-width: 38vw;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(0,0,0,.18), 0 6px 16px rgba(0,0,0,.08);
+  padding: 16px 18px; z-index: 999;
+  opacity: 0; transform: translateX(12px);
+  pointer-events: none; transition: opacity .22s ease, transform .22s ease;
+}
+.analyzer-side-panel.open { opacity: 1; transform: translateX(0); pointer-events: all; }
+@media (max-width: 1100px) { .analyzer-side-panel { display: none; } }
+ 
  
 .analyzer-summary-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; margin-bottom:10px; }
 .asc-row { display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:13px; color:#334155; }
@@ -584,6 +595,7 @@ col.col-agent     { width: 110px; }
   </div>
 </div>
 <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="analyzer-side-panel" id="analyzerSidePanel"></div>
 <div class="drawer" id="detailDrawer">
   <div class="drawer-header" id="drawerHeader"></div>
   <div class="drawer-body"   id="drawerBody"></div>
@@ -1166,8 +1178,10 @@ function onCustomDateChange() {
 function closeDrawer() {
   document.getElementById('detailDrawer').classList.remove('open');
   document.getElementById('drawerOverlay').classList.remove('visible');
+  hideAnalyzerSidePanel();
   currentDrawerId = null;
 }
+ 
 function renderDrawer(row) {
   const id          = row.opportunity_id;
   const approvals   = row.sourcing_approvals || [];
@@ -1281,9 +1295,12 @@ function renderDrawer(row) {
         ${editCard(id,'competition',row.competition||'','select:Low,Medium,High')}
       </div>`);
   }
-    if (activeTab === 'analyzer') {
+     if (activeTab === 'analyzer') {
     body = renderAnalyzerTab(row);
+    showAnalyzerSidePanel(row);
     requestAnimationFrame(() => drawAnalyzerChartIfPresent(row));
+  } else {
+    hideAnalyzerSidePanel();
   }
   if (activeTab === 'notes') {
     const noteItems = notes.length
@@ -1694,10 +1711,6 @@ function renderAnalyzerTab(row) {
   const activeAsin = _analyzerState.asin;
   const cache = _analyzerCache[id + '::' + activeAsin];
 
-  const asinTabs = asins.map(a =>
-    `<button class="analyzer-asin-pill ${a === activeAsin ? 'active' : ''}" onclick="switchAnalyzerAsin('${escAttr(id)}','${escAttr(a)}')">${escHtml(a)}</button>`
-  ).join('');
-
   let resultsHtml = '';
   if (_analyzerState.loading) {
     resultsHtml = `<div class="info-card" style="text-align:center;padding:24px"><span class="spinner"></span>Fetching Keepa data…</div>`;
@@ -1711,12 +1724,30 @@ function renderAnalyzerTab(row) {
 
   const fetchedLabel = cache ? `Last checked ${fmtRelativeTime(cache.fetchedAt)}` : '';
 
-  return section('Analyzer',
-    `<div class="info-grid">
-      <div class="info-card full-width">
-        <label>ASIN</label>
-        <div class="analyzer-asin-tabs">${asinTabs}</div>
-      </div>
+    return section('Analyzer',
+    `<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <button class="btn btn-primary btn-sm" onclick="runAnalyzer('${escAttr(id)}','${escAttr(activeAsin)}')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-4.35-4.35"/><circle cx="10" cy="10" r="7"/></svg>
+        ${cache ? 'Refresh' : 'Analyze'}
+      </button>
+      <span style="font-size:11.5px;color:#94a3b8">${fetchedLabel}</span>
+    </div>
+    <div id="analyzerResultsArea">${resultsHtml}</div>`);
+}
+function renderAnalyzerSidePanelContent(row) {
+  const id = row.opportunity_id;
+  const asins = getAnalyzerAsins(row);
+  if (!asins.length) return '';
+  const activeAsin = _analyzerState.asin;
+  const asinTabs = asins.map(a =>
+    `<button class="analyzer-asin-pill ${a === activeAsin ? 'active' : ''}" onclick="switchAnalyzerAsin('${escAttr(id)}','${escAttr(a)}')">${escHtml(a)}</button>`
+  ).join('');
+  return `<div class="section-label">Analyzer</div>
+    <div class="info-card full-width" style="margin-bottom:10px">
+      <label>ASIN</label>
+      <div class="analyzer-asin-tabs">${asinTabs}</div>
+    </div>
+    <div class="info-grid">
       <div class="info-card">
         <label>Cost of Unit (this analysis only)</label>
         <input type="number" class="edit-input" step="0.01" value="${escAttr(String(_analyzerState.costOfUnit))}" oninput="updateAnalyzerCost('${escAttr(id)}','costOfUnit',this.value)">
@@ -1725,15 +1756,18 @@ function renderAnalyzerTab(row) {
         <label>Cost of Sale (this analysis only)</label>
         <input type="number" class="edit-input" step="0.01" value="${escAttr(String(_analyzerState.costOfSale))}" oninput="updateAnalyzerCost('${escAttr(id)}','costOfSale',this.value)">
       </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px;margin:12px 0">
-      <button class="btn btn-primary btn-sm" onclick="runAnalyzer('${escAttr(id)}','${escAttr(activeAsin)}')">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-4.35-4.35"/><circle cx="10" cy="10" r="7"/></svg>
-        ${cache ? 'Refresh' : 'Analyze'}
-      </button>
-      <span style="font-size:11.5px;color:#94a3b8">${fetchedLabel}</span>
-    </div>
-    <div id="analyzerResultsArea">${resultsHtml}</div>`);
+    </div>`;
+}
+function showAnalyzerSidePanel(row) {
+  const panel = document.getElementById('analyzerSidePanel');
+  if (!panel) return;
+  panel.innerHTML = renderAnalyzerSidePanelContent(row);
+  panel.classList.add('open');
+}
+function hideAnalyzerSidePanel() {
+  const panel = document.getElementById('analyzerSidePanel');
+  if (!panel) return;
+  panel.classList.remove('open');
 }
 function switchAnalyzerAsin(id, asin) {
   _analyzerState.asin = asin;
