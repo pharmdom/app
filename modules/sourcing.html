@@ -231,11 +231,22 @@ col.col-agent     { width: 110px; }
 .analyzer-asin-pill { padding:5px 12px; border-radius:100px; border:1.5px solid #e2e8f0; background:#fff; font-size:12px; font-weight:600; font-family:monospace; color:#475569; cursor:pointer; transition:all .15s; }
 .analyzer-asin-pill:hover { border-color:#2563eb; color:#2563eb; }
 .analyzer-asin-pill.active { background:#eff6ff; border-color:#2563eb; color:#1d4ed8; }
-.analyzer-offers-list { display:flex; flex-direction:column; gap:6px; }
-.analyzer-offer-row { display:grid; grid-template-columns:56px 1fr 90px 70px 55px; align-items:center; gap:10px; padding:9px 12px; background:#f8fafc; border:1px solid #f1f5f9; border-radius:9px; font-size:12.5px; }
-.ao-price { font-weight:700; color:#0f172a; }
-.ao-stock { color:#64748b; font-size:11.5px; }
-.ao-profit, .ao-roi { font-weight:700; text-align:right; }
+
+.aot-wrap { border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; }
+.aot-row { display:grid; grid-template-columns:28px 64px 60px 1fr 1fr 60px; align-items:center; gap:8px; padding:8px 12px; font-size:12.5px; }
+.aot-head { background:#f8fafc; border-bottom:1.5px solid #e2e8f0; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:#64748b; }
+.aot-scroll { max-height:230px; overflow-y:auto; }
+.aot-row:not(.aot-head) { border-bottom:1px solid #f1f5f9; }
+.aot-row:not(.aot-head):nth-child(even) { background:#fafbfc; }
+.aot-row:not(.aot-head):hover { background:#eff6ff; }
+.aot-num { color:#94a3b8; font-weight:700; font-size:11.5px; }
+.aot-stock { color:#64748b; font-size:12px; }
+.aot-price { font-weight:700; color:#0f172a; font-family:monospace; }
+.aot-profit { font-weight:700; font-family:monospace; }
+.aot-roi-pill { display:inline-flex; padding:2px 8px; border-radius:100px; font-size:11px; font-weight:700; }
+.analyzer-chart-card { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px 4px; }
+
+ 
 .analyzer-summary-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; margin-bottom:10px; }
 .asc-row { display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:13px; color:#334155; }
 .asc-row strong { font-family:monospace; font-size:14px; }
@@ -1270,8 +1281,9 @@ function renderDrawer(row) {
         ${editCard(id,'competition',row.competition||'','select:Low,Medium,High')}
       </div>`);
   }
-  if (activeTab === 'analyzer') {
+    if (activeTab === 'analyzer') {
     body = renderAnalyzerTab(row);
+    requestAnimationFrame(() => drawAnalyzerChartIfPresent(row));
   }
   if (activeTab === 'notes') {
     const noteItems = notes.length
@@ -1453,7 +1465,7 @@ function keepaPriceToGBP(v) {
   return v / 100; // verify this scaling against a real response
 }
 async function fetchKeepaProduct(asin) {
-  const url = `https://api.keepa.com/product?key=${KEEPA_API_KEY}&domain=${KEEPA_DOMAIN}&asin=${encodeURIComponent(asin)}&stats=30&offers=20&buybox=1&stock=1`;
+  const url = `https://api.keepa.com/product?key=${KEEPA_API_KEY}&domain=${KEEPA_DOMAIN}&asin=${encodeURIComponent(asin)}&stats=30&offers=20&buybox=1&stock=1&history=1`;
   const res = await fetch(url);
   const data = await res.json();
   if (!data.products || !data.products.length) throw new Error('ASIN not found or Keepa returned no data');
@@ -1461,6 +1473,21 @@ async function fetchKeepaProduct(asin) {
 }
 // Only market facts get cached — no profit/ROI, since those depend on cost
 // inputs that live purely in the Analyzer's own local state, never persisted.
+function keepaMinutesToDate(m) {
+  // Keepa Time: minutes since 2011-01-01 00:00 UTC — offset is 21564000 minutes
+  return new Date((m + 21564000) * 60000);
+}
+function parseSalesRankHistory(product) {
+  const raw = (product.csv && product.csv[3]) || []; // csv index 3 = SALES_RANK
+  const points = [];
+  for (let i = 0; i < raw.length; i += 2) {
+    const t = raw[i], v = raw[i + 1];
+    if (v == null || v < 0) continue;
+    points.push({ date: keepaMinutesToDate(t), rank: v });
+  }
+  const cutoff = Date.now() - 90 * 86400000; // keep the last 90 days readable
+  return points.filter(p => p.date.getTime() >= cutoff);
+}
 function parseKeepaMarketData(product) {
   const referralPct = (product.referralFeePercentage != null ? product.referralFeePercentage : 15) / 100;
   const fbaFee = keepaPriceToGBP(product.fbaFees && product.fbaFees.pickAndPackFee) || 0;
@@ -1472,23 +1499,26 @@ function parseKeepaMarketData(product) {
     const totalPrice = price != null ? price + shipping : null;
     const stockCsv = o.stockCSV || [];
     const stock = stockCsv.length ? stockCsv[stockCsv.length - 1] : null;
-    return { isFBA: !!o.isFBA, price: totalPrice, stock };
+    return { isFBA: !!o.isFBA, isAmazon: !!o.isAmazon, price: totalPrice, stock }; // verify isAmazon against a real response
   }).filter(o => o.price != null).sort((a, b) => a.price - b.price);
 
   const stats = product.stats || {};
   const avg30BuyBox = keepaPriceToGBP(stats.avg30 ? stats.avg30[18] : null); // 18 = BUY_BOX_SHIPPING
   const salesRankDrops30 = stats.salesRankDrops30 != null ? stats.salesRankDrops30 : null;
+  const salesRankHistory = parseSalesRankHistory(product);
 
   return {
     title: product.title || '',
     offersRaw,
     avg30BuyBox,
     salesRankDrops30,
+    salesRankHistory,
     referralPct,
     fbaFee,
     fetchedAt: new Date().toISOString(),
   };
 }
+   
 // Pure calculation, run live from whatever cost values are currently typed
 // into the tab. Nothing here is persisted anywhere.
 function deriveProfitMetrics(marketData, costOfUnit, costOfSale) {
@@ -1523,18 +1553,105 @@ function fmtRelativeTime(iso) {
   if (diffHr < 24) return diffHr + 'h ago';
   return Math.round(diffHr / 24) + 'd ago';
 }
+function ensureAnalyzerTip() {
+  let tip = document.getElementById('analyzerChartTip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'analyzerChartTip';
+    tip.style.cssText = 'position:fixed;z-index:5000;pointer-events:none;background:#0f172a;color:#fff;font-size:11px;font-weight:600;padding:6px 9px;border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.18);opacity:0;transition:opacity .1s;white-space:nowrap;line-height:1.5;';
+    document.body.appendChild(tip);
+  }
+  return tip;
+}
+function drawSalesRankChart(svgId, points) {
+  const svg = document.getElementById(svgId);
+  if (!svg || points.length < 2) return;
+  const W = svg.parentElement.getBoundingClientRect().width || 500, H = 140, pL = 42, pR = 10, pT = 10, pB = 22;
+  const cW = W - pL - pR, cH = H - pT - pB, n = points.length;
+  const ranks = points.map(p => p.rank);
+  const maxR = Math.max(...ranks), minR = Math.min(...ranks);
+  const range = (maxR - minR) || 1;
+  const yFor = r => pT + ((r - minR) / range) * cH;
+  const pts = points.map((p, i) => [pL + (n > 1 ? i * cW / (n - 1) : 0), yFor(p.rank)]);
+  const pathD = 'M ' + pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' L ');
+  const areaD = pathD + ' L ' + (pL + cW).toFixed(1) + ',' + (pT + cH) + ' L ' + pL + ',' + (pT + cH) + ' Z';
+  const gid = 'src' + Math.random().toString(36).slice(2);
+  let grid = '';
+  [minR, (minR + maxR) / 2, maxR].forEach((v, i) => {
+    const y = pT + cH - (i * cH / 2);
+    grid += `<line x1="${pL}" y1="${y.toFixed(1)}" x2="${pL + cW}" y2="${y.toFixed(1)}" stroke="#f1f5f9" stroke-width="1" stroke-dasharray="3,3"/>`;
+    grid += `<text x="${pL - 5}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="#94a3b8">${Math.round(v).toLocaleString()}</text>`;
+  });
+  const step = Math.max(1, Math.floor(n / 5));
+  let xLabels = '';
+  points.forEach((p, i) => {
+    if (i % step !== 0 && i !== n - 1) return;
+    const x = pL + (n > 1 ? i * cW / (n - 1) : 0);
+    xLabels += `<text x="${x.toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="9" fill="#94a3b8">${p.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</text>`;
+  });
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2563eb" stop-opacity=".16"/>
+      <stop offset="100%" stop-color="#2563eb" stop-opacity="0"/></linearGradient></defs>
+    ${grid}
+    <path d="${areaD}" fill="url(#${gid})"/>
+    <path d="${pathD}" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    ${xLabels}`;
+  svg.onmousemove = (e) => {
+    const rect = svg.getBoundingClientRect();
+    if (!rect.width) return;
+    const localX = (e.clientX - rect.left) * (W / rect.width);
+    let idx = 0, best = Infinity;
+    pts.forEach((p, i) => { const d = Math.abs(p[0] - localX); if (d < best) { best = d; idx = i; } });
+    const tip = ensureAnalyzerTip();
+    const p = points[idx];
+    tip.innerHTML = `<div style="opacity:.65;font-size:9.5px;margin-bottom:2px">${p.date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div><div>BSR: ${p.rank.toLocaleString()}</div>`;
+    tip.style.left = (e.clientX + 14) + 'px';
+    tip.style.top = (e.clientY - 14) + 'px';
+    tip.style.opacity = '1';
+  };
+  svg.onmouseleave = () => { const t = document.getElementById('analyzerChartTip'); if (t) t.style.opacity = '0'; };
+}
+function drawAnalyzerChartIfPresent(row) {
+  const cache = _analyzerCache[row.opportunity_id + '::' + _analyzerState.asin];
+  if (cache && cache.salesRankHistory && cache.salesRankHistory.length > 1) {
+    drawSalesRankChart('analyzerRankChart', cache.salesRankHistory);
+  }
+}
+function renderOffersTable(offers) {
+  const header = `<div class="aot-row aot-head"><span>#</span><span>Seller</span><span>Stock</span><span>Price</span><span>Profit</span><span>ROI</span></div>`;
+  if (!offers.length) {
+    return `<div class="aot-wrap">${header}<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12.5px">No live offers found.</div></div>`;
+  }
+  const rows = offers.map((o, i) => {
+    const badgeCls = o.isAmazon ? 'badge-blue' : (o.isFBA ? 'badge-green' : 'badge-orange');
+    const badgeLbl = o.isAmazon ? 'AMZ' : (o.isFBA ? 'FBA' : 'FBM');
+    const good = o.profit >= 0;
+    const pillBg = good ? '#f0fdf4' : '#fef2f2';
+    const pillCol = good ? '#15803d' : '#dc2626';
+    return `<div class="aot-row">
+      <span class="aot-num">${i + 1}</span>
+      <span><span class="badge ${badgeCls}">${badgeLbl}</span></span>
+      <span class="aot-stock">${o.stock != null ? o.stock : '—'}</span>
+      <span class="aot-price">£${o.price.toFixed(2)}</span>
+      <span class="aot-profit" style="color:${pillCol}">£${o.profit.toFixed(2)}</span>
+      <span><span class="aot-roi-pill" style="background:${pillBg};color:${pillCol}">${o.roi != null ? o.roi.toFixed(0) + '%' : '—'}</span></span>
+    </div>`;
+  }).join('');
+  return `<div class="aot-wrap">${header}<div class="aot-scroll">${rows}</div></div>`;
+}
 function renderAnalyzerResults(marketData, costOfUnit, costOfSale) {
   const results = deriveProfitMetrics(marketData, costOfUnit, costOfSale);
-  const offerRows = results.offers.map(o => {
-    const profitColor = o.profit >= 0 ? '#15803d' : '#dc2626';
-    return `<div class="analyzer-offer-row">
-      <span class="badge ${o.isFBA ? 'badge-blue' : 'badge-gray'}">${o.isFBA ? 'FBA' : 'FBM'}</span>
-      <span class="ao-price">£${o.price.toFixed(2)}</span>
-      <span class="ao-stock">${o.stock != null ? o.stock + ' in stock' : '—'}</span>
-      <span class="ao-profit" style="color:${profitColor}">£${o.profit.toFixed(2)}</span>
-      <span class="ao-roi" style="color:${profitColor}">${o.roi != null ? o.roi.toFixed(0) + '%' : '—'}</span>
+  const hasHistory = marketData.salesRankHistory && marketData.salesRankHistory.length > 1;
+
+  const chartSection = `<div class="section-label" style="margin-top:14px">Sales Rank Trend (90d)</div>
+    <div class="analyzer-chart-card">
+      ${hasHistory
+        ? `<svg id="analyzerRankChart" style="width:100%;height:140px;display:block"></svg>`
+        : `<div style="padding:24px;text-align:center;color:#94a3b8;font-size:12.5px">Not enough sales rank history yet.</div>`}
     </div>`;
-  }).join('') || `<div style="padding:12px;color:#94a3b8;font-size:12.5px">No live offers found.</div>`;
+
+  const offersSection = `<div class="section-label" style="margin-top:14px">Live Offers</div>${renderOffersTable(results.offers)}`;
 
   const recCard = results.recommendedPrice != null
     ? `<div class="analyzer-summary-card">
@@ -1551,13 +1668,11 @@ function renderAnalyzerResults(marketData, costOfUnit, costOfSale) {
       </div>`
     : `<div class="analyzer-summary-card"><div style="color:#94a3b8;font-size:12.5px">No sales rank history available.</div></div>`;
 
-  return `<div class="section-label" style="margin-top:14px">Live Offers</div>
-    <div class="analyzer-offers-list">${offerRows}</div>
-    <div class="section-label" style="margin-top:14px">Recommended Price (Last 30 Days)</div>
-    ${recCard}
-    <div class="section-label" style="margin-top:14px">Estimated Purchase Quantity</div>
-    ${qtyCard}`;
+  return chartSection + offersSection
+    + `<div class="section-label" style="margin-top:14px">Recommended Price (Last 30 Days)</div>${recCard}`
+    + `<div class="section-label" style="margin-top:14px">Estimated Purchase Quantity</div>${qtyCard}`;
 }
+     
 function renderAnalyzerTab(row) {
   const id = row.opportunity_id;
   const asins = getAnalyzerAsins(row);
@@ -1627,14 +1742,13 @@ function switchAnalyzerAsin(id, asin) {
 }
 function updateAnalyzerCost(id, key, value) {
   _analyzerState[key] = value;
-  // Patch only the results area live — no save, no re-fetch, and typing
-  // doesn't lose focus by re-rendering the whole drawer.
   const row = allData.find(p => p.opportunity_id === id);
   if (!row) return;
   const cache = _analyzerCache[id + '::' + _analyzerState.asin];
   const resultsEl = document.getElementById('analyzerResultsArea');
   if (cache && resultsEl) {
     resultsEl.innerHTML = renderAnalyzerResults(cache, _analyzerState.costOfUnit, _analyzerState.costOfSale);
+    requestAnimationFrame(() => drawAnalyzerChartIfPresent(row));
   }
 }
 async function runAnalyzer(id, asin) {
