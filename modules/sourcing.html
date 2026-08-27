@@ -1236,7 +1236,7 @@ function renderDrawer(row) {
       ${tabBtn('attributes', id, 'Attributes')}
       ${tabBtn('notes',      id, 'Notes' + (notes.length ? ` <span class="badge badge-blue" style="font-size:10px;padding:1px 6px;">${notes.length}</span>` : ''))}
       ${tabBtn('approvals',  id, 'Approvals' + (approvedCount ? ` <span class="badge badge-green" style="font-size:10px;padding:1px 6px;">${approvedCount}</span>` : '') + (rejectedCount ? ` <span class="badge badge-red" style="font-size:10px;padding:1px 6px;">${rejectedCount}</span>` : ''))}
-      ${tabBtn('analyzer',   id, 'Analyzer')}
+      ${tabBtn('analyzer',   id, '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Analyzer')}
     </div>`;
   let body = '';
   if (activeTab === 'overview') {
@@ -1307,10 +1307,19 @@ function renderDrawer(row) {
         ${editCard(id,'competition',row.competition||'','select:Low,Medium,High')}
       </div>`);
   }
-     if (activeTab === 'analyzer') {
+          if (activeTab === 'analyzer') {
     body = renderAnalyzerTab(row);
     showAnalyzerSidePanel(row);
     requestAnimationFrame(() => drawAnalyzerChartIfPresent(row));
+    const analyzerAsins = getAnalyzerAsins(row);
+    const firstAsin = analyzerAsins[0];
+    if (firstAsin) {
+      const autoKey = id + '::' + firstAsin;
+      if (!_analyzerCache[autoKey] && !_analyzerAutoFetched.has(autoKey) && !_analyzerState.loading) {
+        _analyzerAutoFetched.add(autoKey);
+        runAnalyzer(id, firstAsin);
+      }
+    }
   } else {
     hideAnalyzerSidePanel();
   }
@@ -1485,6 +1494,7 @@ const KEEPA_API_KEY = '3aq7cr8atsqmkqus7ap9g74dfk70om4e26ts9f63j0sel4egmipd8bc2q
 const KEEPA_DOMAIN = 2; // 2 = amazon.co.uk
 let _analyzerState = { id: null, asin: null, costOfUnit: '', costOfSale: '', loading: false, error: null };
 let _analyzerCache = {}; // session-only — lives in memory, cleared on page reload, never touches Supabase
+let _analyzerAutoFetched = new Set(); // tracks id::asin pairs already auto-triggered, so it only ever fires once per product per session
    
 function getAnalyzerAsins(row) {
   return (row.asins || '').split(',').map(a => a.trim()).filter(Boolean);
@@ -1770,17 +1780,7 @@ function renderAnalyzerTab(row) {
     resultsHtml = `<div class="info-card" style="text-align:center;padding:20px;color:#94a3b8">No data yet for this ASIN — click Analyze.</div>`;
   }
 
-  const fetchedLabel = cache ? `Last checked ${fmtRelativeTime(cache.fetchedAt)}` : '';
-
-    return section('Analyzer',
-    `<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-      <button class="btn btn-primary btn-sm" onclick="runAnalyzer('${escAttr(id)}','${escAttr(activeAsin)}')">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-4.35-4.35"/><circle cx="10" cy="10" r="7"/></svg>
-        ${cache ? 'Refresh' : 'Analyze'}
-      </button>
-      <span style="font-size:11.5px;color:#94a3b8">${fetchedLabel}</span>
-    </div>
-    <div id="analyzerResultsArea">${resultsHtml}</div>`);
+  return `<div class="section"><div id="analyzerResultsArea">${resultsHtml}</div></div>`;
 }
 
 
@@ -1821,7 +1821,16 @@ function renderAnalyzerSidePanelContent(row) {
       </div>`
     : '';
 
-  return `<div class="section-label">Analyzer</div>
+    const fetchedLabel = cache ? `Last checked ${fmtRelativeTime(cache.fetchedAt)}` : '';
+
+  return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px;">
+      <span style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;">Analyzer</span>
+      <button class="btn btn-primary btn-sm" onclick="runAnalyzer('${escAttr(id)}','${escAttr(activeAsin)}')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-4.35-4.35"/><circle cx="10" cy="10" r="7"/></svg>
+        ${cache ? 'Refresh' : 'Analyze'}
+      </button>
+    </div>
+    <div style="font-size:10.5px;color:#94a3b8;margin-bottom:12px;min-height:14px;">${fetchedLabel}</div>
     ${productHead}
     <div class="info-card full-width" style="margin-bottom:10px">
       <label>ASIN</label>
