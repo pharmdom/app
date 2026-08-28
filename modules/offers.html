@@ -289,8 +289,7 @@ body{overflow:hidden}
 .k-act-btn svg{width:11px;height:11px;pointer-events:none}
 .k-act-approve{background:#dcfce7;color:#15803d;}
 .k-act-approve:hover{background:#15803d;color:#fff}
-.k-act-reject{background:#fef3c7;color:#92400e;}
-.k-act-reject:hover{background:#d97706;color:#fff}
+
 .k-act-delete{background:#fee2e2;color:#b91c1c;}
 .k-act-delete:hover{background:#b91c1c;color:#fff}
 .k-card-cost{cursor:pointer;}
@@ -1363,9 +1362,16 @@ function getSupGroups(data){
   });
   return cols;
 }
+
+
 function renderKanban(data,area){
   const cols=getSupGroups(data);
   _navAllGroups=Object.keys(cols).sort();
+  const prevScroll={};
+  area.querySelectorAll('.k-col-body').forEach(b=>{
+    const nameEl=b.parentElement&&b.parentElement.querySelector('.k-sup-name');
+    if(nameEl)prevScroll[nameEl.title]=b.scrollTop;
+  });
   area.className='';area.innerHTML='';
   const outer=document.createElement('div');outer.className='kanban-outer';
   const wrap=document.createElement('div');wrap.className='kanban-wrap';
@@ -1385,6 +1391,7 @@ function renderKanban(data,area){
       card.style.animationDelay=(i*0.03)+'s';
       body.appendChild(card);
     });
+    if(prevScroll[sup]!=null)body.scrollTop=prevScroll[sup];
 col.appendChild(body);wrap.appendChild(col);
   });
   outer.appendChild(wrap);area.appendChild(outer);
@@ -1442,15 +1449,12 @@ if(ean){html+=`<div style="display:flex;align-items:center;justify-content:space
   html+=`<div class="k-card-foot">
     <span class="k-card-cost${cf==='—'?' no-price':''}" data-id="${esc(rid)}" onclick="event.stopPropagation();_openCardDrawer('${esc(rid)}','${esc(supplierGroup)}')">${esc(cf)}</span>${savingsBadge}
     <div style="display:flex;align-items:center;gap:5px">
-      <div class="k-card-actions">
+            <div class="k-card-actions">
         <button class="k-act-btn k-act-approve" onclick="event.stopPropagation();doApproveOfferCard('${esc(rid)}',this)" title="Approve">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </button>
-        <button class="k-act-btn k-act-reject" onclick="event.stopPropagation();openRejectModal('${esc(rid)}')" title="Reject">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-        </button>
         <button class="k-act-btn k-act-delete" onclick="event.stopPropagation();confirmDeleteOffer('${esc(rid)}')" title="Delete">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
         </button>
       </div>
     </div>
@@ -1524,6 +1528,8 @@ async function doApproveOfferCard(id, btn){
 
 /* ── CARDS ── */
 function renderCards(data,area){
+  const prevOuter=area.querySelector('.card-outer');
+  const prevScroll=prevOuter?prevOuter.scrollTop:0;
   area.className='';area.innerHTML='';
   const outer=document.createElement('div');outer.className='card-outer';
   const grid=document.createElement('div');grid.className='card-grid';
@@ -1569,11 +1575,15 @@ const offerVal=parseFloat(getEffectiveCost(r));
     card.innerHTML=html;
     grid.appendChild(card);
   });
-  outer.appendChild(grid);area.appendChild(outer);
+   outer.appendChild(grid);area.appendChild(outer);
+  outer.scrollTop=prevScroll;
 }
 
 /* ── TABLE ── */
+  
 function renderTable(data,area){
+  const prevOuter=area.querySelector('.tbl-outer');
+  const prevScroll=prevOuter?prevOuter.scrollTop:0;
   area.className='';area.innerHTML='';
   const outer=document.createElement('div');outer.className='tbl-outer';
   let tbl=`<table class="data-tbl"><thead><tr><th style="width:50px"></th><th>EAN</th><th>Product Name</th><th>Supplier</th><th>Cost</th><th>Date</th></tr></thead><tbody>`;
@@ -1615,6 +1625,7 @@ const ov=parseFloat(getEffectiveCost(r));
   });
   tbl+='</tbody></table>';
   outer.innerHTML=tbl;area.appendChild(outer);
+  outer.scrollTop=prevScroll;
 }
 
 /* ── DRAWER ── */
