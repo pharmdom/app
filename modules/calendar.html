@@ -47,8 +47,6 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .bgt-val.loading{position:relative;color:transparent;overflow:hidden;border-radius:4px;background:var(--border)}
 .bgt-val.loading::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.6) 50%,transparent 100%);animation:shimmer 1.4s infinite;transform:translateX(-100%)}
 .bgt-set-prompt{font-size:10.5px;font-weight:600;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;margin-top:1px;display:inline-block}
-.bgt-carryover-positive{color:var(--green)}
-.bgt-carryover-negative{color:var(--red)}
 .repl-row{display:flex;align-items:center;gap:8px}
 .repl-row .form-inp{flex:1}
 .repl-row .repl-amount{width:110px;flex-shrink:0}
@@ -632,7 +630,6 @@ textarea.form-inp{resize:vertical;min-height:72px}
       <div class="form-label">Weekly Sourcing Budget (&#163;)</div>
       <input type="number" class="form-inp" id="budgetInput" placeholder="0" min="0" step="500">
     </div>
-    <div id="budgetCarryoverHint" style="display:none;font-size:11.5px;color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 11px;margin-bottom:4px"></div>
     <div class="modal-footer">
       <button class="btn btn-secondary btn-sm" onclick="closeBudgetModal()">Cancel</button>
       <button class="btn btn-primary btn-sm" onclick="saveBudget()">Save Budget</button>
@@ -869,7 +866,6 @@ textarea.form-inp{resize:vertical;min-height:72px}
       <div>
         <div class="bgt-label">Weekly Budget</div>
         <div class="bgt-val" id="bgtTotal">&#163;&#8212;</div>
-        <div class="bgt-sub" id="bgtCarryover" style="display:none"></div>
         <div class="bgt-sub" id="bgtReplSub" style="display:none;color:var(--amber)"></div>
       </div>
     </div>
@@ -1009,8 +1005,8 @@ textarea.form-inp{resize:vertical;min-height:72px}
             <div class="guide-step">
               <div class="guide-step-num">1</div>
               <div class="guide-step-text">
-                <div class="guide-step-label">Set the week's budget</div>
-                <div class="guide-step-desc">Click <strong>Budget</strong> in the top right to enter how much is available for sourcing this week. Any unspent amount from the previous week carries over automatically.</div>
+                                <div class="guide-step-label">Set the week's budget</div>
+                <div class="guide-step-desc">Click <strong>Budget</strong> in the top right to enter how much is available for sourcing this week.</div>
               </div>
             </div>
             <div class="guide-step">
@@ -1051,7 +1047,7 @@ textarea.form-inp{resize:vertical;min-height:72px}
             </div>
             <div class="guide-tip">
               <div class="guide-tip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-              <div class="guide-tip-text">The budget bar turns <strong>amber</strong> when 70% is used and <strong>red</strong> at 90% — a heads-up before you overspend. The effective budget shown in brackets already includes last week's carryover.</div>
+              <div class="guide-tip-text">The budget bar turns <strong>amber</strong> when 70% is used and <strong>red</strong> at 90% — a heads-up before you overspend.</div>
             </div>
             <div class="guide-tip">
               <div class="guide-tip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
@@ -1104,7 +1100,7 @@ textarea.form-inp{resize:vertical;min-height:72px}
 <script>
 (function(){
 'use strict';
-var _plannerBlocks=[],_suppliers=[],_purchasedSpend=0,_spendLoaded=false,_weeklyBudget=0,_weeklyCarryover=0,_budgetLoaded=false,_replenishments=[],_replLoaded=false;
+var _plannerBlocks=[],_suppliers=[],_purchasedSpend=0,_spendLoaded=false,_weeklyBudget=0,_budgetLoaded=false,_replenishments=[],_replLoaded=false;
 var _currentWeekStart=getWeekStart(new Date());
 var _editingBlockId=null,_openDrawerBlockId=null,_formHours=2,_formAgent='';
 var _dragBlockId=null,_deleteTargetId=null;
@@ -1612,14 +1608,11 @@ document.getElementById('insCatProgressFill').style.width=d.pctCat+'%';
 async function loadAll(){
   pStart();
   try{
-var prevWeekStart=addDays(_currentWeekStart,-7);
-    const[blocksRes,suppliersRes,budgetRes,spendRes,prevBudgetRes,prevSpendRes,usersRes,visibleRes,replRes]=await Promise.all([
+const[blocksRes,suppliersRes,budgetRes,spendRes,usersRes,visibleRes,replRes]=await Promise.all([
       sb.from('sourcing_calendar').select('*'),
       sb.from('suppliers').select('supplier_id,name,website').order('name'),
       sb.from('sourcing_calendar_budgets').select('budget').eq('week_start',toISO(_currentWeekStart)).maybeSingle(),
       sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at',getWeekISO(_currentWeekStart)).lt('created_at',getWeekISO(addDays(_currentWeekStart,7))),
-      sb.from('sourcing_calendar_budgets').select('budget').eq('week_start',toISO(prevWeekStart)).maybeSingle(),
-      sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at',getWeekISO(prevWeekStart)).lt('created_at',getWeekISO(_currentWeekStart)),
       sb.from('users').select('user_id,first_name,last_name,role,status').in('role',['Digital Ops','Admin']).eq('status','Active').order('first_name'),
       sb.from('sourcing_calendar_config').select('value').eq('key','visible_agents').maybeSingle(),
       sb.from('sourcing_calendar_replenishments').select('*').eq('week_start',toISO(_currentWeekStart)).order('created_at')
@@ -1663,9 +1656,6 @@ var completion={status:'pending',note:''};
     };});
 _suppliers=(suppliersRes.data||[]).map(function(r){return{id:r.supplier_id,name:r.name,website:r.website||''};});
     _weeklyBudget=parseFloat((budgetRes.data&&budgetRes.data.budget)||0);
-    var prevBudget=parseFloat((prevBudgetRes.data&&prevBudgetRes.data.budget)||0);
-    var prevSpend=(prevSpendRes.data||[]).reduce(function(a,r){return a+(parseFloat(r.cost_of_unit)||0)*(parseFloat(r.unit_quantity)||1);},0);
-    _weeklyCarryover=prevBudget>0?(prevBudget-prevSpend):0;
     _purchasedSpend=(spendRes.data||[]).reduce(function(a,r){return a+(parseFloat(r.cost_of_unit)||0)*(parseFloat(r.unit_quantity)||1);},0);
     _replenishments=(replRes.data||[]).map(function(r){return{id:r.id,label:r.label,amount:parseFloat(r.amount)||0};});
     _replLoaded=true;_spendLoaded=true;_budgetLoaded=true;
@@ -1681,32 +1671,20 @@ function renderAll(){updateBudgetBar();updateChips();renderCalendar();_insightsL
 
 function updateBudgetBar(){
   var replTotal=_replenishments.reduce(function(a,r){return a+r.amount;},0);
-  var effective=_weeklyBudget+_weeklyCarryover;
-  var out=effective-_purchasedSpend-replTotal,pct=effective>0?Math.min(100,((_purchasedSpend+replTotal)/effective)*100):0;
+  var out=_weeklyBudget-_purchasedSpend-replTotal,pct=_weeklyBudget>0?Math.min(100,((_purchasedSpend+replTotal)/_weeklyBudget)*100):0;
   var totalEl=document.getElementById('bgtTotal');
-  var carryEl=document.getElementById('bgtCarryover');
   if(!_budgetLoaded){
     totalEl.textContent='\u00a3\u2014';
-    carryEl.style.display='none';
   }else if(_weeklyBudget===0){
     totalEl.innerHTML='\u00a30 <span class="bgt-set-prompt" onclick="openBudgetModal()">Set budget</span>';
-    carryEl.style.display='none';
   }else{
-    totalEl.innerHTML=fmtGBP(_weeklyBudget)+'<span style="font-size:11px;font-weight:600;color:'+(effective>=0?'var(--green)':'var(--red)')+';margin-left:6px;">('+fmtGBP(effective)+' effective)</span>';
-    if(_weeklyCarryover!==0){
-      var sign=_weeklyCarryover>0?'+':'';
-      carryEl.className='bgt-sub '+(_weeklyCarryover>0?'bgt-carryover-positive':'bgt-carryover-negative');
-      carryEl.textContent=sign+fmtGBP(_weeklyCarryover)+' carryover';
-      carryEl.style.display='block';
-    }else{
-      carryEl.style.display='none';
-    }
+    totalEl.textContent=fmtGBP(_weeklyBudget);
   }
 
   var replEl=document.getElementById('bgtReplSub');
   if(replTotal>0){replEl.textContent='\u2212'+fmtGBP(replTotal)+' replenishments';replEl.style.display='block';}
   else{replEl.style.display='none';}
-  document.getElementById('bgtOutstanding').textContent=effective>0?fmtGBP(out):'\u00a3\u2014';
+  document.getElementById('bgtOutstanding').textContent=_weeklyBudget>0?fmtGBP(out):'\u00a3\u2014';
   document.getElementById('bgtPct').textContent=Math.round(pct)+'%';
   document.getElementById('bgtFill').style.width=pct+'%';
   document.getElementById('bgtFill').style.background=pct>90?'linear-gradient(90deg,#ef4444,#b91c1c)':pct>70?'linear-gradient(90deg,#f59e0b,#d97706)':'linear-gradient(90deg,var(--accent),#4f80f7)';
@@ -2073,15 +2051,10 @@ window.closeDrawer=closeDrawer;
 window.openBudgetModal=function(){
   document.getElementById('budgetInput').value=_weeklyBudget||'';
   document.getElementById('budgetModalSub').textContent='Week of '+fmtDay(_currentWeekStart)+' \u2013 '+fmtDay(addDays(_currentWeekStart,6));
-  var hint=document.getElementById('budgetCarryoverHint');
-  if(_weeklyCarryover!==0){
-    var sign=_weeklyCarryover>0?'+':'';
-    hint.innerHTML='Previous week carryover: <strong>'+(sign+fmtGBP(_weeklyCarryover))+'</strong> — will be added to effective budget automatically.';
-    hint.style.display='block';
-  }else{hint.style.display='none';}
   document.getElementById('budgetOverlay').classList.add('open');
   setTimeout(function(){document.getElementById('budgetInput').focus();},150);
 };
+  
 window.closeBudgetModal=function(){document.getElementById('budgetOverlay').classList.remove('open');};
 
 var _agentToggleState={};
@@ -2130,32 +2103,24 @@ window.saveBudget=async function(){
 
 window.shiftWeek=function(dir){
   _currentWeekStart=addDays(_currentWeekStart,dir*7);_spendLoaded=false;_budgetLoaded=false;
-  _weeklyBudget=0;_weeklyCarryover=0;
+  _weeklyBudget=0;
   var el=document.getElementById('bgtSpent');el.classList.add('loading');el.style.minWidth='64px';el.style.height='22px';el.textContent='\u00a0';
   document.getElementById('bgtSpentSub').textContent='calculating\u2026';
   document.getElementById('bgtTotal').textContent='\u00a3\u2014';
-  document.getElementById('bgtCarryover').style.display='none';
   renderCalendar();updateChips();
   var ws=getWeekISO(_currentWeekStart),we=getWeekISO(addDays(_currentWeekStart,7));
-  var prevWeekStart=addDays(_currentWeekStart,-7);
 Promise.all([
     window.sb.from('sourcing_calendar_budgets').select('budget').eq('week_start',toISO(_currentWeekStart)).maybeSingle(),
     window.sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at',ws).lt('created_at',we),
-    window.sb.from('sourcing_calendar_budgets').select('budget').eq('week_start',toISO(prevWeekStart)).maybeSingle(),
-    window.sb.from('sourcing').select('cost_of_unit,unit_quantity').gte('created_at',getWeekISO(prevWeekStart)).lt('created_at',getWeekISO(_currentWeekStart)),
     window.sb.from('sourcing_calendar_replenishments').select('*').eq('week_start',toISO(_currentWeekStart)).order('created_at')
   ]).then(function(results){
     _weeklyBudget=parseFloat((results[0].data&&results[0].data.budget)||0);
     _purchasedSpend=(results[1].data||[]).reduce(function(a,r){return a+(parseFloat(r.cost_of_unit)||0)*(parseFloat(r.unit_quantity)||1);},0);
-    var prevBudget=parseFloat((results[2].data&&results[2].data.budget)||0);
-    var prevSpend=(results[3].data||[]).reduce(function(a,r){return a+(parseFloat(r.cost_of_unit)||0)*(parseFloat(r.unit_quantity)||1);},0);
-    _weeklyCarryover=prevBudget>0?(prevBudget-prevSpend):0;
-    _replenishments=(results[4].data||[]).map(function(r){return{id:r.id,label:r.label,amount:parseFloat(r.amount)||0};});
+    _replenishments=(results[2].data||[]).map(function(r){return{id:r.id,label:r.label,amount:parseFloat(r.amount)||0};});
     _replLoaded=true;_spendLoaded=true;_budgetLoaded=true;
     updateBudgetBar();
   }).catch(function(){});
 };
-
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){
     if(document.getElementById('delConfirm').classList.contains('open')){cancelDelete();return;}
@@ -2283,8 +2248,8 @@ loadAll();
     },
     {
       target:'#bgtTotal',
-      title:'Budget &amp; Effective Budget',
-      desc:'The bold number is the budget you set for this week. The smaller coloured number in brackets is the <strong>effective budget</strong> — the real amount available after adding last week\'s unspent carryover or subtracting any overspend.',
+      title:'Weekly Budget',
+      desc:'This is the budget you set for this week — the amount available for sourcing before purchases and replenishments are deducted.',
       position:'bottom'
     },
     {
