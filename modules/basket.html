@@ -2648,7 +2648,16 @@ if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer();
 
   window.cbMarkReplPurchased = async function(sku) {
     try {
-      await sb.from('replenishment_skus').update({ action:'pur', actioned_at:new Date().toISOString() }).eq('sku',sku);
+      const { data: row } = await sb.from('replenishment_skus').select('supplier_name').eq('sku', sku).maybeSingle();
+      const nowIso = new Date().toISOString();
+      await sb.from('replenishment_skus').update({
+        action: 'pur',
+        actioned_at: nowIso,
+        // Permanent purchase record — never cleared by Undo/Reject/Defer, so
+        // Replenishments' "Last purchased" chip survives any later status change.
+        last_purchased_at: nowIso,
+        last_purchased_supplier: (row && row.supplier_name) || null,
+      }).eq('sku',sku);
       _cbToast('Moved to Purchased ✓','success');
       window.closeCbDrawer(); window.renderCentralBasket(true);
      _cbLoadBudgetBar();
