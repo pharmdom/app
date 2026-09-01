@@ -135,7 +135,9 @@ body{overflow:hidden}
 .days-warn{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd);}
 .days-ok{background:var(--green-bg);color:var(--green);border-color:var(--green-bd);}
 .rate-chip{font-family:var(--mono);font-size:11px;color:var(--text4);}
-
+.last-purchase-chip{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px 8px;white-space:nowrap;}
+.last-purchase-chip svg{width:10px;height:10px;flex-shrink:0;color:var(--text4);}
+  
 /* ── ACTION BUTTONS ── */
 .card-actions{display:flex;gap:6px;}
 .abtn{flex:1;padding:7px 0;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:11.5px;
@@ -1057,6 +1059,40 @@ async function loadPriceContext() {
 }
 
 
+// ── LAST PURCHASED (reads directly from replenishment_skus — no separate table) ──
+let _lastPurchase = { byEan: {}, bySku: {} };
+async function loadLastPurchaseInfo() {
+  try {
+    const { data } = await sb.from('replenishment_skus')
+      .select('sku,ean,supplier_name,actioned_at')
+      .eq('action', 'pur')
+      .order('actioned_at', { ascending: true });
+    const byEan = {}, bySku = {};
+    (data || []).forEach(r => {
+      const rec = { date: r.actioned_at, supplier: r.supplier_name || '' };
+      const eanKey = (r.ean || '').trim().toLowerCase();
+      if (eanKey) byEan[eanKey] = rec; // ascending order → last write wins → most recent
+      if (r.sku) bySku[r.sku] = rec;
+    });
+    _lastPurchase = { byEan, bySku };
+  } catch(e) { console.warn('Could not load last purchase info', e); }
+}
+function fmtLastPurchaseDate(iso) {
+  try { return new Date(iso).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }); }
+  catch(e) { return ''; }
+}
+function getLastPurchaseChip(x) {
+  const eanKey = (x.ean || '').toLowerCase();
+  const rec = (eanKey && _lastPurchase.byEan[eanKey]) || _lastPurchase.bySku[x.s];
+  if (!rec) return '';
+  const dateTxt = fmtLastPurchaseDate(rec.date);
+  const supTxt = rec.supplier ? ' · ' + esc(rec.supplier) : '';
+  return `<span class="last-purchase-chip" title="Last purchased">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    Last purchased ${dateTxt}${supTxt}
+  </span>`;
+}
+
 async function loadSuppliers() {
   if (_suppliers.length) return _suppliers;
   try {
@@ -1077,13 +1113,18 @@ function _currentUserName() {
 async function loadSeenSkus() {
   try {
     const [{ data }, latestNotes] = await Promise.all([
-      sb.from('replenishment_skus').select('sku,action,actioned_at'),
+      sb.from('replenishment_skus').select('sku,ean,name,action,actioned_at,supplier_name,available,incoming,daily_rate,days_left,order_qty,cost_price,image_url,urgency'),
       loadLatestReplNotes(),
     ]);
-    const seen = {};
-    (data || []).forEach(r => { seen[r.sku] = { action: r.action, note: latestNotes[r.sku] || null, actioned_at: r.actioned_at }; });
-    return seen;
-  } catch(e) { return {}; }
+    const bySku = {}, byEan = {};
+    (data || []).forEach(r => {
+      const rec = { ...r, note: latestNotes[r.sku] || null };
+      bySku[r.sku] = rec;
+      const eanKey = (r.ean || '').trim().toLowerCase();
+      if (eanKey && (r.action === 'basket' || r.action === 'pur')) byEan[eanKey] = rec;
+    });
+    return { bySku, byEan };
+  } catch(e) { return { bySku: {}, byEan: {} }; }
 }
 
 // Returns { sku: latestNoteText } — one entry per SKU, using the most recent thread message
@@ -1133,8 +1174,10 @@ async function clearNonRejectedFromDB() {
   if (!sb) return;
   try {
     const cutoff = new Date(Date.now() - 60*24*60*60*1000).toISOString();
+    // Basket ('basket') and Purchased ('pur') rows are deliberately never cleared here —
+    // they persist across uploads so re-processing a file never loses or duplicates them.
     await sb.from('replenishment_skus').delete()
-      .or(`action.is.null,action.neq.rej,and(action.eq.rej,actioned_at.lt.${cutoff})`);
+      .or(`action.is.null,action.eq.na,action.eq.def,and(action.eq.rej,actioned_at.lt.${cutoff})`);
   } catch(e) { console.warn('DB clear error', e); }
 }
 
@@ -1219,11 +1262,11 @@ async function processFiles() {
   await clearNonRejectedFromDB();
   btn.innerHTML = '<span class="spinner" style="width:13px;height:13px;border-width:2px;border-color:rgba(255,255,255,.3);border-top-color:#fff;margin-right:4px"></span>Processing…';
 
-  const [, seenSkus] = await Promise.all([loadPriceContext(), loadSeenSkus()]);
+  const [, seenSkus] = await Promise.all([loadPriceContext(), loadSeenSkus(), loadLastPurchaseInfo()]);
 
 const REJECT_EXPIRY_MS = 60 * 24 * 60 * 60 * 1000;
   const rejectedSkus = new Set(
-    Object.entries(seenSkus).filter(([, v]) =>
+    Object.entries(seenSkus.bySku).filter(([, v]) =>
       v.action === 'rej' && v.actioned_at && (Date.now() - new Date(v.actioned_at).getTime()) < REJECT_EXPIRY_MS
     ).map(([k]) => k)
   );
@@ -1275,45 +1318,85 @@ const purchasedSkus = new Set(); // purchased SKUs always re-enter the queue on 
   enriched.forEach(r => {
     const sku = (r.sku || '').trim();
     if (!sku) return;
-    const dailyRate = parseFloat(r.daily_sell_out_rate) || 0;
-    const available = parseFloat(r.available_qty) || 0;
-    const incoming  = parseFloat(r.incoming_qty) || 0;
-    const daysLeft  = dailyRate > 0 ? Math.round((available + incoming) / dailyRate) : 999;
-    const orderQty  = Math.max(0, Math.round(dailyRate * 30) - available - incoming);
-    const urgency   = daysLeft <= 0 ? 'C' : daysLeft < 7 ? 'C' : daysLeft < 20 ? 'R' : 'O';
+    const ean = (r.sku || '').trim();
+    const eanKey = ean.toLowerCase();
+    const existingBasket = eanKey ? seenSkus.byEan[eanKey] : null;
 
-    const obj = {
-      s: sku,
-      t: (r.title || '').replace(/<[^>]*>/g, '').trim() || sku,
-      ean: (r.sku || '').trim(),
-      u: urgency,
-      av: available,
-      inc: incoming,
-      r: dailyRate,
-      d: daysLeft,
-      q: orderQty,
-      cogs: parseFloat(r.cost_price) || 0,
-      lastSupplier: (r.supplier_name || '').trim(),
-      img: (r.image_url || '').trim(),
-      subsets: [],
-    };
-    mainIdxMap[sku] = grouped.length;
+       let obj;
+    const purchasedLongEnoughAgo = existingBasket && existingBasket.action === 'pur' && existingBasket.actioned_at
+      && (Date.now() - new Date(existingBasket.actioned_at).getTime()) > (Math.max(parseFloat(existingBasket.days_left) || 14, 7) * 86400000);
+    if (existingBasket && !purchasedLongEnoughAgo) {
+      // Already in the basket (or purchased) under this EAN — keep that record
+      // as-is instead of overwriting it with a fresh parse of this file's row.
+      obj = {
+        s: existingBasket.sku,
+        t: existingBasket.name || existingBasket.sku,
+        ean: existingBasket.ean || ean,
+        u: existingBasket.urgency || 'O',
+        av: parseFloat(existingBasket.available) || 0,
+        inc: parseFloat(existingBasket.incoming) || 0,
+        r: parseFloat(existingBasket.daily_rate) || 0,
+        d: parseFloat(existingBasket.days_left) || 0,
+        q: parseInt(existingBasket.order_qty) || 0,
+        cogs: parseFloat(existingBasket.cost_price) || 0,
+        lastSupplier: existingBasket.supplier_name || '',
+        img: existingBasket.image_url || '',
+        subsets: [],
+        __preserved: true,
+      };
+    } else {
+      const dailyRate = parseFloat(r.daily_sell_out_rate) || 0;
+      const available = parseFloat(r.available_qty) || 0;
+      const incoming  = parseFloat(r.incoming_qty) || 0;
+      const daysLeft  = dailyRate > 0 ? Math.round((available + incoming) / dailyRate) : 999;
+      const orderQty  = Math.max(0, Math.round(dailyRate * 30) - available - incoming);
+      const urgency   = daysLeft <= 0 ? 'C' : daysLeft < 7 ? 'C' : daysLeft < 20 ? 'R' : 'O';
+      obj = {
+        s: sku,
+        t: (r.title || '').replace(/<[^>]*>/g, '').trim() || sku,
+        ean: ean,
+        u: urgency,
+        av: available,
+        inc: incoming,
+        r: dailyRate,
+        d: daysLeft,
+        q: orderQty,
+        cogs: parseFloat(r.cost_price) || 0,
+        lastSupplier: (r.supplier_name || '').trim(),
+        img: (r.image_url || '').trim(),
+        subsets: [],
+      };
+    }
+    if (mainIdxMap[obj.s] != null) return; // already added this cycle (e.g. two rows resolved to the same preserved item)
+    mainIdxMap[obj.s] = grouped.length;
     grouped.push(obj);
   });
 
-  ALL = grouped;
+    ALL = grouped;
   acts = {};
   notes = {};
 
   rejectedSkus.forEach(sku => {
-    const dbRec = seenSkus[sku];
+    const dbRec = seenSkus.bySku[sku];
     if (dbRec && !acts[sku]) {
       acts[sku] = dbRec.action;
       if (dbRec.note) notes[sku] = dbRec.note;
     }
   });
 
-  const newSkus = grouped.filter(x => !rejectedSkus.has(x.s));
+  grouped.forEach(x => {
+    if (!x.__preserved) return;
+    const dbRec = seenSkus.bySku[x.s];
+    if (!dbRec) return;
+    acts[x.s] = dbRec.action;
+    if (dbRec.note) notes[x.s] = dbRec.note;
+    if ((dbRec.action === 'basket' || dbRec.action === 'pur') && dbRec.supplier_name) {
+      basketSuppliers[x.s] = dbRec.supplier_name;
+    }
+  });
+
+  const preservedSkus = new Set(grouped.filter(x => x.__preserved).map(x => x.s));
+  const newSkus = grouped.filter(x => !rejectedSkus.has(x.s) && !preservedSkus.has(x.s));
   await saveSkusToDB(newSkus);
 
   btn.disabled = false;
@@ -1523,6 +1606,7 @@ function buildFocusCard(x, showingDeferred) {
   const offerEntries = _offersMap[eanKey]  || [];
   const hasPriceData = catEntries.length > 0 || offerEntries.length > 0;
   const panelId = 'pp_' + x.s.replace(/[^a-zA-Z0-9]/g,'_');
+  const lastPurchaseChip = getLastPurchaseChip(x);
 
   let daysCls, daysTxt;
   if (x.d <= 0)      { daysCls = 'days-badge days-crit'; daysTxt = x.av <= 0 ? 'Out of stock' : x.av + ' in stock'; }
@@ -1633,11 +1717,12 @@ return `<div class="focus-card ${cardBorderCls}">
       <span class="${daysCls}">${daysTxt}</span>
       <span class="rate-chip">${x.r.toFixed(1)}/day</span>
     </div>
-    <div class="focus-card-row2">
+       <div class="focus-card-row2">
       ${eanHtml ? `<span>${eanHtml}</span><span class="card-meta-sep">·</span>` : ''}
       ${x.cogs ? `<span>COGs £${x.cogs.toFixed(2)}</span><span class="card-meta-sep">·</span>` : ''}
       <span>Last supplier: ${esc(x.lastSupplier || '—')}</span>
     </div>
+    ${lastPurchaseChip ? `<div style="margin-bottom:12px;">${lastPurchaseChip}</div>` : ''}
     ${qtyBreakdown}
     ${pricePanelHtml}
     
@@ -1681,6 +1766,7 @@ function buildBucketCard(x) {
   const offerEntries = _offersMap[eanKey]   || [];
   const hasPriceData = catEntries.length > 0 || offerEntries.length > 0;
   const panelId = 'bpp_' + x.s.replace(/[^a-zA-Z0-9]/g,'_');
+  const lastPurchaseChip = getLastPurchaseChip(x);
 
   let pricePanelHtml = '';
   if (hasPriceData) {
@@ -1726,12 +1812,13 @@ return `<div class="bucket-card ${borderCls}">
       })()}
       <div class="bucket-card-body">
         <div class="bucket-card-name" title="${esc(x.t)}">${esc(x.t)}</div>
-        <div class="bucket-card-meta">
+          <div class="bucket-card-meta">
           <span class="${pillCls}">${pillTxt}</span>
           <span class="pill-sku">${esc(x.s)}</span>
           <span class="${daysCls}" style="font-size:10px;padding:1px 6px;">${daysTxt}</span>
           ${x.q > 0 && a === 'pur' ? `<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--green);margin-left:auto;">× ${x.q.toLocaleString()}</span>` : ''}
         </div>
+        ${lastPurchaseChip ? `<div style="margin-top:4px;">${lastPurchaseChip}</div>` : ''}
         ${notes[x.s] ? `<div class="bucket-card-note">${esc(notes[x.s])}</div>` : ''}
       </div>
       <button class="bucket-undo" onclick="undoAct('${esc(x.s)}')" title="Undo">
@@ -1833,15 +1920,21 @@ window.toggleActionsMenu = toggleActionsMenu;
 window.closeActionsMenu = closeActionsMenu;
 
 
-
 function markBasketPurchased(sku) {
   acts[sku] = 'pur';
   saveActionToDB(sku, 'pur');
+  const item = ALL.find(x => x.s === sku);
+  if (item) {
+    const rec = { date: new Date().toISOString(), supplier: basketSuppliers[sku] || '' };
+    if (item.ean) _lastPurchase.byEan[String(item.ean).trim().toLowerCase()] = rec;
+    _lastPurchase.bySku[sku] = rec;
+  }
   render();
   renderBasketModal();
   toast('Marked as purchased', 'success');
 }
 
+  
 function updateBasketSupplier(sku, supplierName) {
   basketSuppliers[sku] = supplierName;
   saveActionToDB(sku, 'basket');
@@ -2372,6 +2465,7 @@ if (sb) init();
 
 async function init() {
   await loadPriceContext();
+  await loadLastPurchaseInfo();
   await restoreFromDB();
 }
 })();
