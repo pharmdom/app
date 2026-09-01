@@ -316,6 +316,7 @@ body{overflow:hidden}
 .bucket-tab{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;color:var(--text3);
   cursor:pointer;border:1px solid transparent;transition:all .12s;user-select:none;}
 .bucket-tab:hover{background:var(--surface2);border-color:var(--border);color:var(--text2);}
+.bt-count{opacity:.55;font-weight:700;margin-left:1px;}
 .bucket-tab.active{background:var(--accent-bg);border-color:var(--accent-bd);color:var(--accent);}
 .bucket-tab.bt-pur.active{background:var(--green-bg);border-color:var(--green-bd);color:var(--green);}
 .bucket-tab.bt-na.active{background:var(--amber-bg);border-color:var(--amber-bd);color:var(--amber);}
@@ -699,7 +700,7 @@ body{overflow:hidden}
               <div class="guide-step-num">4</div>
               <div class="guide-step-text">
                 <div class="guide-step-label">Track progress in the Actioned Bucket</div>
-                <div class="guide-step-desc">Everything you action moves to the right panel instantly. Filter by status tab (Purchased, Not available, Rejected), sort by recency, days left, or name. Use the ↩ undo button on any card to send it back to the review queue. Your session auto-saves to the database — closing the tab never loses progress.</div>
+                <div class="guide-step-desc">Everything you action moves to the right panel instantly. Filter by status tab (Purchased, Not available, Deferred, In Basket, Rejected) — each shows a live count. Use the ↩ undo button on any card to send it back to the review queue. Your session auto-saves to the database — closing the tab never loses progress.</div>
               </div>
             </div>
           </div>
@@ -916,20 +917,15 @@ body{overflow:hidden}
       </div>
       <!-- RIGHT: Bucket -->
       <div class="bucket-panel">
-        <div class="bucket-header">
+               <div class="bucket-header">
           <span class="bucket-title">Actioned</span>
           <div class="bucket-controls">
-            <span class="bucket-sort-label">Sort</span>
             <span class="bucket-tab active" id="btab-all" onclick="setBucketTab('all')">All</span>
-            <span class="bucket-tab bt-pur" id="btab-pur" onclick="setBucketTab('pur')">Purchased</span>
-            <span class="bucket-tab bt-na" id="btab-na" onclick="setBucketTab('na')">Not available</span>
-            <span class="bucket-tab bt-def" id="btab-def" onclick="setBucketTab('def')">Deferred</span>
-            <span class="bucket-tab bt-basket" id="btab-basket" onclick="setBucketTab('basket')">In Basket</span>
-            <span class="bucket-tab bt-rej" id="btab-rej" onclick="setBucketTab('rej')">Rejected</span>
-            <div style="width:1px;height:14px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>
-            <span class="bucket-tab" id="bsort-recent" onclick="setBucketSort('recent')" style="border:1px solid var(--border);">Recent</span>
-            <span class="bucket-tab" id="bsort-days" onclick="setBucketSort('days')" style="border:1px solid var(--border);">Days</span>
-            <span class="bucket-tab" id="bsort-name" onclick="setBucketSort('name')" style="border:1px solid var(--border);">Name</span>
+            <span class="bucket-tab bt-pur" id="btab-pur" onclick="setBucketTab('pur')">Purchased <span class="bt-count" id="btabcount-pur">0</span></span>
+            <span class="bucket-tab bt-na" id="btab-na" onclick="setBucketTab('na')">Not available <span class="bt-count" id="btabcount-na">0</span></span>
+            <span class="bucket-tab bt-def" id="btab-def" onclick="setBucketTab('def')">Deferred <span class="bt-count" id="btabcount-def">0</span></span>
+            <span class="bucket-tab bt-basket" id="btab-basket" onclick="setBucketTab('basket')">In Basket <span class="bt-count" id="btabcount-basket">0</span></span>
+            <span class="bucket-tab bt-rej" id="btab-rej" onclick="setBucketTab('rej')">Rejected <span class="bt-count" id="btabcount-rej">0</span></span>
           </div>
         </div>
         <div class="bucket-body">
@@ -1019,7 +1015,6 @@ let rawF3 = null;
 let confirmFn = null;
 let queueIdx = 0;
 let bucketTab = 'all';
-let bucketSort = 'recent';
 let _suppliers = [];
 let _pendingBasketSku = null;
 let _selectedSupplier = null;
@@ -1558,30 +1553,24 @@ let actioned = ALL.filter(x => !!acts[x.s]);
   if (q) actioned = actioned.filter(x =>
     x.s.toLowerCase().includes(q) || x.t.toLowerCase().includes(q)
   );
-  if (bucketSort === 'recent') {
+  
     actioned.sort((a, b) => {
-      const ai = actsOrder.indexOf(a.s);
-      const bi = actsOrder.indexOf(b.s);
-      const an = ai === -1 ? Infinity : ai;
-      const bn = bi === -1 ? Infinity : bi;
-      return an - bn;
-    });
-  } else if (bucketSort === 'days') {
-    actioned.sort((a, b) => a.d - b.d);
-  } else {
-    actioned.sort((a, b) => a.t.localeCompare(b.t));
-  }
+    const ai = actsOrder.indexOf(a.s);
+    const bi = actsOrder.indexOf(b.s);
+    const an = ai === -1 ? Infinity : ai;
+    const bn = bi === -1 ? Infinity : bi;
+    return an - bn;
+  });
 
+  const bucketCounts = { pur:0, na:0, def:0, basket:0, rej:0 };
+  ALL.forEach(x => { const a = acts[x.s]; if (a && bucketCounts[a] !== undefined) bucketCounts[a]++; });
+  ['pur','na','def','basket','rej'].forEach(k => {
+    const el = document.getElementById('btabcount-' + k);
+    if (el) el.textContent = bucketCounts[k];
+  });
  ['all','pur','na','def','basket','rej'].forEach(k => {
   document.getElementById('btab-' + k)?.classList.toggle('active', bucketTab === k);
 });
-['recent','days','name'].forEach(k => {
-    const el = document.getElementById('bsort-' + k);
-    if (el) {
-      el.classList.toggle('active', bucketSort === k);
-      el.style.border = bucketSort === k ? '' : '1px solid var(--border)';
-    }
-  });
 
   const bucketList = document.getElementById('bucketList');
   if (!actioned.length) {
@@ -1977,7 +1966,7 @@ function queueNav(dir) {
   render();
 }
 function setBucketTab(t) { bucketTab = t; render(); }
-function setBucketSort(k) { bucketSort = k; render(); }
+
 async function saveNote(sku, val) {
   const text = val.trim();
   if (!text) return;
@@ -2451,7 +2440,7 @@ window.actAndAdvance = actAndAdvance;
 window.undoAct = undoAct;
 window.queueNav = queueNav;
 window.setBucketTab = setBucketTab;
-window.setBucketSort = setBucketSort;
+
 window.saveNote = saveNote;
 window.confirmReset = confirmReset;
 window.closeConfirm = closeConfirm;
@@ -2527,10 +2516,10 @@ async function init() {
       desc:'Everything you action moves here instantly. Filter by status tab, sort by recency, days, or name. The ↩ undo button on any card sends it back to the review queue and navigates directly to it.',
       position:'left'
     },
-    {
+        {
       target:'.bucket-header',
-      title:'Tabs &amp; Sorting',
-      desc:'Filter by <strong>All</strong>, <strong>Purchased</strong>, <strong>Depleted</strong>, or <strong>Rejected</strong>. Sort by <strong>Recent</strong> (order actioned), <strong>Days</strong> (urgency), or <strong>Name</strong> (alphabetical).',
+      title:'Status Tabs',
+      desc:'Filter the bucket by <strong>Purchased</strong>, <strong>Not available</strong>, <strong>Deferred</strong>, <strong>In Basket</strong>, or <strong>Rejected</strong>. Each tab shows a live count of how many items currently sit in that status.',
       position:'bottom'
     },
     {
