@@ -296,6 +296,8 @@ body{overflow:hidden}
 .bc-rej .bucket-card-name{text-decoration:line-through;color:var(--text4);}
 .bucket-card-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:4px;}
 .bucket-card-note{font-size:11px;color:var(--text3);margin-top:3px;font-style:italic;}
+.bucket-card-actions{display:flex;gap:4px;flex-shrink:0;opacity:0;transition:opacity .12s;}
+.bucket-card:hover .bucket-card-actions{opacity:1;}
 .bucket-undo{display:flex;align-items:center;justify-content:center;width:24px;height:24px;
   border:1px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;
   color:var(--text4);flex-shrink:0;transition:all .12s;}
@@ -1465,8 +1467,15 @@ const queuePanel = document.getElementById('queuePanel');
   : pend + ' pending';
   document.getElementById('queueProgFill').style.width = pct + '%';
 
-  const queueBody = document.getElementById('queueBody');
-  if (allDone) {
+    const queueBody = document.getElementById('queueBody');
+  if (_previewSku && !ALL.find(s => s.s === _previewSku)) _previewSku = null;
+  if (_previewSku) {
+    const x = ALL.find(s => s.s === _previewSku);
+    queueBody.innerHTML = buildFocusCard(x, false, true);
+    document.getElementById('queueCounter').textContent = 'Previewing';
+    document.getElementById('queueNav').style.display = 'none';
+  } else if (allDone) {
+    
     saveWeeklySummary();
     // ── compute summary stats ──
     const purItems  = ALL.filter(x => acts[x.s] === 'pur');
@@ -1588,7 +1597,7 @@ let actioned = ALL.filter(x => !!acts[x.s]);
 }
 
 // ── BUILD FOCUS CARD ──
-function buildFocusCard(x, showingDeferred) {
+function buildFocusCard(x, showingDeferred, isPreview) {
   const a = acts[x.s];
   const eanKey = (x.ean || '').toLowerCase();
   const catEntries  = _catalogMap[eanKey]  || [];
@@ -1690,12 +1699,19 @@ const initials = x.t.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpper
     <span style="display:${x.img ? 'none' : 'flex'};position:absolute;inset:0;align-items:center;justify-content:center;">${esc(initials)}</span>
   </div>`;
 
+
+const previewBanner = isPreview ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--r-sm);padding:7px 11px;margin-bottom:10px;font-size:11.5px;font-weight:600;color:#1d4ed8;display:flex;align-items:center;justify-content:space-between;gap:6px;">
+  <span style="display:flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Previewing — status unchanged</span>
+  <span style="cursor:pointer;text-decoration:underline;" onclick="exitPreview()">Back to queue</span>
+</div>` : '';
 const deferBanner = showingDeferred ? `<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:var(--r-sm);padding:7px 11px;margin-bottom:10px;font-size:11.5px;font-weight:600;color:#6d28d9;display:flex;align-items:center;gap:6px;">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
   Deferred — reviewing these now
 </div>` : '';
 return `<div class="focus-card ${cardBorderCls}">
+  ${previewBanner}
   ${deferBanner}
+  
     <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
       ${focusThumb}
       <div class="focus-card-name" style="margin-bottom:0;flex:1;min-width:0;">${esc(x.t)}</div>
@@ -1810,9 +1826,14 @@ return `<div class="bucket-card ${borderCls}">
         ${lastPurchaseChip ? `<div style="margin-top:4px;">${lastPurchaseChip}</div>` : ''}
         ${notes[x.s] ? `<div class="bucket-card-note">${esc(notes[x.s])}</div>` : ''}
       </div>
-      <button class="bucket-undo" onclick="undoAct('${esc(x.s)}')" title="Undo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
-      </button>
+            <div class="bucket-card-actions">
+        <button class="bucket-undo" onclick="event.stopPropagation();previewInReview('${esc(x.s)}')" title="View in review">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <button class="bucket-undo" onclick="undoAct('${esc(x.s)}')" title="Undo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+        </button>
+      </div>
     </div>
     ${pricePanelHtml}
   </div>`;
@@ -1831,6 +1852,7 @@ function togglePricePanel(id) {
 
 // ── ACTIONS ──
 function actAndAdvance(sku, key) {
+  _previewSku = null;
   if (key === 'basket') {
     openSupplierDialog(sku);
     return;
@@ -1965,8 +1987,12 @@ function queueNav(dir) {
   queueIdx = Math.max(0, Math.min(pending.length - 1, queueIdx + dir));
   render();
 }
-function setBucketTab(t) { bucketTab = t; render(); }
 
+let _previewSku = null;
+function previewInReview(sku) { _previewSku = sku; render(); }
+function exitPreview() { _previewSku = null; render(); }
+function setBucketTab(t) { bucketTab = t; render(); }
+  
 async function saveNote(sku, val) {
   const text = val.trim();
   if (!text) return;
@@ -2440,7 +2466,9 @@ window.actAndAdvance = actAndAdvance;
 window.undoAct = undoAct;
 window.queueNav = queueNav;
 window.setBucketTab = setBucketTab;
-
+window.previewInReview = previewInReview;
+window.exitPreview = exitPreview;
+  
 window.saveNote = saveNote;
 window.confirmReset = confirmReset;
 window.closeConfirm = closeConfirm;
