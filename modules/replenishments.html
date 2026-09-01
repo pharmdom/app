@@ -1061,12 +1061,12 @@ let _lastPurchase = { byEan: {}, bySku: {} };
 async function loadLastPurchaseInfo() {
   try {
     const { data } = await sb.from('replenishment_skus')
-      .select('sku,ean,supplier_name,actioned_at')
-      .eq('action', 'pur')
-      .order('actioned_at', { ascending: true });
+      .select('sku,ean,last_purchased_supplier,last_purchased_at')
+      .not('last_purchased_at', 'is', null)
+      .order('last_purchased_at', { ascending: true });
     const byEan = {}, bySku = {};
     (data || []).forEach(r => {
-      const rec = { date: r.actioned_at, supplier: r.supplier_name || '' };
+      const rec = { date: r.last_purchased_at, supplier: r.last_purchased_supplier || '' };
       const eanKey = (r.ean || '').trim().toLowerCase();
       if (eanKey) byEan[eanKey] = rec; // ascending order → last write wins → most recent
       if (r.sku) bySku[r.sku] = rec;
@@ -1159,11 +1159,18 @@ async function saveSkusToDB(skus) {
 async function saveActionToDB(sku, action) {
   if (!sb) return;
   try {
-    await sb.from('replenishment_skus').update({
+    const update = {
       action: action || null,
       actioned_at: action ? new Date().toISOString() : null,
       supplier_name: (action === 'basket' || action === 'pur') ? (basketSuppliers[sku] || null) : null,
-    }).eq('sku', sku);
+    };
+    // Only written when something is actually marked purchased — never cleared or
+    // overwritten by any other action, so it survives Reject/Defer/Undo indefinitely.
+    if (action === 'pur') {
+      update.last_purchased_at = update.actioned_at;
+      update.last_purchased_supplier = update.supplier_name;
+    }
+    await sb.from('replenishment_skus').update(update).eq('sku', sku);
   } catch(e) {}
 }
 
