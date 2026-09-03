@@ -1039,8 +1039,18 @@ async function createFbaProductFromOpportunity(row){
     // Don't create a duplicate if this exact ASIN set already has an fba_products entry
     const {data:existing}=await sb.from('fba_products').select('id').eq('asin',allAsins).limit(1);
     if(existing&&existing.length) return;
+    // fba_products.id is required (NOT NULL, no default) — generate the same
+    // "FBA-000N" style ID that fba.html's own Add Product form uses.
+    const {data:allIds}=await sb.from('fba_products').select('id');
+    let maxNum=0;
+    (allIds||[]).forEach(r=>{
+      const n=parseInt(String(r.id||'').replace('FBA-',''))||0;
+      if(n>maxNum) maxNum=n;
+    });
+    const newId='FBA-'+String(maxNum+1).padStart(4,'0');
     const now=new Date().toISOString();
     await sb.from('fba_products').insert({
+      id: newId,
       asin: allAsins,
       product_line: row.product_name||'',
       created_at: now,
@@ -1050,6 +1060,7 @@ async function createFbaProductFromOpportunity(row){
     toast('Added to FBA Products','success');
   }catch(e){
     console.warn('Could not create fba_products record:',e);
+    toast('Approved, but failed to add to FBA Products: '+(e.message||'unknown error'),'error');
   }
 }
 
