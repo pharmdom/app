@@ -1324,14 +1324,41 @@ const purchasedSkus = new Set(); // purchased SKUs always re-enter the queue on 
     if (!sku) return;
     const ean = (r.sku || '').trim();
     const eanKey = ean.toLowerCase();
-    const existingBasket = eanKey ? seenSkus.byEan[eanKey] : null;
+    const skuMatch = seenSkus.bySku[sku];
+    const skuMatchIsTracked = skuMatch && (skuMatch.action === 'basket' || skuMatch.action === 'pur');
+    const existingBasket = (eanKey && seenSkus.byEan[eanKey]) || (skuMatchIsTracked ? skuMatch : null);
 
-       let obj;
+          let obj;
     const purchasedLongEnoughAgo = existingBasket && existingBasket.action === 'pur' && existingBasket.actioned_at
       && (Date.now() - new Date(existingBasket.actioned_at).getTime()) > (Math.max(parseFloat(existingBasket.days_left) || 14, 7) * 86400000);
-    if (existingBasket && !purchasedLongEnoughAgo) {
-      // Already in the basket (or purchased) under this EAN — keep that record
-      // as-is instead of overwriting it with a fresh parse of this file's row.
+    if (existingBasket && existingBasket.action === 'basket') {
+      // Already in the basket — keep identity/status as-is, but recalculate
+      // days-left/order-qty from THIS week's file so the recommendation stays current.
+      const dailyRate = parseFloat(r.daily_sell_out_rate) || 0;
+      const available = parseFloat(r.available_qty) || 0;
+      const incoming  = parseFloat(r.incoming_qty) || 0;
+      const daysLeft  = dailyRate > 0 ? Math.round((available + incoming) / dailyRate) : 999;
+      const orderQty  = Math.max(0, Math.round(dailyRate * 30) - available - incoming);
+      const urgency   = daysLeft <= 0 ? 'C' : daysLeft < 7 ? 'C' : daysLeft < 20 ? 'R' : 'O';
+      obj = {
+        s: existingBasket.sku,
+        t: existingBasket.name || existingBasket.sku,
+        ean: existingBasket.ean || ean,
+        u: urgency,
+        av: available,
+        inc: incoming,
+        r: dailyRate,
+        d: daysLeft,
+        q: orderQty,
+        cogs: parseFloat(existingBasket.cost_price) || 0,
+        lastSupplier: existingBasket.supplier_name || '',
+        img: existingBasket.image_url || '',
+        subsets: [],
+        __preserved: true,
+      };
+    } else if (existingBasket && !purchasedLongEnoughAgo) {
+      // Purchased, still within its expected coverage window — fully frozen,
+      // nothing refreshed from this file.
       obj = {
         s: existingBasket.sku,
         t: existingBasket.name || existingBasket.sku,
@@ -1347,6 +1374,7 @@ const purchasedSkus = new Set(); // purchased SKUs always re-enter the queue on 
         img: existingBasket.image_url || '',
         subsets: [],
         __preserved: true,
+        __frozen: true,
       };
     } else {
       const dailyRate = parseFloat(r.daily_sell_out_rate) || 0;
@@ -1399,8 +1427,8 @@ const purchasedSkus = new Set(); // purchased SKUs always re-enter the queue on 
     }
   });
 
-  const preservedSkus = new Set(grouped.filter(x => x.__preserved).map(x => x.s));
-  const newSkus = grouped.filter(x => !rejectedSkus.has(x.s) && !preservedSkus.has(x.s));
+  const frozenSkus = new Set(grouped.filter(x => x.__frozen).map(x => x.s));
+  const newSkus = grouped.filter(x => !rejectedSkus.has(x.s) && !frozenSkus.has(x.s));
   await saveSkusToDB(newSkus);
 
   btn.disabled = false;
