@@ -157,7 +157,23 @@ html, body {
 
 .stage-move-btn { margin-top: 12px; padding: 8px 14px; border-radius: 9px; border: 1.5px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .stage-move-btn:hover { background: #dbeafe; border-color: #93c5fd; transform: translateY(-1px); }
-
+.notes-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.note-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 11px 14px; }
+.note-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.note-avatar { width: 28px; height: 28px; border-radius: 50%; background: #dbeafe; color: #1d4ed8; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+.note-author { font-size: 12.5px; font-weight: 600; color: #334155; }
+.note-date { font-size: 11px; color: #94a3b8; margin-left: auto; }
+.note-text { font-size: 13px; color: #475569; line-height: 1.55; }
+.note-composer { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px; overflow: hidden; transition: border-color .15s; margin-top: 14px; }
+.note-composer:focus-within { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
+.note-composer-top { padding: 10px 14px 6px; }
+.note-textarea { width: 100%; border: none; outline: none; resize: none; background: transparent; font-size: 13px; font-family: inherit; color: #0f172a; line-height: 1.55; min-height: 56px; max-height: 100px; padding: 0; }
+.note-composer-bottom { display: flex; align-items: center; justify-content: flex-end; padding: 8px 14px 10px; border-top: 1px solid #f1f5f9; background: #fafafa; gap: 8px; }
+.note-submit-btn { padding: 6px 14px; border-radius: 8px; border: 1.5px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all .15s; }
+.note-submit-btn:hover { background: #dbeafe; border-color: #93c5fd; }
+.note-submit-btn:disabled { opacity: .5; cursor: default; }
+.note-count-badge { font-size: 10px; font-weight: 700; background: #dbeafe; color: #1d4ed8; padding: 1px 6px; border-radius: 100px; }
+                           
 .toast-container { position: fixed; top: 65px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 7px; pointer-events: none; }
 .toast { display: flex; align-items: center; gap: 9px; padding: 10px 14px; background: #0f172a; color: #fff; border-radius: 10px; font-size: 13px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.18); animation: toastIn .2s ease; max-width: 300px; pointer-events: auto; }
 .toast.success { background: #15803d; }
@@ -904,8 +920,8 @@ function renderDrawer(row) {
     + (stage !== 'veeqo' && stage !== 'ready' ? tab('platforms', id, '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>', 'Platforms') : '')
     + (stage !== 'listing' && stage !== 'ready' ? tab('checklist', id, '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>', 'Marketing') : '')
     + (stage !== 'listing' && stage !== 'ready' ? tab('veeqo', id, '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>', 'Veeqo') : '')
-    + tab('summary', id, '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>', 'Summary');
-
+    + tab('summary', id, '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>', 'Summary')
+    + tab('notes', id, '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>', 'Notes' + (_notesCache[id] && _notesCache[id].length ? ' <span class="note-count-badge">'+_notesCache[id].length+'</span>' : ''));  
   let body = '';
 
   if (activeDrawerTab === 'overview') {
@@ -976,8 +992,40 @@ function renderDrawer(row) {
       + '</div></div>';
   }
 
+  if (activeDrawerTab === 'notes') {
+    const notes = _notesCache[id];
+    if (notes === undefined) {
+      body += sec('Notes') + '<p style="font-size:13px;color:#94a3b8;">Loading notes…</p></div>';
+    } else {
+      const noteItems = notes.length
+        ? notes.map(n =>
+            '<div class="note-item">'
+            + '<div class="note-meta">'
+            + '<div class="note-avatar">' + esc(getInitials(n.author_name)) + '</div>'
+            + '<span class="note-author">' + esc(n.author_name) + '</span>'
+            + '<span class="note-date">' + esc(new Date(n.created_at).toLocaleDateString('en-GB')) + '</span>'
+            + '</div>'
+            + '<div class="note-text">' + esc(n.text) + '</div>'
+            + '</div>'
+          ).join('')
+        : '<p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">No notes yet.</p>';
+      const currentAgent = getCurrentAgentName();
+      body += sec('Notes')
+        + '<div class="notes-list">' + noteItems + '</div>'
+        + '<div class="note-composer">'
+        + '<div class="note-composer-top">'
+        + (currentAgent ? '<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Posting as <strong style="color:#334155;">'+esc(currentAgent)+'</strong></div>' : '')
+        + '<textarea class="note-textarea" id="noteInput" placeholder="Write your note here…"></textarea>'
+        + '</div>'
+        + '<div class="note-composer-bottom">'
+        + '<button class="note-submit-btn" onclick="addNote(\''+ea(id)+'\')">Add Note</button>'
+        + '</div>'
+        + '</div></div>';
+    }
+  }
+
   if (activeDrawerTab === 'summary') {
-    const fbaYes = toBool(row.fba_opportunity) || row.fba_opportunity === 'Yes';
+      const fbaYes = toBool(row.fba_opportunity) || row.fba_opportunity === 'Yes';
     body += sec('FBA Opportunity')
       + '<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;border:1.5px solid '+(fbaYes?'#bbf7d0':'#fecaca')+';background:'+(fbaYes?'#f0fdf4':'#fef2f2')+'">'
       + '<div style="width:38px;height:38px;border-radius:10px;background:'+(fbaYes?'#dcfce7':'#fee2e2')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
@@ -1013,6 +1061,44 @@ function switchTab(t, id) {
   activeDrawerTab = t;
   const row = allData.find(p => p.opportunity_id === id);
   if (row) renderDrawer(row);
+  if (t === 'notes' && !_notesCache[id]) loadNotesFor(id);
+}
+
+/* ── NOTES ── */
+let _notesCache = {};
+function getInitials(name) {
+  const parts = String(name||'').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+}
+function getCurrentAgentName() {
+  const u = window.currentUser;
+  if (!u) return '';
+  return ((u.firstName || '') + ' ' + (u.lastName || '')).trim();
+}
+async function loadNotesFor(id) {
+  try {
+    const { data, error } = await sb.from('sourcing_notes').select('*').eq('opportunity_id', id).order('created_at', { ascending: true });
+    if (error) throw error;
+    _notesCache[id] = data || [];
+  } catch(e) {
+    _notesCache[id] = _notesCache[id] || [];
+  }
+  if (currentDrawerId === id && activeDrawerTab === 'notes') {
+    const row = allData.find(p => p.opportunity_id === id);
+    if (row) renderDrawer(row);
+  }
+}
+async function addNote(id) {
+  const el = document.getElementById('noteInput');
+  const text = el ? el.value.trim() : '';
+  if (!text) { showToast('Write something first', 'error'); return; }
+  const agentName = getCurrentAgentName() || 'Unknown';
+  const { error } = await sb.from('sourcing_notes').insert({ opportunity_id: id, author_name: agentName, text });
+  if (error) { showToast('Failed to add note', 'error'); return; }
+  showToast('Note added', 'success');
+  delete _notesCache[id];
+  loadNotesFor(id);
 }
 
 function editCard(id, field, value, type, labelOverride) {
