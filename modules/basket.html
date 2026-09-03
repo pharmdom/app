@@ -1264,9 +1264,9 @@ function _debounce(fn, wait) {
   /* ── PAGED FETCHERS ── */
   async function _cbFetchNLPage(pageIndex) {
     const from = pageIndex*CB_PAGE_SIZE, to = from+CB_PAGE_SIZE-1;
-        const cols = _cbTab==='purchased'
-      ? 'opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,qty_purchased,case_price,order_cases,approved,purchased,created_at,purchased_at,sourcing_approvals(status)'
-      : 'opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,case_price,order_cases,approved,purchased,created_at,basket_added_at,sourcing_approvals(status)';
+               const cols = _cbTab==='purchased'
+      ? 'opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,qty_purchased,case_price,order_cases,approved,purchased,created_at,purchased_at,order_submitted,sourcing_approvals(status)'
+      : 'opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,case_price,order_cases,approved,purchased,created_at,basket_added_at,order_submitted,sourcing_approvals(status)';
    let query = _cbApplySourcingFilters(sb.from('sourcing').select(cols));
     const orderField = _cbTab==='purchased' ? 'purchased_at' : 'basket_added_at';
     query = query.order(orderField, { ascending:false, nullsFirst:false }).range(from, to);
@@ -1279,8 +1279,8 @@ function _debounce(fn, wait) {
 
 async function _cbFetchReplPage(pageIndex) {
     const from = pageIndex*CB_PAGE_SIZE, to = from+CB_PAGE_SIZE-1;
-        let query = _cbApplyReplFilters(sb.from('replenishment_skus')
-      .select('sku,name,ean,order_qty,cost_price,original_cost_price,case_price,order_cases,days_left,urgency,image_url,supplier_name,action,actioned_at,uploaded_at,basket_added_at,note'));
+               let query = _cbApplyReplFilters(sb.from('replenishment_skus')
+      .select('sku,name,ean,order_qty,cost_price,original_cost_price,case_price,order_cases,days_left,urgency,image_url,supplier_name,action,actioned_at,uploaded_at,basket_added_at,order_submitted,note'));
  const orderField = _cbTab==='purchased' ? 'actioned_at' : 'basket_added_at';
     query = query.order(orderField, { ascending:false, nullsFirst:false }).range(from, to);
     const { data, error } = await query;
