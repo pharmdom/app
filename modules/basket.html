@@ -257,7 +257,12 @@
   .cb-drawer-badge.repl    { background: rgba(124,58,237,.18); border: 1px solid rgba(124,58,237,.3); color: #a78bfa; }
   .cb-drawer-badge.pur     { background: rgba(34,197,94,.18);  border: 1px solid rgba(34,197,94,.3);  color: #4ade80; }
   .cb-drawer-badge.inq     { background: rgba(245,158,11,.18); border: 1px solid rgba(245,158,11,.3); color: #fbbf24; }
-  .cb-drawer-name { font-size: 16px; font-weight: 700; color: #fff; padding-right: 36px; line-height: 1.3; margin-bottom: 3px; position: relative; z-index: 1; }
+  .cb-drawer-badge.submitted { background: rgba(34,197,94,.18); border: 1px solid rgba(34,197,94,.3); color: #4ade80; }
+  .cb-order-submitted-row{display:flex;align-items:center;gap:5px;margin-top:6px;padding:4px 8px;background:#ecfdf5;border:1px solid #86efac;border-radius:6px;color:#15803d;font-size:11px;font-weight:700;width:fit-content;}
+  .cb-order-submitted-row svg{width:11px;height:11px;flex-shrink:0;}
+  .cb-order-submitted-toggle{display:flex;align-items:center;gap:8px;padding:9px 11px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;color:#334155;}
+  .cb-order-submitted-toggle input[type="checkbox"]{width:15px;height:15px;cursor:pointer;accent-color:#16a34a;flex-shrink:0;}
+ .cb-drawer-name { font-size: 16px; font-weight: 700; color: #fff; padding-right: 36px; line-height: 1.3; margin-bottom: 3px; position: relative; z-index: 1; }
   .cb-drawer-sub  { font-size: 11px; color: rgba(255,255,255,.4); position: relative; z-index: 1; margin-bottom: 12px; }
   .cb-drawer-kpis {
     display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; position: relative; z-index: 1;
@@ -1673,9 +1678,10 @@ const imgUrl = p.image_url || '';
         <div class="cb-drawer-top">
           <div class="cb-drawer-img">${imgUrl?`<img src="${escA(imgUrl)}" alt="" onerror="this.style.display='none'">`:''}${escH(heroIni)}</div>
           <div class="cb-drawer-top-text">
-            <div style="display:flex;gap:5px;margin-bottom:5px;">
+                        <div style="display:flex;gap:5px;margin-bottom:5px;">
               <div class="cb-drawer-badge ${badgeCls}">${badgeTxt}</div>
               ${isInquire?`<div class="cb-drawer-badge inq">Inquire</div>`:''}
+              ${p.order_submitted?`<div class="cb-drawer-badge submitted"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;"><polyline points="20 6 9 17 4 12"/></svg>Order Submitted</div>`:''}
             </div>
             <div class="cb-drawer-name" style="padding-right:36px;">${escH(name)}</div>
             <div class="cb-drawer-sub" style="cursor:pointer;text-decoration:underline;text-decoration-color:rgba(255,255,255,.2);" onclick="window.open('https://www.google.com/search?tbm=isch&q=${encodeURIComponent(eanDisplay)}','_blank')" title="Search images">${escH(eanDisplay)}</div>
@@ -1962,7 +1968,7 @@ function _renderDrawerActions(type, p, isPurchased, isInquire) {
           <button class="cb-btn cb-btn-amber" onclick="${undoFn}">Undo</button>
         </div>
       </div>`;
-    } else if (isInquire) {
+        } else if (isInquire) {
       const undoFn = type==='nl'
         ? `window.cbUndoNLInquire('${escA(p.opportunity_id)}')`
         : `window.cbUndoReplInquire('${escA(p.sku)}')`;
@@ -1975,6 +1981,12 @@ function _renderDrawerActions(type, p, isPurchased, isInquire) {
           </div>
           <button class="cb-btn cb-btn-slate" onclick="${undoFn}">Move to Basket</button>
         </div>
+      </div>
+      <div class="cb-action-section">
+        <label class="cb-order-submitted-toggle">
+          <input type="checkbox" ${p.order_submitted?'checked':''} onchange="window.cbToggleOrderSubmitted(this.checked)">
+          Order Submitted
+        </label>
       </div>`;
     } else if (type==='nl') {
       html = `<div class="cb-action-section">
@@ -1990,6 +2002,12 @@ function _renderDrawerActions(type, p, isPurchased, isInquire) {
             Inquire
           </button>
         </div>
+      </div>
+      <div class="cb-action-section">
+        <label class="cb-order-submitted-toggle">
+          <input type="checkbox" ${p.order_submitted?'checked':''} onchange="window.cbToggleOrderSubmitted(this.checked)">
+          Order Submitted
+        </label>
       </div>`;
     } else {
       html = `<div class="cb-action-section">
@@ -2005,14 +2023,39 @@ function _renderDrawerActions(type, p, isPurchased, isInquire) {
           </button>
           <button class="cb-btn cb-btn-red" onclick="window.cbRemoveRepl('${escA(p.sku)}')">Remove</button>
         </div>
+      </div>
+      <div class="cb-action-section">
+        <label class="cb-order-submitted-toggle">
+          <input type="checkbox" ${p.order_submitted?'checked':''} onchange="window.cbToggleOrderSubmitted(this.checked)">
+          Order Submitted
+        </label>
       </div>`;
     }
-    document.getElementById('cbDrawerActions').innerHTML = html;
+ document.getElementById('cbDrawerActions').innerHTML = html;
   }
 
 
+window.cbValidateNLQtyInput = function() {window.cbToggleOrderSubmitted = async function(checked) {
+  if (!_drawerItem) return;
+  const { type, data: p } = _drawerItem;
+  const table = type === 'nl' ? 'sourcing' : 'replenishment_skus';
+  const idCol = type === 'nl' ? 'opportunity_id' : 'sku';
+  const idVal = type === 'nl' ? p.opportunity_id : p.sku;
+  p.order_submitted = checked;
+  _renderCbDrawer();
+  window.renderCentralBasket(true);
+  try {
+    await sb.from(table).update({ order_submitted: checked }).eq(idCol, idVal);
+  } catch(e) {
+    p.order_submitted = !checked;
+    _renderCbDrawer();
+    window.renderCentralBasket(true);
+    _cbToast('Failed to update','error');
+  }
+};
+
 window.cbValidateNLQtyInput = function() {
-    const input = document.getElementById('cbDrawerNLQty');
+ const input = document.getElementById('cbDrawerNLQty');
     const btn = document.getElementById('cbMarkPurchasedBtn');
     if (!input || !btn) return;
     const qty = parseFloat(input.value);
@@ -2398,6 +2441,10 @@ function _nlCard(p,isPurchased,isInquire) {
     const tagTxt=isPurchased?'Purchased':isInquire?'Inquire':'New Line';
     const cardCls=isPurchased?'purchased':isInquire?'inquire':'nl';
     const daysBadge = !isPurchased ? _cbDaysBadgeHtml(p.basket_added_at||p.last_updated||p.created_at) : '';
+    const orderSubmittedRow = p.order_submitted ? `<div class="cb-order-submitted-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Order Submitted
+    </div>` : '';
     return `<div class="cb-card${isInquire?' inquire-card':''}" onclick="window.openCbDrawer('nl','${_safeJson(p)}')">
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px;">
         ${_avatar(p.image_url||'', p.product_name, tagCls)}
@@ -2410,6 +2457,7 @@ function _nlCard(p,isPurchased,isInquire) {
               ${total>0?`<span class="cb-card-val">${fmtGBP(total)}</span>`:''}
             </div>
           </div>
+          ${orderSubmittedRow}
         </div>
       </div>
     </div>`;
@@ -2422,6 +2470,10 @@ function _replCard(p,isPurchased,isInquire) {
     const tagTxt=isPurchased?'Purchased':isInquire?'Inquire':'Replenishment';
     const cardCls=isPurchased?'purchased':isInquire?'inquire':'repl';
     const daysBadge = !isPurchased ? _cbDaysBadgeHtml(p.basket_added_at) : '';
+    const orderSubmittedRow = p.order_submitted ? `<div class="cb-order-submitted-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Order Submitted
+    </div>` : '';
     return `<div class="cb-card${isInquire?' inquire-card':''}" onclick="window.openCbDrawer('repl','${_safeJson(p)}')">
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px;">
         ${_avatar(p.image_url||'', p.name, tagCls)}
@@ -2434,6 +2486,7 @@ function _replCard(p,isPurchased,isInquire) {
               ${total>0?`<span class="cb-card-val">${fmtGBP(total)}</span>`:''}
             </div>
           </div>
+          ${orderSubmittedRow}
         </div>
       </div>
     </div>`;
