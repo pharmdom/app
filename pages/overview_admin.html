@@ -465,7 +465,6 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 (function(){
 'use strict';
 const sb=window.sb;
-init();
 const D={};
 let _refreshTimer=null,_syncBadgeTimer=null;
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1269,9 +1268,13 @@ function ensureSparkTip(){
 }
 function drawSparkline(id,vals,keys,color,xLabelFn,unit,opts){
   opts=opts||{};
+  const svg=document.getElementById(id);if(!svg)return;
+  if(!vals||!vals.length){
+    svg.innerHTML='';
+    return;
+  }
   const prevVals=(opts.prevVals&&opts.prevVals.length===vals.length)?opts.prevVals:null;
   const prevLabel=opts.prevLabel||'Prev';
-  const svg=document.getElementById(id);if(!svg)return;
   const W=svg.parentElement.getBoundingClientRect().width||svg.parentElement.offsetWidth||500,H=90,pL=36,pR=8,pT=8,pB=20;
   const cW=W-pL-pR,cH=H-pT-pB,n=vals.length;
   const maxV=Math.max(...vals,...(prevVals||[]),1);
@@ -2428,5 +2431,6 @@ document.addEventListener('visibilitychange',()=>{
   }
 });
 if(!document.hidden)startAutoRefresh();
+init();
 })();
 </script>
