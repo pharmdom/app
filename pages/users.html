@@ -985,14 +985,20 @@ function smConfirmDelete() {
     <button class="pd-btn pd-btn-danger pd-btn-sm" id="smDeleteConfirmBtn" onclick="smDeleteStaff()">Yes, Remove</button>`;
 }
 
+async function getAuthToken() {
+  const { data: { session } } = await sb.auth.getSession();
+  return session ? session.access_token : '';
+}
+
 async function smDeleteStaff() {
   if (!smCurrentStaff) return;
   const btn = document.getElementById('smDeleteConfirmBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="pd-spinner" style="border:2px solid rgba(220,38,38,0.2);border-top-color:#dc2626;width:12px;height:12px;"></span> Removing...'; }
 
+  const authToken = await getAuthToken();
   const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON}` },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
     body: JSON.stringify({ userId: smCurrentStaff.userId, email: smCurrentStaff.email, firstName: smCurrentStaff.firstName, lastName: smCurrentStaff.lastName }),
   });
   const data = await res.json();
@@ -1367,6 +1373,7 @@ async function smSaveStaff() {
   lbl.innerHTML = `<span class="pd-spinner"></span> ${isEdit ? 'Saving...' : 'Adding...'}`;
 
   let res, data;
+  const authToken = await getAuthToken();
 
   if (isEdit) {
     const userId = document.getElementById('smEditId').value;
@@ -1375,13 +1382,13 @@ async function smSaveStaff() {
     const oldStatus = document.getElementById('smEditStatus').value;
     res = await fetch(`${SUPABASE_URL}/functions/v1/update-user`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
       body: JSON.stringify({ userId, firstName, lastName, email, password: password || undefined, role, status, permissions, hourlyRate: hourlyRate || null, oldEmail, oldRole, oldStatus }),
     });
   } else {
     res = await fetch(`${SUPABASE_URL}/functions/v1/create-user`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
       body: JSON.stringify({ firstName, lastName, email, password, role, status, permissions, hourlyRate: hourlyRate || null }),
     });
   }
