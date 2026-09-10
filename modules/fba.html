@@ -1589,7 +1589,22 @@ async function createRecord() {
   document.querySelectorAll('#newProductForm .form-group').forEach(g => g.classList.remove('has-error'));
   document.querySelectorAll('#newProductForm .field-error').forEach(e => e.remove());
   required.forEach(f => { if (!document.getElementById(f.id).value.trim()) { hasError = true; const fg = document.getElementById(f.fg); if (fg) { fg.classList.add('has-error'); const s = document.createElement('span'); s.className = 'field-error'; s.textContent = f.label + ' is required'; fg.appendChild(s); } } });
-  if (hasError) { showToast('Please fill in all required fields', 'error'); return; }
+
+  const nProductImgArea = document.getElementById('nProductImgUploadArea');
+  const nBarcodeArea = document.getElementById('nBarcodeUploadArea');
+  if (nProductImgArea) nProductImgArea.style.borderColor = '';
+  if (nBarcodeArea) nBarcodeArea.style.borderColor = '';
+  let imageError = false;
+  if (!nProductImgFile) {
+    hasError = true; imageError = true;
+    if (nProductImgArea) nProductImgArea.style.borderColor = '#dc2626';
+  }
+  if (!nBarcodeFile) {
+    hasError = true; imageError = true;
+    if (nBarcodeArea) nBarcodeArea.style.borderColor = '#dc2626';
+  }
+
+  if (hasError) { showToast(imageError ? 'Please fill in all required fields, including both images' : 'Please fill in all required fields', 'error'); return; }
 
   const submitBtn = document.getElementById('newSubmitBtn');
   submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner sm"></span> Creating…';
@@ -1728,6 +1743,13 @@ async function submitAddWork() {
   if (!validRows.length) { showToast('Add at least one valid label code with units', 'error'); return; }
   if (errorRows.length) { const ok = window.confirm(errorRows.length + ' row(s) are incomplete and will be skipped. Continue with ' + validRows.length + ' valid row(s)?'); if (!ok) return; }
 
+  const awGroupingImgArea = document.getElementById('awGroupingImgUploadArea');
+  if (awGroupingImgArea) awGroupingImgArea.style.borderColor = '';
+  if (!awGroupingImgFiles.length) {
+    if (awGroupingImgArea) awGroupingImgArea.style.borderColor = '#dc2626';
+    showToast('At least one grouping image is required', 'error');
+    return;
+  }
   const btn = document.getElementById('addWorkSubmitBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span>Adding…';
 
