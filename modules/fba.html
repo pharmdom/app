@@ -118,6 +118,25 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .edit-input, .edit-select, .edit-textarea { width: 100%; padding: 6px 10px; border: 1.5px solid #e2e8f0; border-radius: 7px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; transition: border-color .15s; }
 .edit-input:focus, .edit-select:focus, .edit-textarea:focus { border-color: #2563eb; }
 .edit-textarea { resize: vertical; min-height: 64px; }
+.boxes-card { grid-column: 1 / -1; }
+.boxes-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.boxes-card-head label { margin-bottom: 0; }
+.add-box-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 7px; border: 1.5px solid #2563eb; background: #fff; color: #2563eb; font-size: 11px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all .15s; }
+.add-box-btn:hover { background: #eff6ff; }
+.add-box-btn svg { width: 12px; height: 12px; }
+.boxes-list { display: flex; flex-direction: column; gap: 8px; }
+.box-row { background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 9px; padding: 10px 12px; }
+.box-row-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.box-row-num { font-size: 11px; font-weight: 700; color: #475569; }
+.box-remove-btn { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: none; border-radius: 6px; background: transparent; color: #cbd5e1; cursor: pointer; transition: all .15s; }
+.box-remove-btn:hover { background: #fee2e2; color: #dc2626; }
+.box-remove-btn svg { width: 13px; height: 13px; }
+.box-row-grid { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; }
+.box-qty-field label, .box-size-field label { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; margin-bottom: 5px; }
+.box-size-inputs { display: flex; align-items: center; gap: 5px; }
+.box-dim { text-align: center; min-width: 0; }
+.box-dim-sep { font-size: 12px; font-weight: 700; color: #cbd5e1; flex-shrink: 0; }
+@media (max-width: 640px) { .box-row-grid { grid-template-columns: 1fr; } }
 .drawer-footer { padding: 7px 20px; border-top: 1px solid #f1f5f9; display: flex; gap: 8px; align-items: center; flex-shrink: 0; background: #fafafa; }
 .btn-save { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: 9px; border: 1.5px solid #2563eb; font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all .15s; white-space: nowrap; background: #2563eb; color: #fff; margin-left: auto; }
 .btn-save:hover { background: #1d4ed8; border-color: #1d4ed8; }
@@ -712,7 +731,8 @@ const SB_TO_DISPLAY = {
   'ups_collected':'UPS Collected','note':'Note','barcode_image':'Barcode Image',
   'grouping_link':'Grouping Link','grouping_image':'Grouping Image',
   'collection_booked':'Collection Booked','product_image':'Product Image',
-  'deadline':'Deadline','fba_opportunity':'FBA Opportunity'
+  'deadline':'Deadline','fba_opportunity':'FBA Opportunity',
+  'boxes':'Boxes'
 };
 const DISPLAY_TO_SB = Object.fromEntries(Object.entries(SB_TO_DISPLAY).map(([k,v])=>[v,k]));
 
@@ -1180,9 +1200,10 @@ if (!infoAndPrepReadonly && source !== 'fba') {
       + '</div></div>';
   }
 
-  if (activeTab === 'warehouse') {
+    if (activeTab === 'warehouse') {
     body += sec('Completion') + '<div class="info-grid">' + bCard(id, 'UPS Collected', row['UPS Collected']) + eCard(id, 'Units Completed', row['Units Completed'] || '', 'number') + '</div></div>';
-  }
+    body += sec('Boxes') + renderBoxesSection() + '</div>';
+    }
 
   document.getElementById('drawerBody').innerHTML = body;
 
@@ -1308,6 +1329,68 @@ function bCard(id, label, value, readonly) {
   return '<div class="info-card"><label>' + esc(label) + '</label><div class="bool-toggle-group"><button type="button" class="bool-toggle-btn' + (low === 'yes' ? ' active-yes' : '') + '" onclick="markBool(\'' + ea(label) + '\',\'Yes\',this)">Yes</button><button type="button" class="bool-toggle-btn' + (low === 'no' ? ' active-no' : '') + '" onclick="markBool(\'' + ea(label) + '\',\'No\',this)">No</button><button type="button" class="bool-toggle-btn' + (low !== 'yes' && low !== 'no' ? ' active-unset' : '') + '" onclick="markBool(\'' + ea(label) + '\',\'\',this)">—</button></div></div>';
 }
 function markDirty(field, value) { drawerDirtyFields[field] = value; updateSaveButton(); }
+
+function getDrawerRow() {
+  const dataSource = drawerSource === 'fba' ? fbaData : warehouseData;
+  return dataSource.find(r => String(r['ID']) === String(drawerCurrentId));
+}
+function getCurrentBoxes() {
+  if (drawerDirtyFields.hasOwnProperty('Boxes') && Array.isArray(drawerDirtyFields['Boxes'])) {
+    return drawerDirtyFields['Boxes'];
+  }
+  const row = getDrawerRow();
+  const val = row ? row['Boxes'] : null;
+  if (Array.isArray(val) && val.length) return val.map(b => ({ qty: b.qty || '', l: b.l || '', w: b.w || '', h: b.h || '' }));
+  return [{ qty: '', l: '', w: '', h: '' }];
+}
+function renderBoxesSection() {
+  const boxes = getCurrentBoxes();
+  const rowsHtml = boxes.map((b, i) => '<div class="box-row">'
+    + '<div class="box-row-top"><span class="box-row-num">Box ' + (i + 1) + '</span>'
+    + (boxes.length > 1 ? '<button type="button" class="box-remove-btn" onclick="removeBoxRow(' + i + ')" title="Remove box">' + svgTrashMini() + '</button>' : '')
+    + '</div>'
+    + '<div class="box-row-grid">'
+      + '<div class="box-qty-field"><label>Quantity</label><input type="number" class="edit-input" min="0" step="1" value="' + ea(String(b.qty)) + '" placeholder="0" oninput="updateBoxField(' + i + ',\'qty\',this.value)"></div>'
+      + '<div class="box-size-field"><label>Size (cm)</label><div class="box-size-inputs">'
+        + '<input type="number" class="edit-input box-dim" min="0" value="' + ea(String(b.l)) + '" placeholder="L" oninput="updateBoxField(' + i + ',\'l\',this.value)">'
+        + '<span class="box-dim-sep">×</span>'
+        + '<input type="number" class="edit-input box-dim" min="0" value="' + ea(String(b.w)) + '" placeholder="W" oninput="updateBoxField(' + i + ',\'w\',this.value)">'
+        + '<span class="box-dim-sep">×</span>'
+        + '<input type="number" class="edit-input box-dim" min="0" value="' + ea(String(b.h)) + '" placeholder="H" oninput="updateBoxField(' + i + ',\'h\',this.value)">'
+      + '</div></div>'
+    + '</div></div>').join('');
+  return '<div class="info-card boxes-card" id="boxesSectionWrap">'
+    + '<div class="boxes-card-head"><label>Boxes</label><button type="button" class="add-box-btn" onclick="addBoxRow()">' + svgPlusMini() + ' Add Box</button></div>'
+    + '<div class="boxes-list">' + rowsHtml + '</div>'
+  + '</div>';
+}
+function updateBoxField(idx, key, val) {
+  const boxes = getCurrentBoxes();
+  boxes[idx] = Object.assign({}, boxes[idx], { [key]: val });
+  drawerDirtyFields['Boxes'] = boxes;
+  updateSaveButton();
+}
+function addBoxRow() {
+  const boxes = getCurrentBoxes();
+  boxes.push({ qty: '', l: '', w: '', h: '' });
+  drawerDirtyFields['Boxes'] = boxes;
+  rerenderBoxesSection();
+  updateSaveButton();
+}
+function removeBoxRow(idx) {
+  const boxes = getCurrentBoxes();
+  boxes.splice(idx, 1);
+  if (boxes.length === 0) boxes.push({ qty: '', l: '', w: '', h: '' });
+  drawerDirtyFields['Boxes'] = boxes;
+  rerenderBoxesSection();
+  updateSaveButton();
+}
+function rerenderBoxesSection() {
+  const container = document.getElementById('boxesSectionWrap');
+  if (container) container.outerHTML = renderBoxesSection();
+}
+function svgTrashMini() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>'; }
+function svgPlusMini() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'; }
 function markBool(field, value, btnEl) {
   drawerDirtyFields[field] = value;
   const group = btnEl.parentElement;
