@@ -739,7 +739,8 @@
       <div class="cb-ins-summary-row" id="cbInsSummaryRow"></div>
       <div class="cb-sec-label" style="margin-top:16px;">Spend by Supplier</div>
       <div id="cbInsSupplierRows" class="cb-ins-loading">Loading…</div>
-      <div class="cb-sec-label" style="margin-top:16px;">Purchases This Week</div>
+            <div class="cb-sec-label" style="margin-top:16px;">Purchases This Week</div>
+      <div id="cbInsPills"></div>
       <div style="overflow-x:auto;">
         <table class="cb-catalog-table" id="cbInsTable"><tbody><tr><td style="padding:16px;text-align:center;color:#94a3b8;">Loading…</td></tr></tbody></table>
       </div>
@@ -770,6 +771,8 @@ let _cbTabCounts = { tobuy:0, inquire:0 };
   let _cbWeekSpent = 0;
   let _cbBudgetLoaded = false;
   let _cbInsWeekStart = null;
+  let _cbInsItems = [];
+  let _cbInsFilterSubmitted = true; // true = Order Submitted, false = Pending Submission
  
 let _cbFilteredNL = [];
   let _cbFilteredRepl = [];
@@ -969,7 +972,9 @@ window.openCbBudgetModal = function(weekStartOverride) {
     document.getElementById('cbInsSummaryRow').innerHTML = `<div class="cb-ins-loading">Loading…</div>`;
     document.getElementById('cbInsSupplierRows').innerHTML = `<div class="cb-ins-loading">Loading…</div>`;
     document.getElementById('cbInsTable').innerHTML = `<tbody><tr><td style="padding:16px;text-align:center;color:#94a3b8;">Loading…</td></tr></tbody>`;
-    const start = _cbWeekISO(_cbInsWeekStart);
+    const pillsLoading = document.getElementById('cbInsPills');
+    if (pillsLoading) pillsLoading.innerHTML = '';
+   const start = _cbWeekISO(_cbInsWeekStart);
     const end = _cbWeekISO(_cbAddDays(_cbInsWeekStart,7));
     let budget = 0;
          try {
@@ -978,30 +983,30 @@ window.openCbBudgetModal = function(weekStartOverride) {
     } catch(e) {}
     let nlRows=[], replRows=[];
     try {
-      const { data } = await sb.from('sourcing')
-        .select('opportunity_id,product_name,supplier_name,cost_of_unit,unit_quantity,qty_purchased,purchased_at')
+            const { data } = await sb.from('sourcing')
+        .select('opportunity_id,product_name,supplier_name,cost_of_unit,unit_quantity,qty_purchased,purchased_at,order_submitted')
         .eq('purchased', true).gte('purchased_at', start).lt('purchased_at', end);
       nlRows = data||[];
     } catch(e) { console.warn('CB insights nl:', e); }
     try {
-      const { data } = await sb.from('replenishment_skus')
-        .select('sku,name,supplier_name,order_qty,cost_price,original_cost_price,actioned_at')
+            const { data } = await sb.from('replenishment_skus')
+        .select('sku,name,supplier_name,order_qty,cost_price,original_cost_price,actioned_at,order_submitted')
         .eq('action','pur').gte('actioned_at', start).lt('actioned_at', end);
       replRows = data||[];
     } catch(e) { console.warn('CB insights repl:', e); }
     const replCostMap = await _cbBuildLastReplCostMap(replRows.map(p=>p.sku));
 
-    const items = [
+        const items = [
       ...nlRows.map(p=>{
         const qty = parseFloat(p.qty_purchased)||parseFloat(p.unit_quantity)||0;
         const cost = parseFloat(p.cost_of_unit)||0;
-        return { type:'New Line', name:p.product_name||'—', supplier:p.supplier_name||'No Supplier', qty, cost, total:qty*cost, date:p.purchased_at };
+        return { type:'New Line', name:p.product_name||'—', supplier:p.supplier_name||'No Supplier', qty, cost, total:qty*cost, date:p.purchased_at, submitted:!!p.order_submitted };
       }),
       ...replRows.map(p=>{
         const tracked = replCostMap[p.sku];
         const cost = (tracked!=null && !isNaN(tracked)) ? parseFloat(tracked) : _cbReplDisplayCost(p);
         const qty = parseInt(p.order_qty)||0;
-        return { type:'Replenishment', name:p.name||'—', supplier:p.supplier_name||'No Supplier', qty, cost, total:qty*cost, date:p.actioned_at };
+        return { type:'Replenishment', name:p.name||'—', supplier:p.supplier_name||'No Supplier', qty, cost, total:qty*cost, date:p.actioned_at, submitted:!!p.order_submitted };
       }),
     ].sort((a,b)=> new Date(b.date) - new Date(a.date));
 
@@ -1031,22 +1036,80 @@ window.openCbBudgetModal = function(weekStartOverride) {
         ${budget>0?`<div class="cb-budget-track" style="margin-top:6px;"><div class="cb-budget-fill" style="width:${pct}%;background:${pct>90?'#ef4444':pct>70?'#f59e0b':'#2563eb'};"></div></div>`:''}
       </div>`;
 
+        _cbInsItems = items;
+    _cbInsFilterSubmitted = true; // always default to Order Submitted when this loads
+
     const bySupplier = {};
-    items.forEach(i=>{ bySupplier[i.supplier] = (bySupplier[i.supplier]||0) + i.total; });
-    const supplierRows = Object.keys(bySupplier).map(k=>({name:k,value:bySupplier[k]})).sort((a,b)=>b.value-a.value);
+    items.forEach(i=>{
+      const k = i.supplier;
+      if (!bySupplier[k]) bySupplier[k] = { submitted:0, pending:0 };
+      if (i.submitted) bySupplier[k].submitted += i.total;
+      else bySupplier[k].pending += i.total;
+    });
+    const supplierRows = Object.keys(bySupplier).map(k=>{
+      const s = bySupplier[k];
+      return { name:k, submitted:s.submitted, pending:s.pending, value:s.submitted+s.pending };
+    }).sort((a,b)=>b.value-a.value);
     const maxSup = supplierRows.length ? supplierRows[0].value : 1;
     document.getElementById('cbInsSupplierRows').innerHTML = supplierRows.length
-      ? supplierRows.map(r=>`
-        <div class="cb-ins-row">
-          <span class="cb-ins-row-name" title="${escH(r.name)}">${escH(r.name)}</span>
-          <div class="cb-ins-row-bar"><div class="cb-ins-row-bar-fill" style="width:${maxSup>0?(r.value/maxSup*100):0}%;"></div></div>
-          <span class="cb-ins-row-val">${fmtGBP(r.value)}</span>
-        </div>`).join('')
+      ? supplierRows.map(r=>{
+          const barWidth = maxSup>0 ? (r.value/maxSup*100) : 0;
+          const subPct = r.value>0 ? Math.round((r.submitted/r.value)*100) : 0;
+          const pendPct = r.value>0 ? 100-subPct : 0;
+          return `
+        <div class="cb-ins-row" style="flex-direction:column;align-items:stretch;gap:4px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="cb-ins-row-name" style="text-align:left;" title="${escH(r.name)}">${escH(r.name)}</span>
+            <div class="cb-ins-row-bar" style="display:flex;">
+              <div style="width:${barWidth}%;display:flex;border-radius:99px;overflow:hidden;">
+                ${r.submitted>0?`<div style="width:${subPct}%;background:#22c55e;"></div>`:''}
+                ${r.pending>0?`<div style="width:${pendPct}%;background:#94a3b8;"></div>`:''}
+              </div>
+            </div>
+            <span class="cb-ins-row-val">${fmtGBP(r.value)}</span>
+          </div>
+          <div style="display:flex;gap:12px;font-size:10.5px;color:#64748b;">
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;"></span>Submitted: ${fmtGBP(r.submitted)} (${subPct}%)</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;border-radius:50%;background:#94a3b8;flex-shrink:0;"></span>Pending: ${fmtGBP(r.pending)} (${pendPct}%)</span>
+          </div>
+        </div>`;
+        }).join('')
       : `<div class="cb-ins-loading">No purchases this week</div>`;
 
-    document.getElementById('cbInsTable').innerHTML = items.length ? `
+    _cbRenderInsTable();
+  }
+
+  function _cbRenderInsTable() {
+    const items = _cbInsItems;
+    const submittedItems = items.filter(i=>i.submitted);
+    const pendingItems   = items.filter(i=>!i.submitted);
+    const submittedTotal = submittedItems.reduce((s,i)=>s+i.total,0);
+    const pendingTotal   = pendingItems.reduce((s,i)=>s+i.total,0);
+
+    const pillsContainer = document.getElementById('cbInsPills');
+    if (pillsContainer) {
+      pillsContainer.innerHTML = `
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button onclick="window.cbSetInsFilter(true)"
+          style="display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:10px;border:1.5px solid ${_cbInsFilterSubmitted?'#86efac':'#e2e8f0'};background:${_cbInsFilterSubmitted?'#f0fdf4':'#fff'};cursor:pointer;font-family:inherit;">
+          <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;"></span>
+          <span style="font-size:12.5px;font-weight:700;color:${_cbInsFilterSubmitted?'#15803d':'#334155'};">Order Submitted</span>
+          <span style="font-size:11px;font-weight:700;color:${_cbInsFilterSubmitted?'#15803d':'#94a3b8'};">${submittedItems.length} · ${fmtGBP(submittedTotal)}</span>
+        </button>
+        <button onclick="window.cbSetInsFilter(false)"
+          style="display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:10px;border:1.5px solid ${!_cbInsFilterSubmitted?'#cbd5e1':'#e2e8f0'};background:${!_cbInsFilterSubmitted?'#f8fafc':'#fff'};cursor:pointer;font-family:inherit;">
+          <span style="width:8px;height:8px;border-radius:50%;background:#94a3b8;flex-shrink:0;"></span>
+          <span style="font-size:12.5px;font-weight:700;color:#334155;">Pending Submission</span>
+          <span style="font-size:11px;font-weight:700;color:#475569;">${pendingItems.length} · ${fmtGBP(pendingTotal)}</span>
+        </button>
+      </div>`;
+    }
+
+    const filtered = _cbInsFilterSubmitted ? submittedItems : pendingItems;
+
+    document.getElementById('cbInsTable').innerHTML = filtered.length ? `
       <thead><tr><th>Item</th><th>Type</th><th>Supplier</th><th>Qty</th><th>Cost</th><th>Total</th><th>Date</th></tr></thead>
-      <tbody>${items.map(i=>`
+      <tbody>${filtered.map(i=>`
         <tr>
           <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escH(i.name)}">${escH(i.name)}</td>
           <td>${i.type}</td>
@@ -1056,8 +1119,12 @@ window.openCbBudgetModal = function(weekStartOverride) {
           <td style="font-weight:700;">${fmtGBP(i.total)}</td>
           <td>${fmtDate(i.date)}</td>
         </tr>`).join('')}</tbody>`
-      : `<tbody><tr><td style="padding:16px;text-align:center;color:#94a3b8;">No purchases this week</td></tr></tbody>`;
+      : `<tbody><tr><td style="padding:16px;text-align:center;color:#94a3b8;">No ${_cbInsFilterSubmitted?'submitted':'pending'} purchases this week</td></tr></tbody>`;
   }
+  window.cbSetInsFilter = function(submitted) {
+    _cbInsFilterSubmitted = submitted;
+    _cbRenderInsTable();
+  };
 
  
   async function _cbBuildLastReplCostMap(skus) {
