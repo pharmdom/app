@@ -1062,21 +1062,28 @@ window.openCbBudgetModal = function(weekStartOverride) {
         const supplierSubmittedIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg>';
     const supplierPendingIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
 
-    document.getElementById('cbInsSupplierRows').innerHTML = supplierRows.length
+        document.getElementById('cbInsSupplierRows').innerHTML = supplierRows.length
       ? supplierRows.map(r=>{
           const barWidth = maxSup>0 ? (r.value/maxSup*100) : 0;
           const subPct = r.value>0 ? Math.round((r.submitted/r.value)*100) : 0;
           const pendPct = r.value>0 ? 100-subPct : 0;
+          const pendingStartLeft = barWidth * subPct / 100;
           return `
-        <div class="cb-ins-row">
-          <span class="cb-ins-row-name" style="text-align:left;" title="${escH(r.name)}">${escH(r.name)}</span>
-          <div class="cb-ins-row-bar" style="display:flex;">
-            <div style="width:${barWidth}%;display:flex;border-radius:99px;overflow:hidden;">
-              ${r.submitted>0?`<div title="Order Submitted: ${fmtGBP(r.submitted)} (${subPct}%)" style="width:${subPct}%;background:#22c55e;display:flex;align-items:center;justify-content:center;color:#fff;">${subPct>=15?supplierSubmittedIcon:''}</div>`:''}
-              ${r.pending>0?`<div title="Pending Submission: ${fmtGBP(r.pending)} (${pendPct}%)" style="width:${pendPct}%;background:#94a3b8;display:flex;align-items:center;justify-content:center;color:#fff;">${pendPct>=15?supplierPendingIcon:''}</div>`:''}
+        <div class="cb-ins-row" style="align-items:flex-start;">
+          <span class="cb-ins-row-name" style="text-align:left;margin-top:2px;" title="${escH(r.name)}">${escH(r.name)}</span>
+          <div style="flex:1;min-width:0;">
+            <div class="cb-ins-row-bar" style="display:flex;">
+              <div style="width:${barWidth}%;display:flex;border-radius:99px;overflow:hidden;">
+                ${r.submitted>0?`<div style="width:${subPct}%;background:#22c55e;"></div>`:''}
+                ${r.pending>0?`<div style="width:${pendPct}%;background:#94a3b8;"></div>`:''}
+              </div>
+            </div>
+            <div style="position:relative;height:14px;margin-top:4px;">
+              ${r.submitted>0?`<span title="Order Submitted: ${fmtGBP(r.submitted)} (${subPct}%)" style="position:absolute;left:0;display:flex;align-items:center;gap:3px;color:#22c55e;font-size:10px;font-weight:700;white-space:nowrap;">${supplierSubmittedIcon}${fmtGBP(r.submitted)}</span>`:''}
+              ${r.pending>0?`<span title="Pending Submission: ${fmtGBP(r.pending)} (${pendPct}%)" style="position:absolute;left:${pendingStartLeft}%;display:flex;align-items:center;gap:3px;color:#94a3b8;font-size:10px;font-weight:700;white-space:nowrap;">${supplierPendingIcon}${fmtGBP(r.pending)}</span>`:''}
             </div>
           </div>
-          <span class="cb-ins-row-val">${fmtGBP(r.value)}</span>
+          <span class="cb-ins-row-val" style="margin-top:2px;">${fmtGBP(r.value)}</span>
         </div>`;
         }).join('')
       : `<div class="cb-ins-loading">No purchases this week</div>`;
