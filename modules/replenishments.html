@@ -602,7 +602,17 @@ body{overflow:hidden}
 .review-row-delta.better{color:var(--green,#16a34a);}
 .review-row-chevron{flex-shrink:0;color:var(--text3);transition:transform .15s;}
 .review-row-chevron.open{transform:rotate(90deg);}
-.review-row-main.checked{background:rgba(37,99,235,.06);}
+.review-row.checked{background:rgba(37,99,235,.06);}
+.review-row-compare{display:flex;align-items:center;gap:10px;padding:0 20px 10px 39px;}
+.review-compare-side{display:flex;flex-direction:column;gap:1px;}
+.review-compare-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);}
+.review-compare-qty{font-size:13px;font-weight:700;color:var(--text1,#0f172a);}
+.review-compare-qty span{font-weight:500;font-size:10.5px;color:var(--text3);}
+.review-compare-days{font-size:10.5px;color:var(--text3);}
+.review-compare-arrow{color:var(--text3);flex-shrink:0;}
+.review-compare-side.new.worse .review-compare-qty,.review-compare-side.new.worse .review-compare-days{color:var(--red,#dc2626);}
+.review-compare-side.new.better .review-compare-qty,.review-compare-side.new.better .review-compare-days{color:var(--green,#16a34a);}
+.review-compare-same{font-size:11px;color:var(--text3);font-style:italic;}
 .review-detail{padding:0 20px 0 45px;font-size:12px;max-height:0;overflow:hidden;transition:max-height .22s ease,padding .22s ease;}
 .review-detail.open{padding:4px 20px 16px 45px;max-height:600px;}
 .review-detail-sec{margin-bottom:10px;}
@@ -2222,14 +2232,6 @@ function updateReviewProcessLabel() {
   document.getElementById('reviewProcessBtn').textContent = n ? `Process (${n} refreshed)` : 'Process';
 }
 
-function reviewDeltaBadge(p) {
-  const curD = p.current.d, newD = p.incoming.d;
-  if (curD === newD) return '<span class="review-row-delta">' + curD + 'd → ' + newD + 'd</span>';
-  const cls = newD < curD ? 'worse' : 'better';
-  const arrow = newD < curD ? '↓' : '↑';
-  return '<span class="review-row-delta ' + cls + '">' + curD + 'd ' + arrow + ' ' + newD + 'd</span>';
-}
-
 function fld(label, value, opts) {
   opts = opts || {};
   if (value === null || value === undefined || value === '') return '';
@@ -2240,9 +2242,31 @@ function fld(label, value, opts) {
   return '<div class="review-detail-field"><span>' + label + '</span><span>' + display + '</span></div>';
 }
 
-function fldCompare(label, cur, incoming) {
-  if (cur === incoming) return '<div class="review-detail-field"><span>' + label + '</span><span>' + cur + '</span></div>';
-  return '<div class="review-detail-field"><span>' + label + '</span><span class="review-detail-compare"><span class="cur">' + cur + '</span><span class="new">' + incoming + '</span></span></div>';
+function reviewCompareBlock(p) {
+  const curD = p.current.d, newD = p.incoming.d;
+  const curQ = p.current.q, newQ = p.incoming.q;
+  const same = curD === newD && curQ === newQ;
+  const cls = same ? '' : (newD < curD ? 'worse' : 'better');
+  const arrowSvg = '<svg class="review-compare-arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+
+  let out = '<div class="review-row-compare">'
+    + '<div class="review-compare-side">'
+    + '<div class="review-compare-label">Current</div>'
+    + '<div class="review-compare-qty">' + curQ.toLocaleString() + ' <span>units</span></div>'
+    + '<div class="review-compare-days">' + curD + 'd left</div>'
+    + '</div>';
+
+  if (same) {
+    out += '<div class="review-compare-same">No change from this file</div>';
+  } else {
+    out += arrowSvg
+      + '<div class="review-compare-side new ' + cls + '">'
+      + '<div class="review-compare-label">If Refreshed</div>'
+      + '<div class="review-compare-qty">' + newQ.toLocaleString() + ' <span>units</span></div>'
+      + '<div class="review-compare-days">' + newD + 'd left</div>'
+      + '</div>';
+  }
+  return out + '</div>';
 }
 
 function renderBasketReviewList() {
@@ -2253,34 +2277,18 @@ function renderBasketReviewList() {
     const f = p.full;
     const isOpen = reviewOpenSku === p.sku;
     let detail = '';
-        if (isOpen) {
+    if (isOpen) {
       detail = '<div class="review-detail-sec">'
-        + fld('SKU', f.sku) + fld('EAN', f.ean) + fld('Urgency', f.urgency) + fld('Action', f.action) + fld('Order Submitted', f.order_submitted, {bool:true})
-        + '</div>'
-        + '<div class="review-detail-sec"><div class="review-detail-sec-label">If Refreshed</div>'
-        + fldCompare('Available', p.current.av, p.incoming.av)
-        + fldCompare('Incoming', p.current.inc, p.incoming.inc)
-        + fldCompare('Daily Rate', p.current.r, p.incoming.r)
-        + fldCompare('Days Left', p.current.d, p.incoming.d)
-        + fldCompare('Order Qty', p.current.q, p.incoming.q)
-        + '</div>'
-        + '<div class="review-detail-sec">'
-        + fld('Cost Price', f.cost_price, {money:true}) + fld('Original Cost Price', f.original_cost_price, {money:true}) + fld('Case Price', f.case_price, {money:true}) + fld('Order Cases', f.order_cases)
-        + '</div>'
-        + '<div class="review-detail-sec">'
-        + fld('Supplier', f.supplier_name) + fld('Last Purchased At', f.last_purchased_at, {date:true}) + fld('Last Purchased Supplier', f.last_purchased_supplier) + fld('Source', f.source)
-        + '</div>'
-        + '<div class="review-detail-sec">'
-                + fld('Note', f.note) + fld('Basket Added At', f.basket_added_at, {date:true}) + fld('Uploaded At', f.uploaded_at, {date:true}) + fld('Actioned At', f.actioned_at, {date:true})
+        + fld('EAN', f.ean) + fld('Action', f.action) + fld('Order Submitted', f.order_submitted, {bool:true}) + fld('Supplier', f.supplier_name)
         + '</div>';
-          }
-        return '<div class="review-row">'
-      + '<div class="review-row-main' + (p.checked ? ' checked' : '') + '">'
+    }
+    return '<div class="review-row' + (p.checked ? ' checked' : '') + '">'
+      + '<div class="review-row-main">'
       + '<input type="checkbox" onclick="event.stopPropagation()" ' + (p.checked ? 'checked' : '') + ' onchange="toggleReviewChecked(\'' + esc(p.sku) + '\',this.checked)">'
       + '<span class="review-row-name" onclick="toggleReviewDetail(\'' + esc(p.sku) + '\')">' + esc(p.full.name || p.sku) + '</span>'
-      + reviewDeltaBadge(p)
       + '<svg class="review-row-chevron' + (isOpen ? ' open' : '') + '" onclick="toggleReviewDetail(\'' + esc(p.sku) + '\')" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
       + '</div>'
+      + reviewCompareBlock(p)
       + '<div class="review-detail' + (isOpen ? ' open' : '') + '">' + detail + '</div>'
       + '</div>';
   }).join('');
