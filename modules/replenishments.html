@@ -584,6 +584,37 @@ body{overflow:hidden}
 .basket-supplier-filter{display:flex;align-items:center;gap:5px;flex-shrink:0;}
 .basket-supplier-select{padding:5px 9px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:var(--font);background:var(--surface2);color:var(--text2);outline:none;cursor:pointer;transition:all .15s;}
 .basket-supplier-select:focus{border-color:var(--accent);}
+
+.review-overlay{position:fixed;inset:0;background:rgba(12,21,38,.5);z-index:9995;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .15s;}
+.review-overlay.open{opacity:1;pointer-events:all;}
+.review-box{background:var(--surface);border-radius:var(--r-xl);width:480px;max-width:94vw;max-height:86vh;box-shadow:var(--sh-lg);display:flex;flex-direction:column;overflow:hidden;}
+.review-head{padding:18px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.review-head h3{margin:0 0 4px;font-size:15px;}
+.review-head p{margin:0;font-size:12px;color:var(--text3);}
+.review-selectall{display:flex;align-items:center;gap:8px;padding:10px 20px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text3);flex-shrink:0;}
+.review-list{flex:1;overflow-y:auto;padding:6px 0;}
+.review-row{border-bottom:1px solid var(--border);}
+.review-row-main{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;}
+.review-row-main input[type="checkbox"]{width:15px;height:15px;flex-shrink:0;accent-color:var(--accent, #2563eb);}
+.review-row-name{flex:1;min-width:0;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.review-row-delta{font-size:11px;color:var(--text3);flex-shrink:0;display:flex;align-items:center;gap:3px;}
+.review-row-delta.worse{color:var(--red,#dc2626);}
+.review-row-delta.better{color:var(--green,#16a34a);}
+.review-row-chevron{flex-shrink:0;color:var(--text3);transition:transform .15s;}
+.review-row-chevron.open{transform:rotate(90deg);}
+.review-row-main.checked{background:rgba(37,99,235,.06);}
+.review-detail{padding:0 20px 0 45px;font-size:12px;max-height:0;overflow:hidden;transition:max-height .22s ease,padding .22s ease;}
+.review-detail.open{padding:4px 20px 16px 45px;max-height:600px;}
+.review-detail-sec{margin-bottom:10px;}
+.review-detail-sec-label{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);margin-bottom:4px;}
+.review-detail-field{display:flex;justify-content:space-between;gap:10px;padding:3px 0;}
+.review-detail-field span:first-child{color:var(--text3);}
+.review-detail-field span:last-child{font-weight:600;text-align:right;}
+.review-detail-compare{display:flex;align-items:center;justify-content:flex-end;gap:5px;}
+.review-detail-compare .cur{color:var(--text3);font-weight:400;text-decoration:line-through;}
+.review-detail-compare .new{font-weight:700;}
+.review-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0;}
+</style>
 </style>
 
 
@@ -780,6 +811,24 @@ body{overflow:hidden}
     <div class="modal-actions">
       <button class="btn btn-secondary btn-sm" onclick="closeConfirm()">Cancel</button>
       <button class="btn btn-sm" id="confirmOkBtn" style="background:var(--red);border-color:var(--red);color:#fff;" onclick="doConfirm()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="review-overlay" id="reviewOverlay">
+  <div class="review-box">
+    <div class="review-head">
+      <h3>Review Basket Recommendations</h3>
+      <p id="reviewSubtitle"><strong id="reviewCount"></strong> already in your basket. Choose which ones should pick up this file's new numbers — anything left unchecked keeps what's already there.</p>
+    </div>
+    <label class="review-selectall">
+      <input type="checkbox" id="reviewSelectAll" onchange="toggleSelectAllReview(this.checked)">
+      Select all
+    </label>
+    <div class="review-list" id="reviewList"></div>
+    <div class="review-foot">
+      <button class="btn btn-secondary btn-sm" onclick="requestCloseReview()">Cancel</button>
+      <button class="btn btn-sm" id="reviewProcessBtn" style="background:var(--accent,#2563eb);border-color:var(--accent,#2563eb);color:#fff;" onclick="processBasketReview()">Process</button>
     </div>
   </div>
 </div>
@@ -1021,7 +1070,10 @@ let _suppliers = [];
 let _pendingBasketSku = null;
 let _selectedSupplier = null;
 let basketSuppliers = {}; // sku -> supplier name
+let pendingBasketReview = []; // items awaiting a keep/refresh decision after upload
+let reviewOpenSku = null;     // which review row's detail panel is currently expanded
 
+  
 // Catalog + offers data from Supabase
 let _catalogMap = {};  // ean -> [{supplier_name, cost}]
 let _offersMap  = {};  // ean -> [{supplier_name, cost}]
@@ -1110,7 +1162,7 @@ function _currentUserName() {
 async function loadSeenSkus() {
   try {
     const [{ data }, latestNotes] = await Promise.all([
-      sb.from('replenishment_skus').select('sku,ean,name,action,actioned_at,supplier_name,available,incoming,daily_rate,days_left,order_qty,cost_price,image_url,urgency'),
+      sb.from('replenishment_skus').select('sku,ean,name,action,actioned_at,supplier_name,available,incoming,daily_rate,days_left,order_qty,cost_price,image_url,urgency,source,basket_added_at,original_cost_price,case_price,order_cases,last_purchased_at,last_purchased_supplier,order_submitted,uploaded_at'),
       loadLatestReplNotes(),
     ]);
     const bySku = {}, byEan = {};
@@ -1263,6 +1315,8 @@ async function processFiles() {
   if (!rawF1 || !rawF2 || !rawF3) return;
   const btn = document.getElementById('processBtn');
   btn.disabled = true;
+  pendingBasketReview = [];
+  reviewOpenSku = null;
   await clearNonRejectedFromDB();
   btn.innerHTML = '<span class="spinner" style="width:13px;height:13px;border-width:2px;border-color:rgba(255,255,255,.3);border-top-color:#fff;margin-right:4px"></span>Processing…';
 
@@ -1331,31 +1385,49 @@ const purchasedSkus = new Set(); // purchased SKUs always re-enter the queue on 
           let obj;
     const purchasedLongEnoughAgo = existingBasket && existingBasket.action === 'pur' && existingBasket.actioned_at
       && (Date.now() - new Date(existingBasket.actioned_at).getTime()) > (Math.max(parseFloat(existingBasket.days_left) || 14, 7) * 86400000);
-    if (existingBasket && existingBasket.action === 'basket') {
-      // Already in the basket — keep identity/status as-is, but recalculate
-      // days-left/order-qty from THIS week's file so the recommendation stays current.
-      const dailyRate = parseFloat(r.daily_sell_out_rate) || 0;
-      const available = parseFloat(r.available_qty) || 0;
-      const incoming  = parseFloat(r.incoming_qty) || 0;
-      const daysLeft  = dailyRate > 0 ? Math.round((available + incoming) / dailyRate) : 999;
-      const orderQty  = Math.max(0, Math.round(dailyRate * 30) - available - incoming);
-      const urgency   = daysLeft <= 0 ? 'C' : daysLeft < 7 ? 'C' : daysLeft < 20 ? 'R' : 'O';
+        if (existingBasket && existingBasket.action === 'basket') {
+      // Already in the basket — do NOT auto-apply this file's numbers.
+      // Keep showing the current, already-saved values; stash what THIS
+      // file would produce so the review modal can offer it as a choice.
+      const newDailyRate = parseFloat(r.daily_sell_out_rate) || 0;
+      const newAvailable = parseFloat(r.available_qty) || 0;
+      const newIncoming  = parseFloat(r.incoming_qty) || 0;
+      const newDaysLeft  = newDailyRate > 0 ? Math.round((newAvailable + newIncoming) / newDailyRate) : 999;
+      const newOrderQty  = Math.max(0, Math.round(newDailyRate * 30) - newAvailable - newIncoming);
+      const newUrgency   = newDaysLeft <= 0 ? 'C' : newDaysLeft < 7 ? 'C' : newDaysLeft < 20 ? 'R' : 'O';
+
+      const curAvailable = parseFloat(existingBasket.available) || 0;
+      const curIncoming  = parseFloat(existingBasket.incoming) || 0;
+      const curDailyRate = parseFloat(existingBasket.daily_rate) || 0;
+      const curDaysLeft  = parseFloat(existingBasket.days_left) || 0;
+      const curOrderQty  = parseInt(existingBasket.order_qty) || 0;
+      const curUrgency   = existingBasket.urgency || 'O';
+
       obj = {
         s: existingBasket.sku,
         t: existingBasket.name || existingBasket.sku,
         ean: existingBasket.ean || ean,
-        u: urgency,
-        av: available,
-        inc: incoming,
-        r: dailyRate,
-        d: daysLeft,
-        q: orderQty,
+        u: curUrgency,
+        av: curAvailable,
+        inc: curIncoming,
+        r: curDailyRate,
+        d: curDaysLeft,
+        q: curOrderQty,
         cogs: parseFloat(existingBasket.cost_price) || 0,
         lastSupplier: existingBasket.supplier_name || '',
         img: existingBasket.image_url || '',
         subsets: [],
         __preserved: true,
+        __pendingReview: true,
       };
+
+      pendingBasketReview.push({
+        sku: existingBasket.sku,
+        checked: false,
+        current:  { u: curUrgency, av: curAvailable, inc: curIncoming, r: curDailyRate, d: curDaysLeft, q: curOrderQty },
+        incoming: { u: newUrgency, av: newAvailable, inc: newIncoming, r: newDailyRate, d: newDaysLeft, q: newOrderQty },
+        full: existingBasket,
+      });
     } else if (existingBasket && !purchasedLongEnoughAgo) {
       // Purchased, still within its expected coverage window — fully frozen,
       // nothing refreshed from this file.
@@ -1427,8 +1499,9 @@ const purchasedSkus = new Set(); // purchased SKUs always re-enter the queue on 
     }
   });
 
-  const frozenSkus = new Set(grouped.filter(x => x.__frozen).map(x => x.s));
-  const newSkus = grouped.filter(x => !rejectedSkus.has(x.s) && !frozenSkus.has(x.s));
+    const frozenSkus = new Set(grouped.filter(x => x.__frozen).map(x => x.s));
+  const pendingReviewSet = new Set(pendingBasketReview.map(p => p.sku));
+  const newSkus = grouped.filter(x => !rejectedSkus.has(x.s) && !frozenSkus.has(x.s) && !pendingReviewSet.has(x.s));
   await saveSkusToDB(newSkus);
 
   btn.disabled = false;
@@ -1437,6 +1510,8 @@ const purchasedSkus = new Set(); // purchased SKUs always re-enter the queue on 
   showContent();
   render();
   toast(`${ALL.length} SKUs · ${excludedCount} clearance excluded · ${skuReplaced} SKUs mapped · ${imgMatched} images matched`, 'success');
+
+  if (pendingBasketReview.length) openBasketReviewModal();
 }
 
 // ── SHOW/HIDE ──
@@ -2100,6 +2175,165 @@ function openConfirm(title, msg, fn, showRejectedToggle) {
 function closeConfirm() { document.getElementById('confirmOverlay').classList.remove('open'); confirmFn = null; }
 function doConfirm() { if (confirmFn) confirmFn(); }
 
+// ── BASKET REVIEW MODAL ──
+function openBasketReviewModal() {
+  document.getElementById('reviewSelectAll').checked = false;
+  pendingBasketReview.sort((a, b) => Math.abs(b.current.d - b.incoming.d) - Math.abs(a.current.d - a.incoming.d));
+  const n = pendingBasketReview.length;
+  document.getElementById('reviewCount').textContent = n + (n === 1 ? ' item' : ' items');
+  renderBasketReviewList();
+  document.getElementById('reviewOverlay').classList.add('open');
+}
+
+function closeBasketReviewModalForce() {
+  document.getElementById('reviewOverlay').classList.remove('open');
+  pendingBasketReview = [];
+  reviewOpenSku = null;
+}
+
+function requestCloseReview() {
+  openConfirm(
+    'Close without saving?',
+    'Nothing will be applied — every item will simply keep its current numbers.',
+    () => { closeConfirm(); closeBasketReviewModalForce(); }
+  );
+}
+
+function toggleSelectAllReview(checked) {
+  pendingBasketReview.forEach(p => p.checked = checked);
+  renderBasketReviewList();
+}
+
+function toggleReviewChecked(sku, checked) {
+  const p = pendingBasketReview.find(x => x.sku === sku);
+  if (p) p.checked = checked;
+  const allChecked = pendingBasketReview.length && pendingBasketReview.every(x => x.checked);
+  document.getElementById('reviewSelectAll').checked = allChecked;
+  updateReviewProcessLabel();
+}
+
+function toggleReviewDetail(sku) {
+  reviewOpenSku = (reviewOpenSku === sku) ? null : sku;
+  renderBasketReviewList();
+}
+
+function updateReviewProcessLabel() {
+  const n = pendingBasketReview.filter(p => p.checked).length;
+  document.getElementById('reviewProcessBtn').textContent = n ? `Process (${n} refreshed)` : 'Process';
+}
+
+function reviewDeltaBadge(p) {
+  const curD = p.current.d, newD = p.incoming.d;
+  if (curD === newD) return '<span class="review-row-delta">' + curD + 'd → ' + newD + 'd</span>';
+  const cls = newD < curD ? 'worse' : 'better';
+  const arrow = newD < curD ? '↓' : '↑';
+  return '<span class="review-row-delta ' + cls + '">' + curD + 'd ' + arrow + ' ' + newD + 'd</span>';
+}
+
+function fld(label, value, opts) {
+  opts = opts || {};
+  if (value === null || value === undefined || value === '') return '';
+  let display = esc(String(value));
+  if (opts.money) display = '£' + parseFloat(value).toFixed(2);
+  if (opts.date) { const d = new Date(value); if (!isNaN(d)) display = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
+  if (opts.bool) display = (value === true || value === 'true') ? 'Yes' : 'No';
+  return '<div class="review-detail-field"><span>' + label + '</span><span>' + display + '</span></div>';
+}
+
+function fldCompare(label, cur, incoming) {
+  if (cur === incoming) return '<div class="review-detail-field"><span>' + label + '</span><span>' + cur + '</span></div>';
+  return '<div class="review-detail-field"><span>' + label + '</span><span class="review-detail-compare"><span class="cur">' + cur + '</span><span class="new">' + incoming + '</span></span></div>';
+}
+
+function renderBasketReviewList() {
+  const list = document.getElementById('reviewList');
+  if (!pendingBasketReview.length) { list.innerHTML = ''; return; }
+
+  list.innerHTML = pendingBasketReview.map(p => {
+    const f = p.full;
+    const isOpen = reviewOpenSku === p.sku;
+    let detail = '';
+        if (isOpen) {
+      detail = '<div class="review-detail-sec">'
+        + fld('SKU', f.sku) + fld('EAN', f.ean) + fld('Urgency', f.urgency) + fld('Action', f.action) + fld('Order Submitted', f.order_submitted, {bool:true})
+        + '</div>'
+        + '<div class="review-detail-sec"><div class="review-detail-sec-label">If Refreshed</div>'
+        + fldCompare('Available', p.current.av, p.incoming.av)
+        + fldCompare('Incoming', p.current.inc, p.incoming.inc)
+        + fldCompare('Daily Rate', p.current.r, p.incoming.r)
+        + fldCompare('Days Left', p.current.d, p.incoming.d)
+        + fldCompare('Order Qty', p.current.q, p.incoming.q)
+        + '</div>'
+        + '<div class="review-detail-sec">'
+        + fld('Cost Price', f.cost_price, {money:true}) + fld('Original Cost Price', f.original_cost_price, {money:true}) + fld('Case Price', f.case_price, {money:true}) + fld('Order Cases', f.order_cases)
+        + '</div>'
+        + '<div class="review-detail-sec">'
+        + fld('Supplier', f.supplier_name) + fld('Last Purchased At', f.last_purchased_at, {date:true}) + fld('Last Purchased Supplier', f.last_purchased_supplier) + fld('Source', f.source)
+        + '</div>'
+        + '<div class="review-detail-sec">'
+                + fld('Note', f.note) + fld('Basket Added At', f.basket_added_at, {date:true}) + fld('Uploaded At', f.uploaded_at, {date:true}) + fld('Actioned At', f.actioned_at, {date:true})
+        + '</div>';
+          }
+        return '<div class="review-row">'
+      + '<div class="review-row-main' + (p.checked ? ' checked' : '') + '">'
+      + '<input type="checkbox" onclick="event.stopPropagation()" ' + (p.checked ? 'checked' : '') + ' onchange="toggleReviewChecked(\'' + esc(p.sku) + '\',this.checked)">'
+      + '<span class="review-row-name" onclick="toggleReviewDetail(\'' + esc(p.sku) + '\')">' + esc(p.full.name || p.sku) + '</span>'
+      + reviewDeltaBadge(p)
+      + '<svg class="review-row-chevron' + (isOpen ? ' open' : '') + '" onclick="toggleReviewDetail(\'' + esc(p.sku) + '\')" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
+      + '</div>'
+      + '<div class="review-detail' + (isOpen ? ' open' : '') + '">' + detail + '</div>'
+      + '</div>';
+  }).join('');
+  updateReviewProcessLabel();
+}
+
+async function processBasketReview() {
+  const toApply = pendingBasketReview.filter(p => p.checked);
+
+  if (toApply.length) {
+    const rows = toApply.map(p => ({
+      sku: p.sku,
+      name: p.full.name,
+      ean: p.full.ean || null,
+      urgency: p.incoming.u,
+      available: p.incoming.av,
+      incoming: p.incoming.inc,
+      daily_rate: p.incoming.r,
+      days_left: p.incoming.d,
+      order_qty: p.incoming.q,
+      cogs: p.full.cost_price || null,
+      cost_price: p.full.cost_price || null,
+      uploaded_at: new Date().toISOString(),
+      image_url: p.full.image_url || null,
+    }));
+    try { await sb.from('replenishment_skus').upsert(rows, { onConflict: 'sku' }); } catch(e) { console.warn('Review save error', e); }
+
+    // Reflect the change in the on-screen board immediately
+    toApply.forEach(p => {
+      const idx = ALL.findIndex(x => x.s === p.sku);
+      if (idx > -1) {
+        ALL[idx].u = p.incoming.u;
+        ALL[idx].av = p.incoming.av;
+        ALL[idx].inc = p.incoming.inc;
+        ALL[idx].r = p.incoming.r;
+        ALL[idx].d = p.incoming.d;
+        ALL[idx].q = p.incoming.q;
+      }
+    });
+  }
+
+  closeBasketReviewModalForce();
+  render();
+  toast(toApply.length ? `${toApply.length} basket item(s) refreshed` : 'Basket kept as-is', 'success');
+}
+
+window.toggleSelectAllReview = toggleSelectAllReview;
+window.toggleReviewChecked = toggleReviewChecked;
+window.toggleReviewDetail = toggleReviewDetail;
+window.processBasketReview = processBasketReview;
+window.requestCloseReview = requestCloseReview;
+
+  
 // ── TOAST ──
 function toast(msg, type) {
   const c = document.getElementById('toasts');
