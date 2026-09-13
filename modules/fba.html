@@ -612,8 +612,9 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
       </div>
       <div class="form-row">
         <div class="form-group" id="fg-nProductLine"><label>Product Line <span style="color:#dc2626">*</span></label><input type="text" id="nProductLine" placeholder="Product line"></div>
-        <div class="form-group" id="fg-nAsin"><label>Amazon / ASIN <span style="color:#dc2626">*</span></label><input type="text" id="nAsin" placeholder="B0XXXXXXXXX"></div>
+                <div class="form-group" id="fg-nAsin"><label>Amazon / ASIN <span style="color:#dc2626">*</span></label><input type="text" id="nAsin" placeholder="B0XXXXXXXXX"></div>
       </div>
+      <div class="form-group full" id="fg-nEan"><label>EAN</label><input type="text" id="nEan" placeholder="e.g. 5012345678900"></div>
       <div class="form-group full" id="fg-nPrepInstructions"><label>Prep Instructions</label><textarea id="nPrepInstructions" placeholder="Enter prep instructions…"></textarea></div>
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;display:flex;align-items:center;gap:8px">Prep Options<span style="flex:1;height:1px;background:#f1f5f9"></span></div>
       <div class="form-row">
@@ -724,7 +725,7 @@ const STORAGE_BUCKET = 'fba-images';
 const SB_TO_DISPLAY = {
   'id':'ID','created_at':'Date Created','updated_at':'Last Updated',
   'label_code':'Label Code','brand':'Brand','product_line':'Product Line',
-  'asin':'ASIN','prep_instructions':'Prep Instructions','bundle':'Bundle',
+  'asin':'ASIN','ean':'EAN','prep_instructions':'Prep Instructions','bundle':'Bundle',
   'dg_label':'DG Label','poly_bag':'Poly Bag','warning_label':'Warning Label',
   'barcode':'Barcode','box':'Box','units_required':'Units Required',
   'veeqo_adjusted':'Veeqo Stock Adjusted','units_completed':'Units Completed',
@@ -919,6 +920,17 @@ function setChip(id, text) {
 /* ══════════════════════════════════════════════════
    FILTERS + SEARCH — identical to original
 ══════════════════════════════════════════════════ */
+function rowMatchesEan(row, q) {
+  if (String(row['EAN'] || '').toLowerCase().includes(q)) return true;
+  try {
+    const items = JSON.parse(row['Prep Instructions'] || '');
+    if (Array.isArray(items)) {
+      return items.some(b => String(b.ean || '').toLowerCase().includes(q));
+    }
+  } catch(e) {}
+  return false;
+}
+
 function applyFilters() {
   const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
   filtered = warehouseData.filter(row => {
@@ -927,7 +939,8 @@ function applyFilters() {
       String(row['Label Code']   || '').toLowerCase().includes(q) ||
       String(row['Brand']        || '').toLowerCase().includes(q) ||
       String(row['Product Line'] || '').toLowerCase().includes(q) ||
-      String(row['ASIN']         || '').toLowerCase().includes(q)
+      String(row['ASIN']         || '').toLowerCase().includes(q) ||
+      rowMatchesEan(row, q)
     );
   });
   filtered.sort((a, b) => new Date(b['Date Created'] || 0) - new Date(a['Date Created'] || 0));
@@ -1126,30 +1139,30 @@ function renderDrawer(row) {
       body += '<div style="margin-bottom:12px"><button class="btn btn-secondary btn-sm" onclick="openProductImageUpload(\'' + ea(id) + '\')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Upload product image</button></div>';
     }
     body += '<input type="file" id="drawerProductImgFile_' + ea(id) + '" accept="image/*,application/pdf" style="display:none" onchange="handleDrawerProductImageUpload(this,\'' + ea(id) + '\')">';
-    body += '<div class="info-grid full">'
-      + (() => {
+        body += (() => {
           const rawPrep = row['Prep Instructions'] || '';
           let batchItems = null;
           try { const p = JSON.parse(rawPrep); if (Array.isArray(p) && p.length > 1) batchItems = p; } catch(e) {}
-          if (!batchItems) return eCard(id, 'Label Code', row['Label Code'] || '', 'text', infoAndPrepReadonly);
-          return '<div style="grid-column:1/-1"><div style="margin-top:8px">'
-            + batchItems.map((b, bi) =>
-              '<div style="border:1.5px solid #e2e8f0;border-radius:9px;padding:10px 12px;margin-bottom:6px;background:#fafbfc"><div style="display:flex;align-items:flex-start;gap:10px">'
-              + (b.productImage ? '<div style="flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9"><img src="' + ea(b.productImage) + '" alt="' + esc(b.labelCode) + '" onclick="openLightbox(\'' + ea(b.productImage) + '\')" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in"></div>' : '')
-              + '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#2563eb;color:#fff;border-radius:50%;font-size:9px;font-weight:800;flex-shrink:0">' + (bi+1) + '</span><span style="font-size:12px;font-weight:800;color:#1d4ed8">' + esc(b.labelCode) + '</span>' + (b.brand ? '<span style="font-size:11px;color:#64748b">· ' + esc(b.brand) + '</span>' : '') + '<span style="margin-left:auto;font-size:11px;font-weight:700;color:#0f172a">× ' + esc(String(b.units||0)) + ' units</span></div>'
-              + (b.productLine ? '<div style="font-size:11px;font-weight:600;color:#334155;margin-bottom:2px">' + esc(b.productLine) + '</div>' : '')
-              + (b.asin ? '<div style="font-size:10px;color:#94a3b8;font-family:monospace;margin-bottom:4px">' + esc(b.asin) + '</div>' : '')
-              + '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:2px">' + [['Poly Bag',b.polyBag],['Bundle',b.bundle],['Barcode',b.barcode],['Box',b.box],['DG Label',b.dgLabel],['Warning',b.warningLabel]].map(([lbl,val]) => { const v = String(val||'').toLowerCase(); if (v==='yes') return '<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#dcfce7;color:#15803d">' + lbl + '</span>'; if (v==='no') return '<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#f1f5f9;color:#94a3b8">' + lbl + '</span>'; return '<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#fef3c7;color:#92400e">' + lbl + '</span>'; }).join('') + '</div>'
-              + (b.prepInstructions ? '<div style="font-size:11px;color:#64748b;line-height:1.5;margin-top:2px">' + esc(b.prepInstructions) + '</div>' : '')
-              + '</div></div>'
-              + (b.barcodeImage ? '<div style="margin-top:8px"><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#94a3b8;margin-bottom:3px">Barcode</div><img src="' + ea(b.barcodeImage) + '" alt="Barcode" onclick="openLightbox(\'' + ea(b.barcodeImage) + '\')" style="max-height:60px;max-width:100%;object-fit:contain;border-radius:6px;border:1.5px solid #e2e8f0;cursor:zoom-in;display:block"></div>' : '')
-              + '</div>'
-            ).join('') + '</div></div>';
+          if (batchItems) {
+            return '<div class="info-grid full"><div style="grid-column:1/-1"><div style="margin-top:8px">'
+              + batchItems.map((b, bi) =>
+                '<div style="border:1.5px solid #e2e8f0;border-radius:9px;padding:10px 12px;margin-bottom:6px;background:#fafbfc"><div style="display:flex;align-items:flex-start;gap:10px">'
+                + (b.productImage ? '<div style="flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1.5px solid #e2e8f0;background:#f1f5f9"><img src="' + ea(b.productImage) + '" alt="' + esc(b.labelCode) + '" onclick="openLightbox(\'' + ea(b.productImage) + '\')" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in"></div>' : '')
+                + '<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#2563eb;color:#fff;border-radius:50%;font-size:9px;font-weight:800;flex-shrink:0">' + (bi+1) + '</span><span style="font-size:12px;font-weight:800;color:#1d4ed8">' + esc(b.labelCode) + '</span>' + (b.brand ? '<span style="font-size:11px;color:#64748b">· ' + esc(b.brand) + '</span>' : '') + '<span style="margin-left:auto;font-size:11px;font-weight:700;color:#0f172a">× ' + esc(String(b.units||0)) + ' units</span></div>'
+                + (b.productLine ? '<div style="font-size:11px;font-weight:600;color:#334155;margin-bottom:2px">' + esc(b.productLine) + '</div>' : '')
+                + (b.asin ? '<div style="font-size:10px;color:#94a3b8;font-family:monospace;margin-bottom:2px">ASIN: ' + esc(b.asin) + '</div>' : '')
+                + (b.ean ? '<div style="font-size:10px;color:#94a3b8;font-family:monospace;margin-bottom:4px">EAN: ' + esc(b.ean) + '</div>' : '')
+                + '<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:2px">' + [['Poly Bag',b.polyBag],['Bundle',b.bundle],['Barcode',b.barcode],['Box',b.box],['DG Label',b.dgLabel],['Warning',b.warningLabel]].map(([lbl,val]) => { const v = String(val||'').toLowerCase(); if (v==='yes') return '<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#dcfce7;color:#15803d">' + lbl + '</span>'; if (v==='no') return '<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#f1f5f9;color:#94a3b8">' + lbl + '</span>'; return '<span style="padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700;background:#fef3c7;color:#92400e">' + lbl + '</span>'; }).join('') + '</div>'
+                + (b.prepInstructions ? '<div style="font-size:11px;color:#64748b;line-height:1.5;margin-top:2px">' + esc(b.prepInstructions) + '</div>' : '')
+                + '</div></div>'
+                + (b.barcodeImage ? '<div style="margin-top:8px"><div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#94a3b8;margin-bottom:3px">Barcode</div><img src="' + ea(b.barcodeImage) + '" alt="Barcode" onclick="openLightbox(\'' + ea(b.barcodeImage) + '\')" style="max-height:60px;max-width:100%;object-fit:contain;border-radius:6px;border:1.5px solid #e2e8f0;cursor:zoom-in;display:block"></div>' : '')
+                + '</div>'
+              ).join('') + '</div></div></div>';
+          }
+          return '<div class="info-grid full">' + eCard(id, 'Product Line', row['Product Line'] || '', 'text', infoAndPrepReadonly) + '</div>'
+            + '<div class="info-grid">' + eCard(id, 'Amazon / ASIN', row['ASIN'] || '', 'text', infoAndPrepReadonly) + eCard(id, 'EAN', row['EAN'] || '', 'text', infoAndPrepReadonly) + '</div>'
+            + '<div class="info-grid">' + eCard(id, 'Label Code', row['Label Code'] || '', 'text', infoAndPrepReadonly) + eCard(id, 'Brand', row['Brand'] || '', 'text', infoAndPrepReadonly) + '</div>';
         })()
-      + (!(() => { try { const p=JSON.parse(row['Prep Instructions']||''); return Array.isArray(p)&&p.length>1; } catch(e){return false;} })() ? eCard(id, 'Brand', row['Brand'] || '', 'text', infoAndPrepReadonly) : '')
-      + (!(() => { try { const p=JSON.parse(row['Prep Instructions']||''); return Array.isArray(p)&&p.length>1; } catch(e){return false;} })() ? eCard(id, 'Product Line', row['Product Line'] || '', 'text', infoAndPrepReadonly) : '')
-      + (!(() => { try { const p=JSON.parse(row['Prep Instructions']||''); return Array.isArray(p)&&p.length>1; } catch(e){return false;} })() ? eCard(id, 'Amazon / ASIN', row['ASIN'] || '', 'text', infoAndPrepReadonly) : '')
-      + '</div></div>'
       + sec('Quantities') + '<div class="info-grid">'
       + eCard(id, 'Units Required', row['Units Required'] || '', 'number', infoAndPrepReadonly)
       + bCard(id, 'Veeqo Stock Adjusted', row['Veeqo Stock Adjusted'], infoAndPrepReadonly)
@@ -1518,7 +1531,7 @@ function openWorkTableModal() { document.getElementById('workTableSearchInput').
 function closeWorkTableModal(e) { if (e) return; document.getElementById('workTableModalOverlay').classList.remove('visible'); }
 function renderWorkTable() {
   const q = (document.getElementById('workTableSearchInput').value || '').toLowerCase().trim();
-  const data = warehouseData.filter(row => { if (!q) return true; return String(row['Label Code']||'').toLowerCase().includes(q)||String(row['Brand']||'').toLowerCase().includes(q)||String(row['Product Line']||'').toLowerCase().includes(q)||String(row['ASIN']||'').toLowerCase().includes(q); });
+  const data = warehouseData.filter(row => { if (!q) return true; return String(row['Label Code']||'').toLowerCase().includes(q)||String(row['Brand']||'').toLowerCase().includes(q)||String(row['Product Line']||'').toLowerCase().includes(q)||String(row['ASIN']||'').toLowerCase().includes(q)||rowMatchesEan(row, q); });
   data.sort((a, b) => new Date(b['Date Created']) - new Date(a['Date Created']));
   document.getElementById('workTableModalCount').textContent = data.length;
   const cols = ['Label Code', 'Brand', 'Product Line', 'Units Required', 'Units Completed', 'UPS Collected'];
@@ -1575,11 +1588,11 @@ function renderProductsTable() {
   const data = fbaData.filter(row => {
     if (_fbaOppFilterActive && row['FBA Opportunity'] !== 'Yes') return false;
     if (!q) return true;
-    return String(row['Label Code']||'').toLowerCase().includes(q)||String(row['Brand']||'').toLowerCase().includes(q)||String(row['Product Line']||'').toLowerCase().includes(q)||String(row['ASIN']||'').toLowerCase().includes(q);
+    return String(row['Label Code']||'').toLowerCase().includes(q)||String(row['Brand']||'').toLowerCase().includes(q)||String(row['Product Line']||'').toLowerCase().includes(q)||String(row['ASIN']||'').toLowerCase().includes(q)||rowMatchesEan(row, q);
   });
   data.sort((a, b) => new Date(b['Date Created']) - new Date(a['Date Created']));
   document.getElementById('productsModalCount').textContent = data.length;
-  const cols = ['Label Code', 'Brand', 'Product Line', 'ASIN', 'Prep Instructions'];
+  const cols = ['Label Code', 'Brand', 'Product Line', 'ASIN', 'EAN', 'Prep Instructions'];
   let html = '<table class="data-table"><thead><tr><th>Image</th>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>';
   if (!data.length) { html += '<tr><td colspan="' + cols.length + '" style="text-align:center;padding:32px;color:#94a3b8;font-weight:600">No products found</td></tr>'; }
   else {
@@ -1589,9 +1602,9 @@ function renderProductsTable() {
       html += '<tr onclick="openDrawerFromProductsTable(\'' + rid + '\')">'
         + '<td style="width:48px">' + (imgUrl ? '<img src="' + ea(imgUrl) + '" style="width:40px;height:32px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e8f0;display:block">' : '<div style="width:40px;height:32px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>') + '</td>'
                 + cols.map(c => {
-            if (c === 'Product Line' || c === 'ASIN') {
+                        if (c === 'Product Line' || c === 'ASIN' || c === 'EAN') {
               const val = String(row[c] ?? '—');
-              const maxW = c === 'ASIN' ? '100px' : '140px';
+              const maxW = (c === 'ASIN' || c === 'EAN') ? '100px' : '140px';
               return '<td><span title="' + ea(val) + '" style="display:inline-block;max-width:' + maxW + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">' + esc(val) + '</span></td>';
             }
             let val = String(row[c] ?? '—'); if (c === 'Prep Instructions' && val.length > 50) val = val.substring(0, 50) + '…'; return '<td>' + esc(val) + '</td>';
@@ -1609,7 +1622,7 @@ function openDrawerFromProductsTable(id) { openDrawer(id, 'fba'); }
    createRecord() calls sb.from().insert() instead of callApi
 ══════════════════════════════════════════════════ */
 function openNewProductForm() {
-  ['nLabelCode','nBrand','nProductLine','nAsin'].forEach(id => { document.getElementById(id).value = ''; });
+  ['nLabelCode','nBrand','nProductLine','nAsin','nEan'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('nPrepInstructions').value = '';
   ['nPolyBag','nWarningLabel','nBarcode','nBox','nBundle','nDgLabel'].forEach(id => { document.getElementById(id).value = ''; });
   document.querySelectorAll('#newProductForm .form-bool-toggle-group .bool-toggle-btn').forEach(b => { b.className = 'bool-toggle-btn'; });
@@ -1718,6 +1731,7 @@ async function createRecord() {
     'Brand': document.getElementById('nBrand').value.trim(),
     'Product Line': document.getElementById('nProductLine').value.trim(),
     'ASIN': document.getElementById('nAsin').value.trim(),
+    'EAN': document.getElementById('nEan').value.trim(),
     'Prep Instructions': document.getElementById('nPrepInstructions').value.trim(),
     'Bundle': document.getElementById('nBundle').value.trim(),
     'DG Label': document.getElementById('nDgLabel').value.trim(),
@@ -1812,7 +1826,7 @@ function renderMatchedProducts() {
     html += '<div style="border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:10px"><div style="background:#0f172a;padding:10px 14px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:#2563eb;color:#fff;border-radius:50%;font-size:10px;font-weight:800;flex-shrink:0">' + (ri + 1) + '</span>'
       + (productImg ? '<div style="flex-shrink:0;width:40px;height:40px;border-radius:6px;overflow:hidden;border:1.5px solid rgba(255,255,255,.15);background:#1e293b;margin-right:4px"><img src="' + ea(productImg) + '" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in" onclick="openLightbox(\'' + ea(productImg) + '\')"></div>' : '')
       + '<div><div style="font-size:12px;font-weight:700;color:#fff">' + esc(row.code) + '</div><div style="font-size:11px;color:rgba(255,255,255,.5)">' + esc([m['Brand'], m['Product Line']].filter(Boolean).join(' · ')) + '</div></div></div>'
-      + '<div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:6px"><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">ASIN</div><div style="font-size:12px;color:#0f172a;font-family:monospace">' + esc(m['ASIN'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Bundle</div><div style="font-size:12px;color:#0f172a">' + esc(m['Bundle'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Poly Bag</div><div style="font-size:12px;color:#0f172a">' + esc(m['Poly Bag'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Warning Label</div><div style="font-size:12px;color:#0f172a">' + esc(m['Warning Label'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Barcode</div><div style="font-size:12px;color:#0f172a">' + esc(m['Barcode'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Box</div><div style="font-size:12px;color:#0f172a">' + esc(m['Box'] || '—') + '</div></div></div>';
+      + '<div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:6px"><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">ASIN</div><div style="font-size:12px;color:#0f172a;font-family:monospace">' + esc(m['ASIN'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">EAN</div><div style="font-size:12px;color:#0f172a;font-family:monospace">' + esc(m['EAN'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Bundle</div><div style="font-size:12px;color:#0f172a">' + esc(m['Bundle'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Poly Bag</div><div style="font-size:12px;color:#0f172a">' + esc(m['Poly Bag'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Warning Label</div><div style="font-size:12px;color:#0f172a">' + esc(m['Warning Label'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Barcode</div><div style="font-size:12px;color:#0f172a">' + esc(m['Barcode'] || '—') + '</div></div><div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8">Box</div><div style="font-size:12px;color:#0f172a">' + esc(m['Box'] || '—') + '</div></div></div>';
     if (m['Prep Instructions']) html += '<div style="padding:0 14px 10px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:4px">Prep Instructions</div><div style="font-size:12px;color:#334155;line-height:1.5">' + esc(m['Prep Instructions']) + '</div></div>';
     if (barcodeImg) html += '<div style="padding:0 14px 12px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8;margin-bottom:6px">Barcode Image</div><div style="display:flex;align-items:center;gap:10px"><img src="' + ea(barcodeImg) + '" alt="Barcode" style="max-height:80px;max-width:180px;object-fit:contain;border:1.5px solid #e2e8f0;border-radius:8px;cursor:zoom-in" onclick="openLightbox(\'' + ea(barcodeImg) + '\')"><a href="' + ea(barcodeImg) + '" target="_blank" class="btn btn-secondary btn-sm">View full</a></div></div>';
     html += '</div>';
@@ -1853,9 +1867,9 @@ async function submitAddWork() {
   const maxWH = warehouseData.reduce((max, r) => { const n = parseInt(String(r['ID']||'').replace('WH-','')) || 0; return n > max ? n : max; }, 0);
   const now = new Date().toISOString();
 
-const buildDisplayRow = (id, labelCode, brand, productLine, asin, prepInstructions, bundle, dgLabel, polyBag, warningLabel, barcode, box, barcodeImage, productImage, groupingLink, groupingImage, collectionBooked, unitsRequired, note, deadline) => ({
+const buildDisplayRow = (id, labelCode, brand, productLine, asin, ean, prepInstructions, bundle, dgLabel, polyBag, warningLabel, barcode, box, barcodeImage, productImage, groupingLink, groupingImage, collectionBooked, unitsRequired, note, deadline) => ({
     'ID': id, 'Date Created': now, 'Last Updated': now,
-    'Label Code': labelCode, 'Brand': brand, 'Product Line': productLine, 'ASIN': asin,
+    'Label Code': labelCode, 'Brand': brand, 'Product Line': productLine, 'ASIN': asin, 'EAN': ean,
     'Prep Instructions': prepInstructions, 'Bundle': bundle, 'DG Label': dgLabel,
     'Poly Bag': polyBag, 'Warning Label': warningLabel, 'Barcode': barcode, 'Box': box,
     'Barcode Image': barcodeImage, 'Product Image': productImage,
@@ -1867,7 +1881,7 @@ const buildDisplayRow = (id, labelCode, brand, productLine, asin, prepInstructio
   if (validRows.length === 1) {
     const r = validRows[0], m = r.match || {};
     const newId = 'WH-' + String(maxWH + 1).padStart(4, '0');
-    const newDisplayRow = buildDisplayRow(newId, r.code, m['Brand']||'', m['Product Line']||'', m['ASIN']||'', m['Prep Instructions']||'', m['Bundle']||'', m['DG Label']||'', m['Poly Bag']||'', m['Warning Label']||'', m['Barcode']||'', m['Box']||'', m['Barcode Image']||'', m['Product Image']||'', sharedGroupingLink||m['Grouping Link']||'', uploadedGroupingImageValue||m['Grouping Image']||'', sharedCollectionBooked||m['Collection Booked']||'', Number(r.units)||0, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim());
+    const newDisplayRow = buildDisplayRow(newId, r.code, m['Brand']||'', m['Product Line']||'', m['ASIN']||'', m['EAN']||'', m['Prep Instructions']||'', m['Bundle']||'', m['DG Label']||'', m['Poly Bag']||'', m['Warning Label']||'', m['Barcode']||'', m['Box']||'', m['Barcode Image']||'', m['Product Image']||'', sharedGroupingLink||m['Grouping Link']||'', uploadedGroupingImageValue||m['Grouping Image']||'', sharedCollectionBooked||m['Collection Booked']||'', Number(r.units)||0, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim());
     warehouseData.unshift(newDisplayRow); closeAddWorkModal(); applyFilters();
     showToast('1 work item added', 'success'); btn.disabled = false; btn.innerHTML = 'Add Work';
     const { data: inserted, error } = await sb.from('fba_work').insert(displayRowToSb(newDisplayRow)).select().single();
@@ -1881,10 +1895,10 @@ const buildDisplayRow = (id, labelCode, brand, productLine, asin, prepInstructio
     const combinedLabel = labelCodes.map((c, i) => c + ' (' + unitsList[i] + ')').join(' + ');
     const batchItems = validRows.map((r, i) => {
       const m = r.match || {};
-      return { labelCode:r.code, units:Number(r.units)||0, brand:m['Brand']||'', productLine:m['Product Line']||'', asin:m['ASIN']||'', bundle:m['Bundle']||'', dgLabel:m['DG Label']||'', polyBag:m['Poly Bag']||'', warningLabel:m['Warning Label']||'', barcode:m['Barcode']||'', box:m['Box']||'', barcodeImage:m['Barcode Image']||'', productImage:m['Product Image']||'', prepInstructions:m['Prep Instructions']||'' };
+      return { labelCode:r.code, units:Number(r.units)||0, brand:m['Brand']||'', productLine:m['Product Line']||'', asin:m['ASIN']||'', ean:m['EAN']||'', bundle:m['Bundle']||'', dgLabel:m['DG Label']||'', polyBag:m['Poly Bag']||'', warningLabel:m['Warning Label']||'', barcode:m['Barcode']||'', box:m['Box']||'', barcodeImage:m['Barcode Image']||'', productImage:m['Product Image']||'', prepInstructions:m['Prep Instructions']||'' };
     });
     const newId = 'WH-' + String(maxWH + 1).padStart(4, '0');
-    const newDisplayRow = buildDisplayRow(newId, combinedLabel, first['Brand']||'', validRows.map(r=>(r.match||{})['Product Line']||r.code).join(' / '), first['ASIN']||'', JSON.stringify(batchItems), first['Bundle']||'', first['DG Label']||'', first['Poly Bag']||'', first['Warning Label']||'', first['Barcode']||'', first['Box']||'', first['Barcode Image']||'', first['Product Image']||'', sharedGroupingLink||first['Grouping Link']||'', uploadedGroupingImageValue||first['Grouping Image']||'', sharedCollectionBooked||first['Collection Booked']||'', totalUnits, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim());
+    const newDisplayRow = buildDisplayRow(newId, combinedLabel, first['Brand']||'', validRows.map(r=>(r.match||{})['Product Line']||r.code).join(' / '), first['ASIN']||'', first['EAN']||'', JSON.stringify(batchItems), first['Bundle']||'', first['DG Label']||'', first['Poly Bag']||'', first['Warning Label']||'', first['Barcode']||'', first['Box']||'', first['Barcode Image']||'', first['Product Image']||'', sharedGroupingLink||first['Grouping Link']||'', uploadedGroupingImageValue||first['Grouping Image']||'', sharedCollectionBooked||first['Collection Booked']||'', totalUnits, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim());
     warehouseData.unshift(newDisplayRow); closeAddWorkModal(); applyFilters();
     showToast('Batch of ' + validRows.length + ' label codes added as 1 work item', 'success'); btn.disabled = false; btn.innerHTML = 'Add Work';
     const { data: inserted, error } = await sb.from('fba_work').insert(displayRowToSb(newDisplayRow)).select().single();
