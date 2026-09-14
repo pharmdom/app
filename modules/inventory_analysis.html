@@ -191,14 +191,14 @@ table.ia-table{width:100%;border-collapse:collapse;table-layout:fixed;background
   <nav class="topnav">
     <div class="tnav-left"><span class="tnav-title">Inventory Analysis</span></div>
     <div class="tnav-right">
-      <button class="nav-btn primary" onclick="showUploadZone()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        Upload Files
+            <button class="nav-btn primary" id="syncBtn" onclick="syncFromSellerSnap()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        Sync from Seller Snap
       </button>
-  
+
       <button class="nav-btn" onclick="confirmReset()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-        Reset
+        Clear Actions
       </button>
     </div>
   </nav>
@@ -226,41 +226,12 @@ table.ia-table{width:100%;border-collapse:collapse;table-layout:fixed;background
     </div>
   </div>
 
-  <div class="empty-state" id="emptyState">
-    <div class="upload-zone" style="padding:32px 24px;width:100%;">
-      <div class="upload-card">
-        <div class="upload-card-header">
-          <div class="upload-card-title">Upload this week's Veeqo exports</div>
-        </div>
-        <div class="upload-body">
-          <div class="upload-slot">
-            <div class="upload-slot-label"><span>File 1</span> Sellables Export (catalog)</div>
-            <div class="upload-drop" id="drop1" ondragover="invDragOver(event,1)" ondragleave="invDragLeave(this)" ondrop="invDropFile(event,1)">
-              <input type="file" accept=".csv" onchange="invPickFile(event,1)">
-              <div class="upload-drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-              <div class="upload-drop-text" id="drop1text">Drop CSV here or click to browse</div>
-              <div class="upload-drop-hint">sellables_export…</div>
-            </div>
-          </div>
-          <div class="upload-slot">
-            <div class="upload-slot-label"><span>File 2</span> Products Report (sales)</div>
-            <div class="upload-drop" id="drop2" ondragover="invDragOver(event,2)" ondragleave="invDragLeave(this)" ondrop="invDropFile(event,2)">
-              <input type="file" accept=".csv" onchange="invPickFile(event,2)">
-              <div class="upload-drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-              <div class="upload-drop-text" id="drop2text">Drop CSV here or click to browse</div>
-              <div class="upload-drop-hint">reports_products_export…</div>
-            </div>
-          </div>
-        </div>
-        <div class="upload-card-footer">
-          <div class="upload-rules">Both files must be uploaded to process. SKUs are taken from the Sellables Export only — the Products Report is used just to check for sales/stock against those SKUs. Re-uploading refreshes stock and sales figures; actions already taken are preserved.</div>
-          <button class="nav-btn primary" id="processInvBtn" onclick="processInventoryFiles()" disabled style="margin-top:10px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            Process Files
-          </button>
-        </div>
-      </div>
+    <div class="empty-state" id="emptyState">
+    <div class="upload-drop-icon" style="width:48px;height:48px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
     </div>
+    <div style="font-size:14px;font-weight:600;color:var(--text2);">No data loaded yet</div>
+    <div style="font-size:12.5px;color:var(--text4);max-width:320px;">Click "Sync from Seller Snap" above to pull live stock and sales data for every SKU.</div>
   </div>
 
   <div class="ia-content" id="contentArea" style="display:none;">
@@ -279,8 +250,9 @@ table.ia-table{width:100%;border-collapse:collapse;table-layout:fixed;background
     </div>
     <table class="ia-table">
       <thead>
-        <tr>
-          <th style="width:34%;">Product</th>
+                <tr>
+          <th style="width:7%;">Image</th>
+          <th style="width:27%;">Product</th>
           <th style="width:9%;text-align:right;">Stock</th>
           <th style="width:13%;text-align:right;">Sold</th>
           <th style="width:8%;text-align:right;">ST%</th>
@@ -321,17 +293,15 @@ const ST_SLOW_MIN = 11;
 const salesPeriodDays = 30;
 
 let ALL = [];
-let acts = {};        // sku -> true when "actioned" (price drop applied)
+let acts = {};        // sku -> true when "actioned" (price drop applied) — in-memory only for now
 let tab = 'all';
 let sortKey = 'total';
 let page = 0;
 let confirmFn = null;
-let rawCatalogFile = null;
-let rawSalesFile = null;
 
 const LBL = { all:'All', strong:'Strong', moderate:'Moderate', slow:'Slow', offload:'Offload', nosale:'No sales' };
 
-async function init(){ await restoreFromDB(); }
+async function init(){ showUploadZone(); }
 
 function computeRow(x){
   const stock = x.available || 0;
@@ -353,157 +323,66 @@ function computeRow(x){
   return { ...x, stock, sold, kits, total, st, cover, value: stock*(x.cost_price||0), clr: !!x.is_clearance, status };
 }
 
-function parseCSV(text){
-  const rows=[]; let i=0, field='', row=[], inQuotes=false; const n=text.length;
-  while(i<n){
-    const c=text[i];
-    if(inQuotes){
-      if(c==='"'){ if(text[i+1]==='"'){field+='"';i+=2;continue;} inQuotes=false;i++;continue; }
-      field+=c;i++;continue;
-    } else {
-      if(c==='"'){inQuotes=true;i++;continue;}
-      if(c===','){row.push(field);field='';i++;continue;}
-      if(c==='\r'){i++;continue;}
-      if(c==='\n'){row.push(field);rows.push(row);row=[];field='';i++;continue;}
-      field+=c;i++;continue;
-    }
-  }
-  if(field.length||row.length){row.push(field);rows.push(row);}
-  if(!rows.length) return [];
-  const headers=rows[0].map(h=>h.trim());
-  return rows.slice(1).filter(r=>r.length>1||(r.length===1&&r[0]!=='')).map(r=>{const o={};headers.forEach((h,idx)=>{o[h]=r[idx]!==undefined?r[idx]:'';});return o;});
-}
-
-function invDragOver(e,n){e.preventDefault();document.getElementById('drop'+n).classList.add('drag-over');}
-function invDragLeave(el){el.classList.remove('drag-over');}
-function invDropFile(e,n){e.preventDefault();const el=document.getElementById('drop'+n);el.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f)invReadFile(n,f);}
-function invPickFile(e,n){const f=e.target.files[0];if(f)invReadFile(n,f);}
-function invReadFile(n,file){
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    const rows=parseCSV(ev.target.result);
-    if(n===1) rawCatalogFile=rows; else rawSalesFile=rows;
-    document.getElementById('drop'+n).classList.add('loaded');
-    document.getElementById('drop'+n+'text').textContent=file.name;
-    document.getElementById('processInvBtn').disabled=!(rawCatalogFile&&rawSalesFile);
-  };
-  reader.readAsText(file);
-}
-window.invDragOver=invDragOver; window.invDragLeave=invDragLeave;
-window.invDropFile=invDropFile; window.invPickFile=invPickFile;
-
 function showUploadZone(){
   document.getElementById('contentArea').style.display='none';
   document.getElementById('emptyState').style.display='flex';
 }
 window.showUploadZone=showUploadZone;
 
-async function processInventoryFiles(){
-  if(!rawCatalogFile||!rawSalesFile) return;
-  const btn=document.getElementById('processInvBtn');
+async function syncFromSellerSnap(){
+  const btn=document.getElementById('syncBtn');
   btn.disabled=true;
-  btn.innerHTML='Processing…';
-
-  const catalogMap={};
-  rawCatalogFile.forEach(r=>{
-    const sku=(r.sku_code||'').trim();
-    if(!sku) return;
-    const tags=(r.tags||'').toLowerCase();
-    catalogMap[sku]={
-      name:r.product_title||sku,
-      price:parseFloat(r.sales_price)||0,
-      cost_price:parseFloat(r.cost_price)||0,
-      image_url:r.image_url||'',
-      product_id:r.product_id||null,
-      is_main_line:tags.includes('main line'),
-      is_clearance:tags.includes('clearance line'),
-    };
-  });
-
-  const salesMap={};
-  rawSalesFile.forEach(r=>{
-    const sku=(r.sku||'').trim();
-    if(!sku) return;
-    const unitsSold=parseFloat(r.units_sold)||0;
-    const kitsSold=parseFloat(r.units_sold_in_kits)||0;
-    const totalSold=parseFloat(r.total_units_sold)||(unitsSold+kitsSold);
-    salesMap[sku]={
-      available:parseInt(r.available)||0,
-      units_sold:unitsSold,
-      units_sold_in_kits:kitsSold,
-      total_sold:totalSold,
-      price_fallback:parseFloat(r.price_per_unit)||0,
-      cost_fallback:parseFloat(r.cost_price)||0,
-      name_fallback:r.name||sku,
-    };
-  });
-
-  const allSkus=new Set(Object.keys(catalogMap));
-  const rows=[...allSkus].map(sku=>{
-    const cat=catalogMap[sku]||{};
-    const sale=salesMap[sku]||{};
-return {
-      sku,
-      name:cat.name||sale.name_fallback||sku,
-      price:cat.price||sale.price_fallback||0,
-      cost_price:cat.cost_price||sale.cost_fallback||0,
-      image_url:cat.image_url||'',
-      product_id:cat.product_id||null,
-      available:sale.available!==undefined?sale.available:0,
-      units_sold:sale.units_sold||0,
-      units_sold_in_kits:sale.units_sold_in_kits||0,
-      total_sold:sale.total_sold||0,
-      is_clearance:cat.is_clearance===true,
-    };
-  });
+  btn.innerHTML='Syncing…';
 
   try{
-    const payload=rows.map(r=>({
-      sku:r.sku, product_title:r.name, price:r.price, cost_price:r.cost_price,
-      available:r.available, units_sold:r.units_sold, units_sold_in_kits:r.units_sold_in_kits,
-      total_qty_sold:r.total_sold, image_url:r.image_url, product_id:r.product_id, is_clearance:r.is_clearance,
-    }));
-    const BATCH=500; let failedCount=0; let firstError=null;
-    for(let i=0;i<payload.length;i+=BATCH){
-      const {error}=await sb.from('inventory_skus').upsert(payload.slice(i,i+BATCH),{onConflict:'sku'});
-      if(error){ failedCount+=payload.slice(i,i+BATCH).length; if(!firstError) firstError=error; }
+        const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(`https://mbmgcqknbajwndiveewf.supabase.co/functions/v1/sellersnap-listings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session?.access_token}`,
+      },
+    });
+    const json = await res.json();
+
+    if(!json.success){
+      toast('Sync failed: '+json.message,'error');
+      btn.disabled=false; btn.innerHTML='Sync from Seller Snap';
+      return;
     }
-    if(firstError) toast(`Save failed for ${failedCount} of ${rows.length} SKUs: ${firstError.message}`,'error');
-    else toast(`Processed ${rows.length} SKUs`,'success');
-  } catch(e){ toast('Save failed: '+e.message,'error'); }
 
-  rawCatalogFile=null; rawSalesFile=null;
-  document.getElementById('drop1').classList.remove('loaded');
-  document.getElementById('drop1text').textContent='Drop CSV here or click to browse';
-  document.getElementById('drop2').classList.remove('loaded');
-  document.getElementById('drop2text').textContent='Drop CSV here or click to browse';
-  btn.innerHTML='Process Files'; btn.disabled=true;
+    const rows = json.data
+      .filter(x => !(x.tags||[]).some(t => String(t).toLowerCase().includes('clearance')))
+      .map(x => ({
+        sku: x.sku||'',
+        name: x.title||x.sku||'—',
+        price: parseFloat(x.listed_price)||0,
+        cost_price: parseFloat(x.cost)||0,
+        image_url: x.image_url||'',
+        available: parseInt(x.fulfillable_quantity)||0,
+        units_sold: parseInt(x.total_order_items)||0,
+        units_sold_in_kits: 0,
+        total_qty_sold: parseInt(x.total_order_items)||0,
+        is_clearance: false,
+      }));
 
-  await restoreFromDB();
-}
-window.processInventoryFiles=processInventoryFiles;
+    ALL = rows;
+    acts = {};
+    page = 0;
 
-async function restoreFromDB(){
-  if(!sb) return;
-  try{
-    const {data,error}=await sb.from('inventory_skus').select('*').order('sku',{ascending:true});
-    if(error||!data||!data.length){ showUploadZone(); return; }
-    ALL=data.map(r=>({
-      sku:r.sku||'', product_id:r.product_id, name:r.product_title||r.sku||'—',
-      price:parseFloat(r.price)||0, cost_price:parseFloat(r.cost_price)||0,
-      available:parseInt(r.available)||0, units_sold:parseInt(r.units_sold)||0,
-      units_sold_in_kits:parseInt(r.units_sold_in_kits)||0, total_qty_sold:parseInt(r.total_qty_sold)||0,
-      is_clearance:!!r.is_clearance, status_override:r.status_override||null,
-    }));
-    acts={};
-    data.forEach(r=>{ if(r.action==='done') acts[r.sku]=true; });
     document.getElementById('emptyState').style.display='none';
     document.getElementById('contentArea').style.display='block';
     document.getElementById('invStatsBanner').style.display='grid';
     buildTabs();
     render();
-  } catch(e){ console.warn('restoreFromDB error', e); }
+    toast(`Synced ${rows.length} SKUs from Seller Snap`,'success');
+  } catch(e){
+    toast('Sync failed: '+e.message,'error');
+  }
+
+  btn.disabled=false; btn.innerHTML='Sync from Seller Snap';
 }
+window.syncFromSellerSnap=syncFromSellerSnap;
 
 function buildTabs(){
   const withStatus=ALL.map(computeRow);
@@ -519,12 +398,9 @@ function buildTabs(){
   });
 }
 
-async function toggleAction(sku){
+function toggleAction(sku){
   const isOn=!!acts[sku];
   if(isOn) delete acts[sku]; else acts[sku]=true;
-  try{
-    await sb.from('inventory_skus').update({ action:isOn?null:'done', actioned_at:isOn?null:new Date().toISOString() }).eq('sku',sku);
-  } catch(e){}
   render();
 }
 window.toggleAction=toggleAction;
@@ -566,9 +442,12 @@ function render(){
     const action=canAct
       ? `<button class="act-btn${done?' is-on':''}" onclick="toggleAction('${esc(r.sku)}')">${done?'Undo':'Price drop'}</button>`
       : `<span class="act-dash">—</span>`;
-    return `<tr class="${done?'is-done':''}">
+        return `<tr class="${done?'is-done':''}">
       <td>
-        <div class="ia-name">${esc(r.name)}${r.clr?' <span class="clr-tag">· clr</span>':''}</div>
+        ${r.image_url ? `<img src="${esc(r.image_url)}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:var(--surface2);">` : `<div style="width:34px;height:34px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);"></div>`}
+      </td>
+      <td>
+        <div class="ia-name">${esc(r.name)}</div>
         <div class="ia-sku">${esc(r.sku)}</div>
       </td>
       <td style="text-align:right;">${r.stock.toLocaleString()}</td>
@@ -625,30 +504,16 @@ function updateStatsBanner(withStatus){
   document.getElementById('statCapitalSub').textContent=valuePct+'% of £'+fmt(totalValue)+' stock at cost';
 }
 
-function confirmReset(){
-  openConfirm('Reset all actions?','This clears every "Price drop" action. Check the box below if you want to wipe all inventory data instead.',async()=>{
-    const wipeAll=document.getElementById('confirmCheckbox').checked;
+
+  function confirmReset(){
+  openConfirm('Clear all actions?','This clears every "Price drop" action for the current session.',()=>{
     closeConfirm();
-    try{
-      if(wipeAll){
-        const {error}=await sb.from('inventory_skus').delete().neq('sku','');
-        if(error) throw error;
-        acts={}; ALL=[]; page=0;
-        document.getElementById('contentArea').style.display='none';
-        document.getElementById('invStatsBanner').style.display='none';
-        document.getElementById('emptyState').style.display='flex';
-        toast('All inventory data deleted','info');
-      } else {
-        await sb.from('inventory_skus').update({ action:null, actioned_at:null }).neq('sku','');
-        acts={}; page=0;
-        await restoreFromDB();
-        toast('Actions cleared','info');
-      }
-    } catch(e){ toast('Reset failed: '+e.message,'error'); }
-  }, true);
+    acts={};
+    render();
+    toast('Actions cleared','info');
+  }, false);
 }
 window.confirmReset=confirmReset;
-
 
 
 function openConfirm(title,msg,fn,showCheckbox){
