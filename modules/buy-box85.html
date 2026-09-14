@@ -59,7 +59,13 @@
 
   .bb-pending-tag{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;color:#b45309;background:#fef3c7;padding:2px 6px;border-radius:100px;margin-left:6px;}
   .bb-processed-tag{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;color:#15803d;background:#dcfce7;padding:2px 6px;border-radius:100px;margin-left:6px;}
+  .bb-error-tag{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;color:#b91c1c;background:#fee2e2;padding:2px 6px;border-radius:100px;margin-left:6px;}
+  .bb-map-tag{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:100px;margin-left:6px;}
+  .bb-map-tag.queued,.bb-map-tag.importing{color:#1d4ed8;background:#dbeafe;}
+  .bb-map-tag.done{color:#15803d;background:#dcfce7;}
+  .bb-map-tag.failed{color:#b91c1c;background:#fee2e2;}
 
+  
   .bb-footer{display:flex;justify-content:space-between;align-items:center;padding:12px 4px;flex-shrink:0;}
   .bb-page-info{font-size:12px;color:#64748b;}
   .bb-page-nav{display:flex;gap:6px;align-items:center;}
@@ -162,7 +168,8 @@
   let bbPage = 0;
   let editingSku = null;
   let pending = {};       // sku -> { fields changed }
-  let processedSkus = new Set();
+  let rowStatus = {};     // sku -> { sync: 'ok'|'error'|errMsg|null, map: 'queued'|'importing'|'done'|'failed'|null }
+  let activeImports = 0;  // count of in-flight MAP polling loops blocking page advance
 
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function fmtGBP(n){ return '£' + (parseFloat(n)||0).toFixed(2); }
@@ -251,11 +258,11 @@
 
   function bbTotalPages(){ return Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)); }
 
-  window.bbChangePage = function(dir){
+    window.bbChangePage = function(dir){
     const newPage = bbPage + dir;
     if(newPage < 0 || newPage >= bbTotalPages()) return;
-    if(dir > 0 && bbPendingCountOnPage() > 0){
-      toast('Process this page\'s pending changes before moving forward', 'error');
+    if(dir > 0 && bbHasBlockingWork()){
+      toast(activeImports > 0 ? 'Still waiting for MAP changes to confirm' : 'Process this page\'s pending changes before moving forward', 'error');
       return;
     }
     bbPage = newPage;
@@ -266,6 +273,10 @@
   function bbPendingCountOnPage(){
     const pageRows = filtered.slice(bbPage*PAGE_SIZE, bbPage*PAGE_SIZE+PAGE_SIZE);
     return pageRows.filter(r => pending[r.sku]).length;
+  }
+
+  function bbHasBlockingWork(){
+    return bbPendingCountOnPage() > 0 || activeImports > 0;
   }
 
   function bbRenderPage(){
@@ -289,8 +300,9 @@
   function bbRowHTML(r){
     const isEditing = editingSku===r.sku;
     const isPending = !!pending[r.sku];
-    const isProcessed = processedSkus.has(r.sku) && !isPending;
-    const rowClass = isPending ? 'pending' : (isProcessed ? 'processed' : '');
+    const st = rowStatus[r.sku] || {};
+    const isProcessed = !isPending && (st.sync==='ok' || st.sync===undefined) && (st.map==='done' || st.map===undefined) && (st.sync || st.map);
+    const rowClass = isPending ? 'pending' : (isProcessed ? 'processed' : (st.sync==='error'||st.map==='failed' ? 'pending' : ''));
     const p = pending[r.sku] || {};
 
     const val = (field, fallback) => p[field]!==undefined ? p[field] : fallback;
@@ -317,8 +329,13 @@
         <button class="bb-edit-btn" onclick="bbToggleEdit('${esc(r.sku)}')" title="${isEditing?'Done':'Edit'}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
         </button>
-        ${isPending?'<span class="bb-pending-tag">Pending</span>':''}
-        ${isProcessed?'<span class="bb-processed-tag">✓ Sent</span>':''}
+                ${isPending?'<span class="bb-pending-tag">Pending</span>':''}
+        ${!isPending && st.sync==='ok'?'<span class="bb-processed-tag">✓ Sent</span>':''}
+        ${!isPending && st.sync && st.sync!=='ok'?`<span class="bb-error-tag" title="${esc(st.sync)}">✕ Failed</span>`:''}
+        ${!isPending && st.map==='queued'?'<span class="bb-map-tag queued">MAP Queued</span>':''}
+        ${!isPending && st.map==='importing'?'<span class="bb-map-tag importing">MAP Importing…</span>':''}
+        ${!isPending && st.map==='done'?'<span class="bb-map-tag done">MAP ✓</span>':''}
+        ${!isPending && st.map==='failed'?'<span class="bb-map-tag failed">MAP Failed</span>':''}
       </td>
     </tr>`;
   }
@@ -346,7 +363,7 @@
     bbRenderPage();
   };
 
-  window.bbProcessBatch = async function(){
+    window.bbProcessBatch = async function(){
     const start = bbPage*PAGE_SIZE;
     const pageRows = filtered.slice(start, start+PAGE_SIZE);
     const toSend = pageRows.filter(r => pending[r.sku]).map(r => ({ sku: r.sku, ...pending[r.sku] }));
@@ -355,25 +372,108 @@
     const btn = document.getElementById('bbProcessBtn');
     btn.disabled = true; btn.textContent = 'Processing…';
 
+    // Split: MAP goes through the async mass endpoint; everything else through the fast sync endpoint
+    const mapUpdates = toSend.filter(u => u.map !== undefined && u.map !== null && u.map !== '').map(u => ({ sku: u.sku, map: u.map }));
+    const syncUpdates = toSend
+      .map(u => { const { map, ...rest } = u; return rest; })
+      .filter(u => Object.keys(u).length > 1); // more than just sku
+
+    editingSku = null;
+
     try{
       const { data: { session } } = await sb.auth.getSession();
-      const res = await fetch('https://mbmgcqknbajwndiveewf.supabase.co/functions/v1/sellersnap-update-listings', {
-        method:'POST',
-        headers: { 'Content-Type':'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ updates: toSend }),
-      });
-      const json = await res.json();
-      if(!json.success){ toast('Process failed: '+json.message,'error'); btn.disabled=false; bbRenderPage(); return; }
+      const token = session?.access_token;
 
-      toSend.forEach(u => { processedSkus.add(u.sku); delete pending[u.sku]; });
-      toast(`Processed ${toSend.length} listing(s)`, 'success');
-      editingSku = null;
+      if(syncUpdates.length){
+        const res = await fetch('https://mbmgcqknbajwndiveewf.supabase.co/functions/v1/sellersnap-update-listings', {
+          method:'POST',
+          headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ updates: syncUpdates }),
+        });
+        const json = await res.json();
+        if(!json.success){
+          toast('Sync update failed: '+json.message,'error');
+          syncUpdates.forEach(u => { rowStatus[u.sku] = { ...(rowStatus[u.sku]||{}), sync: 'Request failed' }; });
+        } else {
+          const errs = (json.result?.data?.errors_details?.listings) || [];
+          const errMap = {}; errs.forEach(e => errMap[e.sku] = e.errors);
+          syncUpdates.forEach(u => {
+            rowStatus[u.sku] = { ...(rowStatus[u.sku]||{}), sync: errMap[u.sku] ? errMap[u.sku] : 'ok' };
+          });
+        }
+      }
 
-      if(bbPage < bbTotalPages()-1){
-        bbPage++;
+      if(mapUpdates.length){
+        mapUpdates.forEach(u => { rowStatus[u.sku] = { ...(rowStatus[u.sku]||{}), map: 'queued' }; });
+        bbRenderPage();
+
+        const res = await fetch('https://mbmgcqknbajwndiveewf.supabase.co/functions/v1/sellersnap-update-map', {
+          method:'POST',
+          headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ updates: mapUpdates }),
+        });
+        const json = await res.json();
+        if(!json.success || !json.import_id){
+          mapUpdates.forEach(u => { rowStatus[u.sku] = { ...(rowStatus[u.sku]||{}), map: 'failed' }; });
+          toast('MAP submission failed: '+(json.message||'unknown error'),'error');
+        } else {
+          activeImports++;
+          bbPollMapImport(json.import_id, mapUpdates.map(u=>u.sku));
+        }
+      }
+
+      // Clear pending only for rows we actually attempted
+      toSend.forEach(u => delete pending[u.sku]);
+
+      const hasBlockingMap = mapUpdates.length > 0;
+      if(!hasBlockingMap){
+        toast(`Processed ${syncUpdates.length} listing(s)`, 'success');
+        if(bbPage < bbTotalPages()-1) bbPage++;
+      } else {
+        toast(`${syncUpdates.length} sent instantly · ${mapUpdates.length} MAP change(s) queued — waiting for confirmation before moving on`, 'info');
       }
       bbRenderPage();
-    } catch(e){ toast('Process failed: '+e.message,'error'); btn.disabled=false; }
+    } catch(e){ toast('Process failed: '+e.message,'error'); }
+
+    btn.disabled = activeImports > 0;
+    if(activeImports === 0) btn.textContent = 'Process (0)';
   };
+
+  async function bbPollMapImport(importId, skus){
+    const { data: { session } } = await sb.auth.getSession();
+    const token = session?.access_token;
+
+    const poll = async () => {
+      try{
+        const res = await fetch('https://mbmgcqknbajwndiveewf.supabase.co/functions/v1/sellersnap-import-status', {
+          method:'POST',
+          headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ import_id: importId }),
+        });
+        const json = await res.json();
+        const status = json.success ? json.status : 'failed';
+
+        if(status === 'done' || status === 'failed'){
+          skus.forEach(sku => { rowStatus[sku] = { ...(rowStatus[sku]||{}), map: status }; });
+          activeImports--;
+          bbRenderPage();
+          if(activeImports === 0 && bbPage < bbTotalPages()-1){
+            toast('MAP changes confirmed — moving to next page', 'success');
+            setTimeout(() => { bbPage++; bbRenderPage(); }, 800);
+          }
+          return;
+        }
+
+        skus.forEach(sku => { rowStatus[sku] = { ...(rowStatus[sku]||{}), map: status }; });
+        bbRenderPage();
+        setTimeout(poll, 3000);
+      } catch(e){
+        skus.forEach(sku => { rowStatus[sku] = { ...(rowStatus[sku]||{}), map: 'failed' }; });
+        activeImports--;
+        bbRenderPage();
+      }
+    };
+    poll();
+  }
 })();
 </script>
