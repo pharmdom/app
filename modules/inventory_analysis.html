@@ -92,7 +92,7 @@
 .upload-card-footer{padding:14px 24px;background:var(--surface2);border-top:1px solid var(--border2);}
 .upload-rules{font-size:11px;color:var(--text4);line-height:1.6;}
 
-.ia-content{flex:1;padding:16px 20px;}
+.ia-content{flex:1;padding:16px 20px;display:flex;flex-direction:column;min-height:0;max-height:calc(100vh - 160px);}
 .tabs-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
 .tab-pill{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;
   color:var(--text3);cursor:pointer;border:1px solid var(--border);background:var(--surface);transition:all .12s;user-select:none;}
@@ -106,8 +106,9 @@
 .controls-row select{width:200px;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);
   font-size:12.5px;font-family:var(--font);background:var(--surface);color:var(--text2);cursor:pointer;outline:none;}
 
-table.ia-table{width:100%;border-collapse:collapse;table-layout:fixed;background:var(--surface);
-  border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--sh-sm);}
+.ia-table-scroll{flex:1;min-height:0;overflow-y:auto;border-radius:var(--r-lg);box-shadow:var(--sh-sm);}
+table.ia-table{width:100%;border-collapse:collapse;table-layout:fixed;background:var(--surface);}
+.ia-table thead th{position:sticky;top:0;z-index:1;}
 .ia-table thead th{padding:9px 10px;text-align:left;font-size:10.5px;font-weight:700;text-transform:uppercase;
   letter-spacing:.4px;color:var(--text4);background:var(--surface2);border-bottom:1px solid var(--border);}
 .ia-table td{padding:9px 10px;border-bottom:1px solid var(--border2);vertical-align:middle;font-size:12.5px;}
@@ -128,13 +129,18 @@ table.ia-table{width:100%;border-collapse:collapse;table-layout:fixed;background
 .st-nosale{color:var(--nosale);background:var(--nosale-bg);border-color:var(--nosale-bd);}
 .st-done{color:var(--done);background:var(--done-bg);border-color:var(--done-bd);}
 
+.fc-badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;
+  font-size:9px;font-weight:800;letter-spacing:.04em;border:1px solid;white-space:nowrap;margin-left:6px;}
+.fc-fba{color:#7c3aed;background:#f5f3ff;border-color:#ddd6fe;}
+.fc-fbm{color:#c2410c;background:#fff7ed;border-color:#fed7aa;}
+  
 .act-btn{font-size:11px;font-weight:600;padding:5px 10px;border-radius:var(--r-sm);
   border:1.5px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;font-family:var(--font);}
 .act-btn:hover{background:var(--surface);border-color:var(--text4);}
 .act-btn.is-on{background:var(--done-bg);border-color:var(--done-bd);color:var(--done);}
 .act-dash{color:var(--text4);font-size:12px;}
 
-.pager-row{display:flex;justify-content:space-between;align-items:center;margin-top:12px;}
+.pager-row{display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-shrink:0;}
 .pager-count{font-size:12px;color:var(--text4);}
 .pager-controls{display:flex;gap:6px;align-items:center;}
 .pager-controls button{font-size:12px;font-weight:600;padding:5px 12px;border-radius:var(--r-sm);
@@ -238,7 +244,7 @@ table.ia-table{width:100%;border-collapse:collapse;table-layout:fixed;background
     <div class="tabs-row" id="tabsRow"></div>
     <div class="controls-row">
       <input type="text" id="searchInput" placeholder="Search SKU or product" oninput="resetPage();render();">
-      <select id="sortSelect" onchange="resetPage();render();">
+           <select id="sortSelect" onchange="resetPage();render();">
         <option value="total">Units sold ↓</option>
         <option value="st_d">Sell-through ↓</option>
         <option value="st_a">Sell-through ↑</option>
@@ -247,22 +253,29 @@ table.ia-table{width:100%;border-collapse:collapse;table-layout:fixed;background
         <option value="cover">Weeks of cover ↓</option>
         <option value="name">Product A–Z</option>
       </select>
+      <select id="fcFilterSelect" onchange="resetPage();render();" style="width:120px;">
+        <option value="all">All</option>
+        <option value="FBA">FBA only</option>
+        <option value="FBM">FBM only</option>
+      </select>
     </div>
-    <table class="ia-table">
-      <thead>
-                <tr>
-          <th style="width:7%;">Image</th>
-          <th style="width:27%;">Product</th>
-          <th style="width:9%;text-align:right;">Stock</th>
-          <th style="width:13%;text-align:right;">Sold</th>
-          <th style="width:8%;text-align:right;">ST%</th>
-          <th style="width:8%;text-align:right;">Wks</th>
-          <th style="width:14%;">Status</th>
-          <th style="width:14%;">Action</th>
-        </tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-    </table>
+        <div class="ia-table-scroll">
+      <table class="ia-table">
+        <thead>
+          <tr>
+            <th style="width:7%;">Image</th>
+            <th style="width:27%;">Product</th>
+            <th style="width:9%;text-align:right;">Stock</th>
+            <th style="width:13%;text-align:right;">Sold</th>
+            <th style="width:8%;text-align:right;">ST%</th>
+            <th style="width:8%;text-align:right;">Wks</th>
+            <th style="width:14%;">Status</th>
+            <th style="width:14%;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
     <div class="pager-row">
       <span class="pager-count" id="pagerCount"></span>
       <div class="pager-controls">
@@ -351,7 +364,7 @@ async function syncFromSellerSnap(){
       return;
     }
 
-    const rows = json.data
+const rows = json.data
       .filter(x => !(x.tags||[]).some(t => String(t).toLowerCase().includes('clearance')))
       .map(x => ({
         sku: x.sku||'',
@@ -364,6 +377,7 @@ async function syncFromSellerSnap(){
         units_sold_in_kits: 0,
         total_qty_sold: parseInt(x.total_order_items)||0,
         is_clearance: false,
+        fulfillment: (x.fulfillment_channel||'').toUpperCase()==='FBA' ? 'FBA' : 'FBM',
       }));
 
     ALL = rows;
@@ -416,8 +430,9 @@ function render(){
   const withStatus=ALL.map(computeRow);
   updateStatsBanner(withStatus);
 
-  let rows=withStatus.filter(x=>(tab==='all'||x.status===tab)&&(!q||x.sku.toLowerCase().includes(q)||x.name.toLowerCase().includes(q)));
-
+    const fcFilter=document.getElementById('fcFilterSelect').value;
+  let rows=withStatus.filter(x=>(tab==='all'||x.status===tab)&&(fcFilter==='all'||x.fulfillment===fcFilter)&&(!q||x.sku.toLowerCase().includes(q)||x.name.toLowerCase().includes(q)));
+  
   rows.sort((a,b)=>{
     if(sortKey==='total') return b.total-a.total;
     if(sortKey==='st_d') return b.st-a.st;
@@ -447,7 +462,7 @@ function render(){
         ${r.image_url ? `<img src="${esc(r.image_url)}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:6px;border:1px solid var(--border);background:var(--surface2);">` : `<div style="width:34px;height:34px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);"></div>`}
       </td>
       <td>
-        <div class="ia-name">${esc(r.name)}</div>
+        <div class="ia-name">${esc(r.name)}<span class="fc-badge fc-${r.fulfillment.toLowerCase()}">${r.fulfillment}</span></div>
         <div class="ia-sku">${esc(r.sku)}</div>
       </td>
       <td style="text-align:right;">${r.stock.toLocaleString()}</td>
