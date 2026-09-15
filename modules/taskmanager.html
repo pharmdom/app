@@ -271,6 +271,7 @@
   let tmTasks=[], tmMembers=[], tmWarehouseUsers=[], tmCurrentUserId=null, tmCurrentUserName=authFullName;
   let tmView='kanban', tmGroupBy='owner', tmSortBy='deadline', tmPriorityFilter=[];
   let tmSearch='', tmSearchOpen=false, tmOpenPopover=null;
+  let tmDoneFilter='todo';
   let tmFormMode='create', tmFormEditingId=null, tmFormDefaults=null, tmFormOwnerIds=[];
   let tmFormPriority='Medium', tmFormStatus='To Do', tmOwnerPickerOpen=false;
   let tmDragTaskId=null, tmConfirmDeleteId=null;
@@ -422,7 +423,11 @@
           <div class="tm-popover ${tmOpenPopover==='group'?'open':''}" id="tmPopGroup">
             ${[['owner','Owner'],['status','Status']].map(([k,l])=>`<button class="tm-popover-item" onclick="window.tmSetGroup('${k}')">${l}${tmGroupBy===k?' &#10003;':''}</button>`).join('')}
           </div>
-        </div>` : ''}
+                </div>` : ''}
+        <div class="tm-seg" style="gap:0;background:#fff;border:1px solid #e5e7eb;border-radius:9px;padding:3px;">
+          <button class="tm-view-btn ${tmDoneFilter==='todo'?'active':''}" style="padding:6px 12px;" onclick="window.tmSetDoneFilter('todo')">To-do</button>
+          <button class="tm-view-btn ${tmDoneFilter==='done'?'active':''}" style="padding:6px 12px;" onclick="window.tmSetDoneFilter('done')">Done</button>
+        </div>
         <div class="tm-search-box ${tmSearchOpen?'open':''}">
           <button onclick="window.tmToggleSearch()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
           ${tmSearchOpen ? `<input autofocus value="${escA(tmSearch)}" placeholder="Search tasks" oninput="window.tmSearchInput(this.value)">` : ''}
@@ -430,6 +435,7 @@
             </div>`;
   }
   window.tmSetView = (v)=>{ tmView=v; tmOpenPopover=null; renderAll(); };
+  window.tmSetDoneFilter = (v)=>{ tmDoneFilter=v; renderToolbar(); renderBoard(); };
   window.tmTogglePopover = (key,e)=>{ e.stopPropagation(); tmOpenPopover = tmOpenPopover===key ? null : key; renderToolbar(); };
   window.tmToggleFilter = (p)=>{ tmPriorityFilter = tmPriorityFilter.includes(p) ? tmPriorityFilter.filter(x=>x!==p) : [...tmPriorityFilter, p]; renderToolbar(); renderBoard(); };
   window.tmClearFilter = ()=>{ tmPriorityFilter=[]; tmOpenPopover=null; renderToolbar(); renderBoard(); };
@@ -448,10 +454,12 @@
   document.addEventListener('click', ()=>{ if(tmOpenPopover){ tmOpenPopover=null; renderToolbar(); } });
 
   /* ── BOARD ── */
-  function getFilteredSorted(){
+    function getFilteredSorted(){
     let f = tmTasks.filter(t=>{
       if(tmSearch && !`${t.title} ${t.category}`.toLowerCase().includes(tmSearch.toLowerCase())) return false;
       if(tmPriorityFilter.length && !tmPriorityFilter.includes(t.priority)) return false;
+      if(tmDoneFilter==='todo' && t.status==='Complete') return false;
+      if(tmDoneFilter==='done' && t.status!=='Complete') return false;
       return true;
     });
     return sortTasks(f, tmSortBy);
