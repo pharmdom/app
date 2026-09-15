@@ -1,1 +1,518 @@
-<p>this is for all buy box @ 40%</p>
+<style>
+  .bb-app{font-family:'Inter',system-ui,sans-serif;font-size:14px;color:#0f172a;background:#f5f6fa;display:flex;flex-direction:column;min-height:600px;}
+  .bb-topnav{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e2e8f0;background:#fff;flex-shrink:0;}
+  .bb-topnav h1{font-size:16px;font-weight:700;}
+  .bb-topnav p{font-size:12px;color:#94a3b8;margin-top:2px;}
+
+  .bb-totals{display:flex;gap:28px;}
+  .bb-total-item{display:flex;flex-direction:column;gap:1px;}
+  .bb-total-label{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#94a3b8;}
+  .bb-total-value{font-size:15px;font-weight:800;color:#0f172a;}
+
+  .bb-nav-btn{display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:9px;border:1px solid #e2e8f0;background:#fff;font-size:13px;font-weight:600;cursor:pointer;color:#334155;flex-shrink:0;}
+  .bb-nav-btn.primary{background:#3b6ef8;color:#fff;border-color:#3b6ef8;}
+  .bb-nav-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+  .bb-content{flex:1;padding:16px 20px;}
+  .bb-sticky-zone{position:sticky;top:0;z-index:15;background:#f5f6fa;padding-top:4px;margin-bottom:12px;}
+  .bb-controls{display:flex;gap:8px;align-items:center;}
+  .bb-controls input,.bb-controls select{padding:9px 12px;border-radius:9px;border:1px solid #e2e8f0;font-size:13px;background:#fff;}
+  .bb-controls input{flex:1;max-width:280px;}
+  .bb-controls-spacer{flex:1;}
+  .bb-process-btn{padding:9px 18px;border-radius:9px;border:1px solid #d97706;background:#f59e0b;color:#fff;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;}
+  .bb-process-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+  .bb-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center;color:#94a3b8;gap:8px;}
+
+  .bb-table-scroll{overflow:auto;max-height:calc(100vh - 220px);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);background:#fff;}
+  table.bb-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;}
+  .bb-table th{position:sticky;top:0;z-index:3;background:#f8fafc;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:#64748b;padding:10px 12px;border-bottom:1px solid #e2e8f0;white-space:nowrap;}
+  .bb-table td{padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;vertical-align:middle;white-space:nowrap;}
+  .bb-table tr.processed td{background:#f0fdf4;}
+  .bb-table tr.pending td{background:#fffbeb;}
+
+  /* frozen columns — explicit opaque backgrounds so scrolled content can't bleed through */
+  .bb-col-check,.bb-col-img,.bb-col-product,.bb-col-bb{background:#fff;}
+  tr.pending .bb-col-check,tr.pending .bb-col-img,tr.pending .bb-col-product,tr.pending .bb-col-bb{background:#fffbeb;}
+  tr.processed .bb-col-check,tr.processed .bb-col-img,tr.processed .bb-col-product,tr.processed .bb-col-bb{background:#f0fdf4;}
+  .bb-col-check{position:sticky;left:0;z-index:2;width:40px;min-width:40px;max-width:40px;box-sizing:border-box;}
+  .bb-col-img{position:sticky;left:40px;z-index:2;}
+  .bb-col-product{position:sticky;left:96px;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,.04);min-width:200px;max-width:200px;}
+  .bb-col-bb{position:sticky;left:296px;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,.04);}
+  .bb-table th.bb-col-check,.bb-table th.bb-col-img,.bb-table th.bb-col-product,.bb-table th.bb-col-bb{z-index:4;background:#f8fafc;}
+
+  .bb-thumb{width:34px;height:34px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;background:#f1f5f9;display:block;}
+  .bb-pname{font-weight:600;color:#0f172a;font-size:12.5px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:184px;}
+  .bb-pmeta{font-size:10.5px;color:#94a3b8;margin-top:2px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+  .bb-copyable{cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px;}
+  .bb-copyable:hover{color:#3b6ef8;}
+  .bb-fc{display:inline-flex;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:800;border:1px solid;}
+  .bb-fc.FBA{color:#7c3aed;background:#f5f3ff;border-color:#ddd6fe;}
+  .bb-fc.FBM{color:#c2410c;background:#fff7ed;border-color:#fed7aa;}
+
+  .bb-badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:100px;font-size:12px;font-weight:800;}
+  .bb-badge.low{background:#fee2e2;color:#b91c1c;}
+  .bb-badge.nodata{background:#f1f5f9;color:#64748b;}
+  .bb-readonly{background:#f8fafc;color:#64748b;}
+  .bb-editable-cell{position:relative;}
+  .bb-cell-pencil{opacity:0;transition:opacity .12s;position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:5px;border:1px solid #e2e8f0;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#3b6ef8;}
+  .bb-editable-cell:hover .bb-cell-pencil{opacity:1;}
+
+  .bb-input{width:78px;padding:5px 7px;border-radius:6px;border:1px solid #3b6ef8;font-size:12.5px;font-family:inherit;}
+  .bb-input.tags{width:150px;}
+  .bb-toggle{width:34px;height:19px;border-radius:100px;position:relative;cursor:pointer;border:none;transition:background .15s;flex-shrink:0;}
+  .bb-toggle.on{background:#22c55e;}
+  .bb-toggle.off{background:#cbd5e1;}
+  .bb-toggle::after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:transform .15s;}
+  .bb-toggle.on::after{transform:translateX(15px);}
+
+  .bb-pending-tag{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;color:#b45309;background:#fef3c7;padding:2px 6px;border-radius:100px;}
+  .bb-processed-tag{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;color:#15803d;background:#dcfce7;padding:2px 6px;border-radius:100px;}
+  .bb-error-tag{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;color:#b91c1c;background:#fee2e2;padding:2px 6px;border-radius:100px;}
+  .bb-map-tag{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:100px;}
+  .bb-map-tag.queued,.bb-map-tag.importing{color:#1d4ed8;background:#dbeafe;}
+  .bb-map-tag.done{color:#15803d;background:#dcfce7;}
+  .bb-map-tag.failed{color:#b91c1c;background:#fee2e2;}
+
+  .bb-footer{display:flex;justify-content:flex-end;align-items:center;padding:12px 4px;flex-shrink:0;gap:16px;}
+  .bb-page-info{font-size:12px;color:#64748b;}
+  .bb-page-nav{display:flex;gap:6px;align-items:center;}
+  .bb-page-btn{width:30px;height:30px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#64748b;}
+  .bb-page-btn:disabled{opacity:.4;cursor:not-allowed;}
+</style>
+
+<div class="bb-app">
+  <div class="bb-topnav">
+    <div>
+      <h1>Buy-box @ 40%</h1>
+      <p>Listings at 40% Buy Box share or below, including those with no Buy Box data at all</p>
+    </div>
+    <div class="bb-totals" id="bbTotals" style="display:none;">
+      <div class="bb-total-item"><span class="bb-total-label">Listings</span><span class="bb-total-value" id="bbStatCount">—</span></div>
+      <div class="bb-total-item"><span class="bb-total-label">Revenue</span><span class="bb-total-value" id="bbStatRevenue">—</span></div>
+      <div class="bb-total-item"><span class="bb-total-label">Stock Value</span><span class="bb-total-value" id="bbStatStockValue">—</span></div>
+      <div class="bb-total-item"><span class="bb-total-label">Avg Margin</span><span class="bb-total-value" id="bbStatMargin">—</span></div>
+    </div>
+  </div>
+
+  <div class="bb-content">
+    <div class="bb-sticky-zone">
+      <div class="bb-controls">
+        <input type="text" id="bbSearch" placeholder="Search product or SKU" oninput="bbResetAndRender()">
+        <select id="bbFcFilter" onchange="bbResetAndRender()">
+          <option value="all">FBA + FBM</option>
+          <option value="FBA">FBA only</option>
+          <option value="FBM">FBM only</option>
+        </select>
+        <select id="bbSort" onchange="bbResetAndRender()">
+          <option value="revenue" selected>Revenue ↓</option>
+          <option value="bb">Buy Box % ↑ (worst first)</option>
+          <option value="margin">Profit margin ↑ (worst first)</option>
+          <option value="orders">Orders ↓</option>
+        </select>
+        <div class="bb-controls-spacer"></div>
+        <button class="bb-process-btn" id="bbProcessBtn" onclick="bbProcessBatch()" disabled>Process (0)</button>
+        <button class="bb-nav-btn primary" id="bbSyncBtn" onclick="bbSync()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Sync from Seller Snap
+        </button>
+      </div>
+    </div>
+
+    <div class="bb-empty" id="bbEmpty">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+      <div style="font-size:14px;font-weight:600;">No data loaded yet</div>
+      <div style="font-size:12.5px;max-width:300px;">Click "Sync from Seller Snap" on the right to pull every listing at 40% Buy Box share or below, including any with no Buy Box data.</div>
+    </div>
+
+    <div id="bbLoaded" style="display:none;">
+      <div class="bb-table-scroll">
+        <table class="bb-table">
+          <thead>
+            <tr>
+              <th class="bb-col-check"></th>
+              <th class="bb-col-img">Image</th>
+              <th class="bb-col-product">Product</th>
+              <th class="bb-col-bb">Buy Box</th>
+              <th>Cur. BB Price</th>
+              <th>Orders</th>
+              <th>Stock</th>
+              <th>Revenue</th>
+              <th>Avg Sale Price</th>
+              <th>Price</th>
+              <th>MAP</th>
+              <th>Min Price</th>
+              <th>Max Price</th>
+              <th>Tags</th>
+              <th>Repricing</th>
+              <th>Preset</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="bbTbody"></tbody>
+        </table>
+      </div>
+
+      <div class="bb-footer">
+        <div class="bb-page-info" id="bbPageInfo">—</div>
+        <div class="bb-page-nav">
+          <button class="bb-page-btn" id="bbPrevBtn" onclick="bbChangePage(-1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+          <button class="bb-page-btn" id="bbNextBtn" onclick="bbChangePage(1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const sb = window.sb;
+  const PAGE_SIZE = 100;
+
+  let ALL = [];          // every listing at 40% or below, or with no Buy Box data
+  let filtered = [];     // after search + fc filter + sort
+  let bbPage = 0;
+  let editingCell = null; // 'sku::field' or null
+  let pending = {};       // sku -> { fields changed }
+  let rowStatus = {};     // sku -> { sync: 'ok'|'error'|errMsg|null, map: 'queued'|'importing'|'done'|'failed'|null }
+  let activeImports = 0;  // count of in-flight MAP polling loops blocking page advance
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function fmtGBP(n){ return '£' + (parseFloat(n)||0).toFixed(2); }
+
+  window.bbCopyToClipboard = function(text){
+    navigator.clipboard.writeText(text).then(()=>{
+      toast('Copied "'+text+'"', 'success');
+    }).catch(()=>{ toast('Could not copy to clipboard', 'error'); });
+  };
+
+  window.bbSync = async function(){
+    const btn = document.getElementById('bbSyncBtn');
+    btn.disabled = true;
+    btn.innerHTML = 'Syncing…';
+
+    try{
+      const { data: { session } } = await sb.auth.getSession();
+      const res = await fetch('https://mbmgcqknbajwndiveewf.supabase.co/functions/v1/sellersnap-listings', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', Authorization: `Bearer ${session?.access_token}` },
+      });
+      const json = await res.json();
+      if(!json.success){ toast(json.message,'error'); btn.disabled=false; btn.innerHTML='Sync from Seller Snap'; return; }
+
+      ALL = json.data
+        .filter(x => x.buybox_share == null || parseFloat(x.buybox_share) <= 40)
+        .map(x => ({
+          sku: x.sku||'',
+          asin: x.asin||'',
+          name: x.title||x.sku||'—',
+          image_url: x.image_url||'',
+          fulfillment: (x.fulfillment_channel||'').toUpperCase()==='FBA' ? 'FBA':'FBM',
+          buybox_share: x.buybox_share!=null ? parseFloat(x.buybox_share) : null,
+          orders: parseInt(x.total_order_items)||0,
+          stock: parseInt(x.fulfillable_quantity)||0,
+          revenue: parseFloat(x.total_revenue)||0,
+          margin: parseFloat(x.profit_margin)||0,
+          price: parseFloat(x.listed_price)||0,
+          cost: parseFloat(x.cost)||0,
+          map: x.map!=null ? parseFloat(x.map) : null,
+          min_price: x.min_price!=null ? parseFloat(x.min_price) : null,
+          max_price: x.max_price!=null ? parseFloat(x.max_price) : null,
+          tags: Array.isArray(x.tags) ? x.tags : [],
+          repricing: !!x.repricing,
+          preset: x.reprice_config_preset||'',
+          cur_buybox_price: x.cur_buybox_price!=null ? parseFloat(x.cur_buybox_price) : null,
+          avg_selling_price: x.avg_selling_price!=null ? parseFloat(x.avg_selling_price) : null,
+        }));
+
+      pending = {}; rowStatus = {}; editingCell = null; bbPage = 0;
+
+      document.getElementById('bbEmpty').style.display='none';
+      document.getElementById('bbLoaded').style.display='block';
+      document.getElementById('bbTotals').style.display='flex';
+      bbUpdateStats();
+      bbResetAndRender();
+      toast(`Loaded ${ALL.length} listings at 40% Buy Box or below (including no-data listings)`, 'success');
+    } catch(e){ toast('Sync failed: '+e.message,'error'); }
+
+    btn.disabled=false; btn.innerHTML='Sync from Seller Snap';
+  };
+
+  function bbUpdateStats(){
+    const rev = ALL.reduce((s,x)=>s+x.revenue,0);
+    const stockVal = ALL.reduce((s,x)=>s+(x.stock*x.cost),0);
+    const avgMargin = ALL.length ? ALL.reduce((s,x)=>s+x.margin,0)/ALL.length : 0;
+    document.getElementById('bbStatCount').textContent = ALL.length;
+    document.getElementById('bbStatRevenue').textContent = fmtGBP(rev);
+    document.getElementById('bbStatStockValue').textContent = fmtGBP(stockVal);
+    document.getElementById('bbStatMargin').textContent = avgMargin.toFixed(1)+'%';
+  }
+
+  window.bbResetAndRender = function(){
+    const q = (document.getElementById('bbSearch').value||'').toLowerCase().trim();
+    const fc = document.getElementById('bbFcFilter').value;
+    const sortKey = document.getElementById('bbSort').value;
+
+    filtered = ALL.filter(x =>
+      (fc==='all' || x.fulfillment===fc) &&
+      (!q || x.name.toLowerCase().includes(q) || x.sku.toLowerCase().includes(q))
+    );
+
+    filtered.sort((a,b) => {
+      if(sortKey==='margin') return a.margin-b.margin;
+      if(sortKey==='revenue') return b.revenue-a.revenue;
+      if(sortKey==='bb'){ const av=a.buybox_share??-1, bv=b.buybox_share??-1; return av-bv; }
+      if(sortKey==='orders') return b.orders-a.orders;
+      return 0;
+    });
+
+    bbPage = 0;
+    bbRenderPage();
+  };
+
+  function bbTotalPages(){ return Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)); }
+
+  window.bbChangePage = function(dir){
+    const newPage = bbPage + dir;
+    if(newPage < 0 || newPage >= bbTotalPages()) return;
+    if(dir > 0 && bbHasBlockingWork()){
+      toast(activeImports > 0 ? 'Still waiting for MAP changes to confirm' : 'Process this page\'s pending changes before moving forward', 'error');
+      return;
+    }
+    bbPage = newPage;
+    editingCell = null;
+    bbRenderPage();
+  };
+
+  function bbPendingCountOnPage(){
+    const pageRows = filtered.slice(bbPage*PAGE_SIZE, bbPage*PAGE_SIZE+PAGE_SIZE);
+    return pageRows.filter(r => pending[r.sku]).length;
+  }
+
+  function bbHasBlockingWork(){
+    return bbPendingCountOnPage() > 0 || activeImports > 0;
+  }
+
+  function bbRenderPage(){
+    const start = bbPage*PAGE_SIZE;
+    const pageRows = filtered.slice(start, start+PAGE_SIZE);
+    const tbody = document.getElementById('bbTbody');
+
+    tbody.innerHTML = pageRows.length ? pageRows.map(r => bbRowHTML(r)).join('') : `<tr><td colspan="17" style="text-align:center;padding:30px;color:#94a3b8;">No listings match</td></tr>`;
+
+    const totalPages = bbTotalPages();
+    document.getElementById('bbPageInfo').textContent = `Page ${bbPage+1} of ${totalPages} · ${filtered.length} listings`;
+    document.getElementById('bbPrevBtn').disabled = bbPage===0;
+    document.getElementById('bbNextBtn').disabled = bbPage>=totalPages-1;
+
+    const pendingCount = bbPendingCountOnPage();
+    const processBtn = document.getElementById('bbProcessBtn');
+    processBtn.textContent = `Process (${pendingCount})`;
+    processBtn.disabled = pendingCount===0;
+  }
+
+  const pencilSvg = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+
+  function editableCell(sku, field, displayHTML, inputHTML){
+    const key = sku+'::'+field;
+    if(editingCell === key){
+      return `<td class="bb-editable-cell">${inputHTML}</td>`;
+    }
+    return `<td class="bb-editable-cell">${displayHTML}<button class="bb-cell-pencil" onclick="bbStartEdit('${esc(sku)}','${field}')" title="Edit">${pencilSvg}</button></td>`;
+  }
+
+  function bbRowHTML(r){
+    const isPending = !!pending[r.sku];
+    const st = rowStatus[r.sku] || {};
+    const isProcessed = !isPending && (st.sync==='ok' || st.sync===undefined) && (st.map==='done' || st.map===undefined) && (st.sync || st.map);
+    const rowClass = isPending ? 'pending' : (isProcessed ? 'processed' : (st.sync&&st.sync!=='ok') || st.map==='failed' ? 'pending' : '');
+    const p = pending[r.sku] || {};
+    const val = (field, fallback) => p[field]!==undefined ? p[field] : fallback;
+
+    return `<tr class="bb-row ${rowClass}" data-sku="${esc(r.sku)}">
+      <td class="bb-col-check"><input type="checkbox" ${isPending?'checked':''} disabled></td>
+      <td class="bb-col-img">${r.image_url?`<img class="bb-thumb" src="${esc(r.image_url)}">`:`<div class="bb-thumb"></div>`}</td>
+      <td class="bb-col-product">
+        <div class="bb-pname" title="${esc(r.name)}">${esc(r.name)}</div>
+        <div class="bb-pmeta">
+          <span class="bb-copyable" onclick="bbCopyToClipboard('${esc(r.sku)}')" title="Click to copy SKU">${esc(r.sku)}</span>
+          ${r.asin?`· <span class="bb-copyable" onclick="bbCopyToClipboard('${esc(r.asin)}')" title="Click to copy ASIN">${esc(r.asin)}</span>`:''}
+          <span class="bb-fc ${r.fulfillment}">${r.fulfillment}</span>
+        </div>
+      </td>
+      <td class="bb-col-bb">${r.buybox_share!=null?`<span class="bb-badge low">${r.buybox_share}%</span>`:'<span class="bb-badge nodata">No Data</span>'}</td>
+      <td class="bb-readonly">${r.cur_buybox_price!=null?fmtGBP(r.cur_buybox_price):'—'}</td>
+      <td class="bb-readonly">${r.orders}</td>
+      <td class="bb-readonly">${r.stock}</td>
+      <td class="bb-readonly">${fmtGBP(r.revenue)}</td>
+      <td class="bb-readonly">${r.avg_selling_price!=null?fmtGBP(r.avg_selling_price):'—'}</td>
+      <td class="bb-readonly">${fmtGBP(r.price)}</td>
+      ${editableCell(r.sku,'map',
+        r.map!=null?fmtGBP(val('map',r.map)):'—',
+        `<input class="bb-input" type="number" step="0.01" autofocus value="${val('map', r.map ?? '')}" onchange="bbFieldChange('${esc(r.sku)}','map',this.value)">`
+      )}
+      ${editableCell(r.sku,'min_price',
+        r.min_price!=null?fmtGBP(val('min_price',r.min_price)):'—',
+        `<input class="bb-input" type="number" step="0.01" autofocus value="${val('min_price', r.min_price ?? '')}" onchange="bbFieldChange('${esc(r.sku)}','min_price',this.value)">`
+      )}
+      ${editableCell(r.sku,'max_price',
+        r.max_price!=null?fmtGBP(val('max_price',r.max_price)):'—',
+        `<input class="bb-input" type="number" step="0.01" autofocus value="${val('max_price', r.max_price ?? '')}" onchange="bbFieldChange('${esc(r.sku)}','max_price',this.value)">`
+      )}
+      ${editableCell(r.sku,'tags',
+        (val('tags', r.tags)||[]).length ? esc((val('tags', r.tags)||[]).join(', ')) : '—',
+        `<input class="bb-input tags" type="text" autofocus placeholder="comma, separated" value="${esc((val('tags', r.tags)||[]).join(', '))}" onchange="bbFieldChange('${esc(r.sku)}','tags',this.value.split(',').map(t=>t.trim()).filter(Boolean))">`
+      )}
+      <td><button class="bb-toggle ${val('repricing',r.repricing)?'on':'off'}" onclick="bbToggleRepricing('${esc(r.sku)}', ${val('repricing',r.repricing)})"></button></td>
+      ${editableCell(r.sku,'preset',
+        esc(val('preset', r.preset))||'—',
+        `<input class="bb-input tags" type="text" autofocus value="${esc(val('preset', r.preset))}" onchange="bbFieldChange('${esc(r.sku)}','preset',this.value)">`
+      )}
+      <td class="bb-readonly">
+        ${isPending?'<span class="bb-pending-tag">Pending</span>':''}
+        ${!isPending && st.sync==='ok'?'<span class="bb-processed-tag">✓ Sent</span>':''}
+        ${!isPending && st.sync && st.sync!=='ok'?`<span class="bb-error-tag" title="${esc(st.sync)}">✕ Failed</span>`:''}
+        ${!isPending && st.map==='queued'?'<span class="bb-map-tag queued">MAP Queued</span>':''}
+        ${!isPending && st.map==='importing'?'<span class="bb-map-tag importing">MAP Importing…</span>':''}
+        ${!isPending && st.map==='done'?'<span class="bb-map-tag done">MAP ✓</span>':''}
+        ${!isPending && st.map==='failed'?'<span class="bb-map-tag failed">MAP Failed</span>':''}
+      </td>
+    </tr>`;
+  }
+
+  window.bbStartEdit = function(sku, field){
+    editingCell = sku+'::'+field;
+    bbRenderPage();
+  };
+
+  window.bbFieldChange = function(sku, field, value){
+    if(!pending[sku]) pending[sku] = {};
+    if(field==='map' || field==='min_price' || field==='max_price'){
+      pending[sku][field] = value===''? null : parseFloat(value);
+    } else {
+      pending[sku][field] = value;
+    }
+    delete rowStatus[sku];
+    editingCell = null;
+    bbRenderPage();
+  };
+
+  window.bbToggleRepricing = function(sku, current){
+    if(!pending[sku]) pending[sku] = {};
+    pending[sku].repricing = !current;
+    delete rowStatus[sku];
+    bbRenderPage();
+  };
+
+  window.bbProcessBatch = async function(){
+    const start = bbPage*PAGE_SIZE;
+    const pageRows = filtered.slice(start, start+PAGE_SIZE);
+    const toSend = pageRows.filter(r => pending[r.sku]).map(r => ({ sku: r.sku, ...pending[r.sku] }));
+    if(!toSend.length) return;
+
+    const btn = document.getElementById('bbProcessBtn');
+    btn.disabled = true; btn.textContent = 'Processing…';
+
+    const mapUpdates = toSend.filter(u => u.map !== undefined && u.map !== null && u.map !== '').map(u => ({ sku: u.sku, map: u.map }));
+    const syncUpdates = toSend
+      .map(u => { const { map, ...rest } = u; return rest; })
+      .filter(u => Object.keys(u).length > 1);
+
+    editingCell = null;
+
+    try{
+      const { data: { session } } = await sb.auth.getSession();
+      const token = session?.access_token;
+
+      if(syncUpdates.length){
+        const res = await fetch('https://mbmgcqknbajwndiveewf.supabase.co/functions/v1/sellersnap-update-listings', {
+          method:'POST',
+          headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ updates: syncUpdates }),
+        });
+        const json = await res.json();
+        if(!json.success){
+          toast('Sync update failed: '+json.message,'error');
+          syncUpdates.forEach(u => { rowStatus[u.sku] = { ...(rowStatus[u.sku]||{}), sync: 'Request failed' }; });
+        } else {
+          const errs = (json.result?.data?.errors_details?.listings) || [];
+          const errMap = {}; errs.forEach(e => errMap[e.sku] = e.errors);
+          syncUpdates.forEach(u => {
+            rowStatus[u.sku] = { ...(rowStatus[u.sku]||{}), sync: errMap[u.sku] ? errMap[u.sku] : 'ok' };
+          });
+        }
+      }
+
+      if(mapUpdates.length){
+        mapUpdates.forEach(u => { rowStatus[u.sku] = { ...(rowStatus[u.sku]||{}), map: 'queued' }; });
+        bbRenderPage();
+
+        const res = await fetch('https://mbmgcqknbajwndiveewf.supabase.co/functions/v1/sellersnap-update-map', {
+          method:'POST',
+          headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ updates: mapUpdates }),
+        });
+        const json = await res.json();
+        if(!json.success || !json.import_id){
+          mapUpdates.forEach(u => { rowStatus[u.sku] = { ...(rowStatus[u.sku]||{}), map: 'failed' }; });
+          toast('MAP submission failed: '+(json.message||'unknown error'),'error');
+        } else {
+          activeImports++;
+          bbPollMapImport(json.import_id, mapUpdates.map(u=>u.sku));
+        }
+      }
+
+      toSend.forEach(u => delete pending[u.sku]);
+
+      const hasBlockingMap = mapUpdates.length > 0;
+      if(!hasBlockingMap){
+        toast(`Processed ${syncUpdates.length} listing(s)`, 'success');
+        if(bbPage < bbTotalPages()-1) bbPage++;
+      } else {
+        toast(`${syncUpdates.length} sent instantly · ${mapUpdates.length} MAP change(s) queued — waiting for confirmation before moving on`, 'info');
+      }
+      bbRenderPage();
+    } catch(e){ toast('Process failed: '+e.message,'error'); }
+
+    btn.disabled = activeImports > 0;
+    if(activeImports === 0) btn.textContent = 'Process (0)';
+  };
+
+  async function bbPollMapImport(importId, skus){
+    const { data: { session } } = await sb.auth.getSession();
+    const token = session?.access_token;
+
+    const poll = async () => {
+      try{
+        const res = await fetch('https://mbmgcqknbajwndiveewf.supabase.co/functions/v1/sellersnap-import-status', {
+          method:'POST',
+          headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ import_id: importId }),
+        });
+        const json = await res.json();
+        const status = json.success ? json.status : 'failed';
+
+        if(status === 'done' || status === 'failed'){
+          skus.forEach(sku => { rowStatus[sku] = { ...(rowStatus[sku]||{}), map: status }; });
+          activeImports--;
+          bbRenderPage();
+          if(activeImports === 0 && bbPage < bbTotalPages()-1){
+            toast('MAP changes confirmed — moving to next page', 'success');
+            setTimeout(() => { bbPage++; bbRenderPage(); }, 800);
+          }
+          return;
+        }
+
+        skus.forEach(sku => { rowStatus[sku] = { ...(rowStatus[sku]||{}), map: status }; });
+        bbRenderPage();
+        setTimeout(poll, 3000);
+      } catch(e){
+        skus.forEach(sku => { rowStatus[sku] = { ...(rowStatus[sku]||{}), map: 'failed' }; });
+        activeImports--;
+        bbRenderPage();
+      }
+    };
+    poll();
+  }
+})();
+</script>
