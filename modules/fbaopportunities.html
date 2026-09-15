@@ -63,7 +63,7 @@ body{overflow:hidden}
 .fba-list{display:flex;flex-direction:column;gap:6px;}
 
 /* LIST ITEM */
-.fba-list-item{position:relative;background:var(--surface);border:1px solid var(--border);border-left:1px solid var(--border);border-radius:var(--r);padding:11px 16px 11px 40px;cursor:pointer;transition:box-shadow .15s,border-color .15s,transform .12s;display:flex;align-items:center;gap:14px;animation:fadeUp .18s ease both;box-shadow:var(--sh-sm);}
+.fba-list-item{position:relative;background:var(--surface);border:1px solid var(--border);border-left:1px solid var(--border);border-radius:var(--r);padding:11px 16px;cursor:pointer;transition:box-shadow .15s,border-color .15s,transform .12s;display:flex;align-items:center;gap:14px;animation:fadeUp .18s ease both;box-shadow:var(--sh-sm);}
 .fba-list-item:hover{box-shadow:var(--sh);border-color:var(--accent-bd);transform:translateX(2px)}
   
 .fba-list-namewrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
@@ -80,6 +80,7 @@ body{overflow:hidden}
 .fba-card:hover{box-shadow:var(--sh);border-color:var(--accent-bd);transform:translateY(-1px)}
 
 .asin-status-stack{position:absolute;left:8px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:4px;z-index:1;}
+.asin-status-row{display:flex;gap:8px;margin-bottom:2px;}
 .asin-status-pill{display:flex;align-items:center;gap:2px;font-size:9px;font-weight:800;line-height:1;}
 .asin-status-pill svg{width:10px;height:10px;flex-shrink:0;}
 .asin-status-pill.approved{color:var(--green);}
@@ -796,6 +797,13 @@ function asinStatusStackHtml(counts){
   if(counts.pending) h+='<span class="asin-status-pill pending"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'+counts.pending+'</span>';
   return h+'</div>';
 }
+function asinStatusRowHtml(counts){
+  let h='<div class="asin-status-row">';
+  if(counts.approved) h+='<span class="asin-status-pill approved"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'+counts.approved+'</span>';
+  if(counts.rejected) h+='<span class="asin-status-pill rejected"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'+counts.rejected+'</span>';
+  if(counts.pending) h+='<span class="asin-status-pill pending"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'+counts.pending+'</span>';
+  return h+'</div>';
+}
 function badgeInfo(counts){
   const total=counts.approved+counts.rejected+counts.pending;
   if(!total) return{cls:'pending',label:'No ASINs'};
@@ -833,8 +841,8 @@ function buildListItem(r){
   const{cls,label}=badgeInfo(counts);
   item.className='fba-list-item';
     item.innerHTML=
-    asinStatusStackHtml(counts)
-    +'<div class="fba-list-namewrap">'
+    '<div class="fba-list-namewrap">'
+    +asinStatusRowHtml(counts)
     +'<div class="fba-list-name">'+esc(r.product_name||'—')+'</div>'
     +(r.asins?'<div class="fba-list-asins">'+esc(r.asins)+'</div>':'')
     +'</div>'
