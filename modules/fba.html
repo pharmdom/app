@@ -680,9 +680,17 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
         <div class="form-group"><label>Grouping Link</label><input type="url" id="awGroupingLink" placeholder="https://…"></div>
         <div class="form-group"><label>Collection Booked</label><input type="date" id="awCollectionBooked" class="date-input-styled"></div>
       </div>
-      <div class="form-row">
+            <div class="form-row">
         <div class="form-group"><label>Deadline</label><input type="date" id="awDeadline" class="date-input-styled"></div>
-        <div class="form-group"></div>
+        <div class="form-group">
+          <label>Veeqo Stock Adjusted</label>
+          <input type="hidden" id="awVeeqoAdjusted" value="">
+          <div class="bool-toggle-group">
+            <button type="button" class="bool-toggle-btn" id="awVeeqoYesBtn" onclick="awSetVeeqoToggle('Yes')">Yes</button>
+            <button type="button" class="bool-toggle-btn" id="awVeeqoNoBtn" onclick="awSetVeeqoToggle('No')">No</button>
+            <button type="button" class="bool-toggle-btn active-unset" id="awVeeqoUnsetBtn" onclick="awSetVeeqoToggle('')">—</button>
+          </div>
+        </div>
       </div>
       <div class="form-group full">
         <label>Grouping Images</label>
@@ -1341,8 +1349,17 @@ function bCard(id, label, value, readonly) {
   }
   return '<div class="info-card"><label>' + esc(label) + '</label><div class="bool-toggle-group"><button type="button" class="bool-toggle-btn' + (low === 'yes' ? ' active-yes' : '') + '" onclick="markBool(\'' + ea(label) + '\',\'Yes\',this)">Yes</button><button type="button" class="bool-toggle-btn' + (low === 'no' ? ' active-no' : '') + '" onclick="markBool(\'' + ea(label) + '\',\'No\',this)">No</button><button type="button" class="bool-toggle-btn' + (low !== 'yes' && low !== 'no' ? ' active-unset' : '') + '" onclick="markBool(\'' + ea(label) + '\',\'\',this)">—</button></div></div>';
 }
+
 function markDirty(field, value) { drawerDirtyFields[field] = value; updateSaveButton(); }
 
+function awSetVeeqoToggle(val){
+  document.getElementById('awVeeqoAdjusted').value = val;
+  document.getElementById('awVeeqoYesBtn').classList.toggle('active-yes', val==='Yes');
+  document.getElementById('awVeeqoNoBtn').classList.toggle('active-no', val==='No');
+  document.getElementById('awVeeqoUnsetBtn').classList.toggle('active-unset', val==='');
+}
+window.awSetVeeqoToggle = awSetVeeqoToggle;
+  
 function getDrawerRow() {
   const dataSource = drawerSource === 'fba' ? fbaData : warehouseData;
   return dataSource.find(r => String(r['ID']) === String(drawerCurrentId));
@@ -1777,7 +1794,7 @@ function openAddWorkModal() {
   awLabelCodeRows = []; awRowDebounceTimers = {};
   document.getElementById('awLabelCodeRows').innerHTML = ''; document.getElementById('awMatchedProducts').innerHTML = '';
   document.getElementById('addWorkModalOverlay').classList.add('visible');
-  document.getElementById('awGroupingLink').value = ''; document.getElementById('awCollectionBooked').value = ''; document.getElementById('awDeadline').value = ''; document.getElementById('awNote').value = '';
+  document.getElementById('awGroupingLink').value = ''; document.getElementById('awCollectionBooked').value = ''; document.getElementById('awDeadline').value = ''; document.getElementById('awNote').value = ''; awSetVeeqoToggle('');
   awGroupingImgFiles = [];
   const prev = document.getElementById('awGroupingImgPreview'); if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
   const prevFile = document.getElementById('awGroupingImgFile'); if (prevFile) prevFile.value = '';
@@ -1867,21 +1884,21 @@ async function submitAddWork() {
   const maxWH = warehouseData.reduce((max, r) => { const n = parseInt(String(r['ID']||'').replace('WH-','')) || 0; return n > max ? n : max; }, 0);
   const now = new Date().toISOString();
 
-const buildDisplayRow = (id, labelCode, brand, productLine, asin, ean, prepInstructions, bundle, dgLabel, polyBag, warningLabel, barcode, box, barcodeImage, productImage, groupingLink, groupingImage, collectionBooked, unitsRequired, note, deadline) => ({
+const buildDisplayRow = (id, labelCode, brand, productLine, asin, ean, prepInstructions, bundle, dgLabel, polyBag, warningLabel, barcode, box, barcodeImage, productImage, groupingLink, groupingImage, collectionBooked, unitsRequired, note, deadline, veeqoAdjusted) => ({
     'ID': id, 'Date Created': now, 'Last Updated': now,
     'Label Code': labelCode, 'Brand': brand, 'Product Line': productLine, 'ASIN': asin, 'EAN': ean,
     'Prep Instructions': prepInstructions, 'Bundle': bundle, 'DG Label': dgLabel,
     'Poly Bag': polyBag, 'Warning Label': warningLabel, 'Barcode': barcode, 'Box': box,
     'Barcode Image': barcodeImage, 'Product Image': productImage,
     'Grouping Link': groupingLink, 'Grouping Image': groupingImage, 'Collection Booked': collectionBooked,
-    'Units Required': unitsRequired, 'Veeqo Stock Adjusted': '', 'Units Completed': 0, 'UPS Collected': '', 'Note': note,
+    'Units Required': unitsRequired, 'Veeqo Stock Adjusted': veeqoAdjusted || '', 'Units Completed': 0, 'UPS Collected': '', 'Note': note,
     'Deadline': deadline
   });
 
   if (validRows.length === 1) {
     const r = validRows[0], m = r.match || {};
     const newId = 'WH-' + String(maxWH + 1).padStart(4, '0');
-    const newDisplayRow = buildDisplayRow(newId, r.code, m['Brand']||'', m['Product Line']||'', m['ASIN']||'', m['EAN']||'', m['Prep Instructions']||'', m['Bundle']||'', m['DG Label']||'', m['Poly Bag']||'', m['Warning Label']||'', m['Barcode']||'', m['Box']||'', m['Barcode Image']||'', m['Product Image']||'', sharedGroupingLink||m['Grouping Link']||'', uploadedGroupingImageValue||m['Grouping Image']||'', sharedCollectionBooked||m['Collection Booked']||'', Number(r.units)||0, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim());
+    const newDisplayRow = buildDisplayRow(newId, r.code, m['Brand']||'', m['Product Line']||'', m['ASIN']||'', m['EAN']||'', m['Prep Instructions']||'', m['Bundle']||'', m['DG Label']||'', m['Poly Bag']||'', m['Warning Label']||'', m['Barcode']||'', m['Box']||'', m['Barcode Image']||'', m['Product Image']||'', sharedGroupingLink||m['Grouping Link']||'', uploadedGroupingImageValue||m['Grouping Image']||'', sharedCollectionBooked||m['Collection Booked']||'', Number(r.units)||0, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim(), document.getElementById('awVeeqoAdjusted').value);
     warehouseData.unshift(newDisplayRow); closeAddWorkModal(); applyFilters();
     showToast('1 work item added', 'success'); btn.disabled = false; btn.innerHTML = 'Add Work';
     const { data: inserted, error } = await sb.from('fba_work').insert(displayRowToSb(newDisplayRow)).select().single();
@@ -1898,7 +1915,7 @@ const buildDisplayRow = (id, labelCode, brand, productLine, asin, ean, prepInstr
       return { labelCode:r.code, units:Number(r.units)||0, brand:m['Brand']||'', productLine:m['Product Line']||'', asin:m['ASIN']||'', ean:m['EAN']||'', bundle:m['Bundle']||'', dgLabel:m['DG Label']||'', polyBag:m['Poly Bag']||'', warningLabel:m['Warning Label']||'', barcode:m['Barcode']||'', box:m['Box']||'', barcodeImage:m['Barcode Image']||'', productImage:m['Product Image']||'', prepInstructions:m['Prep Instructions']||'' };
     });
     const newId = 'WH-' + String(maxWH + 1).padStart(4, '0');
-    const newDisplayRow = buildDisplayRow(newId, combinedLabel, first['Brand']||'', validRows.map(r=>(r.match||{})['Product Line']||r.code).join(' / '), first['ASIN']||'', first['EAN']||'', JSON.stringify(batchItems), first['Bundle']||'', first['DG Label']||'', first['Poly Bag']||'', first['Warning Label']||'', first['Barcode']||'', first['Box']||'', first['Barcode Image']||'', first['Product Image']||'', sharedGroupingLink||first['Grouping Link']||'', uploadedGroupingImageValue||first['Grouping Image']||'', sharedCollectionBooked||first['Collection Booked']||'', totalUnits, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim());
+    const newDisplayRow = buildDisplayRow(newId, combinedLabel, first['Brand']||'', validRows.map(r=>(r.match||{})['Product Line']||r.code).join(' / '), first['ASIN']||'', first['EAN']||'', JSON.stringify(batchItems), first['Bundle']||'', first['DG Label']||'', first['Poly Bag']||'', first['Warning Label']||'', first['Barcode']||'', first['Box']||'', first['Barcode Image']||'', first['Product Image']||'', sharedGroupingLink||first['Grouping Link']||'', uploadedGroupingImageValue||first['Grouping Image']||'', sharedCollectionBooked||first['Collection Booked']||'', totalUnits, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim(), document.getElementById('awVeeqoAdjusted').value);
     warehouseData.unshift(newDisplayRow); closeAddWorkModal(); applyFilters();
     showToast('Batch of ' + validRows.length + ' label codes added as 1 work item', 'success'); btn.disabled = false; btn.innerHTML = 'Add Work';
     const { data: inserted, error } = await sb.from('fba_work').insert(displayRowToSb(newDisplayRow)).select().single();
