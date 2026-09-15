@@ -68,8 +68,9 @@ body{overflow:hidden}
 .fba-list-item.approved{border-left-color:var(--green)}
 .fba-list-item.rejected{border-left-color:var(--red)}
 .fba-list-item.pending{border-left-color:#d1d9e6;border-left-width:1px}
-.fba-list-name{font-size:13px;font-weight:700;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.fba-list-asin{font-family:var(--mono);font-size:10px;color:var(--text4);width:100px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fba-list-namewrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.fba-list-name{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fba-list-asins{font-family:var(--mono);font-size:10px;color:var(--text4);white-space:normal;word-break:break-word;line-height:1.4;}
 .fba-list-date{font-size:11px;color:var(--text4);width:80px;flex-shrink:0}
 .fba-list-stat{display:flex;flex-direction:column;gap:1px;width:60px;flex-shrink:0}
 .fba-list-stat-lbl{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text4)}
@@ -238,7 +239,7 @@ body{overflow:hidden}
 .toast.info{background:#1e3a8a;border-left-color:var(--accent)}
 @keyframes toastIn{from{opacity:0;transform:translateY(-8px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
 
-@media(max-width:768px){.fba-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}.toolbar,.topnav{padding:8px 12px}.grid-outer{padding:12px}.fba-list-date,.fba-list-asin{display:none}}
+@media(max-width:768px){.fba-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}.toolbar,.topnav{padding:8px 12px}.grid-outer{padding:12px}.fba-list-date{display:none}}
 @media(max-width:600px){.drawer{width:100%;max-width:100%}.drw-kpis{grid-template-columns:repeat(2,1fr)}.info-grid{grid-template-columns:1fr}.fba-grid{grid-template-columns:1fr}.tnav-chips{display:none}}
 
   /* ══ PAGE GUIDE SYSTEM ══ */
@@ -770,9 +771,11 @@ function buildListItem(r){
   const item=document.createElement('div');
   const{cls,label}=getStatusInfo(r);
   item.className='fba-list-item '+cls;
-  item.innerHTML=
-    '<div class="fba-list-name">'+esc(r.product_name||'—')+'</div>'
-    +'<div class="fba-list-asin">'+esc(r.asins?r.asins.split(',')[0].trim():'—')+'</div>'
+    item.innerHTML=
+    '<div class="fba-list-namewrap">'
+    +'<div class="fba-list-name">'+esc(r.product_name||'—')+'</div>'
+    +(r.asins?'<div class="fba-list-asins">'+esc(r.asins)+'</div>':'')
+    +'</div>'
     +'<div class="fba-list-date">'+esc(fmtDate(r.created_at))+'</div>'
     +'<div class="fba-list-stat"><div class="fba-list-stat-lbl">QTY</div><div class="fba-list-stat-val">'+esc(String(r.qty_purchased||'—'))+'</div></div>'
     +'<div class="fba-list-stat"><div class="fba-list-stat-lbl">SAS</div><div class="fba-list-stat-val">'+esc(fmtNum(r.sas))+'</div></div>'
