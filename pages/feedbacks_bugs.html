@@ -435,35 +435,23 @@
     return data.publicUrl;
   }
 
-    let _fbNotifyUrlCache = null;
-
-  async function fbGetNotifyUrl(){
-    if (_fbNotifyUrlCache) return _fbNotifyUrlCache;
-    const { data, error } = await sb.from('app_settings').select('value').eq('key', 'feedback_notify_url').single();
-    if (error || !data) { console.warn('Could not load feedback_notify_url', error); return null; }
-    _fbNotifyUrlCache = data.value;
-    return _fbNotifyUrlCache;
-  }
-
-  async function fbSendNotificationEmail(to, subject, body){
+     async function fbSendNotificationEmail(to, subject, body){
     if (!to) return;
     try {
-      const url = await fbGetNotifyUrl();
-      if (!url) return;
-      await fetch(url, {
+      const { data: { session } } = await sb.auth.getSession();
+      await fetch(`${SUPABASE_URL}/functions/v1/send-feedback-notification`, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({
-          secret: '5ef2a9eb-7485-40cf-b2e9-b1cebb28f546b86cdbe9-a180-4672-9a9e-e594b4d2e38d',
-          to,
-          subject,
-          body,
-        }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ to, subject, body }),
       });
     } catch(e) {
       console.warn('Notification email failed to send', e);
     }
   }
+  
 
   async function fbSubmit(){
     const title = document.getElementById('fbTitleInput').value.trim();
