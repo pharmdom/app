@@ -607,12 +607,19 @@
       if (idx > -1) fbItems[idx].status = 'in_progress';
       fbRenderDetail();
       toast('Marked in progress', 'success');
-      if (i.created_by_email && i.created_by_email !== window.currentUser?.email) {
+            if (i.created_by_email && i.created_by_email !== window.currentUser?.email) {
         fbSendNotificationEmail(
           i.created_by_email,
           `Update on your report: ${i.title}`,
           `<p>Hi ${esc((i.created_by||'').split(' ')[0] || 'there')},</p><p>Your report "<b>${esc(i.title)}</b>" is now <b>In Progress</b>.</p>`
         );
+        sb.from('feedback_notifications').insert({
+          recipient_email: i.created_by_email,
+          feedback_id: i.id,
+          type: 'in_progress',
+          title: 'Report in progress',
+          message: `"${i.title}" is now In Progress.`,
+        }).then(({error}) => { if (error) console.warn('Notification insert failed', error); });
       }
     } catch(e) { toast('Failed to update', 'error'); }
   }
@@ -661,12 +668,19 @@
       if (idx > -1) Object.assign(fbItems[idx], patch);
       fbRenderDetail();
       toast(complete ? 'Marked completed' : 'Reopened', 'success');
-      if (complete && i.created_by_email && i.created_by_email !== window.currentUser?.email) {
+            if (complete && i.created_by_email && i.created_by_email !== window.currentUser?.email) {
         fbSendNotificationEmail(
           i.created_by_email,
           `Your report was completed: ${i.title}`,
           `<p>Hi ${esc((i.created_by||'').split(' ')[0] || 'there')},</p><p>Your report "<b>${esc(i.title)}</b>" has been marked <b>Completed</b> by ${esc(currentUserName)}.</p>`
         );
+        sb.from('feedback_notifications').insert({
+          recipient_email: i.created_by_email,
+          feedback_id: i.id,
+          type: 'completed',
+          title: 'Report completed',
+          message: `"${i.title}" was marked Completed by ${currentUserName}.`,
+        }).then(({error}) => { if (error) console.warn('Notification insert failed', error); });
       }
     } catch(e) { toast('Failed to update', 'error'); }
   }
@@ -805,13 +819,20 @@
       document.getElementById('fbCommentsList').innerHTML = fbBuildCommentsHtml();
       document.querySelector('.fb-sec-lbl').textContent = `Comments (${fbCurrentComments.length})`;
       input.value = '';
-      const reportEmail = fbCurrentItem.created_by_email;
+            const reportEmail = fbCurrentItem.created_by_email;
       if (reportEmail && reportEmail !== window.currentUser?.email) {
         fbSendNotificationEmail(
           reportEmail,
           `New comment on your report: ${fbCurrentItem.title}`,
           `<p>Hi ${esc((fbCurrentItem.created_by||'').split(' ')[0] || 'there')},</p><p><b>${esc(currentUserName)}</b> commented on your report "<b>${esc(fbCurrentItem.title)}</b>":</p><p style="padding:10px;background:#f5f6fa;border-radius:8px;">${esc(text)}</p>`
         );
+        sb.from('feedback_notifications').insert({
+          recipient_email: reportEmail,
+          feedback_id: fbCurrentItem.id,
+          type: 'comment',
+          title: 'New comment',
+          message: `${currentUserName} commented on "${fbCurrentItem.title}": ${text}`,
+        }).then(({error}) => { if (error) console.warn('Notification insert failed', error); });
       }
     } catch(e) {
       toast('Failed to post comment', 'error');
@@ -898,6 +919,12 @@
   window.fbDeleteComment = fbDeleteComment;
   window.fbCloseConfirm = fbCloseConfirm;
 
-  fbLoadList();
+    if (window._fbDeepLinkId) {
+    const targetId = window._fbDeepLinkId;
+    window._fbDeepLinkId = null;
+    fbLoadList().then(() => fbOpenItem(targetId));
+  } else {
+    fbLoadList();
+  }
 })();
 </script>
