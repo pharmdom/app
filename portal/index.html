@@ -308,7 +308,9 @@
     .topbar-btn:hover { background: var(--bg); border-color: #d1d5db; color: var(--text-2); }
     .topbar-btn svg { width: 16px; height: 16px; }
     .notif-dot { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); border: 2px solid var(--white); }
-
+    .notif-badge { position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 100px; background: #dc2626; color: #fff; font-size: 10px; font-weight: 800; display: none; align-items: center; justify-content: center; border: 2px solid var(--white); line-height: 1; }
+    .notif-badge.show { display: flex; }
+    
     /* User dropdown */
     .user-menu-wrap { position: relative; }
     .topbar-user {
@@ -540,9 +542,9 @@
           </div>
         </div>
         <div class="topbar-right">
-          <button class="topbar-btn" title="Notifications">
+                    <button class="topbar-btn" title="Notifications" onclick="openWidgetPanel('notifications')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            <div class="notif-dot"></div>
+            <div class="notif-badge" id="notifBadge"></div>
           </button>
           <div class="user-menu-wrap">
           <div class="topbar-user" id="topbarUser" onclick="toggleDropdown()">
@@ -1123,7 +1125,8 @@ function closeSidebar() {
     window.location.href = '../login.html';
   }
   // ── GLOBAL WIDGET ──
-    const GW_PANELS = {
+        const GW_PANELS = {
+    notifications:{ title: 'Notifications',   icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`, file: '../pages/notifications.html' },
     guides:       { title: 'Page Guides',     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`, file: '../pages/page_guides.html' },
     feedback:     { title: 'Feedback & Bugs', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`, file: '../pages/feedbacks_bugs.html' },
     passwordbook: { title: 'Password Book',   icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`, file: '../pages/password_book.html' },
@@ -1325,6 +1328,35 @@ function closeSidebar() {
     if (document.getElementById('gwPanel')?.classList.contains('open')) { closeWidgetPanel(); return; }
     if (document.getElementById('gwMenu')?.classList.contains('open')) { closeWidgetMenu(); }
   });
+  // ── NOTIFICATIONS BADGE ──
+  function gwUpdateNotifBadge(count) {
+    const badge = document.getElementById('notifBadge');
+    if (!badge) return;
+    if (count > 0) {
+      badge.textContent = count > 99 ? '99+' : String(count);
+      badge.classList.add('show');
+    } else {
+      badge.textContent = '';
+      badge.classList.remove('show');
+    }
+  }
+  window.gwUpdateNotifBadge = gwUpdateNotifBadge;
+  async function gwRefreshNotifCount() {
+    if (!user?.email) return;
+    const { count } = await sb.from('feedback_notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('recipient_email', user.email)
+      .eq('is_read', false);
+    gwUpdateNotifBadge(count || 0);
+  }
+  gwRefreshNotifCount();
+  sb.channel('feedback_notifications_' + (user?.userId || 'anon'))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'feedback_notifications' }, (payload) => {
+      if (payload.new.recipient_email === user.email) gwRefreshNotifCount();
+    })
+    .subscribe();
+  window.gwRefreshNotifCount = gwRefreshNotifCount;
+
   // ── INIT ──
   buildSidebar();
   const urlParams = new URLSearchParams(window.location.search);
