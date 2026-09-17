@@ -434,6 +434,37 @@
     const { data } = sb.storage.from('feedback-uploads').getPublicUrl(path);
     return data.publicUrl;
   }
+
+    let _fbNotifyUrlCache = null;
+
+  async function fbGetNotifyUrl(){
+    if (_fbNotifyUrlCache) return _fbNotifyUrlCache;
+    const { data, error } = await sb.from('app_settings').select('value').eq('key', 'feedback_notify_url').single();
+    if (error || !data) { console.warn('Could not load feedback_notify_url', error); return null; }
+    _fbNotifyUrlCache = data.value;
+    return _fbNotifyUrlCache;
+  }
+
+  async function fbSendNotificationEmail(to, subject, body){
+    if (!to) return;
+    try {
+      const url = await fbGetNotifyUrl();
+      if (!url) return;
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({
+          secret: '5ef2a9eb-7485-40cf-b2e9-b1cebb28f546b86cdbe9-a180-4672-9a9e-e594b4d2e38d',
+          to,
+          subject,
+          body,
+        }),
+      });
+    } catch(e) {
+      console.warn('Notification email failed to send', e);
+    }
+  }
+
   async function fbSubmit(){
     const title = document.getElementById('fbTitleInput').value.trim();
     if (!title) { toast('Please add a title', 'error'); return; }
@@ -442,7 +473,7 @@
     btn.innerHTML = '<div class="fb-spinner" style="width:14px;height:14px;border-width:2px;"></div> Submitting…';
     try {
       const type = document.getElementById('fbWrap').dataset.selectedType || 'bug';
-      const payload = {
+            const payload = {
         title,
         description: document.getElementById('fbDescInput').value.trim() || null,
         type,
@@ -450,6 +481,7 @@
         status: 'open',
         loom_url: document.getElementById('fbLoomInput').value.trim() || null,
         created_by: currentUserName,
+        created_by_email: window.currentUser?.email || null,
       };
       const { data: newReport, error } = await sb.from('feedback_bugs').insert(payload).select().single();
       if (error) throw error;
@@ -576,7 +608,8 @@
       </div>`;
     }
   }
-  async function fbSetInProgress(){
+  
+    async function fbSetInProgress(){
     const i = fbCurrentItem;
     try {
       const { error } = await sb.from('feedback_bugs').update({ status: 'in_progress' }).eq('id', i.id);
@@ -586,6 +619,13 @@
       if (idx > -1) fbItems[idx].status = 'in_progress';
       fbRenderDetail();
       toast('Marked in progress', 'success');
+      if (i.created_by_email && i.created_by_email !== window.currentUser?.email) {
+        fbSendNotificationEmail(
+          i.created_by_email,
+          `Update on your report: ${i.title}`,
+          `<p>Hi ${esc((i.created_by||'').split(' ')[0] || 'there')},</p><p>Your report "<b>${esc(i.title)}</b>" is now <b>In Progress</b>.</p>`
+        );
+      }
     } catch(e) { toast('Failed to update', 'error'); }
   }
   
@@ -619,7 +659,8 @@
       </div>`;
     fbRenderFooterButtons();
   }
-  async function fbToggleComplete(complete){
+  
+    async function fbToggleComplete(complete){
     const i = fbCurrentItem;
     const patch = complete
       ? { status:'completed', completed_by: currentUserName, completed_at: new Date().toISOString() }
@@ -632,9 +673,16 @@
       if (idx > -1) Object.assign(fbItems[idx], patch);
       fbRenderDetail();
       toast(complete ? 'Marked completed' : 'Reopened', 'success');
+      if (complete && i.created_by_email && i.created_by_email !== window.currentUser?.email) {
+        fbSendNotificationEmail(
+          i.created_by_email,
+          `Your report was completed: ${i.title}`,
+          `<p>Hi ${esc((i.created_by||'').split(' ')[0] || 'there')},</p><p>Your report "<b>${esc(i.title)}</b>" has been marked <b>Completed</b> by ${esc(currentUserName)}.</p>`
+        );
+      }
     } catch(e) { toast('Failed to update', 'error'); }
   }
-
+  
   // ── ATTACHMENTS: add / delete (post-creation) ──
   function fbStoragePath(url){
     if (!url) return null;
@@ -753,7 +801,8 @@
       </div>`;
     }).join('');
   }
-  async function fbPostComment(){
+  
+    async function fbPostComment(){
     const input = document.getElementById('fbCommentInput');
     const text = input.value.trim();
     if (!text) return;
@@ -768,11 +817,20 @@
       document.getElementById('fbCommentsList').innerHTML = fbBuildCommentsHtml();
       document.querySelector('.fb-sec-lbl').textContent = `Comments (${fbCurrentComments.length})`;
       input.value = '';
+      const reportEmail = fbCurrentItem.created_by_email;
+      if (reportEmail && reportEmail !== window.currentUser?.email) {
+        fbSendNotificationEmail(
+          reportEmail,
+          `New comment on your report: ${fbCurrentItem.title}`,
+          `<p>Hi ${esc((fbCurrentItem.created_by||'').split(' ')[0] || 'there')},</p><p><b>${esc(currentUserName)}</b> commented on your report "<b>${esc(fbCurrentItem.title)}</b>":</p><p style="padding:10px;background:#f5f6fa;border-radius:8px;">${esc(text)}</p>`
+        );
+      }
     } catch(e) {
       toast('Failed to post comment', 'error');
       btn.disabled = false;
     }
   }
+  
   function fbEditComment(id){
     const c = fbCurrentComments.find(x => x.id === id);
     if (!c) return;
