@@ -257,7 +257,7 @@ table.ia-table{width:100%;border-collapse:collapse;table-layout:fixed;background
           <option value="cover">Weeks of cover ↓</option>
           <option value="name">Product A–Z</option>
         </select>
-        <select id="fcFilterSelect" onchange="resetPage();render();" style="width:120px;">
+        <select id="fcFilterSelect" onchange="resetPage();buildTabs();render();" style="width:120px;">
           <option value="all">FBA ⇄ FBM</option>
           <option value="FBA">FBA only</option>
           <option value="FBM">FBM only</option>
@@ -342,6 +342,16 @@ function computeRow(x){
   return { ...x, stock, sold, kits, total, st, cover, value: stock*(x.cost_price||0), clr: !!x.is_clearance, status };
 }
 
+// Every SKU with a real status, minus the two dead-stock cases that
+// shouldn't surface anywhere on this page at all.
+function visibleRows(){
+  return ALL.map(computeRow).filter(x=>{
+    if(x.status==='nosale' && x.stock===0) return false;
+    if(x.status==='strong' && x.stock===0) return false;
+    return true;
+  });
+}
+
 function showUploadZone(){
   document.getElementById('contentArea').style.display='none';
   document.getElementById('emptyState').style.display='flex';
@@ -405,7 +415,8 @@ const rows = json.data
 window.syncFromSellerSnap=syncFromSellerSnap;
 
 function buildTabs(){
-  const withStatus=ALL.map(computeRow);
+  const fcFilter=document.getElementById('fcFilterSelect').value;
+  const withStatus=visibleRows().filter(x=>fcFilter==='all'||x.fulfillment===fcFilter);
   const tabsRow=document.getElementById('tabsRow');
   tabsRow.innerHTML='';
   Object.keys(LBL).forEach(k=>{
@@ -433,11 +444,11 @@ function render(){
   const q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
   sortKey=document.getElementById('sortSelect').value;
 
-  const withStatus=ALL.map(computeRow);
-  updateStatsBanner(withStatus);
+  const fcFilter=document.getElementById('fcFilterSelect').value;
+  const fcRows=visibleRows().filter(x=>fcFilter==='all'||x.fulfillment===fcFilter);
+  updateStatsBanner(fcRows);
 
-    const fcFilter=document.getElementById('fcFilterSelect').value;
-  let rows=withStatus.filter(x=>(tab==='all'||x.status===tab)&&(fcFilter==='all'||x.fulfillment===fcFilter)&&(!q||x.sku.toLowerCase().includes(q)||x.name.toLowerCase().includes(q)));
+  let rows=fcRows.filter(x=>(tab==='all'||x.status===tab)&&(!q||x.sku.toLowerCase().includes(q)||x.name.toLowerCase().includes(q)));
   
   rows.sort((a,b)=>{
     if(sortKey==='total') return b.total-a.total;
