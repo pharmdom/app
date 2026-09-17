@@ -402,8 +402,17 @@
     delete rowStatus[sku];
     bbRenderPage();
   };
+   
+    const BB_LIVE_UPDATES_ENABLED = false; // set back to true to resume writing changes to Seller Snap
+
     window.bbProcessBatch = async function(){
+    if(!BB_LIVE_UPDATES_ENABLED){
+      toast('Live updates are temporarily turned off — nothing was sent to Seller Snap.','info');
+      return;
+    }
     const start = bbPage*PAGE_SIZE;
+
+      
     const pageRows = filtered.slice(start, start+PAGE_SIZE);
     const toSend = pageRows.filter(r => pending[r.sku]).map(r => ({ sku: r.sku, ...pending[r.sku] }));
     if(!toSend.length) return;
