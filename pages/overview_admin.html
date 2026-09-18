@@ -931,11 +931,11 @@ function rtColLabel(days){
   return days===7?'Last 7 Days':days===14?'Last 14 Days':'Last 30 Days';
 }
 
-function rtRenderCol(days,netRevenue,vatAmount,grossRevenue){
+function rtRenderCol(days,revenueWithVat,vatAmount,grossRevenue){
   const target=REVENUE_TARGETS[days];
-  const pct=Math.min(100,Math.round((netRevenue/target)*100));
-  const hit=netRevenue>=target;
-  const remaining=Math.max(0,target-netRevenue);
+  const pct=Math.min(100,Math.round((revenueWithVat/target)*100));
+  const hit=revenueWithVat>=target;
+  const remaining=Math.max(0,target-revenueWithVat);
   const r=52,circumference=2*Math.PI*r;
   const vatK=vatAmount>=1000?(vatAmount/1000).toFixed(1)+'k':vatAmount.toFixed(0);
 
@@ -948,9 +948,9 @@ function rtRenderCol(days,netRevenue,vatAmount,grossRevenue){
       <div class="rt-ring-center"><div class="rt-ring-pct${hit?' hit':''}">${pct}%</div></div>
     </div>
     <div class="rt-figures">
-      <div class="rt-fig rt-fig-achieved${hit?' hit':''}"><span class="rt-fig-lbl">Achieved (excl. VAT)</span><span class="rt-fig-val">${fmtGBP(netRevenue)}</span></div>
+      <div class="rt-fig rt-fig-achieved${hit?' hit':''}"><span class="rt-fig-lbl">Achieved (incl. VAT)</span><span class="rt-fig-val">${fmtGBP(revenueWithVat)}</span></div>
       <div class="rt-fig"><span class="rt-fig-lbl">Target</span><span class="rt-fig-val">${fmtGBP(target)}</span></div>
-      <div class="rt-fig rt-fig-remain${hit?' hit':''}"><span class="rt-fig-lbl">${hit?'Exceeded by':'Remaining'}</span><span class="rt-fig-val">${fmtGBP(hit?netRevenue-target:remaining)}</span></div>
+      <div class="rt-fig rt-fig-remain${hit?' hit':''}"><span class="rt-fig-lbl">${hit?'Exceeded by':'Remaining'}</span><span class="rt-fig-val">${fmtGBP(hit?revenueWithVat-target:remaining)}</span></div>
     </div>
     <div class="rt-vat-row">
       <button class="rt-info-btn" onclick="rtToggleVatInfo(event,${days})" title="How VAT is calculated">
@@ -959,9 +959,9 @@ function rtRenderCol(days,netRevenue,vatAmount,grossRevenue){
       <span class="rt-vat">VAT excluded: £${vatK}</span>
       <div class="rt-vat-pop" id="rtVatPop${days}">
         <div class="rt-vat-pop-title">${rtColLabel(days)} — VAT Breakdown</div>
-        <div class="rt-vat-pop-row"><span>Gross (Seller Snap)</span><span>${fmtGBP(grossRevenue)}</span></div>
-        <div class="rt-vat-pop-row"><span>÷ 1.2 — removes 20% VAT</span></div>
-        <div class="rt-vat-pop-row total"><span>Net revenue</span><span>${fmtGBP(netRevenue)}</span></div>
+        <div class="rt-vat-pop-row"><span>Seller Snap revenue</span><span>${fmtGBP(grossRevenue)}</span></div>
+        <div class="rt-vat-pop-row"><span>× 1.2 — VAT applied</span></div>
+        <div class="rt-vat-pop-row total"><span>Revenue incl. VAT</span><span>${fmtGBP(revenueWithVat)}</span></div>
         <div class="rt-vat-pop-row"><span>VAT amount</span><span>${fmtGBP(vatAmount)}</span></div>
       </div>
     </div>`;
@@ -991,16 +991,16 @@ async function rtLoadWindow(days){
  
     if(!json.success)throw new Error(json.message);
 
-    const grossRevenue=json.data.reduce((s,x)=>s+(parseFloat(x.total_revenue)||0),0);
-    const netRevenue=grossRevenue/1.2;
-    const vatAmount=grossRevenue-netRevenue;
+        const grossRevenue=json.data.reduce((s,x)=>s+(parseFloat(x.total_revenue)||0),0);
+    const revenueWithVat=grossRevenue*1.2;
+    const vatAmount=revenueWithVat-grossRevenue;
 
-    colEl.innerHTML=rtRenderCol(days,netRevenue,vatAmount,grossRevenue);
-    
+    colEl.innerHTML=rtRenderCol(days,revenueWithVat,vatAmount,grossRevenue);
+
     const ring=colEl.querySelector('.rt-ring-fg');
     if(ring){
       const target=REVENUE_TARGETS[days];
-      const pct=Math.min(100,(netRevenue/target)*100);
+      const pct=Math.min(100,(revenueWithVat/target)*100);
       const r=52,circumference=2*Math.PI*r;
       const offset=circumference-(pct/100)*circumference;
       requestAnimationFrame(()=>requestAnimationFrame(()=>{ring.style.strokeDashoffset=offset;}));
