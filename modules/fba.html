@@ -131,8 +131,8 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .box-remove-btn { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: none; border-radius: 6px; background: transparent; color: #cbd5e1; cursor: pointer; transition: all .15s; }
 .box-remove-btn:hover { background: #fee2e2; color: #dc2626; }
 .box-remove-btn svg { width: 13px; height: 13px; }
-.box-row-grid { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; }
-.box-qty-field label, .box-size-field label { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; margin-bottom: 5px; }
+.box-row-grid { display: grid; grid-template-columns: 0.65fr 0.85fr 1.8fr; gap: 10px; }
+.box-qty-field label, .box-weight-field label, .box-size-field label { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; margin-bottom: 5px; }
 .box-size-inputs { display: flex; align-items: center; gap: 5px; }
 .box-dim { text-align: center; min-width: 0; }
 .box-dim-sep { font-size: 12px; font-weight: 700; color: #cbd5e1; flex-shrink: 0; }
@@ -1370,8 +1370,8 @@ function getCurrentBoxes() {
   }
   const row = getDrawerRow();
   const val = row ? row['Boxes'] : null;
-  if (Array.isArray(val) && val.length) return val.map(b => ({ qty: b.qty || '', l: b.l || '', w: b.w || '', h: b.h || '' }));
-  return [{ qty: '', l: '', w: '', h: '' }];
+  if (Array.isArray(val) && val.length) return val.map(b => ({ qty: b.qty || '', weight: b.weight || '', l: b.l || '', w: b.w || '', h: b.h || '' }));
+  return [{ qty: '', weight: '', l: '', w: '', h: '' }];
 }
 function renderBoxesSection() {
   const boxes = getCurrentBoxes();
@@ -1379,8 +1379,9 @@ function renderBoxesSection() {
     + '<div class="box-row-top"><span class="box-row-num">Box ' + (i + 1) + '</span>'
     + (boxes.length > 1 ? '<button type="button" class="box-remove-btn" onclick="removeBoxRow(' + i + ')" title="Remove box">' + svgTrashMini() + '</button>' : '')
     + '</div>'
-    + '<div class="box-row-grid">'
+        + '<div class="box-row-grid">'
       + '<div class="box-qty-field"><label>Quantity</label><input type="number" class="edit-input" min="0" step="1" value="' + ea(String(b.qty)) + '" placeholder="0" oninput="updateBoxField(' + i + ',\'qty\',this.value)"></div>'
+      + '<div class="box-weight-field"><label>Weight (kg)</label><input type="number" class="edit-input" min="0" step="0.01" value="' + ea(String(b.weight || '')) + '" placeholder="0" oninput="updateBoxField(' + i + ',\'weight\',this.value)"></div>'
       + '<div class="box-size-field"><label>Size (cm)</label><div class="box-size-inputs">'
         + '<input type="number" class="edit-input box-dim" min="0" value="' + ea(String(b.l)) + '" placeholder="L" oninput="updateBoxField(' + i + ',\'l\',this.value)">'
         + '<span class="box-dim-sep">×</span>'
@@ -1402,7 +1403,7 @@ function updateBoxField(idx, key, val) {
 }
 function addBoxRow() {
   const boxes = getCurrentBoxes();
-  boxes.push({ qty: '', l: '', w: '', h: '' });
+    boxes.push({ qty: '', weight: '', l: '', w: '', h: '' });
   drawerDirtyFields['Boxes'] = boxes;
   rerenderBoxesSection();
   updateSaveButton();
@@ -1410,7 +1411,7 @@ function addBoxRow() {
 function removeBoxRow(idx) {
   const boxes = getCurrentBoxes();
   boxes.splice(idx, 1);
-  if (boxes.length === 0) boxes.push({ qty: '', l: '', w: '', h: '' });
+  if (boxes.length === 0) boxes.push({ qty: '', weight: '', l: '', w: '', h: '' });
   drawerDirtyFields['Boxes'] = boxes;
   rerenderBoxesSection();
   updateSaveButton();
