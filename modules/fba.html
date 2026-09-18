@@ -1190,14 +1190,11 @@ function renderDrawer(row) {
             + '<div class="info-grid">' + eCard(id, 'Amazon / ASIN', row['ASIN'] || '', 'text', infoAndPrepReadonly) + eCard(id, 'EAN', row['EAN'] || '', 'text', infoAndPrepReadonly) + '</div>'
             + '<div class="info-grid">' + eCard(id, 'Label Code', row['Label Code'] || '', 'text', infoAndPrepReadonly) + eCard(id, 'Brand', row['Brand'] || '', 'text', infoAndPrepReadonly) + '</div>';
         })()
-            + sec('Quantities') + '<div class="info-grid">'
+                    const groupOnDrawer = drawerDirtyFields.hasOwnProperty('Group') ? !!drawerDirtyFields['Group'] : !!row['Group'];
+    body += sec('Quantities') + '<div class="info-grid">'
       + eCard(id, 'Units Required', row['Units Required'] || '', 'number', infoAndPrepReadonly)
+      + (groupOnDrawer ? bCard(id, 'Veeqo Stock Adjusted', row['Veeqo Stock Adjusted'], infoAndPrepReadonly) : '')
       + '</div>';
-
-    const groupOnDrawer = drawerDirtyFields.hasOwnProperty('Group') ? !!drawerDirtyFields['Group'] : !!row['Group'];
-    if (groupOnDrawer) {
-      body += '<div class="info-grid">' + bCard(id, 'Veeqo Stock Adjusted', row['Veeqo Stock Adjusted'], infoAndPrepReadonly) + '</div>';
-    }
 
     if (!(() => { try { const p=JSON.parse(row['Prep Instructions']||''); return Array.isArray(p)&&p.length>1; } catch(e){return false;} })()) {
       const barcodeImgUrl = row['Barcode Image'] || '';
@@ -1218,7 +1215,7 @@ function renderDrawer(row) {
 if (!infoAndPrepReadonly && source !== 'fba') {
       body += sec('Grouping & Collection') + '<div class="drawer-section">'
         + '<div class="group-toggle-row"><div><div class="group-toggle-label">Group</div><div class="group-toggle-hint">Show deadline, collection date &amp; Veeqo status</div></div>'
-        + '<label class="slide-switch"><input type="checkbox" ' + (groupOnDrawer ? 'checked' : '') + ' onchange="markDirty(\'Group\',this.checked);renderDrawer(row)"><span class="slide-switch-track"></span></label></div>'
+        + '<label class="slide-switch"><input type="checkbox" ' + (groupOnDrawer ? 'checked' : '') + ' onchange="toggleGroupInDrawer(\'' + ea(id) + '\',this.checked)"><span class="slide-switch-track"></span></label></div>'
         + '<div class="info-grid" style="margin-bottom:10px">' + eCard(id, 'Grouping Link', row['Grouping Link'] || '', 'url', false) + (groupOnDrawer ? dateCard(id, 'Collection Booked', row['Collection Booked'] || '') : '') + '</div><div style="margin-bottom:6px"><div class="info-card"><label>Grouping Images</label>' + renderGroupingImages(row['Grouping Image'] || '', id) + '</div></div>' + '</div>';
       const _dlBadgeDrawer = deadlineBadge(drawerDirtyFields.hasOwnProperty('Deadline') ? drawerDirtyFields['Deadline'] : (row['Deadline'] || ''));
       const _dlValDrawer = drawerDirtyFields.hasOwnProperty('Deadline') ? drawerDirtyFields['Deadline'] : (row['Deadline'] || '');
@@ -1377,7 +1374,15 @@ function bCard(id, label, value, readonly) {
 }
 
 function markDirty(field, value) { drawerDirtyFields[field] = value; updateSaveButton(); }
+function toggleGroupInDrawer(id, checked) {
+  markDirty('Group', checked);
+  const dataSource = drawerSource === 'fba' ? fbaData : warehouseData;
+  const row = dataSource.find(r => String(r['ID']) === String(id));
+  if (row) renderDrawer(row);
+}
+window.toggleGroupInDrawer = toggleGroupInDrawer;
 
+  
 function awSetVeeqoToggle(val){
   document.getElementById('awVeeqoAdjusted').value = val;
   document.getElementById('awVeeqoYesBtn').classList.toggle('active-yes', val==='Yes');
