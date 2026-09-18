@@ -40,6 +40,36 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sync-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;animation:livePulse 2s ease infinite;}
 @keyframes livePulse{0%,100%{opacity:1}50%{opacity:.4}}
 .ov-main{padding:18px 20px 40px;}
+.rt-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--sh-sm);padding:20px 22px;margin-bottom:24px;position:relative;overflow:hidden;animation:ovFadeUp .3s ease both;}
+.rt-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),#4f80f7,var(--green));}
+.rt-hdr{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+.rt-icon{width:36px;height:36px;border-radius:10px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.rt-icon svg{width:18px;height:18px;color:var(--accent-l);}
+.rt-title{font-size:14px;font-weight:800;color:var(--text);}
+.rt-sub{font-size:11px;color:var(--text3);font-weight:500;margin-top:1px;}
+.rt-cols{display:grid;grid-template-columns:repeat(3,1fr);}
+.rt-col{display:flex;flex-direction:column;align-items:center;padding:8px 14px;border-left:1px solid var(--border2);}
+.rt-col:first-child{border-left:none;}
+.rt-col-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:14px;}
+.rt-ring-wrap{position:relative;width:118px;height:118px;margin-bottom:14px;}
+.rt-ring{width:118px;height:118px;transform:rotate(-90deg);}
+.rt-ring-bg{fill:none;stroke:var(--surface3);stroke-width:9;}
+.rt-ring-fg{fill:none;stroke:var(--accent);stroke-width:9;stroke-linecap:round;transition:stroke-dashoffset 1s cubic-bezier(.4,0,.2,1),stroke .3s;}
+.rt-ring-fg.hit{stroke:var(--green);}
+.rt-ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.rt-ring-pct{font-size:22px;font-weight:800;font-family:var(--mono);color:var(--text);letter-spacing:-0.5px;animation:ovNumIn .4s cubic-bezier(.34,1.56,.64,1) both;}
+.rt-ring-pct.hit{color:var(--green);}
+.rt-figures{width:100%;display:flex;flex-direction:column;gap:7px;}
+.rt-fig{display:flex;align-items:center;justify-content:space-between;font-size:11.5px;}
+.rt-fig-lbl{color:var(--text3);font-weight:600;}
+.rt-fig-val{font-family:var(--mono);font-weight:700;color:var(--text);}
+.rt-fig-remain .rt-fig-val{color:var(--amber);}
+.rt-fig-remain.hit .rt-fig-val{color:var(--green);}
+.rt-vat{font-size:10px;color:var(--text4);margin-top:10px;padding-top:10px;border-top:1px dashed var(--border2);width:100%;text-align:center;}
+.rt-skel{width:118px;height:118px;border-radius:50%;background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%);background-size:200% 100%;animation:rtShimmer 1.4s ease infinite;margin-bottom:14px;}
+@keyframes rtShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.rt-skel-line{height:10px;border-radius:4px;background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%);background-size:200% 100%;animation:rtShimmer 1.4s ease infinite;width:70%;margin-bottom:7px;}
+  
 .ov-sec{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text4);margin-bottom:12px;display:flex;align-items:center;gap:10px;}
 .ov-sec::after{content:'';flex:1;height:1px;background:var(--border);}
 .ov-hero{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;}
@@ -333,7 +363,21 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
       </div>
     </div>
   </div>
-  <div class="ov-main">
+    <div class="ov-main">
+    <div class="rt-panel">
+      <div class="rt-hdr">
+        <div class="rt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+        <div>
+          <div class="rt-title">Revenue Target</div>
+          <div class="rt-sub">£1,000,000 net · trailing 30 days</div>
+        </div>
+      </div>
+      <div class="rt-cols">
+        <div class="rt-col" id="rtCol7"></div>
+        <div class="rt-col" id="rtCol14"></div>
+        <div class="rt-col" id="rtCol30"></div>
+      </div>
+    </div>
     <div class="ov-sec">Right Now</div>
     <div class="ov-hero" id="ovHero">
       <div class="shimmer" style="height:112px;border-radius:14px"></div>
@@ -850,9 +894,88 @@ async function loadPacking(){
   D.packingToday=counts;
   D.packingLastWeek=lwCounts;
 }
+const REVENUE_TARGET_30D=1000000;
+const REVENUE_TARGETS={7:REVENUE_TARGET_30D/30*7,14:REVENUE_TARGET_30D/30*14,30:REVENUE_TARGET_30D};
+
+function rtSkeletonHtml(label){
+  return `<div class="rt-col-label">${label}</div>
+    <div class="rt-skel"></div>
+    <div class="rt-skel-line" style="width:60%"></div>
+    <div class="rt-skel-line" style="width:80%"></div>
+    <div class="rt-skel-line" style="width:50%"></div>`;
+}
+
+function rtColLabel(days){
+  return days===7?'Last 7 Days':days===14?'Last 14 Days':'Last 30 Days';
+}
+
+function rtRenderCol(days,netRevenue,vatAmount){
+  const target=REVENUE_TARGETS[days];
+  const pct=Math.min(100,Math.round((netRevenue/target)*100));
+  const hit=netRevenue>=target;
+  const remaining=Math.max(0,target-netRevenue);
+  const r=52,circumference=2*Math.PI*r;
+  const vatK=vatAmount>=1000?(vatAmount/1000).toFixed(1)+'k':vatAmount.toFixed(0);
+
+  return `<div class="rt-col-label">${rtColLabel(days)}</div>
+    <div class="rt-ring-wrap">
+      <svg class="rt-ring" viewBox="0 0 120 120">
+        <circle class="rt-ring-bg" cx="60" cy="60" r="${r}"/>
+        <circle class="rt-ring-fg${hit?' hit':''}" cx="60" cy="60" r="${r}" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}"/>
+      </svg>
+      <div class="rt-ring-center"><div class="rt-ring-pct${hit?' hit':''}">${pct}%</div></div>
+    </div>
+    <div class="rt-figures">
+      <div class="rt-fig"><span class="rt-fig-lbl">Achieved</span><span class="rt-fig-val">${fmtGBP(netRevenue)}</span></div>
+      <div class="rt-fig"><span class="rt-fig-lbl">Target</span><span class="rt-fig-val">${fmtGBP(target)}</span></div>
+      <div class="rt-fig rt-fig-remain${hit?' hit':''}"><span class="rt-fig-lbl">${hit?'Exceeded by':'Remaining'}</span><span class="rt-fig-val">${fmtGBP(hit?netRevenue-target:remaining)}</span></div>
+    </div>
+    <div class="rt-vat">VAT excluded: £${vatK}</div>`;
+}
+
+async function rtLoadWindow(days){
+  const colEl=document.getElementById('rtCol'+days);
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const res=await fetch('https://mbmgcqknbajwndiveewf.supabase.co/functions/v1/sellersnap-listings',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${session?.access_token}`},
+      body:JSON.stringify({days}),
+    });
+    const json=await res.json();
+    if(!json.success)throw new Error(json.message);
+
+    const grossRevenue=json.data.reduce((s,x)=>s+(parseFloat(x.total_revenue)||0),0);
+    const netRevenue=grossRevenue/1.2;
+    const vatAmount=grossRevenue-netRevenue;
+
+    colEl.innerHTML=rtRenderCol(days,netRevenue,vatAmount);
+
+    const ring=colEl.querySelector('.rt-ring-fg');
+    if(ring){
+      const target=REVENUE_TARGETS[days];
+      const pct=Math.min(100,(netRevenue/target)*100);
+      const r=52,circumference=2*Math.PI*r;
+      const offset=circumference-(pct/100)*circumference;
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{ring.style.strokeDashoffset=offset;}));
+    }
+  }catch(e){
+    colEl.innerHTML=`<div class="rt-col-label">${rtColLabel(days)}</div><div style="padding:30px 0;text-align:center;color:var(--text4);font-size:11px;">Couldn't load</div>`;
+    console.error('Revenue target load failed for '+days+'d',e);
+  }
+}
+
+function rtInit(){
+  [7,14,30].forEach(d=>{
+    document.getElementById('rtCol'+d).innerHTML=rtSkeletonHtml(rtColLabel(d));
+    rtLoadWindow(d);
+  });
+}
+
 async function init(){
   if(!sb)return;
   pStart();
+  rtInit();
   const fastGroup=[loadReplenishments(),loadFBA(),loadFaults(),loadRota(),loadPacking()];
   const slowGroup=[loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadOffers(),loadRefunds(),loadPaycheck(),loadSuppliersMoq()];
   const fastResults=await Promise.allSettled(fastGroup);
