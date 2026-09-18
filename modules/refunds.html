@@ -159,12 +159,15 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
             <option value="Shipping claim (Lost/Damaged)">Shipping claim to be processed (Lost/Damaged)</option>
             <option value="Shipping claim (Not received, but delivered)">Shipping claim to be processed (Not received, but delivered)</option>
             <option value="Incorrect item sent - full refund">Incorrect item sent — full refund</option>
+            <option value="Incorrect items - partial refund">Incorrect items — partial refund</option>
             <option value="Out of stock - full refund">Out of stock — full refund</option>
             <option value="Missing items - partial refund">Missing items — partial refund</option>
+            <option value="Others">Others</option>
           </select>
         </div>
         <div class="rf-field"><label>Amount Requested (£) <span style="font-weight:400;color:#94a3b8">— optional</span></label><input type="number" id="rfAmountRequested" min="0" step="0.01" placeholder="0.00"></div>
         <div class="rf-field" id="rfNotesWrap" style="grid-column:span 3;display:none"><label>Notes — which/how many units are missing</label><textarea id="rfNotes" placeholder="e.g. 2 of 5 units missing from order"></textarea></div>
+        <div class="rf-field" id="rfOtherReasonWrap" style="grid-column:span 3;display:none"><label>Please specify the reason</label><textarea id="rfOtherReason" placeholder="Describe the reason for this refund…"></textarea></div>
       </div>
 
 <button class="rf-submit-btn" onclick="rfSubmit()">Submit Refund Request</button>
@@ -323,8 +326,9 @@ const amountCell=CAN_WRITE_REFUNDS
       <td colspan="9">
         <div class="rf-detail-inner">
           <div class="rf-detail-text">
-            <div class="rf-detail-item"><b>Reason:</b>${esc(r.reason)}</div>
+                        <div class="rf-detail-item"><b>Reason:</b>${esc(r.reason)}</div>
             ${r.notes?`<div class="rf-detail-item"><b>Notes:</b>${esc(r.notes)}</div>`:''}
+            ${r.other_reason?`<div class="rf-detail-item"><b>Details:</b>${esc(r.other_reason)}</div>`:''}
           </div>
           ${CAN_WRITE_REFUNDS?`<div class="rf-detail-actions">
             <button class="rf-detail-btn" onclick="rfEditRefund(${r.id})" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
@@ -339,6 +343,7 @@ const amountCell=CAN_WRITE_REFUNDS
 function rfToggleNotes(){
   const reason=document.getElementById('rfReason').value;
   document.getElementById('rfNotesWrap').style.display=reason==='Missing items - partial refund'?'block':'none';
+  document.getElementById('rfOtherReasonWrap').style.display=reason==='Others'?'block':'none';
 }
 
 let RF_EDIT_ID = null;
@@ -351,6 +356,7 @@ function rfOpenModal(){
   document.getElementById('rfMarketplace').value='';
   document.getElementById('rfReason').value='';
   document.getElementById('rfNotes').value='';
+  document.getElementById('rfOtherReason').value='';
   document.getElementById('rfAmountRequested').value='';
   rfToggleNotes();
   document.querySelector('#rfModalOverlay .rf-card-title').textContent='New Refund Request';
@@ -372,6 +378,7 @@ function rfEditRefund(id){
   document.getElementById('rfMarketplace').value=r.marketplace;
   document.getElementById('rfReason').value=r.reason;
   document.getElementById('rfNotes').value=r.notes||'';
+  document.getElementById('rfOtherReason').value=r.other_reason||'';
   document.getElementById('rfAmountRequested').value=r.amount_requested!=null?r.amount_requested:'';
   rfToggleNotes();
   document.querySelector('#rfModalOverlay .rf-card-title').textContent='Edit Refund Request';
@@ -417,11 +424,14 @@ async function rfSubmit(){
   const marketplace=document.getElementById('rfMarketplace').value;
   const reason=document.getElementById('rfReason').value;
   const notes=document.getElementById('rfNotes').value.trim();
+  const otherReason=document.getElementById('rfOtherReason').value.trim();
   const amountRequested=document.getElementById('rfAmountRequested').value;
   if(!orderNumber||!marketplace||!reason){ showToast('Please fill in Order Number, Marketplace and Reason','error'); return; }
+  if(reason==='Others'&&!otherReason){ showToast('Please specify the reason','error'); return; }
   const payload={
     order_number:orderNumber, marketplace, reason,
     notes:reason==='Missing items - partial refund'?(notes||null):null,
+    other_reason:reason==='Others'?(otherReason||null):null,
     amount_requested:amountRequested?parseFloat(amountRequested):null,
   };
   if(RF_EDIT_ID){
