@@ -75,6 +75,15 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .bool-toggle-btn.active-yes { background: #f0fdf4; color: #15803d; }
 .bool-toggle-btn.active-no { background: #fef2f2; color: #dc2626; }
 .bool-toggle-btn.active-unset { background: #fefce8; color: #a16207; }
+.slide-switch { position: relative; width: 38px; height: 21px; flex-shrink: 0; }
+.slide-switch input { opacity: 0; width: 0; height: 0; }
+.slide-switch-track { position: absolute; inset: 0; background: #e2e8f0; border-radius: 100px; cursor: pointer; transition: background .2s; }
+.slide-switch-track::before { content: ''; position: absolute; width: 15px; height: 15px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.slide-switch input:checked + .slide-switch-track { background: #2563eb; }
+.slide-switch input:checked + .slide-switch-track::before { transform: translateX(17px); }
+.group-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 9px; margin-bottom: 10px; }
+.group-toggle-label { font-size: 12px; font-weight: 700; color: #334155; }
+.group-toggle-hint { font-size: 10.5px; color: #94a3b8; margin-top: 1px; }
 .drawer-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.3); z-index: 1150; opacity: 0; pointer-events: none; transition: opacity .25s; backdrop-filter: blur(2px); }
 .drawer-overlay.visible { opacity: 1; pointer-events: all; }
 .drawer { position: fixed; top: 0; right: 0; width: 580px; max-width: 97vw; height: 100vh; background: #fff; box-shadow: -8px 0 40px rgba(0,0,0,.13); z-index: 1200; display: flex; flex-direction: column; transform: translateX(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); overflow: hidden; }
@@ -675,12 +684,22 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;display:flex;align-items:center;gap:8px">Label Codes &amp; Units<span style="flex:1;height:1px;background:#f1f5f9"></span></div>
       <div id="awLabelCodeRows"></div>
       <button type="button" class="lc-add-btn" onclick="addLabelCodeRow()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Another Label Code</button>
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;display:flex;align-items:center;gap:8px;margin-top:8px">Grouping &amp; Collection<span style="flex:1;height:1px;background:#f1f5f9"></span></div>
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;display:flex;align-items:center;gap:8px;margin-top:8px">Grouping &amp; Collection<span style="flex:1;height:1px;background:#f1f5f9"></span></div>
+      <div class="group-toggle-row">
+        <div>
+          <div class="group-toggle-label">Group</div>
+          <div class="group-toggle-hint">Turn on to set a deadline, collection date, and Veeqo status</div>
+        </div>
+        <label class="slide-switch">
+          <input type="checkbox" id="awGroupToggle" onchange="awSetGroupToggle(this.checked)">
+          <span class="slide-switch-track"></span>
+        </label>
+      </div>
       <div class="form-row">
         <div class="form-group"><label>Grouping Link</label><input type="url" id="awGroupingLink" placeholder="https://…"></div>
-        <div class="form-group"><label>Collection Booked</label><input type="date" id="awCollectionBooked" class="date-input-styled"></div>
+        <div class="form-group" id="awCollectionBookedWrap" style="display:none"><label>Collection Booked</label><input type="date" id="awCollectionBooked" class="date-input-styled"></div>
       </div>
-            <div class="form-row">
+            <div class="form-row" id="awDeadlineVeeqoWrap" style="display:none">
         <div class="form-group"><label>Deadline</label><input type="date" id="awDeadline" class="date-input-styled"></div>
         <div class="form-group">
           <label>Veeqo Stock Adjusted</label>
@@ -740,8 +759,8 @@ const SB_TO_DISPLAY = {
   'ups_collected':'UPS Collected','note':'Note','barcode_image':'Barcode Image',
   'grouping_link':'Grouping Link','grouping_image':'Grouping Image',
   'collection_booked':'Collection Booked','product_image':'Product Image',
-  'deadline':'Deadline','fba_opportunity':'FBA Opportunity',
-  'boxes':'Boxes'
+    'deadline':'Deadline','fba_opportunity':'FBA Opportunity',
+  'boxes':'Boxes','group_enabled':'Group'
 };
 const DISPLAY_TO_SB = Object.fromEntries(Object.entries(SB_TO_DISPLAY).map(([k,v])=>[v,k]));
 
@@ -1171,10 +1190,14 @@ function renderDrawer(row) {
             + '<div class="info-grid">' + eCard(id, 'Amazon / ASIN', row['ASIN'] || '', 'text', infoAndPrepReadonly) + eCard(id, 'EAN', row['EAN'] || '', 'text', infoAndPrepReadonly) + '</div>'
             + '<div class="info-grid">' + eCard(id, 'Label Code', row['Label Code'] || '', 'text', infoAndPrepReadonly) + eCard(id, 'Brand', row['Brand'] || '', 'text', infoAndPrepReadonly) + '</div>';
         })()
-      + sec('Quantities') + '<div class="info-grid">'
+            + sec('Quantities') + '<div class="info-grid">'
       + eCard(id, 'Units Required', row['Units Required'] || '', 'number', infoAndPrepReadonly)
-      + bCard(id, 'Veeqo Stock Adjusted', row['Veeqo Stock Adjusted'], infoAndPrepReadonly)
       + '</div>';
+
+    const groupOnDrawer = drawerDirtyFields.hasOwnProperty('Group') ? !!drawerDirtyFields['Group'] : !!row['Group'];
+    if (groupOnDrawer) {
+      body += '<div class="info-grid">' + bCard(id, 'Veeqo Stock Adjusted', row['Veeqo Stock Adjusted'], infoAndPrepReadonly) + '</div>';
+    }
 
     if (!(() => { try { const p=JSON.parse(row['Prep Instructions']||''); return Array.isArray(p)&&p.length>1; } catch(e){return false;} })()) {
       const barcodeImgUrl = row['Barcode Image'] || '';
@@ -1193,22 +1216,25 @@ function renderDrawer(row) {
     }
 
 if (!infoAndPrepReadonly && source !== 'fba') {
-      body += sec('Grouping & Collection') + '<div class="drawer-section"><div class="info-grid" style="margin-bottom:10px">' + eCard(id, 'Grouping Link', row['Grouping Link'] || '', 'url', false) + dateCard(id, 'Collection Booked', row['Collection Booked'] || '') + '</div><div style="margin-bottom:6px"><div class="info-card"><label>Grouping Images</label>' + renderGroupingImages(row['Grouping Image'] || '', id) + '</div></div>' + '</div>';
+      body += sec('Grouping & Collection') + '<div class="drawer-section">'
+        + '<div class="group-toggle-row"><div><div class="group-toggle-label">Group</div><div class="group-toggle-hint">Show deadline, collection date &amp; Veeqo status</div></div>'
+        + '<label class="slide-switch"><input type="checkbox" ' + (groupOnDrawer ? 'checked' : '') + ' onchange="markDirty(\'Group\',this.checked);renderDrawer(row)"><span class="slide-switch-track"></span></label></div>'
+        + '<div class="info-grid" style="margin-bottom:10px">' + eCard(id, 'Grouping Link', row['Grouping Link'] || '', 'url', false) + (groupOnDrawer ? dateCard(id, 'Collection Booked', row['Collection Booked'] || '') : '') + '</div><div style="margin-bottom:6px"><div class="info-card"><label>Grouping Images</label>' + renderGroupingImages(row['Grouping Image'] || '', id) + '</div></div>' + '</div>';
       const _dlBadgeDrawer = deadlineBadge(drawerDirtyFields.hasOwnProperty('Deadline') ? drawerDirtyFields['Deadline'] : (row['Deadline'] || ''));
       const _dlValDrawer = drawerDirtyFields.hasOwnProperty('Deadline') ? drawerDirtyFields['Deadline'] : (row['Deadline'] || '');
-      body += sec('Notes & Deadline') + '<div class="drawer-section"><div class="info-card" style="margin-bottom:8px"><label>Note</label><textarea class="edit-textarea" oninput="markDirty(\'Note\',this.value)">' + esc(drawerDirtyFields.hasOwnProperty('Note') ? drawerDirtyFields['Note'] : (row['Note'] || '')) + '</textarea></div><div class="info-card"><label style="display:flex;align-items:center;gap:6px">Deadline' + (_dlBadgeDrawer ? '&nbsp;' + _dlBadgeDrawer : '') + '</label><input type="date" class="edit-input date-input-styled" value="' + ea(toInputDate(_dlValDrawer)) + '" oninput="markDirty(\'Deadline\',this.value)"></div></div>';
+      body += sec('Notes & Deadline') + '<div class="drawer-section"><div class="info-card" style="margin-bottom:8px"><label>Note</label><textarea class="edit-textarea" oninput="markDirty(\'Note\',this.value)">' + esc(drawerDirtyFields.hasOwnProperty('Note') ? drawerDirtyFields['Note'] : (row['Note'] || '')) + '</textarea></div>' + (groupOnDrawer ? '<div class="info-card"><label style="display:flex;align-items:center;gap:6px">Deadline' + (_dlBadgeDrawer ? '&nbsp;' + _dlBadgeDrawer : '') + '</label><input type="date" class="edit-input date-input-styled" value="' + ea(toInputDate(_dlValDrawer)) + '" oninput="markDirty(\'Deadline\',this.value)"></div>' : '') + '</div>';
   } else if (source !== 'fba') {
       const gl = row['Grouping Link'] || '', cb = row['Collection Booked'] || '', gi = row['Grouping Image'] || '';
       body += sec('Grouping & Collection') + '<div class="drawer-section">';
-      if (gl || cb || gi) {
+      if (gl || (groupOnDrawer && cb) || gi) {
         if (gl) body += '<div class="grouping-link-display" style="margin-bottom:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><a href__="' + ea(gl) + '" target="_blank" rel="noopener">' + esc(gl) + '</a></div>';
-        if (cb) body += '<div style="font-size:11px;color:#64748b;margin-bottom:8px"><strong>Collection Booked:</strong> ' + esc(fmtDate(cb)) + '</div>';
+        if (groupOnDrawer && cb) body += '<div style="font-size:11px;color:#64748b;margin-bottom:8px"><strong>Collection Booked:</strong> ' + esc(fmtDate(cb)) + '</div>';
         if (gi) body += renderGroupingImages(gi, id, true);
       } else { body += '<div style="color:#94a3b8;font-size:12px">No grouping or collection data</div>'; }
       body += '</div>';
       const noteVal = row['Note'] || '', deadlineVal = row['Deadline'] || '';
       const _dlBadgeRO = deadlineBadge(deadlineVal);
-      body += sec('Notes & Deadline') + '<div class="drawer-section"><div class="info-card readonly" style="margin-bottom:8px"><label>Note</label><textarea class="edit-textarea" readonly style="background:#f8fafc;pointer-events:none;color:#475569">' + esc(noteVal) + '</textarea></div><div class="info-card readonly"><label style="display:flex;align-items:center;gap:6px">Deadline' + (_dlBadgeRO ? '&nbsp;' + _dlBadgeRO : '') + '</label><input type="date" class="edit-input date-input-styled" value="' + ea(toInputDate(deadlineVal)) + '" readonly style="background:#f8fafc;pointer-events:none;color:#475569"></div></div>';
+      body += sec('Notes & Deadline') + '<div class="drawer-section"><div class="info-card readonly" style="margin-bottom:8px"><label>Note</label><textarea class="edit-textarea" readonly style="background:#f8fafc;pointer-events:none;color:#475569">' + esc(noteVal) + '</textarea></div>' + (groupOnDrawer ? '<div class="info-card readonly"><label style="display:flex;align-items:center;gap:6px">Deadline' + (_dlBadgeRO ? '&nbsp;' + _dlBadgeRO : '') + '</label><input type="date" class="edit-input date-input-styled" value="' + ea(toInputDate(deadlineVal)) + '" readonly style="background:#f8fafc;pointer-events:none;color:#475569"></div>' : '') + '</div>';
   }
   }
 
@@ -1359,6 +1385,14 @@ function awSetVeeqoToggle(val){
   document.getElementById('awVeeqoUnsetBtn').classList.toggle('active-unset', val==='');
 }
 window.awSetVeeqoToggle = awSetVeeqoToggle;
+
+function awSetGroupToggle(on) {
+  document.getElementById('awCollectionBookedWrap').style.display = on ? '' : 'none';
+  document.getElementById('awDeadlineVeeqoWrap').style.display = on ? '' : 'none';
+  const area = document.getElementById('awGroupingImgUploadArea');
+  if (area) area.style.borderColor = '';
+}
+window.awSetGroupToggle = awSetGroupToggle;
   
 function getDrawerRow() {
   const dataSource = drawerSource === 'fba' ? fbaData : warehouseData;
@@ -1795,7 +1829,7 @@ function openAddWorkModal() {
   awLabelCodeRows = []; awRowDebounceTimers = {};
   document.getElementById('awLabelCodeRows').innerHTML = ''; document.getElementById('awMatchedProducts').innerHTML = '';
   document.getElementById('addWorkModalOverlay').classList.add('visible');
-  document.getElementById('awGroupingLink').value = ''; document.getElementById('awCollectionBooked').value = ''; document.getElementById('awDeadline').value = ''; document.getElementById('awNote').value = ''; awSetVeeqoToggle('');
+  document.getElementById('awGroupingLink').value = ''; document.getElementById('awCollectionBooked').value = ''; document.getElementById('awDeadline').value = ''; document.getElementById('awNote').value = ''; awSetVeeqoToggle(''); document.getElementById('awGroupToggle').checked = false; awSetGroupToggle(false);
   awGroupingImgFiles = [];
   const prev = document.getElementById('awGroupingImgPreview'); if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
   const prevFile = document.getElementById('awGroupingImgFile'); if (prevFile) prevFile.value = '';
@@ -1858,11 +1892,12 @@ async function submitAddWork() {
   if (!validRows.length) { showToast('Add at least one valid label code with units', 'error'); return; }
   if (errorRows.length) { const ok = window.confirm(errorRows.length + ' row(s) are incomplete and will be skipped. Continue with ' + validRows.length + ' valid row(s)?'); if (!ok) return; }
 
+    const groupOn = document.getElementById('awGroupToggle').checked;
   const awGroupingImgArea = document.getElementById('awGroupingImgUploadArea');
   if (awGroupingImgArea) awGroupingImgArea.style.borderColor = '';
-  if (!awGroupingImgFiles.length) {
+  if (groupOn && !awGroupingImgFiles.length) {
     if (awGroupingImgArea) awGroupingImgArea.style.borderColor = '#dc2626';
-    showToast('At least one grouping image is required', 'error');
+    showToast('At least one grouping image is required when Group is on', 'error');
     return;
   }
   const btn = document.getElementById('addWorkSubmitBtn');
@@ -1885,7 +1920,7 @@ async function submitAddWork() {
   const maxWH = warehouseData.reduce((max, r) => { const n = parseInt(String(r['ID']||'').replace('WH-','')) || 0; return n > max ? n : max; }, 0);
   const now = new Date().toISOString();
 
-const buildDisplayRow = (id, labelCode, brand, productLine, asin, ean, prepInstructions, bundle, dgLabel, polyBag, warningLabel, barcode, box, barcodeImage, productImage, groupingLink, groupingImage, collectionBooked, unitsRequired, note, deadline, veeqoAdjusted) => ({
+  const buildDisplayRow = (id, labelCode, brand, productLine, asin, ean, prepInstructions, bundle, dgLabel, polyBag, warningLabel, barcode, box, barcodeImage, productImage, groupingLink, groupingImage, collectionBooked, unitsRequired, note, deadline, veeqoAdjusted, groupEnabled) => ({
     'ID': id, 'Date Created': now, 'Last Updated': now,
     'Label Code': labelCode, 'Brand': brand, 'Product Line': productLine, 'ASIN': asin, 'EAN': ean,
     'Prep Instructions': prepInstructions, 'Bundle': bundle, 'DG Label': dgLabel,
@@ -1893,13 +1928,13 @@ const buildDisplayRow = (id, labelCode, brand, productLine, asin, ean, prepInstr
     'Barcode Image': barcodeImage, 'Product Image': productImage,
     'Grouping Link': groupingLink, 'Grouping Image': groupingImage, 'Collection Booked': collectionBooked,
     'Units Required': unitsRequired, 'Veeqo Stock Adjusted': veeqoAdjusted || '', 'Units Completed': 0, 'UPS Collected': '', 'Note': note,
-    'Deadline': deadline
+    'Deadline': deadline, 'Group': !!groupEnabled
   });
 
   if (validRows.length === 1) {
     const r = validRows[0], m = r.match || {};
     const newId = 'WH-' + String(maxWH + 1).padStart(4, '0');
-    const newDisplayRow = buildDisplayRow(newId, r.code, m['Brand']||'', m['Product Line']||'', m['ASIN']||'', m['EAN']||'', m['Prep Instructions']||'', m['Bundle']||'', m['DG Label']||'', m['Poly Bag']||'', m['Warning Label']||'', m['Barcode']||'', m['Box']||'', m['Barcode Image']||'', m['Product Image']||'', sharedGroupingLink||m['Grouping Link']||'', uploadedGroupingImageValue||m['Grouping Image']||'', sharedCollectionBooked||m['Collection Booked']||'', Number(r.units)||0, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim(), document.getElementById('awVeeqoAdjusted').value);
+    const newDisplayRow = buildDisplayRow(newId, r.code, m['Brand']||'', m['Product Line']||'', m['ASIN']||'', m['EAN']||'', m['Prep Instructions']||'', m['Bundle']||'', m['DG Label']||'', m['Poly Bag']||'', m['Warning Label']||'', m['Barcode']||'', m['Box']||'', m['Barcode Image']||'', m['Product Image']||'', sharedGroupingLink||m['Grouping Link']||'', uploadedGroupingImageValue||m['Grouping Image']||'', sharedCollectionBooked||m['Collection Booked']||'', Number(r.units)||0, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim(), document.getElementById('awVeeqoAdjusted').value, groupOn);
     warehouseData.unshift(newDisplayRow); closeAddWorkModal(); applyFilters();
     showToast('1 work item added', 'success'); btn.disabled = false; btn.innerHTML = 'Add Work';
     const { data: inserted, error } = await sb.from('fba_work').insert(displayRowToSb(newDisplayRow)).select().single();
@@ -1916,7 +1951,7 @@ const buildDisplayRow = (id, labelCode, brand, productLine, asin, ean, prepInstr
       return { labelCode:r.code, units:Number(r.units)||0, brand:m['Brand']||'', productLine:m['Product Line']||'', asin:m['ASIN']||'', ean:m['EAN']||'', bundle:m['Bundle']||'', dgLabel:m['DG Label']||'', polyBag:m['Poly Bag']||'', warningLabel:m['Warning Label']||'', barcode:m['Barcode']||'', box:m['Box']||'', barcodeImage:m['Barcode Image']||'', productImage:m['Product Image']||'', prepInstructions:m['Prep Instructions']||'' };
     });
     const newId = 'WH-' + String(maxWH + 1).padStart(4, '0');
-    const newDisplayRow = buildDisplayRow(newId, combinedLabel, first['Brand']||'', validRows.map(r=>(r.match||{})['Product Line']||r.code).join(' / '), first['ASIN']||'', first['EAN']||'', JSON.stringify(batchItems), first['Bundle']||'', first['DG Label']||'', first['Poly Bag']||'', first['Warning Label']||'', first['Barcode']||'', first['Box']||'', first['Barcode Image']||'', first['Product Image']||'', sharedGroupingLink||first['Grouping Link']||'', uploadedGroupingImageValue||first['Grouping Image']||'', sharedCollectionBooked||first['Collection Booked']||'', totalUnits, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim(), document.getElementById('awVeeqoAdjusted').value);
+    const newDisplayRow = buildDisplayRow(newId, combinedLabel, first['Brand']||'', validRows.map(r=>(r.match||{})['Product Line']||r.code).join(' / '), first['ASIN']||'', first['EAN']||'', JSON.stringify(batchItems), first['Bundle']||'', first['DG Label']||'', first['Poly Bag']||'', first['Warning Label']||'', first['Barcode']||'', first['Box']||'', first['Barcode Image']||'', first['Product Image']||'', sharedGroupingLink||first['Grouping Link']||'', uploadedGroupingImageValue||first['Grouping Image']||'', sharedCollectionBooked||first['Collection Booked']||'', totalUnits, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim(), document.getElementById('awVeeqoAdjusted').value, groupOn);
     warehouseData.unshift(newDisplayRow); closeAddWorkModal(); applyFilters();
     showToast('Batch of ' + validRows.length + ' label codes added as 1 work item', 'success'); btn.disabled = false; btn.innerHTML = 'Add Work';
     const { data: inserted, error } = await sb.from('fba_work').insert(displayRowToSb(newDisplayRow)).select().single();
