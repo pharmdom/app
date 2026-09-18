@@ -65,7 +65,27 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .rt-fig-val{font-family:var(--mono);font-weight:700;color:var(--text);}
 .rt-fig-remain .rt-fig-val{color:var(--amber);}
 .rt-fig-remain.hit .rt-fig-val{color:var(--green);}
-.rt-vat{font-size:10px;color:var(--text4);margin-top:10px;padding-top:10px;border-top:1px dashed var(--border2);width:100%;text-align:center;}
+.rt-vat-row{display:flex;align-items:center;justify-content:center;gap:5px;position:relative;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border2);width:100%;}
+.rt-vat{font-size:10px;color:var(--text4);}
+.rt-info-btn{width:14px;height:14px;border-radius:50%;border:1px solid var(--text4);background:none;color:var(--text4);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;padding:0;transition:all .15s;}
+.rt-info-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg);}
+.rt-info-btn svg{width:8px;height:8px;}
+.rt-vat-pop{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%) translateY(4px);width:210px;background:var(--navy);color:#fff;border-radius:var(--r);padding:11px 13px;font-size:10.5px;line-height:1.6;box-shadow:var(--sh-lg);opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;z-index:20;text-align:left;}
+.rt-vat-pop.open{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0);}
+.rt-vat-pop::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--navy);}
+.rt-vat-pop-title{font-weight:700;margin-bottom:6px;}
+.rt-vat-pop-row{display:flex;justify-content:space-between;gap:8px;padding:2px 0;color:rgba(255,255,255,.75);}
+.rt-vat-pop-row.total{border-top:1px solid rgba(255,255,255,.15);margin-top:4px;padding-top:5px;font-weight:700;color:#fff;}.rt-vat-row{display:flex;align-items:center;justify-content:center;gap:5px;position:relative;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border2);width:100%;}
+.rt-vat{font-size:10px;color:var(--text4);}
+.rt-info-btn{width:14px;height:14px;border-radius:50%;border:1px solid var(--text4);background:none;color:var(--text4);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;padding:0;transition:all .15s;}
+.rt-info-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg);}
+.rt-info-btn svg{width:8px;height:8px;}
+.rt-vat-pop{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%) translateY(4px);width:210px;background:var(--navy);color:#fff;border-radius:var(--r);padding:11px 13px;font-size:10.5px;line-height:1.6;box-shadow:var(--sh-lg);opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;z-index:20;text-align:left;}
+.rt-vat-pop.open{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0);}
+.rt-vat-pop::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--navy);}
+.rt-vat-pop-title{font-weight:700;margin-bottom:6px;}
+.rt-vat-pop-row{display:flex;justify-content:space-between;gap:8px;padding:2px 0;color:rgba(255,255,255,.75);}
+.rt-vat-pop-row.total{border-top:1px solid rgba(255,255,255,.15);margin-top:4px;padding-top:5px;font-weight:700;color:#fff;}
 .rt-skel{width:118px;height:118px;border-radius:50%;background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%);background-size:200% 100%;animation:rtShimmer 1.4s ease infinite;margin-bottom:14px;}
 @keyframes rtShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .rt-skel-line{height:10px;border-radius:4px;background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%);background-size:200% 100%;animation:rtShimmer 1.4s ease infinite;width:70%;margin-bottom:7px;}
@@ -909,7 +929,7 @@ function rtColLabel(days){
   return days===7?'Last 7 Days':days===14?'Last 14 Days':'Last 30 Days';
 }
 
-function rtRenderCol(days,netRevenue,vatAmount){
+function rtRenderCol(days,netRevenue,vatAmount,grossRevenue){
   const target=REVENUE_TARGETS[days];
   const pct=Math.min(100,Math.round((netRevenue/target)*100));
   const hit=netRevenue>=target;
@@ -930,8 +950,31 @@ function rtRenderCol(days,netRevenue,vatAmount){
       <div class="rt-fig"><span class="rt-fig-lbl">Target</span><span class="rt-fig-val">${fmtGBP(target)}</span></div>
       <div class="rt-fig rt-fig-remain${hit?' hit':''}"><span class="rt-fig-lbl">${hit?'Exceeded by':'Remaining'}</span><span class="rt-fig-val">${fmtGBP(hit?netRevenue-target:remaining)}</span></div>
     </div>
-    <div class="rt-vat">VAT excluded: £${vatK}</div>`;
+    <div class="rt-vat-row">
+      <button class="rt-info-btn" onclick="rtToggleVatInfo(event,${days})" title="How VAT is calculated">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      </button>
+      <span class="rt-vat">VAT excluded: £${vatK}</span>
+      <div class="rt-vat-pop" id="rtVatPop${days}">
+        <div class="rt-vat-pop-title">${rtColLabel(days)} — VAT Breakdown</div>
+        <div class="rt-vat-pop-row"><span>Gross revenue (Seller Snap)</span><span>${fmtGBP(grossRevenue)}</span></div>
+        <div class="rt-vat-pop-row"><span>÷ 1.2 — removes 20% VAT</span></div>
+        <div class="rt-vat-pop-row total"><span>Net revenue</span><span>${fmtGBP(netRevenue)}</span></div>
+        <div class="rt-vat-pop-row"><span>VAT amount</span><span>${fmtGBP(vatAmount)}</span></div>
+      </div>
+    </div>`;
 }
+
+window.rtToggleVatInfo=function(e,days){
+  e.stopPropagation();
+  const pop=document.getElementById('rtVatPop'+days);
+  const isOpen=pop.classList.contains('open');
+  document.querySelectorAll('.rt-vat-pop.open').forEach(p=>p.classList.remove('open'));
+  if(!isOpen)pop.classList.add('open');
+};
+document.addEventListener('click',()=>{
+  document.querySelectorAll('.rt-vat-pop.open').forEach(p=>p.classList.remove('open'));
+});
 
 async function rtLoadWindow(days){
   const colEl=document.getElementById('rtCol'+days);
@@ -949,8 +992,8 @@ async function rtLoadWindow(days){
     const netRevenue=grossRevenue/1.2;
     const vatAmount=grossRevenue-netRevenue;
 
-    colEl.innerHTML=rtRenderCol(days,netRevenue,vatAmount);
-
+    colEl.innerHTML=rtRenderCol(days,netRevenue,vatAmount,grossRevenue);
+    
     const ring=colEl.querySelector('.rt-ring-fg');
     if(ring){
       const target=REVENUE_TARGETS[days];
