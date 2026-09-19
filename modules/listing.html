@@ -68,7 +68,9 @@ html, body {
 .kanban-card-stats { display: flex; gap: 10px; margin-bottom: 6px; }
 .kc-stat-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: #94a3b8; }
 .kc-stat-val { font-size: 12px; font-weight: 700; color: #0f172a; }
-.kanban-card-platforms { display: flex; gap: 4px; flex-wrap: wrap; padding-top: 6px; border-top: 1px solid #f1f5f9; }
+.kanban-card-platforms { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding-top: 6px; border-top: 1px solid #f1f5f9; }
+.kc-plat-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.kc-days-badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 100px; border: 1px solid; white-space: nowrap; flex-shrink: 0; }
 .kc-plat-icon { width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
 .kc-plat-icon.amz  { background: #ff9900; }
 .kc-plat-icon.ebay { background: #fff; border: 1px solid #e2e8f0; }
@@ -587,7 +589,16 @@ function ea(s)      { return String(s||'').replace(/"/g,'&quot;').replace(/'/g,'
 function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : ''; }
 function daysAgo(d) { if(!d) return null; return Math.floor((Date.now()-new Date(d).getTime())/86400000); }
 function daysAgoLabel(n) { if(n===null) return ''; if(n===0) return 'Today'; if(n===1) return '1 day ago'; return n+' days ago'; }
-
+function daysBadgeHtml(d) {
+  const n = daysAgo(d);
+  if (n === null) return '';
+  let bg, fg, bd;
+  if (n <= 3) { bg='#f0fdf4'; fg='#15803d'; bd='#bbf7d0'; }
+  else if (n <= 7) { bg='#fff7ed'; fg='#c2410c'; bd='#fed7aa'; }
+  else { bg='#fef2f2'; fg='#dc2626'; bd='#fecaca'; }
+  return '<span class="kc-days-badge" style="background:' + bg + ';color:' + fg + ';border-color:' + bd + '">' + n + 'd</span>';
+}
+  
 /* ── CALCULATED FIELDS ── */
 function applyAutoFields(row) {
   row.warehouse = true;
@@ -798,7 +809,7 @@ function renderKanban() {
           + '<div><div class="kc-stat-label">Sales</div><div class="kc-stat-val">' + (isNaN(salesVal)?'—':salesVal.toFixed(0)) + '</div></div>'
           + '<div><div class="kc-stat-label">Qty</div><div class="kc-stat-val">' + (row.qty_purchased||'—') + '</div></div>'
           + '</div>'
-          + '<div class="kanban-card-platforms">' + renderCardPlatforms(row) + '</div>';
+          + '<div class="kanban-card-platforms"><div class="kc-plat-row">' + renderCardPlatforms(row) + '</div>' + daysBadgeHtml(row.date) + '</div>';
         card.addEventListener('click', () => openDrawer(id));
         card.addEventListener('dragstart', e => { dragSrcId = id; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
         card.addEventListener('dragend', () => { dragSrcId = null; card.classList.remove('dragging'); document.querySelectorAll('.kanban-col-body').forEach(b => b.classList.remove('drag-over')); });
@@ -867,7 +878,7 @@ function refreshCard(id) {
     + '<div><div class="kc-stat-label">Sales</div><div class="kc-stat-val">' + (isNaN(salesVal)?'—':salesVal.toFixed(0)) + '</div></div>'
     + '<div><div class="kc-stat-label">Qty</div><div class="kc-stat-val">' + (row.qty_purchased||'—') + '</div></div>'
     + '</div>'
-    + '<div class="kanban-card-platforms">' + renderCardPlatforms(row) + '</div>';
+        + '<div class="kanban-card-platforms"><div class="kc-plat-row">' + renderCardPlatforms(row) + '</div>' + daysBadgeHtml(row.date) + '</div>';
   card.classList.add('card-updated');
   setTimeout(() => card.classList.remove('card-updated'), 650);
 }
