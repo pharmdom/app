@@ -65,8 +65,10 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 
 /* TABLE CARD */
 .table-card{flex:1;min-height:0;background:var(--surface);border-radius:var(--r-lg);border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--sh-sm)}
-.table-scroll{flex:1;overflow:auto;min-height:0;}
-.data-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.table-scroll{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;}
+.data-tbl{width:100%;table-layout:auto;border-collapse:collapse;font-size:13px}
+.data-tbl th,.data-tbl td{white-space:nowrap}
+.data-tbl th:nth-child(2),.data-tbl td:nth-child(2){white-space:normal;width:100%}
 .data-tbl thead th{background:var(--navy);padding:10px 14px;text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:rgba(255,255,255,.7);white-space:nowrap;position:sticky;top:0;z-index:10;}
 .data-tbl thead th.center{text-align:center}
 .data-tbl tbody tr{border-bottom:1px solid var(--border2);transition:background .1s;animation:rowIn .15s ease both;position:relative;z-index:1;}
@@ -80,7 +82,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 /* NAME CELL */
 .name-cell{font-weight:600;color:var(--text);font-size:12.5px;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .sup-cell{font-size:11px;color:var(--text4);margin-top:2px;display:flex;align-items:center;gap:4px}
-.days-badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:100px;font-size:11px;font-weight:700;white-space:nowrap}
+.days-badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:100px;font-size:10px;font-weight:700;white-space:nowrap;margin-top:2px}
 .days-badge.d-ok{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
 .days-badge.d-warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd)}
 .days-badge.d-urgent{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd)}
@@ -530,14 +532,13 @@ function renderView(){
     scroll.innerHTML=`<div class="state-wrap"><p>No records found</p><span>${activeFilter!=='all'?'Try switching to "All"':'No warehouse arrivals yet'}</span></div>`;
     return;
   }
-    let html=`<table class="data-tbl"><thead><tr>
-    <th style="width:100px">Date</th>
+      let html=`<table class="data-tbl"><thead><tr>
+    <th>Date</th>
     <th>Product Name</th>
-    <th style="width:140px">EAN</th>
-    <th class="center" style="width:110px">Bin Location</th>
-    <th class="center" style="width:140px">SKU Label Printed</th>
-    <th class="center" style="width:110px">Days Waiting</th>
-    <th class="center" style="width:60px">Status</th>
+    <th>EAN</th>
+    <th class="center">Bin Location</th>
+    <th class="center">SKU Label Printed</th>
+    <th class="center">Status</th>
   </tr></thead><tbody>`;
   data.forEach((r,i)=>{
     const id=esc(String(r.opportunity_id||''));
@@ -552,15 +553,15 @@ function renderView(){
       if(daysAgo>=6)daysCls='d-urgent';
       else if(daysAgo>=3)daysCls='d-warn';
     }
+    const daysBadge=(!skuDone&&daysAgo!=null)?`<div class="days-badge ${daysCls}">${daysAgo}d ago</div>`:'';
     html+=`<tr style="animation-delay:${i*0.025}s">`;
-    html+=`<td style="white-space:nowrap;color:var(--text4);font-size:11.5px">${fmtDate(r.date)}</td>`;
+    html+=`<td><div style="color:var(--text4);font-size:11.5px">${fmtDate(r.date)}</div>${daysBadge}</td>`;
     html+=`<td><div class="name-cell">${esc(r.listing_name||'—')}</div>`;
     if(r.supplier_name)html+=`<div class="sup-cell">${esc(r.supplier_name)}</div>`;
     html+=`</td>`;
     html+=`<td>${r.code?`<span class="code-badge">${esc(r.code)}</span>`:'<span style="color:var(--text4)">—</span>'}</td>`;
     html+=`<td class="center">${ynToggle(id,'bin_location',!!r.bin_location)}</td>`;
     html+=`<td class="center">${ynToggle(id,'sku_label_printed',skuDone)}</td>`;
-    html+=`<td class="center">${skuDone?'<span style="color:var(--text4)">—</span>':(daysAgo!=null?`<span class="days-badge ${daysCls}">${daysAgo}d</span>`:'<span style="color:var(--text4)">—</span>')}</td>`;
     html+=`<td class="center"><div class="dots"><div class="dot${skuDone?' done':''}" title="SKU Label Printed"></div><div class="dot${r.bin_location?' done':''}" title="Bin Location"></div></div></td>`;
     html+=`</tr>`;
   });
