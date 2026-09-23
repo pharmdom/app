@@ -1,1 +1,433 @@
-<p>This is for all cashflow</p>
+<style>
+:root{
+  --bg:#eef1f8;--surface:#ffffff;--surface2:#f5f7fc;--surface3:#e8edf7;
+  --border:#e2e8f5;--border2:#ecf0f9;
+  --text:#0c1526;--text2:#2a3a54;--text3:#64748b;--text4:#98a7bc;
+  --accent:#1847d4;--accent-l:#2a5eed;--accent-bg:#eef2fd;--accent-bd:#c4d3f9;
+  --green:#0c7a42;--green-bg:#ecfdf5;--green-bd:#86efac;
+  --red:#b91c1c;--red-bg:#fef2f2;--red-bd:#fecaca;
+  --amber:#92400e;--amber-bg:#fffbeb;--amber-bd:#fde68a;
+  --navy:#0c1526;
+  --r:10px;--r-lg:14px;--r-xl:18px;
+  --font:'Plus Jakarta Sans',system-ui,sans-serif;
+  --mono:'JetBrains Mono',monospace;
+  --sh-sm:0 1px 3px rgba(12,21,38,.06),0 1px 2px rgba(12,21,38,.04);
+  --sh:0 4px 16px rgba(12,21,38,.08),0 2px 6px rgba(12,21,38,.04);
+  --sh-lg:0 20px 50px rgba(12,21,38,.14),0 6px 16px rgba(12,21,38,.07);
+}
+.cf-app{font-family:var(--font);font-size:14px;color:var(--text);background:var(--bg);min-height:100vh;padding:20px;}
+.cf-grid{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start;}
+
+/* LEFT PANEL — CARDS */
+.cf-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--sh-sm);display:flex;flex-direction:column;max-height:calc(100vh - 40px);overflow:hidden;}
+.cf-panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.cf-panel-title{font-size:14px;font-weight:800;color:var(--text);}
+.cf-panel-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.cf-add-btn{width:32px;height:32px;border-radius:10px;border:none;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:transform .15s,box-shadow .15s;}
+.cf-add-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(24,71,212,.3);}
+.cf-cards-scroll{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px;}
+.cf-cards-scroll::-webkit-scrollbar{width:4px;}
+.cf-cards-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.cf-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;gap:8px;text-align:center;color:var(--text4);}
+
+/* THE VIRTUAL CARD */
+.cc-card{width:100%;aspect-ratio:1.586/1;perspective:1200px;cursor:pointer;flex-shrink:0;}
+.cc-card-inner{position:relative;width:100%;height:100%;transition:transform .6s cubic-bezier(.4,0,.2,1);transform-style:preserve-3d;}
+.cc-card.flipped .cc-card-inner{transform:rotateY(180deg);}
+.cc-face{position:absolute;inset:0;border-radius:16px;backface-visibility:hidden;padding:18px 20px;display:flex;flex-direction:column;justify-content:space-between;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.18),0 2px 6px rgba(0,0,0,.1);overflow:hidden;}
+.cc-face::before{content:'';position:absolute;top:-40%;right:-20%;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.14) 0%,transparent 70%);}
+.cc-face::after{content:'';position:absolute;bottom:-50%;left:-10%;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.08) 0%,transparent 70%);}
+.cc-back{transform:rotateY(180deg);}
+.cc-top-row{display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1;}
+.cc-chip{width:34px;height:26px;border-radius:5px;background:linear-gradient(135deg,#f5d98b,#d4af5a);position:relative;}
+.cc-chip::before{content:'';position:absolute;inset:4px;border:1px solid rgba(0,0,0,.15);border-radius:3px;}
+.cc-flip-hint{font-size:9px;color:rgba(255,255,255,.55);display:flex;align-items:center;gap:3px;}
+.cc-name{font-size:15px;font-weight:800;letter-spacing:.3px;position:relative;z-index:1;}
+.cc-util-wrap{position:relative;z-index:1;}
+.cc-util-bar{height:5px;border-radius:10px;background:rgba(255,255,255,.2);overflow:hidden;margin-bottom:4px;}
+.cc-util-fill{height:100%;background:#fff;border-radius:10px;transition:width .5s ease;}
+.cc-util-lbl{font-size:9.5px;color:rgba(255,255,255,.7);display:flex;justify-content:space-between;font-family:var(--mono);}
+.cc-bottom-row{display:flex;justify-content:space-between;align-items:flex-end;position:relative;z-index:1;}
+.cc-due-badge{display:inline-flex;flex-direction:column;background:rgba(255,255,255,.16);backdrop-filter:blur(4px);border-radius:8px;padding:5px 10px;}
+.cc-due-lbl{font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.6);}
+.cc-due-val{font-size:12px;font-weight:800;}
+.cc-due-val.urgent{color:#fecaca;}
+.cc-balance-mini{text-align:right;}
+.cc-balance-mini .l{font-size:8px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.6);}
+.cc-balance-mini .v{font-size:14px;font-weight:800;font-family:var(--mono);}
+/* back */
+.cc-back-title{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.55);position:relative;z-index:1;margin-bottom:2px;}
+.cc-back-rows{position:relative;z-index:1;display:flex;flex-direction:column;gap:8px;}
+.cc-back-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;}
+.cc-back-row .k{color:rgba(255,255,255,.6);}
+.cc-back-row .v{font-weight:800;font-family:var(--mono);}
+.cc-back-strip{position:absolute;top:16px;left:0;right:0;height:32px;background:#1a1a1a;z-index:1;}
+
+/* RIGHT — SUPPLIER TABLE */
+.cf-right{display:flex;flex-direction:column;gap:14px;}
+.cf-table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--sh-sm);overflow:hidden;}
+.cf-table-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border);}
+.cf-table-title{font-size:14px;font-weight:800;color:var(--text);}
+.cf-table-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.cf-add-account-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r);border:1px solid var(--accent-bd);background:var(--accent-bg);color:var(--accent);font-size:12.5px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;}
+.cf-add-account-btn:hover{background:var(--accent);color:#fff;}
+.cf-table-scroll{overflow-x:auto;}
+.cf-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.cf-table th{text-align:left;padding:10px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);background:var(--surface2);white-space:nowrap;border-bottom:1px solid var(--border);}
+.cf-table td{padding:11px 14px;border-bottom:1px solid var(--border2);white-space:nowrap;vertical-align:middle;}
+.cf-table tr:last-child td{border-bottom:none;}
+.cf-table tr.paid-row{opacity:.55;}
+.cf-table tr.paid-row .cf-acct-name{text-decoration:line-through;}
+.cf-acct-name{font-weight:700;color:var(--text);}
+.cf-days-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:100px;font-size:10.5px;font-weight:700;}
+.cf-days-badge.d-ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);}
+.cf-days-badge.d-warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd);}
+.cf-days-badge.d-urgent{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd);}
+.cf-yn{display:inline-flex;align-items:center;padding:2px 9px;border-radius:100px;font-size:10.5px;font-weight:700;}
+.cf-yn.yes{background:var(--green-bg);color:var(--green);}
+.cf-yn.no{background:var(--surface2);color:var(--text3);}
+.cf-mark-paid-btn{padding:6px 12px;border-radius:var(--r);border:1px solid var(--accent-bd);background:var(--accent-bg);color:var(--accent);font-size:11.5px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;}
+.cf-mark-paid-btn:hover{background:var(--accent);color:#fff;}
+.cf-paid-badge{display:flex;flex-direction:column;font-size:10.5px;color:var(--green);font-weight:700;}
+.cf-paid-badge .amt{font-size:9.5px;color:var(--text3);font-weight:600;}
+.cf-empty-table{text-align:center;padding:40px;color:var(--text4);font-size:12.5px;}
+
+/* MODAL */
+.cf-modal-overlay{position:fixed;inset:0;background:rgba(12,21,38,.5);z-index:9990;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .15s;}
+.cf-modal-overlay.open{opacity:1;pointer-events:all;}
+.cf-modal{background:var(--surface);border-radius:var(--r-xl);width:420px;max-width:92vw;max-height:88vh;overflow-y:auto;box-shadow:var(--sh-lg);transform:translateY(8px);transition:transform .15s;}
+.cf-modal-overlay.open .cf-modal{transform:translateY(0);}
+.cf-modal-hdr{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.cf-modal-title{font-size:15px;font-weight:800;}
+.cf-modal-close{width:26px;height:26px;border-radius:8px;border:none;background:var(--surface2);color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.cf-modal-body{padding:18px 20px;display:flex;flex-direction:column;gap:12px;}
+.cf-field label{display:block;font-size:11px;font-weight:700;color:var(--text3);margin-bottom:5px;}
+.cf-field input,.cf-field select{width:100%;padding:9px 11px;border-radius:var(--r);border:1px solid var(--border);font-size:13px;font-family:var(--font);background:var(--surface);}
+.cf-field input:focus,.cf-field select:focus{outline:none;border-color:var(--accent);}
+.cf-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.cf-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:9px 11px;border:1px solid var(--border);border-radius:var(--r);}
+.cf-modal-footer{padding:14px 20px 20px;display:flex;gap:8px;justify-content:flex-end;}
+.cf-btn{padding:9px 16px;border-radius:var(--r);border:none;font-size:13px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;}
+.cf-btn-secondary{background:var(--surface2);color:var(--text3);}
+.cf-btn-primary{background:var(--accent);color:#fff;}
+.cf-btn-primary:hover{background:var(--accent-l);}
+</style>
+
+<div class="cf-app">
+  <div class="cf-grid">
+    <div class="cf-panel">
+      <div class="cf-panel-hdr">
+        <div>
+          <div class="cf-panel-title">Credit Cards</div>
+          <div class="cf-panel-sub" id="cfCardCount">0 cards</div>
+        </div>
+        <button class="cf-add-btn" onclick="cfOpenCardModal()" title="Add Card">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <div class="cf-cards-scroll" id="cfCardsScroll"></div>
+    </div>
+
+    <div class="cf-right">
+      <div class="cf-table-card">
+        <div class="cf-table-hdr">
+          <div>
+            <div class="cf-table-title">Supplier Credit Accounts</div>
+            <div class="cf-table-sub" id="cfAcctCount">0 accounts</div>
+          </div>
+          <button class="cf-add-account-btn" onclick="cfOpenAccountModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Account
+          </button>
+        </div>
+        <div class="cf-table-scroll">
+          <table class="cf-table">
+            <thead><tr>
+              <th>Account</th><th>Balance</th><th>Due Date</th><th>Limit</th><th>Remaining</th><th>Days Remaining</th><th>Accepts Credit</th><th>Payment Terms</th><th>Status</th>
+            </tr></thead>
+            <tbody id="cfAcctTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD CARD MODAL -->
+<div class="cf-modal-overlay" id="cfCardModalOverlay">
+  <div class="cf-modal">
+    <div class="cf-modal-hdr"><div class="cf-modal-title">Add Credit Card</div><button class="cf-modal-close" onclick="cfCloseCardModal()">✕</button></div>
+    <div class="cf-modal-body">
+      <div class="cf-field"><label>Card Name</label><input type="text" id="cfCcName" placeholder="e.g. Amex Business Platinum"></div>
+      <div class="cf-row2">
+        <div class="cf-field"><label>Statement Date (day of month)</label><input type="number" id="cfStatementDay" min="1" max="31" placeholder="e.g. 3"></div>
+        <div class="cf-field"><label>Due Date (day of month)</label><input type="number" id="cfDueDay" min="1" max="31" placeholder="e.g. 20"></div>
+      </div>
+      <div class="cf-row2">
+        <div class="cf-field"><label>Statement Payment (£)</label><input type="number" id="cfStatementPayment" step="0.01" placeholder="0.00"></div>
+        <div class="cf-field"><label>Cashback (%)</label><input type="number" id="cfCashback" step="0.01" placeholder="0.00"></div>
+      </div>
+      <div class="cf-row2">
+        <div class="cf-field"><label>Account Balance (£)</label><input type="number" id="cfBalance" step="0.01" placeholder="0.00"></div>
+        <div class="cf-field"><label>Limit (£)</label><input type="number" id="cfLimit" step="0.01" placeholder="0.00"></div>
+      </div>
+    </div>
+    <div class="cf-modal-footer">
+      <button class="cf-btn cf-btn-secondary" onclick="cfCloseCardModal()">Cancel</button>
+      <button class="cf-btn cf-btn-primary" onclick="cfSubmitCard()">Add Card</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD ACCOUNT MODAL -->
+<div class="cf-modal-overlay" id="cfAcctModalOverlay">
+  <div class="cf-modal">
+    <div class="cf-modal-hdr"><div class="cf-modal-title">Add Supplier Account</div><button class="cf-modal-close" onclick="cfCloseAccountModal()">✕</button></div>
+    <div class="cf-modal-body">
+      <div class="cf-field"><label>Supplier Name</label><input type="text" id="cfAcctName" placeholder="e.g. Unilever UK"></div>
+      <div class="cf-row2">
+        <div class="cf-field"><label>Balance (£)</label><input type="number" id="cfAcctBalance" step="0.01" placeholder="0.00"></div>
+        <div class="cf-field"><label>Limit (£)</label><input type="number" id="cfAcctLimit" step="0.01" placeholder="0.00"></div>
+      </div>
+      <div class="cf-field"><label>Due Date (day of month)</label><input type="number" id="cfAcctDueDay" min="1" max="31" placeholder="e.g. 15"></div>
+      <div class="cf-field"><label>Payment Terms</label><input type="text" id="cfAcctTerms" placeholder="e.g. Net 30"></div>
+      <div class="cf-toggle-row">
+        <span style="font-size:12.5px;font-weight:600;">Accepts Credit</span>
+        <select id="cfAcctAcceptsCredit" style="width:auto;padding:6px 10px;"><option value="yes">Yes</option><option value="no">No</option></select>
+      </div>
+    </div>
+    <div class="cf-modal-footer">
+      <button class="cf-btn cf-btn-secondary" onclick="cfCloseAccountModal()">Cancel</button>
+      <button class="cf-btn cf-btn-primary" onclick="cfSubmitAccount()">Add Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- MARK PAID MODAL -->
+<div class="cf-modal-overlay" id="cfPaidModalOverlay">
+  <div class="cf-modal">
+    <div class="cf-modal-hdr"><div class="cf-modal-title">Mark as Paid</div><button class="cf-modal-close" onclick="cfClosePaidModal()">✕</button></div>
+    <div class="cf-modal-body">
+      <div class="cf-field"><label>Amount Paid (£)</label><input type="number" id="cfPaidAmount" step="0.01"></div>
+      <div class="cf-field"><label>Date Paid</label><input type="date" id="cfPaidDate"></div>
+    </div>
+    <div class="cf-modal-footer">
+      <button class="cf-btn cf-btn-secondary" onclick="cfClosePaidModal()">Cancel</button>
+      <button class="cf-btn cf-btn-primary" onclick="cfConfirmPaid()">Confirm Paid</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  let cards = [];
+  let accounts = [];
+  let cardIdSeq = 1;
+  let acctIdSeq = 1;
+  let payingAcctId = null;
+
+  const GRADIENTS = [
+    'linear-gradient(135deg,#1e3a8a 0%,#1847d4 100%)',
+    'linear-gradient(135deg,#166534 0%,#15803d 100%)',
+    'linear-gradient(135deg,#7c2d12 0%,#c2410c 100%)',
+    'linear-gradient(135deg,#581c87 0%,#7c3aed 100%)',
+    'linear-gradient(135deg,#0c1526 0%,#334155 100%)',
+    'linear-gradient(135deg,#9d174d 0%,#db2777 100%)',
+  ];
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function fmtGBP(v){ return '£'+(parseFloat(v)||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+  function daysUntilDay(day){
+    if(!day) return null;
+    const now = new Date();
+    let target = new Date(now.getFullYear(), now.getMonth(), day, 23, 59, 59);
+    if (target < now) target = new Date(now.getFullYear(), now.getMonth()+1, day, 23, 59, 59);
+    return Math.max(0, Math.ceil((target - now) / 86400000));
+  }
+  function ordinal(n){
+    const s=['th','st','nd','rd'], v=n%100;
+    return n+(s[(v-20)%10]||s[v]||s[0]);
+  }
+  function daysBadgeClass(days){
+    if(days===null) return 'd-ok';
+    if(days<=3) return 'd-urgent';
+    if(days<=7) return 'd-warn';
+    return 'd-ok';
+  }
+
+  // ===== CARDS =====
+  function renderCards(){
+    const scroll = document.getElementById('cfCardsScroll');
+    document.getElementById('cfCardCount').textContent = cards.length + (cards.length===1?' card':' cards');
+    if(!cards.length){
+      scroll.innerHTML = `<div class="cf-empty">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        <div>No credit cards yet</div>
+      </div>`;
+      return;
+    }
+    scroll.innerHTML = cards.map((c,i)=>{
+      const remaining = (parseFloat(c.limit)||0) - (parseFloat(c.balance)||0);
+      const utilPct = c.limit>0 ? Math.min(100,Math.round((c.balance/c.limit)*100)) : 0;
+      const days = daysUntilDay(c.dueDay);
+      const urgent = days!==null && days<=5;
+      return `<div class="cc-card" id="ccCard${c.id}" onclick="cfFlipCard(${c.id})">
+        <div class="cc-card-inner">
+          <div class="cc-face cc-front" style="background:${c.gradient}">
+            <div class="cc-top-row">
+              <div class="cc-chip"></div>
+              <div class="cc-flip-hint">flip <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div>
+            </div>
+            <div>
+              <div class="cc-name">${esc(c.name)}</div>
+              <div class="cc-util-wrap" style="margin-top:8px">
+                <div class="cc-util-bar"><div class="cc-util-fill" style="width:${utilPct}%"></div></div>
+                <div class="cc-util-lbl"><span>${fmtGBP(c.balance)} used</span><span>${utilPct}%</span></div>
+              </div>
+            </div>
+            <div class="cc-bottom-row">
+              <div class="cc-due-badge">
+                <span class="cc-due-lbl">Due</span>
+                <span class="cc-due-val ${urgent?'urgent':''}">${ordinal(c.dueDay)} · ${days}d</span>
+              </div>
+              <div class="cc-balance-mini">
+                <div class="l">Available</div>
+                <div class="v">${fmtGBP(remaining)}</div>
+              </div>
+            </div>
+          </div>
+          <div class="cc-face cc-back" style="background:${c.gradient}">
+            <div class="cc-back-strip"></div>
+            <div style="margin-top:44px;position:relative;z-index:1">
+              <div class="cc-back-title">Card Details</div>
+              <div class="cc-back-rows">
+                <div class="cc-back-row"><span class="k">Statement Date</span><span class="v">${ordinal(c.statementDay)}</span></div>
+                <div class="cc-back-row"><span class="k">Statement Payment</span><span class="v">${fmtGBP(c.statementPayment)}</span></div>
+                <div class="cc-back-row"><span class="k">Cashback</span><span class="v">${parseFloat(c.cashback||0).toFixed(2)}%</span></div>
+                <div class="cc-back-row"><span class="k">Remaining Credit</span><span class="v">${fmtGBP(remaining)}</span></div>
+                <div class="cc-back-row"><span class="k">Limit</span><span class="v">${fmtGBP(c.limit)}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  window.cfFlipCard = function(id){
+    document.getElementById('ccCard'+id).classList.toggle('flipped');
+  };
+
+  window.cfOpenCardModal = function(){
+    ['cfCcName','cfStatementDay','cfDueDay','cfStatementPayment','cfCashback','cfBalance','cfLimit'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('cfCardModalOverlay').classList.add('open');
+  };
+  window.cfCloseCardModal = function(){ document.getElementById('cfCardModalOverlay').classList.remove('open'); };
+
+  window.cfSubmitCard = function(){
+    const name = document.getElementById('cfCcName').value.trim();
+    const statementDay = parseInt(document.getElementById('cfStatementDay').value);
+    const dueDay = parseInt(document.getElementById('cfDueDay').value);
+    if(!name || !statementDay || !dueDay){ alert('Please fill in Card Name, Statement Date and Due Date'); return; }
+    cards.push({
+      id: cardIdSeq++,
+      name,
+      statementDay,
+      dueDay,
+      statementPayment: parseFloat(document.getElementById('cfStatementPayment').value)||0,
+      cashback: parseFloat(document.getElementById('cfCashback').value)||0,
+      balance: parseFloat(document.getElementById('cfBalance').value)||0,
+      limit: parseFloat(document.getElementById('cfLimit').value)||0,
+      gradient: GRADIENTS[(cards.length)%GRADIENTS.length],
+    });
+    cfCloseCardModal();
+    renderCards();
+  };
+
+  // ===== SUPPLIER ACCOUNTS =====
+  function renderAccounts(){
+    const tbody = document.getElementById('cfAcctTbody');
+    document.getElementById('cfAcctCount').textContent = accounts.length + (accounts.length===1?' account':' accounts');
+    if(!accounts.length){
+      tbody.innerHTML = `<tr><td colspan="9" class="cf-empty-table">No supplier accounts yet</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = accounts.map(a=>{
+      const remaining = (parseFloat(a.limit)||0) - (parseFloat(a.balance)||0);
+      const days = daysUntilDay(a.dueDay);
+      const cls = daysBadgeClass(days);
+      const isPaid = a.paid && a.paid.paid;
+      return `<tr class="${isPaid?'paid-row':''}">
+        <td class="cf-acct-name">${esc(a.name)}</td>
+        <td>${fmtGBP(a.balance)}</td>
+        <td>${ordinal(a.dueDay)} of month</td>
+        <td>${fmtGBP(a.limit)}</td>
+        <td>${fmtGBP(remaining)}</td>
+        <td><span class="cf-days-badge ${cls}">${days}d</span></td>
+        <td><span class="cf-yn ${a.acceptsCredit?'yes':'no'}">${a.acceptsCredit?'Yes':'No'}</span></td>
+        <td>${esc(a.paymentTerms||'—')}</td>
+        <td>${isPaid
+          ? `<div class="cf-paid-badge" onclick="cfUnmarkPaid(${a.id})" style="cursor:pointer" title="Click to undo">✓ Paid ${a.paid.date}<span class="amt">${fmtGBP(a.paid.amount)}</span></div>`
+          : `<button class="cf-mark-paid-btn" onclick="cfOpenPaidModal(${a.id})">Mark Paid</button>`}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  window.cfOpenAccountModal = function(){
+    ['cfAcctName','cfAcctBalance','cfAcctLimit','cfAcctDueDay','cfAcctTerms'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('cfAcctAcceptsCredit').value='yes';
+    document.getElementById('cfAcctModalOverlay').classList.add('open');
+  };
+  window.cfCloseAccountModal = function(){ document.getElementById('cfAcctModalOverlay').classList.remove('open'); };
+
+  window.cfSubmitAccount = function(){
+    const name = document.getElementById('cfAcctName').value.trim();
+    const dueDay = parseInt(document.getElementById('cfAcctDueDay').value);
+    if(!name || !dueDay){ alert('Please fill in Supplier Name and Due Date'); return; }
+    accounts.push({
+      id: acctIdSeq++,
+      name,
+      balance: parseFloat(document.getElementById('cfAcctBalance').value)||0,
+      limit: parseFloat(document.getElementById('cfAcctLimit').value)||0,
+      dueDay,
+      paymentTerms: document.getElementById('cfAcctTerms').value.trim(),
+      acceptsCredit: document.getElementById('cfAcctAcceptsCredit').value==='yes',
+      paid: null,
+    });
+    cfCloseAccountModal();
+    renderAccounts();
+  };
+
+  // ===== MARK PAID (richer flow) =====
+  window.cfOpenPaidModal = function(id){
+    payingAcctId = id;
+    const acct = accounts.find(a=>a.id===id);
+    document.getElementById('cfPaidAmount').value = acct ? acct.balance : '';
+    document.getElementById('cfPaidDate').value = new Date().toISOString().slice(0,10);
+    document.getElementById('cfPaidModalOverlay').classList.add('open');
+  };
+  window.cfClosePaidModal = function(){ document.getElementById('cfPaidModalOverlay').classList.remove('open'); payingAcctId=null; };
+
+  window.cfConfirmPaid = function(){
+    const acct = accounts.find(a=>a.id===payingAcctId);
+    if(!acct) return;
+    acct.paid = {
+      paid: true,
+      amount: parseFloat(document.getElementById('cfPaidAmount').value)||0,
+      date: document.getElementById('cfPaidDate').value,
+    };
+    cfClosePaidModal();
+    renderAccounts();
+  };
+
+  window.cfUnmarkPaid = function(id){
+    const acct = accounts.find(a=>a.id===id);
+    if(acct) acct.paid = null;
+    renderAccounts();
+  };
+
+  renderCards();
+  renderAccounts();
+})();
+</script>
