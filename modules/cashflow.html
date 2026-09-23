@@ -15,9 +15,25 @@
   --sh:0 4px 16px rgba(12,21,38,.08),0 2px 6px rgba(12,21,38,.04);
   --sh-lg:0 20px 50px rgba(12,21,38,.14),0 6px 16px rgba(12,21,38,.07);
 }
-.cf-app{font-family:var(--font);font-size:14px;color:var(--text);background:var(--bg);height:calc(100vh - 0px);padding:20px;box-sizing:border-box;overflow:hidden;}
-.cf-grid{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:stretch;height:100%;}
-
+.cf-app{font-family:var(--font);font-size:14px;color:var(--text);background:var(--bg);height:calc(100vh - 0px);padding:20px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;gap:14px;}
+.cf-summary-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex-shrink:0;}
+.cf-pill{display:flex;align-items:center;gap:9px;padding:8px 14px;border-radius:100px;border:1px solid var(--border);background:var(--surface);cursor:pointer;transition:all .15s;box-shadow:var(--sh-sm);}
+.cf-pill.static{cursor:default;}
+.cf-pill:hover:not(.static){border-color:var(--accent-bd);transform:translateY(-1px);}
+.cf-pill.active{background:var(--accent);border-color:var(--accent);}
+.cf-pill.active .cf-pill-lbl{color:rgba(255,255,255,.75);}
+.cf-pill.active .cf-pill-val{color:#fff;}
+.cf-pill-icon{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.cf-pill-icon svg{width:13px;height:13px;}
+.cf-pill-text{display:flex;flex-direction:column;gap:1px;}
+.cf-pill-lbl{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);}
+.cf-pill-val{font-size:12.5px;font-weight:800;color:var(--text);font-family:var(--mono);}
+.cf-month-switch{display:flex;align-items:center;gap:6px;margin-left:auto;background:var(--surface);border:1px solid var(--border);border-radius:100px;padding:4px 6px;box-shadow:var(--sh-sm);}
+.cf-month-label{font-size:12.5px;font-weight:700;color:var(--text);min-width:112px;text-align:center;}
+.cf-month-btn{width:26px;height:26px;border-radius:50%;border:none;background:var(--surface2);color:var(--text3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;}
+.cf-month-btn:hover{background:var(--accent-bg);color:var(--accent);}
+.cf-grid{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:stretch;flex:1;min-height:0;}
+  
 /* LEFT PANEL — CARDS, fixed height */
 .cf-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--sh-sm);display:flex;flex-direction:column;height:100%;overflow:hidden;}
 .cf-panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0;}
@@ -142,6 +158,25 @@
 </style>
 
 <div class="cf-app">
+  <div class="cf-summary-bar">
+    <div class="cf-pill static">
+      <div class="cf-pill-icon" style="background:var(--accent-bg);color:var(--accent-l)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+      <div class="cf-pill-text"><span class="cf-pill-lbl">Total Available</span><span class="cf-pill-val" id="cfTotalAvailVal">£0.00</span></div>
+    </div>
+    <div class="cf-pill" id="cfPendingPill" onclick="cfSetTableFilter('pending')">
+      <div class="cf-pill-icon" style="background:var(--amber-bg);color:var(--amber)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+      <div class="cf-pill-text"><span class="cf-pill-lbl">Pending</span><span class="cf-pill-val">0 · £0.00</span></div>
+    </div>
+    <div class="cf-pill" id="cfPaidPill" onclick="cfSetTableFilter('paid')">
+      <div class="cf-pill-icon" style="background:var(--green-bg);color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div class="cf-pill-text"><span class="cf-pill-lbl">Paid</span><span class="cf-pill-val">0 · £0.00</span></div>
+    </div>
+    <div class="cf-month-switch">
+      <button class="cf-month-btn" onclick="cfChangeMonth(-1)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <span class="cf-month-label" id="cfMonthLabel">—</span>
+      <button class="cf-month-btn" onclick="cfChangeMonth(1)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    </div>
+  </div>
   <div class="cf-grid">
     <div class="cf-panel">
       <div class="cf-panel-hdr">
@@ -265,9 +300,57 @@
   let accounts = [];
   let cardIdSeq = 1;
   let acctIdSeq = 1;
-  let payingAcctId = null;
+    let payingAcctId = null;
   let editingCardId = null;
   let drawerAcctId = null;
+  let tableFilter = 'all';
+  const nowD = new Date();
+  let viewMonth = nowD.getMonth();
+  let viewYear = nowD.getFullYear();
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  function getAccountEffectiveDate(a){
+    if(a.paid && a.paid.paid && a.paid.date){
+      const d = new Date(a.paid.date);
+      return { month: d.getMonth(), year: d.getFullYear() };
+    }
+    const now = new Date();
+    let target = new Date(now.getFullYear(), now.getMonth(), a.dueDay);
+    if(target < now) target = new Date(now.getFullYear(), now.getMonth()+1, a.dueDay);
+    return { month: target.getMonth(), year: target.getFullYear() };
+  }
+
+  window.cfChangeMonth = function(delta){
+    viewMonth += delta;
+    if(viewMonth<0){ viewMonth=11; viewYear--; }
+    if(viewMonth>11){ viewMonth=0; viewYear++; }
+    renderAccounts();
+  };
+
+  window.cfSetTableFilter = function(f){
+    tableFilter = tableFilter===f ? 'all' : f;
+    renderAccounts();
+  };
+
+  function renderSummary(){
+    const totalAvailable = cards.reduce((s,c)=>s+((parseFloat(c.limit)||0)-(parseFloat(c.balance)||0)),0);
+    document.getElementById('cfTotalAvailVal').textContent = fmtGBP(totalAvailable);
+
+    const monthAccounts = accounts.filter(a=>{
+      const d = getAccountEffectiveDate(a);
+      return d.month===viewMonth && d.year===viewYear;
+    });
+    const pending = monthAccounts.filter(a=>!(a.paid&&a.paid.paid));
+    const paid = monthAccounts.filter(a=>a.paid&&a.paid.paid);
+    const pendingTotal = pending.reduce((s,a)=>s+(parseFloat(a.balance)||0),0);
+    const paidTotal = paid.reduce((s,a)=>s+(parseFloat(a.paid.amount)||0),0);
+
+    document.getElementById('cfPendingPill').querySelector('.cf-pill-val').textContent = pending.length+' · '+fmtGBP(pendingTotal);
+    document.getElementById('cfPaidPill').querySelector('.cf-pill-val').textContent = paid.length+' · '+fmtGBP(paidTotal);
+    document.getElementById('cfPendingPill').classList.toggle('active', tableFilter==='pending');
+    document.getElementById('cfPaidPill').classList.toggle('active', tableFilter==='paid');
+    document.getElementById('cfMonthLabel').textContent = MONTH_NAMES[viewMonth]+' '+viewYear;
+  }
 
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function fmtGBP(v){ return '£'+(parseFloat(v)||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -431,7 +514,7 @@
       balance: parseFloat(document.getElementById('cfBalance').value)||0,
       limit: parseFloat(document.getElementById('cfLimit').value)||0,
     };
-    if(editingCardId){
+        if(editingCardId){
       const c = cards.find(x=>x.id===editingCardId);
       Object.assign(c, fields);
       toast('Card updated','success');
@@ -441,17 +524,27 @@
     }
     cfCloseCardModal();
     renderCards();
+    renderSummary();
   };
 
   // ===== SUPPLIER ACCOUNTS =====
-  function renderAccounts(){
+    function renderAccounts(){
     const tbody = document.getElementById('cfAcctTbody');
-    document.getElementById('cfAcctCount').textContent = accounts.length + (accounts.length===1?' account':' accounts');
-    if(!accounts.length){
-      tbody.innerHTML = `<tr><td colspan="5" class="cf-empty-table">No supplier accounts yet</td></tr>`;
+    const visible = accounts.filter(a=>{
+      const d = getAccountEffectiveDate(a);
+      if(d.month!==viewMonth || d.year!==viewYear) return false;
+      const isPaid = a.paid && a.paid.paid;
+      if(tableFilter==='pending' && isPaid) return false;
+      if(tableFilter==='paid' && !isPaid) return false;
+      return true;
+    });
+    document.getElementById('cfAcctCount').textContent = visible.length + (visible.length===1?' account':' accounts') + ' · '+MONTH_NAMES[viewMonth];
+    if(!visible.length){
+      tbody.innerHTML = `<tr><td colspan="5" class="cf-empty-table">No accounts match this view</td></tr>`;
+      renderSummary();
       return;
     }
-    tbody.innerHTML = accounts.map(a=>{
+    tbody.innerHTML = visible.map(a=>{
       const remaining = (parseFloat(a.limit)||0) - (parseFloat(a.balance)||0);
       const days = daysUntilDay(a.dueDay);
       const cls = daysBadgeClass(days);
@@ -463,9 +556,10 @@
         <td>${fmtGBP(remaining)}</td>
         <td onclick="event.stopPropagation()">${isPaid
           ? `<div class="cf-paid-badge" onclick="cfUnmarkPaid(${a.id})" style="cursor:pointer" title="Click to undo">✓ Paid ${a.paid.date}<span class="amt">${fmtGBP(a.paid.amount)}</span></div>`
-          : `<button class="cf-mark-paid-btn" onclick="cfOpenPaidModal(${a.id})">Mark Paid</button>`}</td>
+                    : `<button class="cf-mark-paid-btn" onclick="cfOpenPaidModal(${a.id})">Mark Paid</button>`}</td>
       </tr>`;
     }).join('');
+    renderSummary();
   }
 
   window.cfOpenAccountModal = function(){
@@ -616,8 +710,9 @@
     toast('Account deleted','success');
   };
 
-  loadSuppliers();
+    loadSuppliers();
   renderCards();
   renderAccounts();
+  renderSummary();
 })();
 </script>
