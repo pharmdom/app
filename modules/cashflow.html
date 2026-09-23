@@ -575,7 +575,7 @@
     const name = document.getElementById('cfAcctName').value;
     const dueDay = parseInt(document.getElementById('cfAcctDueDay').value);
     if(!name || !dueDay){ toast('Please select a Supplier and set a Due Date','error'); return; }
-    accounts.push({
+        const newAcct = {
       id: acctIdSeq++,
       name,
       balance: parseFloat(document.getElementById('cfAcctBalance').value)||0,
@@ -584,12 +584,18 @@
       paymentTerms: document.getElementById('cfAcctTerms').value.trim(),
       acceptsCredit: document.getElementById('cfAcctAcceptsCredit').value==='yes',
       paid: null,
-    });
+    };
+    accounts.push(newAcct);
     cfCloseAccountModal();
-    renderAccounts();
-    toast('Account added','success');
-  };
 
+    const d = getAccountEffectiveDate(newAcct);
+    tableFilter = 'all';
+    viewMonth = d.month;
+    viewYear = d.year;
+
+    renderAccounts();
+    toast('Account added — showing '+MONTH_NAMES[d.month],'success');
+  };
   // ===== MARK PAID =====
   window.cfOpenPaidModal = function(id){
     payingAcctId = id;
