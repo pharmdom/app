@@ -300,11 +300,16 @@
   }
 
   // Golden-angle hue rotation — guarantees strong visual distinction, never repeats in a visible pattern
-    function cardGradient(index){
+  function cardTheme(index){
     const hue = (index * 137.508) % 360;
-    const c1 = `hsl(${hue}, 62%, 32%)`;
-    const c2 = `hsl(${(hue+18)%360}, 68%, 44%)`;
-    return `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)`;
+    const bg1 = `hsl(${hue}, 70%, 95%)`;
+    const bg2 = `hsl(${(hue+12)%360}, 62%, 90%)`;
+    return {
+      gradient: `linear-gradient(135deg, ${bg1} 0%, ${bg2} 100%)`,
+      text: `hsl(${hue}, 55%, 28%)`,
+      muted: `hsl(${hue}, 35%, 42%)`,
+      trackBg: `hsla(${hue}, 50%, 30%, 0.12)`,
+    };
   }
 
   // ===== SUPPLIERS =====
@@ -337,48 +342,49 @@
       const utilPct = c.limit>0 ? Math.min(100,Math.round((c.balance/c.limit)*100)) : 0;
       const days = daysUntilDay(c.dueDay);
       const urgent = days!==null && days<=5;
+            const t = c.theme || cardTheme(0);
       return `<div class="cc-card" id="ccCard${c.id}">
         <div class="cc-card-inner" onclick="cfFlipCard(${c.id})">
-          <div class="cc-face cc-front" style="background:${c.gradient}">
-                        <div class="cc-top-row">
+          <div class="cc-face cc-front" style="background:${t.gradient};color:${t.text}">
+            <div class="cc-top-row">
               <div class="cc-chip" onclick="event.stopPropagation();cfEditCard(${c.id})" title="Edit card">
                 <div class="cc-chip-edit"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
               </div>
-              <div class="cc-flip-hint">flip <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div>
+              <div class="cc-flip-hint" style="color:${t.muted}">flip <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div>
             </div>
             <div>
               <div class="cc-name">${esc(c.name)}</div>
               <div class="cc-util-wrap" style="margin-top:8px">
-                <div class="cc-util-bar"><div class="cc-util-fill" style="width:${utilPct}%"></div></div>
-                <div class="cc-util-lbl"><span>${fmtGBP(c.balance)} used</span><span>${utilPct}%</span></div>
+                <div class="cc-util-bar" style="background:${t.trackBg}"><div class="cc-util-fill" style="width:${utilPct}%;background:${t.text}"></div></div>
+                <div class="cc-util-lbl" style="color:${t.muted}"><span>${fmtGBP(c.balance)} used</span><span>${utilPct}%</span></div>
               </div>
             </div>
             <div class="cc-bottom-row">
-              <div class="cc-due-badge">
-                <span class="cc-due-lbl">Due</span>
+              <div class="cc-due-badge" style="background:${t.trackBg}">
+                <span class="cc-due-lbl" style="color:${t.muted}">Due</span>
                 <span class="cc-due-val ${urgent?'urgent':''}">${ordinal(c.dueDay)} · ${days}d</span>
               </div>
               <div class="cc-balance-mini">
-                <div class="l">Available</div>
+                <div class="l" style="color:${t.muted}">Available</div>
                 <div class="v">${fmtGBP(remaining)}</div>
               </div>
             </div>
           </div>
-          <div class="cc-face cc-back" style="background:${c.gradient}">
+          <div class="cc-face cc-back" style="background:${t.gradient};color:${t.text}">
             <div class="cc-back-strip"></div>
             <div style="margin-top:44px;position:relative;z-index:1">
-              <div class="cc-back-title">Card Details</div>
+              <div class="cc-back-title" style="color:${t.muted}">Card Details</div>
               <div class="cc-back-rows">
-                <div class="cc-back-row"><span class="k">Statement Date</span><span class="v">${ordinal(c.statementDay)}</span></div>
-                <div class="cc-back-row"><span class="k">Statement Payment</span><span class="v">${fmtGBP(c.statementPayment)}</span></div>
-                <div class="cc-back-row"><span class="k">Cashback</span><span class="v">${parseFloat(c.cashback||0).toFixed(2)}%</span></div>
-                <div class="cc-back-row"><span class="k">Remaining Credit</span><span class="v">${fmtGBP(remaining)}</span></div>
-                <div class="cc-back-row"><span class="k">Limit</span><span class="v">${fmtGBP(c.limit)}</span></div>
+                <div class="cc-back-row"><span class="k" style="color:${t.muted}">Statement Date</span><span class="v">${ordinal(c.statementDay)}</span></div>
+                <div class="cc-back-row"><span class="k" style="color:${t.muted}">Statement Payment</span><span class="v">${fmtGBP(c.statementPayment)}</span></div>
+                <div class="cc-back-row"><span class="k" style="color:${t.muted}">Cashback</span><span class="v">${parseFloat(c.cashback||0).toFixed(2)}%</span></div>
+                <div class="cc-back-row"><span class="k" style="color:${t.muted}">Remaining Credit</span><span class="v">${fmtGBP(remaining)}</span></div>
+                <div class="cc-back-row"><span class="k" style="color:${t.muted}">Limit</span><span class="v">${fmtGBP(c.limit)}</span></div>
               </div>
             </div>
           </div>
         </div>
-        </div>`;
+      </div>`;
     }).join('');
   }
 
@@ -430,7 +436,7 @@
       Object.assign(c, fields);
       toast('Card updated','success');
     } else {
-      cards.push({ id: cardIdSeq++, gradient: cardGradient(cards.length), ...fields });
+      cards.push({ id: cardIdSeq++, theme: cardTheme(cards.length), ...fields });
       toast('Card added','success');
     }
     cfCloseCardModal();
