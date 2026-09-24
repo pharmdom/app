@@ -815,13 +815,17 @@
     const tbody = document.getElementById('cfAcctTbody');
     let visible = accounts;
         if(tableFilter==='pending' || tableFilter==='paid'){
-      visible = accounts.filter(a=>invoices.some(inv=>{
-        if(inv.accountId!==a.id) return false;
-        const isPaid = inv.paid && inv.paid.paid;
-        if(tableFilter==='pending' && isPaid) return false;
-        if(tableFilter==='paid' && !isPaid) return false;
-        return true;
-      }));
+      visible = accounts.filter(a=>{
+        const hasInvoices = invoices.some(inv=>inv.accountId===a.id);
+        if(!hasInvoices) return tableFilter==='pending';
+        return invoices.some(inv=>{
+          if(inv.accountId!==a.id) return false;
+          const isPaid = inv.paid && inv.paid.paid;
+          if(tableFilter==='pending' && isPaid) return false;
+          if(tableFilter==='paid' && !isPaid) return false;
+          return true;
+        });
+      });
     }
     document.getElementById('cfAcctCount').textContent = visible.length + (visible.length===1?' account':' accounts');
     if(!visible.length){
