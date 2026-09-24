@@ -402,9 +402,6 @@
   let cards = [];
   let accounts = [];
   let invoices = [];
-  let cardIdSeq = 1;
-  let acctIdSeq = 1;
-  let invoiceIdSeq = 1;
   let payingInvoiceId = null;
   let invoiceForAcctId = null;
    let editingInvoiceId = null;
@@ -412,8 +409,81 @@
   let invoiceViewFilter = 'pending';
   let editingCardId = null;
   let drawerAcctId = null;
-  let tableFilter = 'pending';
+    let tableFilter = 'pending';
   const nowD = new Date();
+
+  // ===== SUPABASE PERSISTENCE =====
+  const CF_T_CARDS = 'cashflow_cards';
+  const CF_T_ACCTS = 'cashflow_accounts';
+  const CF_T_INVS  = 'cashflow_invoices';
+
+  function cardFromRow(r){
+    return {
+      id: r.id,
+      name: r.name,
+      statementDay: r.statement_day,
+      dueDay: r.due_day,
+      cashback: parseFloat(r.cashback)||0,
+      limit: parseFloat(r.credit_limit)||0,
+      balance: parseFloat(r.balance)||0,
+      themeIndex: r.theme_index||0,
+      theme: cardTheme(r.theme_index||0),
+    };
+  }
+  function acctFromRow(r){
+    return { id: r.id, name: r.name, limit: parseFloat(r.credit_limit)||0 };
+  }
+  function invFromRow(r){
+    return {
+      id: r.id,
+      accountId: r.account_id,
+      amount: parseFloat(r.amount)||0,
+      dueDate: r.due_date,
+      paymentTerms: r.payment_terms||'',
+      paid: r.paid||null,
+    };
+  }
+
+  function cfDbFail(e, what){
+    console.warn('Cashflow DB '+what+' failed', e);
+    toast("Couldn't save the "+what+" — refresh to see the saved state", 'error');
+  }
+
+  async function cfPersistCard(id, patch){
+    try{ const { error } = await sb.from(CF_T_CARDS).update(patch).eq('id', id); if(error) throw error; }
+    catch(e){ cfDbFail(e,'card'); }
+  }
+  async function cfPersistCardBalance(card){
+    if(!card) return;
+    await cfPersistCard(card.id, { balance: parseFloat(card.balance)||0 });
+  }
+  async function cfPersistInvoice(id, patch){
+    try{ const { error } = await sb.from(CF_T_INVS).update(patch).eq('id', id); if(error) throw error; }
+    catch(e){ cfDbFail(e,'invoice'); }
+  }
+
+  async function loadAll(){
+    try{
+      const [cr, ar, ir] = await Promise.all([
+        sb.from(CF_T_CARDS).select('*').order('theme_index'),
+        sb.from(CF_T_ACCTS).select('*').order('name'),
+        sb.from(CF_T_INVS).select('*').order('due_date'),
+      ]);
+      if(cr.error) throw cr.error;
+      if(ar.error) throw ar.error;
+      if(ir.error) throw ir.error;
+      cards    = (cr.data||[]).map(cardFromRow);
+      accounts = (ar.data||[]).map(acctFromRow);
+      invoices = (ir.data||[]).map(invFromRow);
+    }catch(e){
+      console.warn('Cashflow load failed', e);
+      toast("Couldn't load cashflow data", 'error');
+    }
+    renderCards();
+    renderAccounts();
+    renderSummary();
+    populateAcctDropdown();
+  }
   const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   
     function getInvoiceEffectiveDate(inv){
@@ -796,18 +866,22 @@
     const card = cards.find(c=>c.id===cardId);
     cfAskConfirm(
       `This will permanently remove ${card?card.name:'this card'}. Invoices already paid with it will stay marked as paid. This can't be undone.`,
-      function(){
+            async function(){
         cards = cards.filter(c=>c.id!==cardId);
         cfCloseCardModal();
         renderCards();
         renderSummary();
-        toast('Card deleted','success');
+        try{
+          const { error } = await sb.from(CF_T_CARDS).delete().eq('id', cardId);
+          if(error) throw error;
+          toast('Card deleted','success');
+        }catch(e){ cfDbFail(e,'card'); }
       },
       'Delete this card?'
     );
   };
   
-  window.cfSubmitCard = function(){
+  window.cfSubmitCard = async function(){
     const name = document.getElementById('cfCcName').value.trim();
     const statementDay = parseInt(document.getElementById('cfStatementDay').value);
     const dueDay = parseInt(document.getElementById('cfDueDay').value);
@@ -819,17 +893,40 @@
       cashback: parseFloat(document.getElementById('cfCashback').value)||0,
       limit: parseFloat(document.getElementById('cfLimit').value)||0,
     };
-        if(editingCardId){
+            if(editingCardId){
       const c = cards.find(x=>x.id===editingCardId);
       Object.assign(c, fields);
+      cfCloseCardModal();
+      renderCards();
+      renderSummary();
+      await cfPersistCard(editingCardId, {
+        name: fields.name,
+        statement_day: fields.statementDay,
+        due_day: fields.dueDay,
+        cashback: fields.cashback,
+        credit_limit: fields.limit,
+      });
       toast('Card updated','success');
     } else {
-      cards.push({ id: cardIdSeq, theme: cardTheme(cardIdSeq-1), balance: 0, ...fields }); cardIdSeq++;
-      toast('Card added','success');
+      const themeIndex = cards.reduce((m,c)=>Math.max(m,(c.themeIndex||0)+1),0);
+      try{
+        const { data, error } = await sb.from(CF_T_CARDS).insert({
+          name: fields.name,
+          statement_day: fields.statementDay,
+          due_day: fields.dueDay,
+          cashback: fields.cashback,
+          credit_limit: fields.limit,
+          balance: 0,
+          theme_index: themeIndex,
+        }).select().single();
+        if(error) throw error;
+        cards.push(cardFromRow(data));
+        cfCloseCardModal();
+        renderCards();
+        renderSummary();
+        toast('Card added','success');
+      }catch(e){ cfDbFail(e,'card'); return; }
     }
-    cfCloseCardModal();
-    renderCards();
-    renderSummary();
   };
 
    // ===== SUPPLIER ACCOUNTS =====
@@ -881,18 +978,27 @@
   
   window.cfCloseAccountModal = function(){ document.getElementById('cfAcctModalOverlay').classList.remove('open'); };
 
-    window.cfSubmitAccount = function(){
+      window.cfSubmitAccount = async function(){
     const name = document.getElementById('cfAcctName').value;
     if(!name){ toast('Please select a Supplier','error'); return; }
     if(accounts.some(a=>a.name===name)){ toast('An account for this supplier already exists','error'); return; }
-    const newAcct = {
-      id: acctIdSeq++,
-      name,
-      limit: parseFloat(document.getElementById('cfAcctLimit').value)||0,
-    };
+    let newAcct;
+    try{
+      const { data, error } = await sb.from(CF_T_ACCTS).insert({
+        name,
+        credit_limit: parseFloat(document.getElementById('cfAcctLimit').value)||0,
+      }).select().single();
+      if(error){
+        if(error.code==='23505'){ toast('An account for this supplier already exists','error'); return; }
+        throw error;
+      }
+      newAcct = acctFromRow(data);
+    }catch(e){ cfDbFail(e,'account'); return; }
     accounts.push(newAcct);
+    accounts.sort((a,b)=>String(a.name).localeCompare(String(b.name)));
     cfCloseAccountModal();
     renderAccounts();
+    populateAcctDropdown();
     toast('Account added — add an invoice to get started','success');
     cfOpenDrawer(newAcct.id);
   };
@@ -929,7 +1035,7 @@
     const msg = `This will permanently remove the ${fmtGBP(inv.amount)} invoice due ${fmtDateNice(inv.dueDate)}.`
       + (card ? ` ${fmtGBP(inv.paid.amount)} will be taken off ${card.name}'s balance.` : '')
       + ` This can't be undone.`;
-    cfAskConfirm(msg, function(){
+        cfAskConfirm(msg, async function(){
       if(card) card.balance = Math.max(0, (parseFloat(card.balance)||0) - (parseFloat(inv.paid.amount)||0));
       invoices = invoices.filter(i=>i.id!==id);
       renderAccounts();
@@ -937,30 +1043,52 @@
       renderSummary();
       const acct = accounts.find(a=>a.id===drawerAcctId);
       if(acct) cfRenderDrawer(acct);
-      toast('Invoice deleted','success');
+      try{
+        const { error } = await sb.from(CF_T_INVS).delete().eq('id', id);
+        if(error) throw error;
+        if(card) await cfPersistCardBalance(card);
+        toast('Invoice deleted','success');
+      }catch(e){ cfDbFail(e,'invoice'); }
     }, 'Delete this invoice?');
   };
 
-  window.cfSubmitInvoice = function(){
+  window.cfSubmitInvoice = async function(){
     const amount = parseFloat(document.getElementById('cfInvAmount').value);
     const dueDate = document.getElementById('cfInvDueDate').value;
     if(!amount || !dueDate){ toast('Please fill in Amount and Due Date','error'); return; }
     const paymentTerms = document.getElementById('cfInvTerms').value.trim();
 
+        const targetAcctId = invoiceForAcctId;
     if(editingInvoiceId){
-      const inv = invoices.find(i=>i.id===editingInvoiceId);
+      const invId = editingInvoiceId;
+      const inv = invoices.find(i=>i.id===invId);
       if(inv) Object.assign(inv, { amount, dueDate, paymentTerms });
+      cfCloseInvoiceModal();
+      renderAccounts();
+      renderSummary();
+      const acctE = accounts.find(a=>a.id===targetAcctId);
+      if(acctE) cfRenderDrawer(acctE);
+      await cfPersistInvoice(invId, { amount, due_date: dueDate, payment_terms: paymentTerms });
       toast('Invoice updated','success');
     } else {
-      invoices.push({ id: invoiceIdSeq++, accountId: invoiceForAcctId, amount, dueDate, paymentTerms, paid: null });
+      try{
+        const { data, error } = await sb.from(CF_T_INVS).insert({
+          account_id: targetAcctId,
+          amount,
+          due_date: dueDate,
+          payment_terms: paymentTerms,
+          paid: null,
+        }).select().single();
+        if(error) throw error;
+        invoices.push(invFromRow(data));
+      }catch(e){ cfDbFail(e,'invoice'); return; }
+      cfCloseInvoiceModal();
+      renderAccounts();
+      renderSummary();
+      const acctA = accounts.find(a=>a.id===targetAcctId);
+      if(acctA) cfRenderDrawer(acctA);
       toast('Invoice added','success');
     }
-
-    const acct = accounts.find(a=>a.id===invoiceForAcctId);
-    cfCloseInvoiceModal();
-    renderAccounts();
-    renderSummary();
-    if(acct) cfRenderDrawer(acct);
   };
 
   // ===== MARK PAID (per invoice) =====
@@ -975,7 +1103,7 @@
   };
   window.cfClosePaidModal = function(){ document.getElementById('cfPaidModalOverlay').classList.remove('open'); payingInvoiceId=null; };
 
-  window.cfConfirmPaid = function(){
+  window.cfConfirmPaid = async function(){
     const inv = invoices.find(i=>i.id===payingInvoiceId);
     if(!inv) return;
         const paidAmount = parseFloat(document.getElementById('cfPaidAmount').value)||0;
@@ -988,29 +1116,37 @@
       date: document.getElementById('cfPaidDate').value,
       method,
       cardId,
+      cardName: null,
     };
 
     let label = method==='transfer' ? 'Transfer' : method==='others' ? 'Others' : '';
     if(cardId){
       const card = cards.find(c=>c.id===cardId);
-      if(card){ card.balance = (parseFloat(card.balance)||0) + paidAmount; label = card.name; }
+      if(card){
+        card.balance = (parseFloat(card.balance)||0) + paidAmount;
+        label = card.name;
+        inv.paid.cardName = card.name;
+      }
     }
 
-    cfClosePaidModal();
+       cfClosePaidModal();
     renderAccounts();
     renderCards();
     renderSummary();
     const acct = accounts.find(a=>a.id===inv.accountId);
     if(drawerAcctId===inv.accountId && acct) cfRenderDrawer(acct);
+    await cfPersistInvoice(inv.id, { paid: inv.paid });
+    if(cardId) await cfPersistCardBalance(cards.find(c=>c.id===cardId));
     toast('Marked as paid via '+label,'success');
   };
 
-  window.cfUnmarkInvoicePaid = function(id){
+    window.cfUnmarkInvoicePaid = async function(id){
     const inv = invoices.find(i=>i.id===id);
     if(!inv) return;
+    let touchedCard = null;
     if(inv.paid && inv.paid.cardId){
       const card = cards.find(c=>c.id===inv.paid.cardId);
-      if(card) card.balance = Math.max(0, (parseFloat(card.balance)||0) - (parseFloat(inv.paid.amount)||0));
+      if(card){ card.balance = Math.max(0, (parseFloat(card.balance)||0) - (parseFloat(inv.paid.amount)||0)); touchedCard = card; }
     }
     inv.paid = null;
     renderAccounts();
@@ -1018,6 +1154,8 @@
     renderSummary();
     const acct = accounts.find(a=>a.id===inv.accountId);
     if(drawerAcctId===inv.accountId && acct) cfRenderDrawer(acct);
+    await cfPersistInvoice(id, { paid: null });
+    if(touchedCard) await cfPersistCardBalance(touchedCard);
   };
 
    // ===== DRAWER =====
@@ -1037,9 +1175,22 @@
     drawerAcctId = null;
   };
 
-  function cfDrawerField(label, value, onchange){
-    return `<div class="cf-field"><label>${esc(label)}</label><input type="text" value="${esc(value)}" onchange="${onchange}"></div>`;
+     // Resolves how an invoice was paid. A card deleted after payment still shows
+  // its name when we captured one; older rows fall back to "Card removed".
+  function cfPaidMethodLabel(inv){
+    if(!(inv.paid && inv.paid.paid)) return null;
+    const m = inv.paid.method;
+    if(m==='transfer') return { text:'Transfer', gone:false };
+    if(m==='others')   return { text:'Others',   gone:false };
+    if(inv.paid.cardId){
+      const card = cards.find(c=>c.id===inv.paid.cardId);
+      if(card) return { text:'Card '+card.name, gone:false };
+      if(inv.paid.cardName) return { text:'Card '+inv.paid.cardName+' (removed)', gone:true };
+      return { text:'Card removed', gone:true };
+    }
+    return null;
   }
+
     function cfInvoiceRowHtml(inv){
     const isPaid = inv.paid && inv.paid.paid;
     const days = daysUntilDate(inv.dueDate);
@@ -1047,8 +1198,12 @@
     return `<div class="cf-invoice-row ${isPaid?'paid':''}">
       <div>
         <div class="cf-invoice-amt">${fmtGBP(inv.amount)}</div>
-        <div class="cf-invoice-meta">Due ${fmtDateNice(inv.dueDate)}${inv.paymentTerms?' · '+esc(inv.paymentTerms):''}</div>
-      </div>
+                <div class="cf-invoice-meta">Due ${fmtDateNice(inv.dueDate)}${inv.paymentTerms?' · '+esc(inv.paymentTerms):''}${(()=>{
+          const pm = cfPaidMethodLabel(inv);
+          if(!pm) return '';
+          return ` · <span style="color:${pm.gone?'var(--amber)':'inherit'};font-weight:${pm.gone?'600':'inherit'}">${esc(pm.text)}</span>`;
+        })()}</div>
+        </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <div class="cf-invoice-actions">
           <button class="cf-invoice-icon-btn" onclick="cfEditInvoice(${inv.id})" title="Edit invoice">
@@ -1153,12 +1308,26 @@
     document.getElementById('cfDrawerFooter').innerHTML = `<button class="cf-btn cf-btn-danger" style="flex:1" onclick="cfDeleteAccountFromDrawer()">Delete Account</button>`;
   }
 
-  window.cfUpdateAcctField = function(id, field, value){
+    window.cfUpdateAcctField = async function(id, field, value){
     const acct = accounts.find(a=>a.id===id);
     if(!acct) return;
-    acct[field] = value;
+    if(field==='limit'){
+      acct.limit = parseFloat(value)||0;
+    } else {
+      if(field==='name' && accounts.some(a=>a.id!==id && a.name===value)){
+        toast('An account for this supplier already exists','error');
+        if(drawerAcctId===id) cfRenderDrawer(acct);
+        return;
+      }
+      acct[field] = value;
+    }
     renderAccounts();
     if(drawerAcctId===id) cfRenderDrawer(acct);
+    const patch = field==='limit' ? { credit_limit: acct.limit } : { name: acct.name };
+    try{
+      const { error } = await sb.from(CF_T_ACCTS).update(patch).eq('id', id);
+      if(error) throw error;
+    }catch(e){ cfDbFail(e,'account'); }
   };
 
   window.cfCloseConfirm = function(){
@@ -1186,25 +1355,31 @@
             `This will permanently remove ${acct?acct.name:'this account'} and all of its invoices.`
         + (invoices.some(i=>i.accountId===acctId && i.paid && i.paid.cardId) ? ' Any card payments on these invoices will be taken off the card balances.' : '')
         + ` This can't be undone.`,
-            function(){
+                     async function(){
+        const touchedCards = new Set();
         invoices.filter(i=>i.accountId===acctId && i.paid && i.paid.cardId).forEach(i=>{
           const card = cards.find(c=>c.id===i.paid.cardId);
-          if(card) card.balance = Math.max(0, (parseFloat(card.balance)||0) - (parseFloat(i.paid.amount)||0));
+          if(card){ card.balance = Math.max(0, (parseFloat(card.balance)||0) - (parseFloat(i.paid.amount)||0)); touchedCards.add(card); }
         });
         accounts = accounts.filter(a=>a.id!==acctId);
         invoices = invoices.filter(i=>i.accountId!==acctId);
         cfCloseDrawer();
         renderAccounts();
         renderCards();
-        toast('Account deleted','success');
+        renderSummary();
+        populateAcctDropdown();
+        try{
+          const { error } = await sb.from(CF_T_ACCTS).delete().eq('id', acctId);
+          if(error) throw error;
+          for(const card of touchedCards) await cfPersistCardBalance(card);
+          toast('Account deleted','success');
+        }catch(e){ cfDbFail(e,'account'); }
       }
     );
   };
   
   
-  loadSuppliers();
-  renderCards();
-  renderAccounts();
-  renderSummary();
+   loadSuppliers();
+  loadAll();
 })();
 </script>
