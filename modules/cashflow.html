@@ -299,7 +299,11 @@
         <div class="cf-field"><label>Limit (£)</label><input type="number" id="cfLimit" step="0.01" placeholder="0.00"></div>
     </div>
     </div>
-    <div class="cf-modal-footer">
+        <div class="cf-modal-footer">
+      <button class="cf-btn cf-btn-danger" id="cfCardDeleteBtn" onclick="cfDeleteCard()" title="Delete card" style="margin-right:auto;display:none;align-items:center;gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Delete
+      </button>
       <button class="cf-btn cf-btn-secondary" onclick="cfCloseCardModal()">Cancel</button>
       <button class="cf-btn cf-btn-primary" id="cfCardSubmitBtn" onclick="cfSubmitCard()">Add Card</button>
     </div>
@@ -362,7 +366,7 @@
     <div class="cf-confirm-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
     </div>
-    <div class="cf-confirm-title">Delete this account?</div>
+    <div class="cf-confirm-title" id="cfConfirmTitle">Delete this account?</div>
     <div class="cf-confirm-msg" id="cfConfirmMsg">This will permanently remove the account and all of its invoices. This can't be undone.</div>
     <div class="cf-confirm-actions">
       <button class="cf-btn cf-btn-secondary" style="flex:1" onclick="cfCloseConfirm()">Cancel</button>
@@ -765,6 +769,7 @@
     editingCardId = null;
     document.getElementById('cfCardModalTitle').textContent = 'Add Credit Card';
     document.getElementById('cfCardSubmitBtn').textContent = 'Add Card';
+        document.getElementById('cfCardDeleteBtn').style.display = 'none';
     ['cfCcName','cfStatementDay','cfDueDay','cfCashback','cfLimit'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('cfCardModalOverlay').classList.add('open');
   };
@@ -776,6 +781,7 @@
     editingCardId = id;
     document.getElementById('cfCardModalTitle').textContent = 'Edit Credit Card';
     document.getElementById('cfCardSubmitBtn').textContent = 'Save Changes';
+        document.getElementById('cfCardDeleteBtn').style.display = 'inline-flex';
     document.getElementById('cfCcName').value = c.name;
     document.getElementById('cfStatementDay').value = c.statementDay;
     document.getElementById('cfDueDay').value = c.dueDay;
@@ -784,6 +790,23 @@
     document.getElementById('cfCardModalOverlay').classList.add('open');
   };
 
+    window.cfDeleteCard = function(){
+    if(!editingCardId) return;
+    const cardId = editingCardId;
+    const card = cards.find(c=>c.id===cardId);
+    cfAskConfirm(
+      `This will permanently remove ${card?card.name:'this card'}. Invoices already paid with it will stay marked as paid. This can't be undone.`,
+      function(){
+        cards = cards.filter(c=>c.id!==cardId);
+        cfCloseCardModal();
+        renderCards();
+        renderSummary();
+        toast('Card deleted','success');
+      },
+      'Delete this card?'
+    );
+  };
+  
   window.cfSubmitCard = function(){
     const name = document.getElementById('cfCcName').value.trim();
     const statementDay = parseInt(document.getElementById('cfStatementDay').value);
@@ -794,7 +817,6 @@
       statementDay,
       dueDay,
       cashback: parseFloat(document.getElementById('cfCashback').value)||0,
-      balance: 0,
       limit: parseFloat(document.getElementById('cfLimit').value)||0,
     };
         if(editingCardId){
@@ -802,7 +824,7 @@
       Object.assign(c, fields);
       toast('Card updated','success');
     } else {
-      cards.push({ id: cardIdSeq++, theme: cardTheme(cards.length), ...fields });
+      cards.push({ id: cardIdSeq, theme: cardTheme(cardIdSeq-1), balance: 0, ...fields }); cardIdSeq++;
       toast('Card added','success');
     }
     cfCloseCardModal();
@@ -899,13 +921,24 @@
     document.getElementById('cfInvoiceModalOverlay').classList.add('open');
   };
 
-  window.cfDeleteInvoice = function(id){
-    invoices = invoices.filter(i=>i.id!==id);
-    renderAccounts();
-    renderSummary();
-    const acct = accounts.find(a=>a.id===drawerAcctId);
-    if(acct) cfRenderDrawer(acct);
-    toast('Invoice deleted','success');
+    window.cfDeleteInvoice = function(id){
+    const inv = invoices.find(i=>i.id===id);
+    if(!inv) return;
+    const paidByCard = inv.paid && inv.paid.paid && inv.paid.cardId;
+    const card = paidByCard ? cards.find(c=>c.id===inv.paid.cardId) : null;
+    const msg = `This will permanently remove the ${fmtGBP(inv.amount)} invoice due ${fmtDateNice(inv.dueDate)}.`
+      + (card ? ` ${fmtGBP(inv.paid.amount)} will be taken off ${card.name}'s balance.` : '')
+      + ` This can't be undone.`;
+    cfAskConfirm(msg, function(){
+      if(card) card.balance = Math.max(0, (parseFloat(card.balance)||0) - (parseFloat(inv.paid.amount)||0));
+      invoices = invoices.filter(i=>i.id!==id);
+      renderAccounts();
+      renderCards();
+      renderSummary();
+      const acct = accounts.find(a=>a.id===drawerAcctId);
+      if(acct) cfRenderDrawer(acct);
+      toast('Invoice deleted','success');
+    }, 'Delete this invoice?');
   };
 
   window.cfSubmitInvoice = function(){
@@ -1132,7 +1165,8 @@
     document.getElementById('cfConfirmOverlay').classList.remove('open');
   };
 
-  function cfAskConfirm(message, onConfirm){
+    function cfAskConfirm(message, onConfirm, title){
+    document.getElementById('cfConfirmTitle').textContent = title || 'Delete this account?';
     document.getElementById('cfConfirmMsg').textContent = message;
     const btn = document.getElementById('cfConfirmActionBtn');
     const freshBtn = btn.cloneNode(true);
@@ -1149,12 +1183,19 @@
     const acct = accounts.find(a=>a.id===drawerAcctId);
     const acctId = drawerAcctId;
     cfAskConfirm(
-      `This will permanently remove ${acct?esc(acct.name):'this account'} and all of its invoices. This can't be undone.`,
-      function(){
+            `This will permanently remove ${acct?acct.name:'this account'} and all of its invoices.`
+        + (invoices.some(i=>i.accountId===acctId && i.paid && i.paid.cardId) ? ' Any card payments on these invoices will be taken off the card balances.' : '')
+        + ` This can't be undone.`,
+            function(){
+        invoices.filter(i=>i.accountId===acctId && i.paid && i.paid.cardId).forEach(i=>{
+          const card = cards.find(c=>c.id===i.paid.cardId);
+          if(card) card.balance = Math.max(0, (parseFloat(card.balance)||0) - (parseFloat(i.paid.amount)||0));
+        });
         accounts = accounts.filter(a=>a.id!==acctId);
         invoices = invoices.filter(i=>i.accountId!==acctId);
         cfCloseDrawer();
         renderAccounts();
+        renderCards();
         toast('Account deleted','success');
       }
     );
