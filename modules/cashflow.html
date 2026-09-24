@@ -285,6 +285,10 @@
     <div class="cf-modal-body">
       <div class="cf-field"><label>Amount Paid (£)</label><input type="number" id="cfPaidAmount" step="0.01"></div>
       <div class="cf-field"><label>Date Paid</label><input type="date" id="cfPaidDate"></div>
+      <div class="cf-field"><label>Paid With</label><select id="cfPaidCard">
+        <option value="transfer">Transfer</option>
+        <option value="others">Others</option>
+      </select></div>
     </div>
     <div class="cf-modal-footer">
       <button class="cf-btn cf-btn-secondary" onclick="cfClosePaidModal()">Cancel</button>
@@ -433,15 +437,23 @@
   }
 
   // ===== SUPPLIERS =====
-  async function loadSuppliers(){
+    let allSupplierNames = [];
+
+  function populateAcctDropdown(){
     const sel = document.getElementById('cfAcctName');
+    const usedNames = new Set(accounts.map(a=>a.name));
+    const available = allSupplierNames.filter(n=>!usedNames.has(n));
+    sel.innerHTML = '<option value="">Select supplier…</option>' + available.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  }
+
+  async function loadSuppliers(){
     try{
       const { data, error } = await sb.from('suppliers').select('name').order('name');
       if(error) throw error;
-      const names = (data||[]).map(s=>s.name).filter(Boolean);
-      sel.innerHTML = '<option value="">Select supplier…</option>' + names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+      allSupplierNames = (data||[]).map(s=>s.name).filter(Boolean);
+      populateAcctDropdown();
     }catch(e){
-      sel.innerHTML = '<option value="">Could not load suppliers</option>';
+      document.getElementById('cfAcctName').innerHTML = '<option value="">Could not load suppliers</option>';
       console.warn('Failed to load suppliers', e);
     }
   }
@@ -597,16 +609,19 @@
     renderSummary();
   }
 
-  window.cfOpenAccountModal = function(){
+    window.cfOpenAccountModal = function(){
+    populateAcctDropdown();
     document.getElementById('cfAcctName').value='';
     document.getElementById('cfAcctLimit').value='';
     document.getElementById('cfAcctModalOverlay').classList.add('open');
   };
+  
   window.cfCloseAccountModal = function(){ document.getElementById('cfAcctModalOverlay').classList.remove('open'); };
 
-  window.cfSubmitAccount = function(){
+    window.cfSubmitAccount = function(){
     const name = document.getElementById('cfAcctName').value;
     if(!name){ toast('Please select a Supplier','error'); return; }
+    if(accounts.some(a=>a.name===name)){ toast('An account for this supplier already exists','error'); return; }
     const newAcct = {
       id: acctIdSeq++,
       name,
@@ -652,6 +667,8 @@
     const inv = invoices.find(i=>i.id===invId);
     document.getElementById('cfPaidAmount').value = inv ? inv.amount : '';
     document.getElementById('cfPaidDate').value = new Date().toISOString().slice(0,10);
+    const cardSel = document.getElementById('cfPaidCard');
+    cardSel.innerHTML = '<option value="transfer">Transfer</option><option value="others">Others</option>' + cards.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
     document.getElementById('cfPaidModalOverlay').classList.add('open');
   };
   window.cfClosePaidModal = function(){ document.getElementById('cfPaidModalOverlay').classList.remove('open'); payingInvoiceId=null; };
@@ -659,23 +676,44 @@
   window.cfConfirmPaid = function(){
     const inv = invoices.find(i=>i.id===payingInvoiceId);
     if(!inv) return;
+        const paidAmount = parseFloat(document.getElementById('cfPaidAmount').value)||0;
+    const method = document.getElementById('cfPaidCard').value;
+    const cardId = (method!=='transfer' && method!=='others') ? parseInt(method) : null;
+
     inv.paid = {
       paid: true,
-      amount: parseFloat(document.getElementById('cfPaidAmount').value)||0,
+      amount: paidAmount,
       date: document.getElementById('cfPaidDate').value,
+      method,
+      cardId,
     };
+
+    let label = method==='transfer' ? 'Transfer' : method==='others' ? 'Others' : '';
+    if(cardId){
+      const card = cards.find(c=>c.id===cardId);
+      if(card){ card.balance = (parseFloat(card.balance)||0) + paidAmount; label = card.name; }
+    }
+
     cfClosePaidModal();
     renderAccounts();
+    renderCards();
+    renderSummary();
     const acct = accounts.find(a=>a.id===inv.accountId);
     if(drawerAcctId===inv.accountId && acct) cfRenderDrawer(acct);
-    toast('Marked as paid','success');
+    toast('Marked as paid via '+label,'success');
   };
 
   window.cfUnmarkInvoicePaid = function(id){
     const inv = invoices.find(i=>i.id===id);
     if(!inv) return;
+    if(inv.paid && inv.paid.cardId){
+      const card = cards.find(c=>c.id===inv.paid.cardId);
+      if(card) card.balance = Math.max(0, (parseFloat(card.balance)||0) - (parseFloat(inv.paid.amount)||0));
+    }
     inv.paid = null;
     renderAccounts();
+    renderCards();
+    renderSummary();
     const acct = accounts.find(a=>a.id===inv.accountId);
     if(drawerAcctId===inv.accountId && acct) cfRenderDrawer(acct);
   };
