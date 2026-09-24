@@ -151,6 +151,23 @@
 .cf-drawer-sec::after{content:'';flex:1;height:1px;background:var(--border);}
 .cf-drawer-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .cf-drawer-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;}
+.cf-drawer-scorecards{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 20px 0;flex-shrink:0;}
+.cf-scorecard{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;display:flex;align-items:center;gap:10px;}
+.cf-scorecard-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.cf-scorecard-icon svg{width:15px;height:15px;}
+.cf-scorecard-lbl{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);}
+.cf-scorecard-val{font-size:14px;font-weight:800;color:var(--text);font-family:var(--mono);margin-top:1px;}
+.cf-drawer-tabs{display:flex;gap:0;padding:14px 20px 0;border-bottom:1px solid var(--border);flex-shrink:0;}
+.cf-drawer-tab{padding:8px 4px;font-size:12.5px;font-weight:700;color:var(--text3);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;margin-right:18px;font-family:var(--font);}
+.cf-drawer-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.cf-invoice-actions{display:flex;align-items:center;gap:4px;opacity:0;transition:opacity .15s;}
+.cf-invoice-row:hover .cf-invoice-actions{opacity:1;}
+.cf-invoice-icon-btn{width:24px;height:24px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;flex-shrink:0;}
+.cf-invoice-icon-btn:hover{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-bd);}
+.cf-invoice-icon-btn.danger:hover{background:var(--red-bg);color:var(--red);border-color:var(--red-bd);}
+.cf-inv-filter{display:flex;gap:6px;}
+.cf-inv-filter-btn{padding:5px 12px;border-radius:100px;border:1px solid var(--border);background:var(--surface);color:var(--text3);font-size:11.5px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;}
+.cf-inv-filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
 .cf-drawer-sec-row{display:flex;align-items:center;gap:8px;margin:16px 0 10px;}
 .cf-add-invoice-btn{padding:4px 10px;border-radius:100px;border:1px solid var(--accent-bd);background:var(--accent-bg);color:var(--accent);font-size:10.5px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;flex-shrink:0;}
 .cf-add-invoice-btn:hover{background:var(--accent);color:#fff;}
@@ -265,7 +282,7 @@
 <!-- ADD INVOICE MODAL -->
 <div class="cf-modal-overlay" id="cfInvoiceModalOverlay">
   <div class="cf-modal">
-    <div class="cf-modal-hdr"><div class="cf-modal-title">Add Invoice</div><button class="cf-modal-close" onclick="cfCloseInvoiceModal()">✕</button></div>
+        <div class="cf-modal-hdr"><div class="cf-modal-title" id="cfInvoiceModalTitle">Add Invoice</div><button class="cf-modal-close" onclick="cfCloseInvoiceModal()">✕</button></div>
     <div class="cf-modal-body">
       <div class="cf-field"><label>Amount (£)</label><input type="number" id="cfInvAmount" step="0.01" placeholder="0.00"></div>
       <div class="cf-field"><label>Due Date</label><input type="date" id="cfInvDueDate"></div>
@@ -273,7 +290,7 @@
     </div>
     <div class="cf-modal-footer">
       <button class="cf-btn cf-btn-secondary" onclick="cfCloseInvoiceModal()">Cancel</button>
-      <button class="cf-btn cf-btn-primary" onclick="cfSubmitInvoice()">Add Invoice</button>
+      <button class="cf-btn cf-btn-primary" id="cfInvSubmitBtn" onclick="cfSubmitInvoice()">Add Invoice</button>
     </div>
   </div>
 </div>
@@ -303,9 +320,10 @@
   <div class="cf-drawer-hero">
     <button class="cf-drawer-close" onclick="cfCloseDrawer()">✕</button>
     <div class="cf-drawer-name" id="cfDrawerName">—</div>
-    <span class="cf-drawer-badge" id="cfDrawerBadge"></span>
   </div>
-    <div class="cf-drawer-body" id="cfDrawerBody"></div>
+  <div class="cf-drawer-scorecards" id="cfDrawerScorecards"></div>
+  <div class="cf-drawer-tabs" id="cfDrawerTabs"></div>
+  <div class="cf-drawer-body" id="cfDrawerBody"></div>
   <div class="cf-drawer-footer" id="cfDrawerFooter"></div>
 </div>
 
@@ -320,6 +338,9 @@
   let invoiceIdSeq = 1;
   let payingInvoiceId = null;
   let invoiceForAcctId = null;
+   let editingInvoiceId = null;
+  let drawerTab = 'overview';
+  let invoiceViewFilter = 'pending';
   let editingCardId = null;
   let drawerAcctId = null;
   let tableFilter = 'all';
@@ -635,30 +656,58 @@
   };
 
   // ===== INVOICES =====
-  window.cfOpenInvoiceModal = function(acctId){
+    window.cfOpenInvoiceModal = function(acctId){
     invoiceForAcctId = acctId;
+    editingInvoiceId = null;
+    document.getElementById('cfInvoiceModalTitle').textContent = 'Add Invoice';
+    document.getElementById('cfInvSubmitBtn').textContent = 'Add Invoice';
     ['cfInvAmount','cfInvDueDate','cfInvTerms'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('cfInvoiceModalOverlay').classList.add('open');
   };
-  window.cfCloseInvoiceModal = function(){ document.getElementById('cfInvoiceModalOverlay').classList.remove('open'); invoiceForAcctId=null; };
+  window.cfCloseInvoiceModal = function(){ document.getElementById('cfInvoiceModalOverlay').classList.remove('open'); invoiceForAcctId=null; editingInvoiceId=null; };
+
+  window.cfEditInvoice = function(id){
+    const inv = invoices.find(i=>i.id===id);
+    if(!inv) return;
+    editingInvoiceId = id;
+    invoiceForAcctId = inv.accountId;
+    document.getElementById('cfInvoiceModalTitle').textContent = 'Edit Invoice';
+    document.getElementById('cfInvSubmitBtn').textContent = 'Save Changes';
+    document.getElementById('cfInvAmount').value = inv.amount;
+    document.getElementById('cfInvDueDate').value = inv.dueDate;
+    document.getElementById('cfInvTerms').value = inv.paymentTerms || '';
+    document.getElementById('cfInvoiceModalOverlay').classList.add('open');
+  };
+
+  window.cfDeleteInvoice = function(id){
+    invoices = invoices.filter(i=>i.id!==id);
+    renderAccounts();
+    renderSummary();
+    const acct = accounts.find(a=>a.id===drawerAcctId);
+    if(acct) cfRenderDrawer(acct);
+    toast('Invoice deleted','success');
+  };
 
   window.cfSubmitInvoice = function(){
     const amount = parseFloat(document.getElementById('cfInvAmount').value);
     const dueDate = document.getElementById('cfInvDueDate').value;
     if(!amount || !dueDate){ toast('Please fill in Amount and Due Date','error'); return; }
-    invoices.push({
-      id: invoiceIdSeq++,
-      accountId: invoiceForAcctId,
-      amount,
-      dueDate,
-      paymentTerms: document.getElementById('cfInvTerms').value.trim(),
-      paid: null,
-    });
+    const paymentTerms = document.getElementById('cfInvTerms').value.trim();
+
+    if(editingInvoiceId){
+      const inv = invoices.find(i=>i.id===editingInvoiceId);
+      if(inv) Object.assign(inv, { amount, dueDate, paymentTerms });
+      toast('Invoice updated','success');
+    } else {
+      invoices.push({ id: invoiceIdSeq++, accountId: invoiceForAcctId, amount, dueDate, paymentTerms, paid: null });
+      toast('Invoice added','success');
+    }
+
     const acct = accounts.find(a=>a.id===invoiceForAcctId);
     cfCloseInvoiceModal();
     renderAccounts();
+    renderSummary();
     if(acct) cfRenderDrawer(acct);
-    toast('Invoice added','success');
   };
 
   // ===== MARK PAID (per invoice) =====
@@ -719,10 +768,40 @@
   };
 
   // ===== DRAWER =====
+    window.cfOpenInvoiceModal = function(acctId){
+    invoiceForAcctId = acctId;
+    ['cfInvAmount','cfInvDueDate','cfInvTerms'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('cfInvoiceModalOverlay').classList.add('open');
+  };
+  window.cfCloseInvoiceModal = function(){ document.getElementById('cfInvoiceModalOverlay').classList.remove('open'); invoiceForAcctId=null; };
+
+  window.cfSubmitInvoice = function(){
+    const amount = parseFloat(document.getElementById('cfInvAmount').value);
+    const dueDate = document.getElementById('cfInvDueDate').value;
+    if(!amount || !dueDate){ toast('Please fill in Amount and Due Date','error'); return; }
+    invoices.push({
+      id: invoiceIdSeq++,
+      accountId: invoiceForAcctId,
+      amount,
+      dueDate,
+      paymentTerms: document.getElementById('cfInvTerms').value.trim(),
+      paid: null,
+    });
+    const acct = accounts.find(a=>a.id===invoiceForAcctId);
+    cfCloseInvoiceModal();
+    renderAccounts();
+    if(acct) cfRenderDrawer(acct);
+    toast('Invoice added','success');
+  };
+    document.getElementById('cfDrawerOverlay').classList.add('open');
+    document.getElementById('cfDrawer').classList.add('open');
+  };
   window.cfOpenDrawer = function(id){
     const acct = accounts.find(a=>a.id===id);
     if(!acct) return;
     drawerAcctId = id;
+    drawerTab = 'overview';
+    invoiceViewFilter = 'pending';
     cfRenderDrawer(acct);
     document.getElementById('cfDrawerOverlay').classList.add('open');
     document.getElementById('cfDrawer').classList.add('open');
@@ -736,7 +815,7 @@
   function cfDrawerField(label, value, onchange){
     return `<div class="cf-field"><label>${esc(label)}</label><input type="text" value="${esc(value)}" onchange="${onchange}"></div>`;
   }
-  function cfInvoiceRowHtml(inv){
+    function cfInvoiceRowHtml(inv){
     const isPaid = inv.paid && inv.paid.paid;
     const days = daysUntilDate(inv.dueDate);
     const cls = daysBadgeClass(days);
@@ -745,50 +824,94 @@
         <div class="cf-invoice-amt">${fmtGBP(inv.amount)}</div>
         <div class="cf-invoice-meta">Due ${fmtDateNice(inv.dueDate)}${inv.paymentTerms?' · '+esc(inv.paymentTerms):''}</div>
       </div>
-      ${isPaid
-        ? `<div class="cf-paid-badge" onclick="cfUnmarkInvoicePaid(${inv.id})" style="cursor:pointer" title="Click to undo">✓ Paid ${esc(inv.paid.date)}<span class="amt">${fmtGBP(inv.paid.amount)}</span></div>`
-        : `<div style="display:flex;align-items:center;gap:8px;">
-             <span class="cf-days-badge ${cls}">${daysBadgeLabel(days)}</span>
-             <button class="cf-mark-paid-btn" onclick="cfOpenPaidModal(${inv.id})">Mark Paid</button>
-           </div>`
-      }
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="cf-invoice-actions">
+          <button class="cf-invoice-icon-btn" onclick="cfEditInvoice(${inv.id})" title="Edit invoice">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </button>
+          <button class="cf-invoice-icon-btn danger" onclick="cfDeleteInvoice(${inv.id})" title="Delete invoice">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
+        </div>
+        ${isPaid
+          ? `<div class="cf-paid-badge" onclick="cfUnmarkInvoicePaid(${inv.id})" style="cursor:pointer" title="Click to undo">✓ Paid ${esc(inv.paid.date)}<span class="amt">${fmtGBP(inv.paid.amount)}</span></div>`
+          : `<span class="cf-days-badge ${cls}">${daysBadgeLabel(days)}</span><button class="cf-mark-paid-btn" onclick="cfOpenPaidModal(${inv.id})">Mark Paid</button>`
+        }
+      </div>
     </div>`;
   }
+
+   window.cfSetInvoiceViewFilter = function(f){
+    invoiceViewFilter = f;
+    const acct = accounts.find(a=>a.id===drawerAcctId);
+    if(acct) cfRenderDrawer(acct);
+  };
+
+  window.cfSetDrawerTab = function(tab){
+    
+    drawerTab = tab;
+    const acct = accounts.find(a=>a.id===drawerAcctId);
+    if(acct) cfRenderDrawer(acct);
+  };
 
   function cfRenderDrawer(acct){
     const { balance, nearestDays, totalCount } = getAccountRollup(acct.id);
     const remaining = (parseFloat(acct.limit)||0) - balance;
-    const cls = daysBadgeClass(nearestDays);
-    const acctInvoices = invoices.filter(i=>i.accountId===acct.id).sort((a,b)=>new Date(a.dueDate)-new Date(b.dueDate));
+    const acctInvoices = invoices.filter(i=>i.accountId===acct.id).sort((a,b)=>b.id-a.id);
 
     document.getElementById('cfDrawerName').textContent = acct.name;
-    document.getElementById('cfDrawerBadge').className = 'cf-drawer-badge cf-days-badge ' + cls;
-    document.getElementById('cfDrawerBadge').textContent = nearestDays!==null ? daysBadgeLabel(nearestDays)+' until next due' : (totalCount ? 'All settled' : 'No invoices yet');
 
-    document.getElementById('cfDrawerBody').innerHTML = `
-      <div class="cf-drawer-sec">Account Overview</div>
-      <div class="cf-field" style="margin-bottom:10px"><label>Supplier</label><select id="cfDrawerSupplierSelect" onchange="cfUpdateAcctField(${acct.id},'name',this.value)"><option value="">Loading suppliers…</option></select></div>
-      <div class="cf-drawer-grid" style="margin-bottom:10px">
-        <div class="cf-field"><label>Limit (£)</label><input type="number" step="0.01" value="${acct.limit}" onchange="cfUpdateAcctField(${acct.id},'limit',this.value)"></div>
-        <div class="cf-field"><label>Remaining</label><input type="text" value="${fmtGBP(remaining)}" readonly style="background:var(--surface2);color:var(--text3)"></div>
+    document.getElementById('cfDrawerScorecards').innerHTML = `
+      <div class="cf-scorecard">
+        <div class="cf-scorecard-icon" style="background:var(--amber-bg);color:var(--amber)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+        </div>
+        <div><div class="cf-scorecard-lbl">Balance Owed</div><div class="cf-scorecard-val">${fmtGBP(balance)}</div></div>
       </div>
-      <div class="cf-field"><label>Balance Owed</label><input type="text" value="${fmtGBP(balance)}" readonly style="background:var(--surface2);color:var(--text3)"></div>
-
-      <div class="cf-drawer-sec-row">
-        <div class="cf-drawer-sec" style="margin:0;flex:1;">Invoices</div>
-        <button class="cf-add-invoice-btn" onclick="cfOpenInvoiceModal(${acct.id})">+ Add Invoice</button>
+      <div class="cf-scorecard">
+        <div class="cf-scorecard-icon" style="background:var(--accent-bg);color:var(--accent-l)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div><div class="cf-scorecard-lbl">Next Due</div><div class="cf-scorecard-val">${nearestDays!==null ? daysBadgeLabel(nearestDays) : (totalCount?'Settled':'—')}</div></div>
       </div>
-      ${acctInvoices.length ? acctInvoices.map(cfInvoiceRowHtml).join('') : '<div style="padding:20px 0;text-align:center;color:var(--text4);font-size:12px;">No invoices yet</div>'}
     `;
 
-    (async()=>{
-      try{
-        const { data } = await sb.from('suppliers').select('name').order('name');
-        const names = (data||[]).map(s=>s.name).filter(Boolean);
-        const sel = document.getElementById('cfDrawerSupplierSelect');
-        if(sel) sel.innerHTML = names.map(n=>`<option value="${esc(n)}" ${n===acct.name?'selected':''}>${esc(n)}</option>`).join('');
-      }catch(e){}
-    })();
+    document.getElementById('cfDrawerTabs').innerHTML = `
+      <button class="cf-drawer-tab ${drawerTab==='overview'?'active':''}" onclick="cfSetDrawerTab('overview')">Overview</button>
+      <button class="cf-drawer-tab ${drawerTab==='invoices'?'active':''}" onclick="cfSetDrawerTab('invoices')">Invoices (${acctInvoices.length})</button>
+    `;
+
+        if(drawerTab==='invoices'){
+      const pendingList = acctInvoices.filter(i=>!(i.paid&&i.paid.paid));
+      const paidList = acctInvoices.filter(i=>i.paid&&i.paid.paid);
+      const shownList = invoiceViewFilter==='paid' ? paidList : pendingList;
+      document.getElementById('cfDrawerBody').innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;">
+          <div class="cf-inv-filter">
+            <button class="cf-inv-filter-btn ${invoiceViewFilter==='pending'?'active':''}" onclick="cfSetInvoiceViewFilter('pending')">Pending (${pendingList.length})</button>
+            <button class="cf-inv-filter-btn ${invoiceViewFilter==='paid'?'active':''}" onclick="cfSetInvoiceViewFilter('paid')">Paid (${paidList.length})</button>
+          </div>
+          <button class="cf-add-invoice-btn" onclick="cfOpenInvoiceModal(${acct.id})">+ Add Invoice</button>
+        </div>
+        ${shownList.length ? shownList.map(cfInvoiceRowHtml).join('') : `<div style="padding:20px 0;text-align:center;color:var(--text4);font-size:12px;">No ${invoiceViewFilter} invoices</div>`}
+      `;
+    } else {
+      document.getElementById('cfDrawerBody').innerHTML = `
+        <div class="cf-field" style="margin-bottom:10px"><label>Supplier</label><select id="cfDrawerSupplierSelect" onchange="cfUpdateAcctField(${acct.id},'name',this.value)"><option value="">Loading suppliers…</option></select></div>
+        <div class="cf-drawer-grid">
+          <div class="cf-field"><label>Limit (£)</label><input type="number" step="0.01" value="${acct.limit}" onchange="cfUpdateAcctField(${acct.id},'limit',this.value)"></div>
+          <div class="cf-field"><label>Remaining</label><input type="text" value="${fmtGBP(remaining)}" readonly style="background:var(--surface2);color:var(--text3)"></div>
+        </div>
+      `;
+      (async()=>{
+        try{
+          const { data } = await sb.from('suppliers').select('name').order('name');
+          const names = (data||[]).map(s=>s.name).filter(Boolean);
+          const sel = document.getElementById('cfDrawerSupplierSelect');
+          if(sel) sel.innerHTML = names.map(n=>`<option value="${esc(n)}" ${n===acct.name?'selected':''}>${esc(n)}</option>`).join('');
+        }catch(e){}
+      })();
+    }
 
     document.getElementById('cfDrawerFooter').innerHTML = `<button class="cf-btn cf-btn-danger" style="flex:1" onclick="cfDeleteAccountFromDrawer()">Delete Account</button>`;
   }
@@ -798,6 +921,7 @@
     if(!acct) return;
     acct[field] = value;
     renderAccounts();
+    if(drawerAcctId===id) cfRenderDrawer(acct);
   };
 
   window.cfDeleteAccountFromDrawer = function(){
