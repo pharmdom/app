@@ -112,7 +112,15 @@
 .cf-paid-badge{display:flex;flex-direction:column;font-size:10.5px;color:var(--green);font-weight:700;}
 .cf-paid-badge .amt{font-size:9.5px;color:var(--text3);font-weight:600;}
 .cf-empty-table{text-align:center;padding:40px;color:var(--text4);font-size:12.5px;}
-
+.cf-confirm-overlay{position:fixed;inset:0;background:rgba(6,10,20,.6);z-index:9995;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .15s;}
+.cf-confirm-overlay.open{opacity:1;pointer-events:all;}
+.cf-confirm-box{background:var(--surface);border-radius:var(--r-xl);width:340px;max-width:90vw;padding:22px;box-shadow:var(--sh-lg);text-align:center;}
+.cf-confirm-icon{width:44px;height:44px;border-radius:50%;background:var(--red-bg);color:var(--red);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
+.cf-confirm-icon svg{width:20px;height:20px;}
+.cf-confirm-title{font-size:15px;font-weight:800;color:var(--text);margin-bottom:6px;}
+.cf-confirm-msg{font-size:12.5px;color:var(--text3);line-height:1.5;margin-bottom:18px;}
+.cf-confirm-actions{display:flex;gap:8px;}
+  
 /* MODAL */
 .cf-modal-overlay{position:fixed;inset:0;background:rgba(12,21,38,.5);z-index:9990;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .15s;}
 .cf-modal-overlay.open{opacity:1;pointer-events:all;}
@@ -302,7 +310,7 @@
     <div class="cf-modal-body">
       <div class="cf-field"><label>Amount Paid (£)</label><input type="number" id="cfPaidAmount" step="0.01"></div>
       <div class="cf-field"><label>Date Paid</label><input type="date" id="cfPaidDate"></div>
-      <div class="cf-field"><label>Paid With</label><select id="cfPaidCard">
+            <div class="cf-field"><label>Paid With</label><select id="cfPaidCard">
         <option value="transfer">Transfer</option>
         <option value="others">Others</option>
       </select></div>
@@ -310,6 +318,21 @@
     <div class="cf-modal-footer">
       <button class="cf-btn cf-btn-secondary" onclick="cfClosePaidModal()">Cancel</button>
       <button class="cf-btn cf-btn-primary" onclick="cfConfirmPaid()">Confirm Paid</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRMATION -->
+<div class="cf-confirm-overlay" id="cfConfirmOverlay">
+  <div class="cf-confirm-box">
+    <div class="cf-confirm-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+    </div>
+    <div class="cf-confirm-title">Delete this account?</div>
+    <div class="cf-confirm-msg" id="cfConfirmMsg">This will permanently remove the account and all of its invoices. This can't be undone.</div>
+    <div class="cf-confirm-actions">
+      <button class="cf-btn cf-btn-secondary" style="flex:1" onclick="cfCloseConfirm()">Cancel</button>
+      <button class="cf-btn cf-btn-danger" style="flex:1" id="cfConfirmActionBtn">Delete</button>
     </div>
   </div>
 </div>
@@ -717,7 +740,7 @@
     document.getElementById('cfPaidAmount').value = inv ? inv.amount : '';
     document.getElementById('cfPaidDate').value = new Date().toISOString().slice(0,10);
     const cardSel = document.getElementById('cfPaidCard');
-    cardSel.innerHTML = '<option value="transfer">Transfer</option><option value="others">Others</option>' + cards.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    cardSel.innerHTML = cards.map(c=>`<option value="${c.id}">${esc(c.name)} Card</option>`).join('') + '<option value="transfer">Transfer</option><option value="others">Others</option>';
     document.getElementById('cfPaidModalOverlay').classList.add('open');
   };
   window.cfClosePaidModal = function(){ document.getElementById('cfPaidModalOverlay').classList.remove('open'); payingInvoiceId=null; };
@@ -923,13 +946,36 @@
     if(drawerAcctId===id) cfRenderDrawer(acct);
   };
 
+  window.cfCloseConfirm = function(){
+    document.getElementById('cfConfirmOverlay').classList.remove('open');
+  };
+
+  function cfAskConfirm(message, onConfirm){
+    document.getElementById('cfConfirmMsg').textContent = message;
+    const btn = document.getElementById('cfConfirmActionBtn');
+    const freshBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(freshBtn, btn);
+    freshBtn.onclick = function(){
+      cfCloseConfirm();
+      onConfirm();
+    };
+    document.getElementById('cfConfirmOverlay').classList.add('open');
+  }
+
   window.cfDeleteAccountFromDrawer = function(){
     if(!drawerAcctId) return;
-    accounts = accounts.filter(a=>a.id!==drawerAcctId);
-    invoices = invoices.filter(i=>i.accountId!==drawerAcctId);
-    cfCloseDrawer();
-    renderAccounts();
-    toast('Account deleted','success');
+    const acct = accounts.find(a=>a.id===drawerAcctId);
+    const acctId = drawerAcctId;
+    cfAskConfirm(
+      `This will permanently remove ${acct?esc(acct.name):'this account'} and all of its invoices. This can't be undone.`,
+      function(){
+        accounts = accounts.filter(a=>a.id!==acctId);
+        invoices = invoices.filter(i=>i.accountId!==acctId);
+        cfCloseDrawer();
+        renderAccounts();
+        toast('Account deleted','success');
+      }
+    );
   };
   
   
