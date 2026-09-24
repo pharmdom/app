@@ -90,6 +90,15 @@
 .cf-table-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .cf-summary-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);color:var(--text3);font-size:12.5px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;flex-shrink:0;}
 .cf-summary-btn:hover{background:var(--surface2);color:var(--text);}
+.cf-addnew-wrap{position:relative;flex-shrink:0;}
+.cf-addnew-menu{position:absolute;top:calc(100% + 6px);right:0;min-width:188px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh-lg);padding:6px;z-index:60;display:none;}
+.cf-addnew-menu.open{display:block;}
+.cf-addnew-item{display:flex;align-items:center;gap:9px;width:100%;box-sizing:border-box;padding:9px 10px;border:none;background:none;border-radius:8px;font-family:var(--font);font-size:12.5px;font-weight:600;color:var(--text);text-align:left;cursor:pointer;transition:background .12s;}
+.cf-addnew-item:hover{background:var(--surface2);}
+.cf-addnew-item svg{flex-shrink:0;color:var(--text3);}
+.cf-addnew-item:hover svg{color:var(--accent);}
+.cf-addnew-caret{transition:transform .15s;}
+.cf-addnew-wrap.open .cf-addnew-caret{transform:rotate(180deg);}
 .cf-modal.cf-modal-lg{width:860px;max-width:94vw;height:82vh;display:flex;flex-direction:column;}
 .cf-modal-lg .cf-modal-body{flex:1;min-height:0;overflow-y:auto;}
 .cf-insight-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
@@ -267,10 +276,23 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
               Summary
             </button>
-            <button class="cf-add-account-btn" onclick="cfOpenAccountModal()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Add Account
-            </button>
+                        <div class="cf-addnew-wrap" id="cfAddNewWrap">
+              <button class="cf-add-account-btn" onclick="cfToggleAddNew(event)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add New
+                <svg class="cf-addnew-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="cf-addnew-menu" id="cfAddNewMenu">
+                <button class="cf-addnew-item" onclick="cfAddNewPick('invoice')">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                  Add invoice
+                </button>
+                <button class="cf-addnew-item" onclick="cfAddNewPick('account')">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  Add account
+                </button>
+              </div>
+            </div>
           </div>
         </div>
         <div class="cf-table-scroll">
@@ -330,6 +352,7 @@
   <div class="cf-modal">
         <div class="cf-modal-hdr"><div class="cf-modal-title" id="cfInvoiceModalTitle">Add Invoice</div><button class="cf-modal-close" onclick="cfCloseInvoiceModal()">✕</button></div>
     <div class="cf-modal-body">
+      <div class="cf-field" id="cfInvAccountWrap" style="display:none"><label>Supplier Account</label><select id="cfInvAccount"></select></div>
       <div class="cf-field"><label>Amount (£)</label><input type="number" id="cfInvAmount" step="0.01" placeholder="0.00"></div>
       <div class="cf-field"><label>Due Date</label><input type="date" id="cfInvDueDate"></div>
       <div class="cf-field"><label>Payment Terms</label><input type="text" id="cfInvTerms" placeholder="e.g. Net 30"></div>
@@ -1004,16 +1027,78 @@
   };
 
   // ===== INVOICES =====
+    // ===== ADD NEW DROPDOWN =====
+  window.cfToggleAddNew = function(e){
+    if(e) e.stopPropagation();
+    const wrap = document.getElementById('cfAddNewWrap');
+    const menu = document.getElementById('cfAddNewMenu');
+    const open = !menu.classList.contains('open');
+    menu.classList.toggle('open', open);
+    wrap.classList.toggle('open', open);
+  };
+
+  function cfCloseAddNew(){
+    const wrap = document.getElementById('cfAddNewWrap');
+    const menu = document.getElementById('cfAddNewMenu');
+    if(menu) menu.classList.remove('open');
+    if(wrap) wrap.classList.remove('open');
+  }
+
+  // Close on any click elsewhere, or on Escape.
+  document.addEventListener('click', function(e){
+    const wrap = document.getElementById('cfAddNewWrap');
+    if(wrap && !wrap.contains(e.target)) cfCloseAddNew();
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') cfCloseAddNew();
+  });
+
+  window.cfAddNewPick = function(which){
+    cfCloseAddNew();
+    if(which === 'account'){ cfOpenAccountModal(); return; }
+    cfOpenInvoicePicker();
+  };
+
+  /** Add Invoice from the top bar — no account context, so the supplier is chosen. */
+  window.cfOpenInvoicePicker = function(){
+    if(!accounts.length){
+      toast('Create a supplier account first, then add invoices to it','error');
+      cfOpenAccountModal();
+      return;
+    }
+    invoiceForAcctId = null;
+    editingInvoiceId = null;
+    document.getElementById('cfInvoiceModalTitle').textContent = 'Add Invoice';
+    document.getElementById('cfInvSubmitBtn').textContent = 'Add Invoice';
+    ['cfInvAmount','cfInvDueDate','cfInvTerms'].forEach(id=>document.getElementById(id).value='');
+
+    const wrap = document.getElementById('cfInvAccountWrap');
+    const sel  = document.getElementById('cfInvAccount');
+    sel.innerHTML = '<option value="">Select supplier account…</option>' +
+      accounts.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
+    // Pre-select the account whose drawer is open, if any — saves a step.
+    sel.value = drawerAcctId ? String(drawerAcctId) : '';
+    wrap.style.display = '';
+
+    document.getElementById('cfInvoiceModalOverlay').classList.add('open');
+  };
+
     window.cfOpenInvoiceModal = function(acctId){
     invoiceForAcctId = acctId;
     editingInvoiceId = null;
     document.getElementById('cfInvoiceModalTitle').textContent = 'Add Invoice';
     document.getElementById('cfInvSubmitBtn').textContent = 'Add Invoice';
     ['cfInvAmount','cfInvDueDate','cfInvTerms'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('cfInvAccountWrap').style.display = 'none';
     document.getElementById('cfInvoiceModalOverlay').classList.add('open');
   };
-  window.cfCloseInvoiceModal = function(){ document.getElementById('cfInvoiceModalOverlay').classList.remove('open'); invoiceForAcctId=null; editingInvoiceId=null; };
 
+    window.cfCloseInvoiceModal = function(){
+    document.getElementById('cfInvoiceModalOverlay').classList.remove('open');
+    document.getElementById('cfInvAccountWrap').style.display = 'none';
+    invoiceForAcctId=null; editingInvoiceId=null;
+  };
+  
   window.cfEditInvoice = function(id){
     const inv = invoices.find(i=>i.id===id);
     if(!inv) return;
@@ -1023,7 +1108,8 @@
     document.getElementById('cfInvSubmitBtn').textContent = 'Save Changes';
     document.getElementById('cfInvAmount').value = inv.amount;
     document.getElementById('cfInvDueDate').value = inv.dueDate;
-    document.getElementById('cfInvTerms').value = inv.paymentTerms || '';
+        document.getElementById('cfInvTerms').value = inv.paymentTerms || '';
+    document.getElementById('cfInvAccountWrap').style.display = 'none';
     document.getElementById('cfInvoiceModalOverlay').classList.add('open');
   };
 
@@ -1058,7 +1144,16 @@
     if(!amount || !dueDate){ toast('Please fill in Amount and Due Date','error'); return; }
     const paymentTerms = document.getElementById('cfInvTerms').value.trim();
 
-        const targetAcctId = invoiceForAcctId;
+        // When the supplier picker is showing, it is the source of truth.
+    const pickerWrap = document.getElementById('cfInvAccountWrap');
+    let targetAcctId = invoiceForAcctId;
+    if(!editingInvoiceId && pickerWrap && pickerWrap.style.display !== 'none'){
+      const picked = parseInt(document.getElementById('cfInvAccount').value);
+      if(!picked){ toast('Please select a supplier account','error'); return; }
+      targetAcctId = picked;
+    }
+    if(!targetAcctId){ toast('No supplier account selected','error'); return; }
+
     if(editingInvoiceId){
       const invId = editingInvoiceId;
       const inv = invoices.find(i=>i.id===invId);
