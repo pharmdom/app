@@ -151,7 +151,17 @@
 .cf-drawer-sec::after{content:'';flex:1;height:1px;background:var(--border);}
 .cf-drawer-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .cf-drawer-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;}
-
+.cf-drawer-sec-row{display:flex;align-items:center;gap:8px;margin:16px 0 10px;}
+.cf-add-invoice-btn{padding:4px 10px;border-radius:100px;border:1px solid var(--accent-bd);background:var(--accent-bg);color:var(--accent);font-size:10.5px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;flex-shrink:0;}
+.cf-add-invoice-btn:hover{background:var(--accent);color:#fff;}
+.cf-invoice-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;}
+.cf-invoice-row.paid{opacity:.6;}
+.cf-invoice-amt{font-size:13.5px;font-weight:800;color:var(--text);font-family:var(--mono);}
+.cf-invoice-meta{font-size:10.5px;color:var(--text3);margin-top:2px;}
+.cf-status-badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:100px;font-size:10.5px;font-weight:700;background:var(--surface2);color:var(--text3);}
+.cf-status-badge.pending{background:var(--amber-bg);color:var(--amber);}
+.cf-status-badge.settled{background:var(--green-bg);color:var(--green);}
+  
 .cf-toast{position:fixed;bottom:20px;right:20px;background:var(--navy);color:#fff;padding:11px 18px;border-radius:var(--r);font-size:13px;font-weight:600;box-shadow:var(--sh-lg);z-index:99999;opacity:0;transform:translateY(8px);transition:all .2s;}
 .cf-toast.show{opacity:1;transform:translateY(0);}
 .cf-toast.error{background:var(--red);}
@@ -227,14 +237,8 @@
         <div class="cf-field"><label>Statement Date (day of month)</label><input type="number" id="cfStatementDay" min="1" max="31" placeholder="e.g. 3"></div>
         <div class="cf-field"><label>Due Date (day of month)</label><input type="number" id="cfDueDay" min="1" max="31" placeholder="e.g. 20"></div>
       </div>
-      <div class="cf-row2">
-        <div class="cf-field"><label>Statement Payment (£)</label><input type="number" id="cfStatementPayment" step="0.01" placeholder="0.00"></div>
-        <div class="cf-field"><label>Cashback (%)</label><input type="number" id="cfCashback" step="0.01" placeholder="0.00"></div>
-      </div>
-      <div class="cf-row2">
-        <div class="cf-field"><label>Account Balance (£)</label><input type="number" id="cfBalance" step="0.01" placeholder="0.00"></div>
-        <div class="cf-field"><label>Limit (£)</label><input type="number" id="cfLimit" step="0.01" placeholder="0.00"></div>
-      </div>
+            <div class="cf-field"><label>Cashback (%)</label><input type="number" id="cfCashback" step="0.01" placeholder="0.00"></div>
+      <div class="cf-field"><label>Limit (£)</label><input type="number" id="cfLimit" step="0.01" placeholder="0.00"></div>
     </div>
     <div class="cf-modal-footer">
       <button class="cf-btn cf-btn-secondary" onclick="cfCloseCardModal()">Cancel</button>
@@ -249,20 +253,27 @@
     <div class="cf-modal-hdr"><div class="cf-modal-title">Add Supplier Account</div><button class="cf-modal-close" onclick="cfCloseAccountModal()">✕</button></div>
     <div class="cf-modal-body">
       <div class="cf-field"><label>Supplier</label><select id="cfAcctName"><option value="">Loading suppliers…</option></select></div>
-      <div class="cf-row2">
-        <div class="cf-field"><label>Balance (£)</label><input type="number" id="cfAcctBalance" step="0.01" placeholder="0.00"></div>
-        <div class="cf-field"><label>Limit (£)</label><input type="number" id="cfAcctLimit" step="0.01" placeholder="0.00"></div>
-      </div>
-      <div class="cf-field"><label>Due Date (day of month)</label><input type="number" id="cfAcctDueDay" min="1" max="31" placeholder="e.g. 15"></div>
-      <div class="cf-field"><label>Payment Terms</label><input type="text" id="cfAcctTerms" placeholder="e.g. Net 30"></div>
-      <div class="cf-toggle-row">
-        <span style="font-size:12.5px;font-weight:600;">Accepts Credit</span>
-        <select id="cfAcctAcceptsCredit" style="width:auto;padding:6px 10px;"><option value="yes">Yes</option><option value="no">No</option></select>
-      </div>
+      <div class="cf-field"><label>Limit (£)</label><input type="number" id="cfAcctLimit" step="0.01" placeholder="0.00"></div>
     </div>
     <div class="cf-modal-footer">
       <button class="cf-btn cf-btn-secondary" onclick="cfCloseAccountModal()">Cancel</button>
       <button class="cf-btn cf-btn-primary" onclick="cfSubmitAccount()">Add Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD INVOICE MODAL -->
+<div class="cf-modal-overlay" id="cfInvoiceModalOverlay">
+  <div class="cf-modal">
+    <div class="cf-modal-hdr"><div class="cf-modal-title">Add Invoice</div><button class="cf-modal-close" onclick="cfCloseInvoiceModal()">✕</button></div>
+    <div class="cf-modal-body">
+      <div class="cf-field"><label>Amount (£)</label><input type="number" id="cfInvAmount" step="0.01" placeholder="0.00"></div>
+      <div class="cf-field"><label>Due Date</label><input type="date" id="cfInvDueDate"></div>
+      <div class="cf-field"><label>Payment Terms</label><input type="text" id="cfInvTerms" placeholder="e.g. Net 30"></div>
+    </div>
+    <div class="cf-modal-footer">
+      <button class="cf-btn cf-btn-secondary" onclick="cfCloseInvoiceModal()">Cancel</button>
+      <button class="cf-btn cf-btn-primary" onclick="cfSubmitInvoice()">Add Invoice</button>
     </div>
   </div>
 </div>
@@ -299,9 +310,12 @@
   const sb = window.sb;
   let cards = [];
   let accounts = [];
+  let invoices = [];
   let cardIdSeq = 1;
   let acctIdSeq = 1;
-    let payingAcctId = null;
+  let invoiceIdSeq = 1;
+  let payingInvoiceId = null;
+  let invoiceForAcctId = null;
   let editingCardId = null;
   let drawerAcctId = null;
   let tableFilter = 'all';
@@ -310,15 +324,31 @@
   let viewYear = nowD.getFullYear();
   const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-  function getAccountEffectiveDate(a){
-    if(a.paid && a.paid.paid && a.paid.date){
-      const d = new Date(a.paid.date);
-      return { month: d.getMonth(), year: d.getFullYear() };
-    }
+    function getInvoiceEffectiveDate(inv){
+    const d = (inv.paid && inv.paid.paid && inv.paid.date) ? new Date(inv.paid.date) : new Date(inv.dueDate);
+    return { month: d.getMonth(), year: d.getFullYear() };
+  }
+  function daysUntilDate(dateStr){
+    if(!dateStr) return null;
+    const target = new Date(dateStr+'T23:59:59');
     const now = new Date();
-    let target = new Date(now.getFullYear(), now.getMonth(), a.dueDay);
-    if(target < now) target = new Date(now.getFullYear(), now.getMonth()+1, a.dueDay);
-    return { month: target.getMonth(), year: target.getFullYear() };
+    return Math.ceil((target-now)/86400000);
+  }
+  function daysBadgeLabel(days){
+    if(days===null) return '—';
+    if(days<0) return Math.abs(days)+'d overdue';
+    return days+'d';
+  }
+  function getAccountRollup(acctId){
+    const all = invoices.filter(i=>i.accountId===acctId);
+    const unpaid = all.filter(i=>!(i.paid&&i.paid.paid));
+    const balance = unpaid.reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
+    let nearestDays = null;
+    unpaid.forEach(i=>{
+      const d = daysUntilDate(i.dueDate);
+      if(d!==null && (nearestDays===null || d<nearestDays)) nearestDays=d;
+    });
+    return { balance, unpaidCount: unpaid.length, totalCount: all.length, nearestDays };
   }
 
   window.cfChangeMonth = function(delta){
@@ -337,14 +367,14 @@
     const totalAvailable = cards.reduce((s,c)=>s+((parseFloat(c.limit)||0)-(parseFloat(c.balance)||0)),0);
     document.getElementById('cfTotalAvailVal').textContent = fmtGBP(totalAvailable);
 
-    const monthAccounts = accounts.filter(a=>{
-      const d = getAccountEffectiveDate(a);
+       const monthInvoices = invoices.filter(inv=>{
+      const d = getInvoiceEffectiveDate(inv);
       return d.month===viewMonth && d.year===viewYear;
     });
-    const pending = monthAccounts.filter(a=>!(a.paid&&a.paid.paid));
-    const paid = monthAccounts.filter(a=>a.paid&&a.paid.paid);
-    const pendingTotal = pending.reduce((s,a)=>s+(parseFloat(a.balance)||0),0);
-    const paidTotal = paid.reduce((s,a)=>s+(parseFloat(a.paid.amount)||0),0);
+    const pending = monthInvoices.filter(inv=>!(inv.paid&&inv.paid.paid));
+    const paid = monthInvoices.filter(inv=>inv.paid&&inv.paid.paid);
+    const pendingTotal = pending.reduce((s,inv)=>s+(parseFloat(inv.amount)||0),0);
+    const paidTotal = paid.reduce((s,inv)=>s+(parseFloat(inv.paid.amount)||0),0);
 
     document.getElementById('cfPendingPill').querySelector('.cf-pill-val').textContent = pending.length+' · '+fmtGBP(pendingTotal);
     document.getElementById('cfPaidPill').querySelector('.cf-pill-val').textContent = paid.length+' · '+fmtGBP(paidTotal);
@@ -376,11 +406,17 @@
     const s=['th','st','nd','rd'], v=n%100;
     return n+(s[(v-20)%10]||s[v]||s[0]);
   }
-  function daysBadgeClass(days){
+    function daysBadgeClass(days){
     if(days===null) return 'd-ok';
-    if(days<=3) return 'd-urgent';
+    if(days<3) return 'd-urgent';
     if(days<=7) return 'd-warn';
     return 'd-ok';
+  }
+  function fmtDateNice(dateStr){
+    if(!dateStr) return '—';
+    const d = new Date(dateStr+'T00:00:00');
+    if(isNaN(d)) return dateStr;
+    return d.getDate()+' '+MONTH_NAMES[d.getMonth()].slice(0,3)+' '+d.getFullYear();
   }
 
   // Golden-angle hue rotation — guarantees strong visual distinction, never repeats in a visible pattern
@@ -480,7 +516,7 @@
     editingCardId = null;
     document.getElementById('cfCardModalTitle').textContent = 'Add Credit Card';
     document.getElementById('cfCardSubmitBtn').textContent = 'Add Card';
-    ['cfCcName','cfStatementDay','cfDueDay','cfStatementPayment','cfCashback','cfBalance','cfLimit'].forEach(id=>document.getElementById(id).value='');
+    ['cfCcName','cfStatementDay','cfDueDay','cfCashback','cfLimit'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('cfCardModalOverlay').classList.add('open');
   };
   window.cfCloseCardModal = function(){ document.getElementById('cfCardModalOverlay').classList.remove('open'); };
@@ -494,9 +530,7 @@
     document.getElementById('cfCcName').value = c.name;
     document.getElementById('cfStatementDay').value = c.statementDay;
     document.getElementById('cfDueDay').value = c.dueDay;
-    document.getElementById('cfStatementPayment').value = c.statementPayment;
     document.getElementById('cfCashback').value = c.cashback;
-    document.getElementById('cfBalance').value = c.balance;
     document.getElementById('cfLimit').value = c.limit;
     document.getElementById('cfCardModalOverlay').classList.add('open');
   };
@@ -506,13 +540,12 @@
     const statementDay = parseInt(document.getElementById('cfStatementDay').value);
     const dueDay = parseInt(document.getElementById('cfDueDay').value);
     if(!name || !statementDay || !dueDay){ toast('Please fill in Card Name, Statement Date and Due Date','error'); return; }
-    const fields = {
+        const fields = {
       name,
       statementDay,
       dueDay,
-      statementPayment: parseFloat(document.getElementById('cfStatementPayment').value)||0,
       cashback: parseFloat(document.getElementById('cfCashback').value)||0,
-      balance: parseFloat(document.getElementById('cfBalance').value)||0,
+      balance: 0,
       limit: parseFloat(document.getElementById('cfLimit').value)||0,
     };
         if(editingCardId){
@@ -528,23 +561,42 @@
     renderSummary();
   };
 
-  // ===== SUPPLIER ACCOUNTS =====
-    function renderAccounts(){
+   // ===== SUPPLIER ACCOUNTS =====
+  function renderAccounts(){
     const tbody = document.getElementById('cfAcctTbody');
-    const visible = accounts.filter(a=>{
-      const d = getAccountEffectiveDate(a);
-      if(d.month!==viewMonth || d.year!==viewYear) return false;
-      const isPaid = a.paid && a.paid.paid;
-      if(tableFilter==='pending' && isPaid) return false;
-      if(tableFilter==='paid' && !isPaid) return false;
-      return true;
-    });
-    document.getElementById('cfAcctCount').textContent = visible.length + (visible.length===1?' account':' accounts') + ' · '+MONTH_NAMES[viewMonth];
+    let visible = accounts;
+    if(tableFilter==='pending' || tableFilter==='paid'){
+      visible = accounts.filter(a=>invoices.some(inv=>{
+        if(inv.accountId!==a.id) return false;
+        const isPaid = inv.paid && inv.paid.paid;
+        if(tableFilter==='pending' && isPaid) return false;
+        if(tableFilter==='paid' && !isPaid) return false;
+        const d = getInvoiceEffectiveDate(inv);
+        return d.month===viewMonth && d.year===viewYear;
+      }));
+    }
+    document.getElementById('cfAcctCount').textContent = visible.length + (visible.length===1?' account':' accounts');
     if(!visible.length){
       tbody.innerHTML = `<tr><td colspan="5" class="cf-empty-table">No accounts match this view</td></tr>`;
       renderSummary();
       return;
     }
+    tbody.innerHTML = visible.map(a=>{
+      const { balance, unpaidCount, totalCount, nearestDays } = getAccountRollup(a.id);
+      const remaining = (parseFloat(a.limit)||0) - balance;
+      const cls = daysBadgeClass(nearestDays);
+      const statusCls = unpaidCount>0 ? 'pending' : (totalCount>0 ? 'settled' : '');
+      const statusLabel = unpaidCount>0 ? unpaidCount+' pending' : (totalCount>0 ? 'All settled' : 'No invoices');
+      return `<tr onclick="cfOpenDrawer(${a.id})">
+        <td class="cf-acct-name">${esc(a.name)}</td>
+        <td>${fmtGBP(balance)}</td>
+        <td>${nearestDays!==null ? `<span class="cf-days-badge ${cls}">${daysBadgeLabel(nearestDays)}</span>` : '<span style="color:var(--text4)">—</span>'}</td>
+        <td>${fmtGBP(remaining)}</td>
+        <td><span class="cf-status-badge ${statusCls}">${statusLabel}</span></td>
+      </tr>`;
+    }).join('');
+    renderSummary();
+  }
     tbody.innerHTML = visible.map(a=>{
       const remaining = (parseFloat(a.limit)||0) - (parseFloat(a.balance)||0);
       const days = daysUntilDay(a.dueDay);
@@ -563,68 +615,87 @@
     renderSummary();
   }
 
-  window.cfOpenAccountModal = function(){
+   window.cfOpenAccountModal = function(){
     document.getElementById('cfAcctName').value='';
-    ['cfAcctBalance','cfAcctLimit','cfAcctDueDay','cfAcctTerms'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('cfAcctAcceptsCredit').value='yes';
+    document.getElementById('cfAcctLimit').value='';
     document.getElementById('cfAcctModalOverlay').classList.add('open');
   };
   window.cfCloseAccountModal = function(){ document.getElementById('cfAcctModalOverlay').classList.remove('open'); };
 
   window.cfSubmitAccount = function(){
     const name = document.getElementById('cfAcctName').value;
-    const dueDay = parseInt(document.getElementById('cfAcctDueDay').value);
-    if(!name || !dueDay){ toast('Please select a Supplier and set a Due Date','error'); return; }
-        const newAcct = {
+    if(!name){ toast('Please select a Supplier','error'); return; }
+    const newAcct = {
       id: acctIdSeq++,
       name,
-      balance: parseFloat(document.getElementById('cfAcctBalance').value)||0,
       limit: parseFloat(document.getElementById('cfAcctLimit').value)||0,
-      dueDay,
-      paymentTerms: document.getElementById('cfAcctTerms').value.trim(),
-      acceptsCredit: document.getElementById('cfAcctAcceptsCredit').value==='yes',
-      paid: null,
     };
     accounts.push(newAcct);
     cfCloseAccountModal();
-
-    const d = getAccountEffectiveDate(newAcct);
-    tableFilter = 'all';
-    viewMonth = d.month;
-    viewYear = d.year;
-
     renderAccounts();
-    toast('Account added — showing '+MONTH_NAMES[d.month],'success');
+    toast('Account added — add an invoice to get started','success');
+    cfOpenDrawer(newAcct.id);
   };
-  // ===== MARK PAID =====
-  window.cfOpenPaidModal = function(id){
-    payingAcctId = id;
-    const acct = accounts.find(a=>a.id===id);
-    document.getElementById('cfPaidAmount').value = acct ? acct.balance : '';
+
+  // ===== INVOICES =====
+  window.cfOpenInvoiceModal = function(acctId){
+    invoiceForAcctId = acctId;
+    ['cfInvAmount','cfInvDueDate','cfInvTerms'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('cfInvoiceModalOverlay').classList.add('open');
+  };
+  window.cfCloseInvoiceModal = function(){ document.getElementById('cfInvoiceModalOverlay').classList.remove('open'); invoiceForAcctId=null; };
+
+  window.cfSubmitInvoice = function(){
+    const amount = parseFloat(document.getElementById('cfInvAmount').value);
+    const dueDate = document.getElementById('cfInvDueDate').value;
+    if(!amount || !dueDate){ toast('Please fill in Amount and Due Date','error'); return; }
+    invoices.push({
+      id: invoiceIdSeq++,
+      accountId: invoiceForAcctId,
+      amount,
+      dueDate,
+      paymentTerms: document.getElementById('cfInvTerms').value.trim(),
+      paid: null,
+    });
+    const acct = accounts.find(a=>a.id===invoiceForAcctId);
+    cfCloseInvoiceModal();
+    renderAccounts();
+    if(acct) cfRenderDrawer(acct);
+    toast('Invoice added','success');
+  };
+
+  // ===== MARK PAID (per invoice) =====
+  window.cfOpenPaidModal = function(invId){
+    payingInvoiceId = invId;
+    const inv = invoices.find(i=>i.id===invId);
+    document.getElementById('cfPaidAmount').value = inv ? inv.amount : '';
     document.getElementById('cfPaidDate').value = new Date().toISOString().slice(0,10);
     document.getElementById('cfPaidModalOverlay').classList.add('open');
   };
-  window.cfClosePaidModal = function(){ document.getElementById('cfPaidModalOverlay').classList.remove('open'); payingAcctId=null; };
+  window.cfClosePaidModal = function(){ document.getElementById('cfPaidModalOverlay').classList.remove('open'); payingInvoiceId=null; };
 
   window.cfConfirmPaid = function(){
-    const acct = accounts.find(a=>a.id===payingAcctId);
-    if(!acct) return;
-    acct.paid = {
+    const inv = invoices.find(i=>i.id===payingInvoiceId);
+    if(!inv) return;
+    inv.paid = {
       paid: true,
       amount: parseFloat(document.getElementById('cfPaidAmount').value)||0,
       date: document.getElementById('cfPaidDate').value,
     };
     cfClosePaidModal();
     renderAccounts();
-    if(drawerAcctId===acct.id) cfRenderDrawer(acct);
+    const acct = accounts.find(a=>a.id===inv.accountId);
+    if(drawerAcctId===inv.accountId && acct) cfRenderDrawer(acct);
     toast('Marked as paid','success');
   };
 
-  window.cfUnmarkPaid = function(id){
-    const acct = accounts.find(a=>a.id===id);
-    if(acct) acct.paid = null;
+  window.cfUnmarkInvoicePaid = function(id){
+    const inv = invoices.find(i=>i.id===id);
+    if(!inv) return;
+    inv.paid = null;
     renderAccounts();
-    if(drawerAcctId===id) cfRenderDrawer(acct);
+    const acct = accounts.find(a=>a.id===inv.accountId);
+    if(drawerAcctId===inv.accountId && acct) cfRenderDrawer(acct);
   };
 
   // ===== DRAWER =====
@@ -645,50 +716,52 @@
   function cfDrawerField(label, value, onchange){
     return `<div class="cf-field"><label>${esc(label)}</label><input type="text" value="${esc(value)}" onchange="${onchange}"></div>`;
   }
+  function cfInvoiceRowHtml(inv){
+    const isPaid = inv.paid && inv.paid.paid;
+    const days = daysUntilDate(inv.dueDate);
+    const cls = daysBadgeClass(days);
+    return `<div class="cf-invoice-row ${isPaid?'paid':''}">
+      <div>
+        <div class="cf-invoice-amt">${fmtGBP(inv.amount)}</div>
+        <div class="cf-invoice-meta">Due ${fmtDateNice(inv.dueDate)}${inv.paymentTerms?' · '+esc(inv.paymentTerms):''}</div>
+      </div>
+      ${isPaid
+        ? `<div class="cf-paid-badge" onclick="cfUnmarkInvoicePaid(${inv.id})" style="cursor:pointer" title="Click to undo">✓ Paid ${esc(inv.paid.date)}<span class="amt">${fmtGBP(inv.paid.amount)}</span></div>`
+        : `<div style="display:flex;align-items:center;gap:8px;">
+             <span class="cf-days-badge ${cls}">${daysBadgeLabel(days)}</span>
+             <button class="cf-mark-paid-btn" onclick="cfOpenPaidModal(${inv.id})">Mark Paid</button>
+           </div>`
+      }
+    </div>`;
+  }
 
   function cfRenderDrawer(acct){
-    const remaining = (parseFloat(acct.limit)||0) - (parseFloat(acct.balance)||0);
-    const days = daysUntilDay(acct.dueDay);
-    const cls = daysBadgeClass(days);
-    const isPaid = acct.paid && acct.paid.paid;
+    const { balance, nearestDays, totalCount } = getAccountRollup(acct.id);
+    const remaining = (parseFloat(acct.limit)||0) - balance;
+    const cls = daysBadgeClass(nearestDays);
+    const acctInvoices = invoices.filter(i=>i.accountId===acct.id).sort((a,b)=>new Date(a.dueDate)-new Date(b.dueDate));
 
     document.getElementById('cfDrawerName').textContent = acct.name;
     document.getElementById('cfDrawerBadge').className = 'cf-drawer-badge cf-days-badge ' + cls;
-    document.getElementById('cfDrawerBadge').textContent = isPaid ? 'Paid this cycle' : days+'d until due';
+    document.getElementById('cfDrawerBadge').textContent = nearestDays!==null ? daysBadgeLabel(nearestDays)+' until next due' : (totalCount ? 'All settled' : 'No invoices yet');
 
     document.getElementById('cfDrawerBody').innerHTML = `
-            <div class="cf-drawer-sec">Account Overview</div>
+      <div class="cf-drawer-sec">Account Overview</div>
       <div class="cf-field" style="margin-bottom:10px"><label>Supplier</label><select id="cfDrawerSupplierSelect" onchange="cfUpdateAcctField(${acct.id},'name',this.value)"><option value="">Loading suppliers…</option></select></div>
       <div class="cf-drawer-grid" style="margin-bottom:10px">
-        <div class="cf-field"><label>Balance (£)</label><input type="number" step="0.01" value="${acct.balance}" onchange="cfUpdateAcctField(${acct.id},'balance',this.value)"></div>
         <div class="cf-field"><label>Limit (£)</label><input type="number" step="0.01" value="${acct.limit}" onchange="cfUpdateAcctField(${acct.id},'limit',this.value)"></div>
-      </div>
-      <div class="cf-drawer-grid">
         <div class="cf-field"><label>Remaining</label><input type="text" value="${fmtGBP(remaining)}" readonly style="background:var(--surface2);color:var(--text3)"></div>
-        <div class="cf-field"><label>Due Date (day)</label><input type="number" min="1" max="31" value="${acct.dueDay}" onchange="cfUpdateAcctField(${acct.id},'dueDay',parseInt(this.value))"></div>
       </div>
+      <div class="cf-field"><label>Balance Owed</label><input type="text" value="${fmtGBP(balance)}" readonly style="background:var(--surface2);color:var(--text3)"></div>
 
-      <div class="cf-drawer-sec">Terms</div>
-      <div class="cf-drawer-grid">
-        <div class="cf-field"><label>Payment Terms</label><input type="text" value="${esc(acct.paymentTerms||'')}" onchange="cfUpdateAcctField(${acct.id},'paymentTerms',this.value)"></div>
-        <div class="cf-field"><label>Accepts Credit</label>
-          <select onchange="cfUpdateAcctField(${acct.id},'acceptsCredit',this.value==='yes')">
-            <option value="yes" ${acct.acceptsCredit?'selected':''}>Yes</option>
-            <option value="no" ${!acct.acceptsCredit?'selected':''}>No</option>
-          </select>
-        </div>
+      <div class="cf-drawer-sec-row">
+        <div class="cf-drawer-sec" style="margin:0;flex:1;">Invoices</div>
+        <button class="cf-add-invoice-btn" onclick="cfOpenInvoiceModal(${acct.id})">+ Add Invoice</button>
       </div>
-
-            <div class="cf-drawer-sec">Payment Status</div>
-      ${isPaid
-        ? `<div style="padding:12px;background:var(--green-bg);border:1px solid var(--green-bd);border-radius:var(--r);color:var(--green);font-size:12.5px;font-weight:600;">
-             ✓ Paid ${esc(acct.paid.date)} · ${fmtGBP(acct.paid.amount)}
-           </div>`
-        : ''
-      }
+      ${acctInvoices.length ? acctInvoices.map(cfInvoiceRowHtml).join('') : '<div style="padding:20px 0;text-align:center;color:var(--text4);font-size:12px;">No invoices yet</div>'}
     `;
 
-        (async()=>{
+    (async()=>{
       try{
         const { data } = await sb.from('suppliers').select('name').order('name');
         const names = (data||[]).map(s=>s.name).filter(Boolean);
@@ -697,9 +770,7 @@
       }catch(e){}
     })();
 
-    document.getElementById('cfDrawerFooter').innerHTML = isPaid
-      ? `<button class="cf-btn cf-btn-secondary" style="flex:1" onclick="cfUnmarkPaid(${acct.id})">Undo Paid</button><button class="cf-btn cf-btn-danger" onclick="cfDeleteAccountFromDrawer()">Delete</button>`
-      : `<button class="cf-btn cf-btn-primary" style="flex:1" onclick="cfOpenPaidModal(${acct.id})">Mark as Paid</button><button class="cf-btn cf-btn-danger" onclick="cfDeleteAccountFromDrawer()">Delete</button>`;
+    document.getElementById('cfDrawerFooter').innerHTML = `<button class="cf-btn cf-btn-danger" style="flex:1" onclick="cfDeleteAccountFromDrawer()">Delete Account</button>`;
   }
 
   window.cfUpdateAcctField = function(id, field, value){
@@ -712,12 +783,14 @@
   window.cfDeleteAccountFromDrawer = function(){
     if(!drawerAcctId) return;
     accounts = accounts.filter(a=>a.id!==drawerAcctId);
+    invoices = invoices.filter(i=>i.accountId!==drawerAcctId);
     cfCloseDrawer();
     renderAccounts();
     toast('Account deleted','success');
   };
-
-    loadSuppliers();
+  
+  
+  loadSuppliers();
   renderCards();
   renderAccounts();
   renderSummary();
