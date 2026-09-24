@@ -87,6 +87,19 @@
 .cf-table-sub{font-size:11px;color:var(--text3);margin-top:2px;}
 .cf-add-account-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r);border:1px solid var(--accent-bd);background:var(--accent-bg);color:var(--accent);font-size:12.5px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;flex-shrink:0;}
 .cf-add-account-btn:hover{background:var(--accent);color:#fff;}
+.cf-summary-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);color:var(--text3);font-size:12.5px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;flex-shrink:0;}
+.cf-summary-btn:hover{background:var(--surface2);color:var(--text);}
+.cf-modal-lg{width:740px;}
+.cf-summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+.cf-summary-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;cursor:pointer;transition:all .15s;}
+.cf-summary-card:hover{border-color:var(--accent-bd);transform:translateY(-1px);box-shadow:var(--sh-sm);}
+.cf-summary-card-name{font-size:13.5px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.cf-summary-util-bar{height:5px;border-radius:10px;background:var(--surface3);overflow:hidden;margin-bottom:10px;}
+.cf-summary-util-fill{height:100%;background:var(--accent);border-radius:10px;}
+.cf-summary-card-row{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;}
+.cf-summary-card-row span:first-child{color:var(--text3);}
+.cf-summary-card-row span:last-child{font-weight:700;color:var(--text);font-family:var(--mono);}
+  
 .cf-table-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;}
 .cf-table{width:100%;table-layout:auto;border-collapse:collapse;font-size:12.5px;}
 .cf-table th,.cf-table td{white-space:nowrap;}
@@ -225,6 +238,10 @@
             <div class="cf-table-title">Supplier Credit Accounts</div>
             <div class="cf-table-sub" id="cfAcctCount">0 accounts</div>
           </div>
+                    <button class="cf-summary-btn" onclick="cfOpenSummaryModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Summary
+          </button>
           <button class="cf-add-account-btn" onclick="cfOpenAccountModal()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add Account
@@ -328,6 +345,14 @@
   </div>
 </div>
 
+<!-- SUPPLIER SUMMARY MODAL -->
+<div class="cf-modal-overlay" id="cfSummaryModalOverlay">
+  <div class="cf-modal cf-modal-lg">
+    <div class="cf-modal-hdr"><div class="cf-modal-title">Supplier Summary</div><button class="cf-modal-close" onclick="cfCloseSummaryModal()">✕</button></div>
+    <div class="cf-modal-body" id="cfSummaryModalBody" style="max-height:70vh;"></div>
+  </div>
+</div>
+
 <!-- ACCOUNT DRAWER — full detail, matching established drawer pattern -->
 <div class="cf-drawer-overlay" id="cfDrawerOverlay" onclick="cfCloseDrawer()"></div>
 <div class="cf-drawer" id="cfDrawer">
@@ -376,7 +401,8 @@
     if(days<0) return Math.abs(days)+'d overdue';
     return days+'d';
   }
-  function getAccountRollup(acctId){
+
+    function getAccountRollup(acctId){
     const all = invoices.filter(i=>i.accountId===acctId);
     const unpaid = all.filter(i=>!(i.paid&&i.paid.paid));
     const balance = unpaid.reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
@@ -387,6 +413,47 @@
     });
     return { balance, unpaidCount: unpaid.length, totalCount: all.length, nearestDays };
   }
+
+  function getAccountMetrics(acctId){
+    const all = invoices.filter(i=>i.accountId===acctId);
+    const paidInvoices = all.filter(i=>i.paid&&i.paid.paid);
+    const allTimeInvoiced = all.reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
+    const allTimePaid = paidInvoices.reduce((s,i)=>s+(parseFloat(i.paid.amount)||0),0);
+    let onTimeCount = 0;
+    paidInvoices.forEach(i=>{
+      const due = new Date(i.dueDate+'T23:59:59');
+      const paidD = new Date(i.paid.date+'T00:00:00');
+      if(!isNaN(due) && !isNaN(paidD) && paidD<=due) onTimeCount++;
+    });
+    const onTimeRate = paidInvoices.length ? Math.round((onTimeCount/paidInvoices.length)*100) : null;
+    return { allTimeInvoiced, allTimePaid, invoiceCount: all.length, paidCount: paidInvoices.length, onTimeRate };
+  }
+
+  window.cfOpenSummaryModal = function(){
+    document.getElementById('cfSummaryModalBody').innerHTML = accounts.length
+      ? `<div class="cf-summary-grid">${accounts.map(a=>{
+          const roll = getAccountRollup(a.id);
+          const met = getAccountMetrics(a.id);
+          const limit = parseFloat(a.limit)||0;
+          const utilPct = limit>0 ? Math.min(100,Math.round((roll.balance/limit)*100)) : 0;
+          return `<div class="cf-summary-card" onclick="cfOpenDrawerFromSummary(${a.id})">
+            <div class="cf-summary-card-name">${esc(a.name)}</div>
+            <div class="cf-summary-util-bar"><div class="cf-summary-util-fill" style="width:${utilPct}%"></div></div>
+            <div class="cf-summary-card-row"><span>Balance / Limit</span><span>${fmtGBP(roll.balance)} / ${fmtGBP(limit)}</span></div>
+            <div class="cf-summary-card-row"><span>All-Time Invoiced</span><span>${fmtGBP(met.allTimeInvoiced)}</span></div>
+            <div class="cf-summary-card-row"><span>All-Time Paid</span><span>${fmtGBP(met.allTimePaid)}</span></div>
+            <div class="cf-summary-card-row"><span>Invoices</span><span>${met.invoiceCount}</span></div>
+            <div class="cf-summary-card-row"><span>On-Time Rate</span><span>${met.onTimeRate!==null?met.onTimeRate+'%':'—'}</span></div>
+          </div>`;
+        }).join('')}</div>`
+      : `<div class="cf-empty-table">No supplier accounts yet</div>`;
+    document.getElementById('cfSummaryModalOverlay').classList.add('open');
+  };
+  window.cfCloseSummaryModal = function(){ document.getElementById('cfSummaryModalOverlay').classList.remove('open'); };
+  window.cfOpenDrawerFromSummary = function(id){
+    cfCloseSummaryModal();
+    cfOpenDrawer(id);
+  };
 
   window.cfSetTableFilter = function(f){
     tableFilter = tableFilter===f ? 'all' : f;
@@ -826,9 +893,10 @@
     if(acct) cfRenderDrawer(acct);
   };
 
-  function cfRenderDrawer(acct){
+    function cfRenderDrawer(acct){
     const { balance, nearestDays, totalCount } = getAccountRollup(acct.id);
     const remaining = (parseFloat(acct.limit)||0) - balance;
+    const cfMetrics = getAccountMetrics(acct.id);
     const acctInvoices = invoices.filter(i=>i.accountId===acct.id).sort((a,b)=>b.id-a.id);
 
     document.getElementById('cfDrawerName').textContent = acct.name;
@@ -870,10 +938,20 @@
       `;
     } else {
       document.getElementById('cfDrawerBody').innerHTML = `
-        <div class="cf-field" style="margin-bottom:10px"><label>Supplier</label><select id="cfDrawerSupplierSelect" onchange="cfUpdateAcctField(${acct.id},'name',this.value)"><option value="">Loading suppliers…</option></select></div>
+                <div class="cf-field" style="margin-bottom:10px"><label>Supplier</label><select id="cfDrawerSupplierSelect" onchange="cfUpdateAcctField(${acct.id},'name',this.value)"><option value="">Loading suppliers…</option></select></div>
         <div class="cf-drawer-grid">
           <div class="cf-field"><label>Limit (£)</label><input type="number" step="0.01" value="${acct.limit}" onchange="cfUpdateAcctField(${acct.id},'limit',this.value)"></div>
           <div class="cf-field"><label>Remaining</label><input type="text" value="${fmtGBP(remaining)}" readonly style="background:var(--surface2);color:var(--text3)"></div>
+        </div>
+
+        <div class="cf-drawer-sec">Metrics</div>
+        <div class="cf-drawer-grid" style="margin-bottom:10px">
+          <div class="cf-field"><label>All-Time Invoiced</label><input type="text" value="${fmtGBP(cfMetrics.allTimeInvoiced)}" readonly style="background:var(--surface2);color:var(--text3)"></div>
+          <div class="cf-field"><label>All-Time Paid</label><input type="text" value="${fmtGBP(cfMetrics.allTimePaid)}" readonly style="background:var(--surface2);color:var(--text3)"></div>
+        </div>
+        <div class="cf-drawer-grid">
+          <div class="cf-field"><label>Invoice Count</label><input type="text" value="${cfMetrics.invoiceCount}" readonly style="background:var(--surface2);color:var(--text3)"></div>
+          <div class="cf-field"><label>On-Time Payment Rate</label><input type="text" value="${cfMetrics.onTimeRate!==null?cfMetrics.onTimeRate+'%':'—'}" readonly style="background:var(--surface2);color:var(--text3)"></div>
         </div>
       `;
       (async()=>{
