@@ -1191,9 +1191,9 @@ function renderDrawer(row) {
             + '<div class="info-grid">' + eCard(id, 'Label Code', row['Label Code'] || '', 'text', infoAndPrepReadonly) + eCard(id, 'Brand', row['Brand'] || '', 'text', infoAndPrepReadonly) + '</div>';
         })()
                     const groupOnDrawer = drawerDirtyFields.hasOwnProperty('Group') ? !!drawerDirtyFields['Group'] : !!row['Group'];
-    body += sec('Quantities') + '<div class="info-grid">'
+       body += sec('Quantities') + '<div class="info-grid">'
       + eCard(id, 'Units Required', row['Units Required'] || '', 'number', infoAndPrepReadonly)
-      + (groupOnDrawer ? bCard(id, 'Veeqo Stock Adjusted', row['Veeqo Stock Adjusted'], infoAndPrepReadonly) : '')
+      + bCard(id, 'Veeqo Stock Adjusted', row['Veeqo Stock Adjusted'], infoAndPrepReadonly)
       + '</div>';
 
     if (!(() => { try { const p=JSON.parse(row['Prep Instructions']||''); return Array.isArray(p)&&p.length>1; } catch(e){return false;} })()) {
@@ -1214,7 +1214,7 @@ function renderDrawer(row) {
 
 if (!infoAndPrepReadonly && source !== 'fba') {
       body += sec('Grouping & Collection') + '<div class="drawer-section">'
-        + '<div class="group-toggle-row"><div><div class="group-toggle-label">Group</div><div class="group-toggle-hint">Show deadline, collection date &amp; Veeqo status</div></div>'
+        + '<div class="group-toggle-row"><div><div class="group-toggle-label">Group</div><div class="group-toggle-hint">Show deadline &amp; collection date</div></div>'
         + '<label class="slide-switch"><input type="checkbox" ' + (groupOnDrawer ? 'checked' : '') + ' onchange="toggleGroupInDrawer(\'' + ea(id) + '\',this.checked)"><span class="slide-switch-track"></span></label></div>'
         + '<div class="info-grid" style="margin-bottom:10px">' + eCard(id, 'Grouping Link', row['Grouping Link'] || '', 'url', false) + (groupOnDrawer ? dateCard(id, 'Collection Booked', row['Collection Booked'] || '') : '') + '</div><div style="margin-bottom:6px"><div class="info-card"><label>Grouping Images</label>' + renderGroupingImages(row['Grouping Image'] || '', id) + '</div></div>' + '</div>';
       const _dlBadgeDrawer = deadlineBadge(drawerDirtyFields.hasOwnProperty('Deadline') ? drawerDirtyFields['Deadline'] : (row['Deadline'] || ''));
@@ -1524,9 +1524,12 @@ function extractStoragePaths(row) {
   return urls.map(u => u.replace(supabaseBase, '')).filter(Boolean);
 }
 
-async function deleteStorageFiles(paths) {
-  if (!paths.length) return;
-  await sb.storage.from(STORAGE_BUCKET).remove(paths);
+async function deleteStorageFiles(/* paths */) {
+  /* Disabled on purpose. Images are shared across FBA products and work items,
+     so deleting a file here can orphan another record's image. Deleting a record
+     now leaves its image files in place. Orphan cleanup, if ever needed, must be
+     done separately with a full cross-reference of every table + batch item. */
+  return;
 }
   
 /* ══════════════════════════════════════════════════
@@ -1543,11 +1546,10 @@ async function deleteRecord(id) {
   btn.classList.remove('confirming'); btn.classList.add('deleting'); btn.innerHTML = '<span class="spinner sm"></span>Deleting…';
   const card = document.querySelector('.kanban-card[data-id="' + id + '"]');
   if (card) card.classList.add('card-deleting');
-  const rowToDelete = warehouseData.find(r => String(r['ID']) === String(id));
-  const storagePaths = rowToDelete ? extractStoragePaths(rowToDelete) : [];
-  const { error } = await sb.from('fba_work').delete().eq('id', id);
+    const { error } = await sb.from('fba_work').delete().eq('id', id);
   if (!error) {
-    await deleteStorageFiles(storagePaths);
+    /* Storage files are intentionally NOT deleted — images are shared between
+       products and work items, so removing them here would break other records. */
     const idx = warehouseData.findIndex(r => String(r['ID']) === String(id));
     if (idx > -1) warehouseData.splice(idx, 1);
     setTimeout(() => { drawerDirtyFields = {}; drawerCurrentId = null; drawerSource = null; document.getElementById('detailDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('visible'); applyFilters(); showToast('Record deleted', 'success'); }, 420);
@@ -1567,11 +1569,10 @@ async function deleteFBAProduct(id) {
   }
   clearTimeout(deletePendingTimer);
   btn.classList.remove('confirming'); btn.classList.add('deleting'); btn.innerHTML = '<span class="spinner sm"></span>Deleting…';
-  const rowToDelete = fbaData.find(r => String(r['ID']) === String(id));
-  const storagePaths = rowToDelete ? extractStoragePaths(rowToDelete) : [];
-  const { error } = await sb.from('fba_products').delete().eq('id', id);
+    const { error } = await sb.from('fba_products').delete().eq('id', id);
   if (!error) {
-    await deleteStorageFiles(storagePaths);
+    /* Storage files are intentionally NOT deleted — images are shared between
+       products and work items, so removing them here would break other records. */
     const idx = fbaData.findIndex(r => String(r['ID']) === String(id));
     if (idx > -1) fbaData.splice(idx, 1);
     setTimeout(() => { drawerDirtyFields = {}; drawerCurrentId = null; drawerSource = null; document.getElementById('detailDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('visible'); renderProductsTable(); showToast('Product deleted', 'success'); }, 420);
