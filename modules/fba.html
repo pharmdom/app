@@ -116,6 +116,15 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .drawer-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 .drawer-section { margin-bottom: 28px; }
 .section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #94a3b8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.prep-pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.prep-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 100px; border: 1.5px solid #e2e8f0; background: #fff; color: #334155; font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all .15s; }
+.prep-pill:hover { border-color: #2563eb; color: #2563eb; }
+.prep-pill.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+.prep-pill-num { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: #eff6ff; color: #2563eb; font-size: 9px; font-weight: 800; flex-shrink: 0; }
+.prep-pill.active .prep-pill-num { background: rgba(255,255,255,.25); color: #fff; }
+.prep-panel { display: none; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; background: #fafbfc; }
+.prep-panel-head { font-size: 12px; font-weight: 800; color: #1d4ed8; margin-bottom: 6px; }
+.prep-panel-body { font-size: 12px; color: #334155; line-height: 1.55; white-space: pre-wrap; }
 .section-label::after { content: ''; flex: 1; height: 1px; background: #f1f5f9; }
 .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .lc-row { grid-column: 1 / -1; }
@@ -1235,13 +1244,36 @@ if (!infoAndPrepReadonly && source !== 'fba') {
   }
   }
 
-  if (activeTab === 'prep') {
-    body += sec('Instructions') + '<div class="info-grid full">' + taCard(id, 'Prep Instructions', row['Prep Instructions'] || '', infoAndPrepReadonly) + '</div></div>'
-      + sec('Packaging') + '<div class="info-grid">'
-      + bCard(id, 'Bundle', row['Bundle'], infoAndPrepReadonly) + bCard(id, 'DG Label', row['DG Label'], infoAndPrepReadonly)
-      + bCard(id, 'Poly Bag', row['Poly Bag'], infoAndPrepReadonly) + bCard(id, 'Warning Label', row['Warning Label'], infoAndPrepReadonly)
-      + bCard(id, 'Barcode', row['Barcode'], infoAndPrepReadonly) + bCard(id, 'Box', row['Box'], infoAndPrepReadonly)
-      + '</div></div>';
+    if (activeTab === 'prep') {
+    let prepBatch = null;
+    try { const p = JSON.parse(row['Prep Instructions'] || ''); if (Array.isArray(p) && p.length > 1) prepBatch = p; } catch(e) {}
+    if (prepBatch) {
+      /* Batch work item: a pill per product; clicking a pill expands only that
+         product's prep instructions (accordion — one open at a time, all closed by default). */
+      body += sec('Instructions — ' + prepBatch.length + ' products')
+        + '<div class="info-grid full"><div style="grid-column:1/-1">'
+        + '<div class="prep-pill-row">'
+        + prepBatch.map((b, bi) =>
+            '<button type="button" class="prep-pill" id="prepPill_' + bi + '" onclick="fbaTogglePrepPill(' + bi + ')">'
+            + '<span class="prep-pill-num">' + (bi+1) + '</span>' + esc(b.labelCode || ('Item ' + (bi+1)))
+            + '</button>'
+          ).join('')
+        + '</div>'
+        + prepBatch.map((b, bi) =>
+            '<div class="prep-panel" id="prepPanel_' + bi + '">'
+            + '<div class="prep-panel-head">' + esc(b.labelCode || ('Item ' + (bi+1))) + (b.brand ? ' · ' + esc(b.brand) : '') + '</div>'
+            + '<div class="prep-panel-body">' + (b.prepInstructions ? esc(b.prepInstructions) : '<span style="color:#94a3b8">No prep instructions for this item</span>') + '</div>'
+            + '</div>'
+          ).join('')
+        + '</div></div></div>';
+    } else {
+      body += sec('Instructions') + '<div class="info-grid full">' + taCard(id, 'Prep Instructions', row['Prep Instructions'] || '', infoAndPrepReadonly) + '</div></div>'
+        + sec('Packaging') + '<div class="info-grid">'
+        + bCard(id, 'Bundle', row['Bundle'], infoAndPrepReadonly) + bCard(id, 'DG Label', row['DG Label'], infoAndPrepReadonly)
+        + bCard(id, 'Poly Bag', row['Poly Bag'], infoAndPrepReadonly) + bCard(id, 'Warning Label', row['Warning Label'], infoAndPrepReadonly)
+        + bCard(id, 'Barcode', row['Barcode'], infoAndPrepReadonly) + bCard(id, 'Box', row['Box'], infoAndPrepReadonly)
+        + '</div></div>';
+  }
   }
 
     if (activeTab === 'warehouse') {
@@ -1347,6 +1379,17 @@ function switchTab(t) {
   if (row) renderDrawer(row);
 }
 function sec(label) { return '<div class="drawer-section"><div class="section-label">' + esc(label) + '</div>'; }
+window.fbaTogglePrepPill = function(n) {
+  const panel = document.getElementById('prepPanel_' + n);
+  const wasOpen = panel && panel.style.display === 'block';
+  document.querySelectorAll('.prep-panel').forEach(el => { el.style.display = 'none'; });
+  document.querySelectorAll('.prep-pill').forEach(el => el.classList.remove('active'));
+  if (!wasOpen && panel) {
+    panel.style.display = 'block';
+    const pill = document.getElementById('prepPill_' + n);
+    if (pill) pill.classList.add('active');
+  }
+};
 function eCard(id, label, value, type, readonly) {
   const displayVal = drawerDirtyFields.hasOwnProperty(label) ? drawerDirtyFields[label] : value;
   let inp;
