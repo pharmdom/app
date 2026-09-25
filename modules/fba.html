@@ -84,6 +84,9 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 .group-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 9px; margin-bottom: 10px; }
 .group-toggle-label { font-size: 12px; font-weight: 700; color: #334155; }
 .group-toggle-hint { font-size: 10.5px; color: #94a3b8; margin-top: 1px; }
+.tgl-head { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #94a3b8; display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.tgl-rule { flex: 1; height: 1px; background: #f1f5f9; }
+.toggle-disabled { opacity: .4; }
 .drawer-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.3); z-index: 1150; opacity: 0; pointer-events: none; transition: opacity .25s; backdrop-filter: blur(2px); }
 .drawer-overlay.visible { opacity: 1; pointer-events: all; }
 .drawer { position: fixed; top: 0; right: 0; width: 580px; max-width: 97vw; height: 100vh; background: #fff; box-shadow: -8px 0 40px rgba(0,0,0,.13); z-index: 1200; display: flex; flex-direction: column; transform: translateX(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); overflow: hidden; }
@@ -684,17 +687,14 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;display:flex;align-items:center;gap:8px">Label Codes &amp; Units<span style="flex:1;height:1px;background:#f1f5f9"></span></div>
       <div id="awLabelCodeRows"></div>
       <button type="button" class="lc-add-btn" onclick="addLabelCodeRow()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Another Label Code</button>
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;display:flex;align-items:center;gap:8px;margin-top:8px">Grouping &amp; Collection<span style="flex:1;height:1px;background:#f1f5f9"></span></div>
-      <div class="group-toggle-row">
-        <div>
-          <div class="group-toggle-label">Group</div>
-          <div class="group-toggle-hint">Turn on to set a deadline, collection date, and Veeqo status</div>
-        </div>
-        <label class="slide-switch">
-          <input type="checkbox" id="awGroupToggle" onchange="awSetGroupToggle(this.checked)">
-          <span class="slide-switch-track"></span>
-        </label>
+            <div id="awPalletToggleRow" class="tgl-head">Palletisation<label class="slide-switch"><input type="checkbox" id="awPalletToggle" onchange="awSetPalletToggle(this.checked)"><span class="slide-switch-track"></span></label><span class="tgl-rule"></span></div>
+      <div class="group-toggle-hint" style="margin:-2px 0 10px 2px">Turn on to add a pallet link</div>
+      <div class="form-row" id="awPalletWrap" style="display:none">
+        <div class="form-group full"><label>Pallet</label><input type="url" id="awPallet" placeholder="https://…"></div>
       </div>
+            <div id="awGroupToggleRow" class="tgl-head">Grouping &amp; Collection<label class="slide-switch"><input type="checkbox" id="awGroupToggle" onchange="awSetGroupToggle(this.checked)"><span class="slide-switch-track"></span></label><span class="tgl-rule"></span></div>
+      <div class="group-toggle-hint" style="margin:-2px 0 10px 2px">Turn on to set a deadline, collection date, and Veeqo status</div>
+      <div id="awGroupFieldsWrap">
       <div class="form-row">
         <div class="form-group"><label>Grouping Link</label><input type="url" id="awGroupingLink" placeholder="https://…"></div>
         <div class="form-group" id="awCollectionBookedWrap" style="display:none"><label>Collection Booked</label><input type="date" id="awCollectionBooked" class="date-input-styled"></div>
@@ -719,6 +719,7 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
         </div>
         <div id="awGroupingImgPreview" style="display:none;margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
         <div id="awGroupingImgProgress" style="display:none" class="upload-progress"><span class="spinner sm"></span> Uploading images…</div>
+      </div>
       </div>
       <div class="form-group full">
         <label>Note</label>
@@ -760,7 +761,8 @@ const SB_TO_DISPLAY = {
   'grouping_link':'Grouping Link','grouping_image':'Grouping Image',
   'collection_booked':'Collection Booked','product_image':'Product Image',
     'deadline':'Deadline','fba_opportunity':'FBA Opportunity',
-  'boxes':'Boxes','group_enabled':'Group'
+  'boxes':'Boxes','group_enabled':'Group',
+  'palletisation_enabled':'Palletisation','pallet':'Pallet'
 };
 const DISPLAY_TO_SB = Object.fromEntries(Object.entries(SB_TO_DISPLAY).map(([k,v])=>[v,k]));
 
@@ -1191,6 +1193,7 @@ function renderDrawer(row) {
             + '<div class="info-grid">' + eCard(id, 'Label Code', row['Label Code'] || '', 'text', infoAndPrepReadonly) + eCard(id, 'Brand', row['Brand'] || '', 'text', infoAndPrepReadonly) + '</div>';
         })()
                     const groupOnDrawer = drawerDirtyFields.hasOwnProperty('Group') ? !!drawerDirtyFields['Group'] : !!row['Group'];
+    const palletOnDrawer = drawerDirtyFields.hasOwnProperty('Palletisation') ? !!drawerDirtyFields['Palletisation'] : !!row['Palletisation'];
        body += sec('Quantities') + '<div class="info-grid">'
       + eCard(id, 'Units Required', row['Units Required'] || '', 'number', infoAndPrepReadonly)
       + bCard(id, 'Veeqo Stock Adjusted', row['Veeqo Stock Adjusted'], infoAndPrepReadonly)
@@ -1213,10 +1216,10 @@ function renderDrawer(row) {
     }
 
 if (!infoAndPrepReadonly && source !== 'fba') {
-      body += sec('Grouping & Collection') + '<div class="drawer-section">'
-        + '<div class="group-toggle-row"><div><div class="group-toggle-label">Group</div><div class="group-toggle-hint">Show deadline &amp; collection date</div></div>'
-        + '<label class="slide-switch"><input type="checkbox" ' + (groupOnDrawer ? 'checked' : '') + ' onchange="toggleGroupInDrawer(\'' + ea(id) + '\',this.checked)"><span class="slide-switch-track"></span></label></div>'
-        + '<div class="info-grid" style="margin-bottom:10px">' + eCard(id, 'Grouping Link', row['Grouping Link'] || '', 'url', false) + (groupOnDrawer ? dateCard(id, 'Collection Booked', row['Collection Booked'] || '') : '') + '</div><div style="margin-bottom:6px"><div class="info-card"><label>Grouping Images</label>' + renderGroupingImages(row['Grouping Image'] || '', id) + '</div></div>' + '</div>';
+      body += '<div class="drawer-section">'
+        + '<div class="tgl-head' + (palletOnDrawer ? ' toggle-disabled' : '') + '">Grouping &amp; Collection<label class="slide-switch"><input type="checkbox" ' + (groupOnDrawer ? 'checked ' : '') + (palletOnDrawer ? 'disabled ' : '') + 'onchange="toggleGroupInDrawer(\'' + ea(id) + '\',this.checked)"><span class="slide-switch-track"></span></label><span class="tgl-rule"></span></div>'
+        + '<div class="group-toggle-hint" style="margin:-2px 0 10px 2px">' + (palletOnDrawer ? 'Disabled while Palletisation is on' : 'Show deadline &amp; collection date') + '</div>'
+        + (palletOnDrawer ? '' : ('<div class="info-grid" style="margin-bottom:10px">' + eCard(id, 'Grouping Link', row['Grouping Link'] || '', 'url', false) + (groupOnDrawer ? dateCard(id, 'Collection Booked', row['Collection Booked'] || '') : '') + '</div><div style="margin-bottom:6px"><div class="info-card"><label>Grouping Images</label>' + renderGroupingImages(row['Grouping Image'] || '', id) + '</div></div>')) + '</div>';
       const _dlBadgeDrawer = deadlineBadge(drawerDirtyFields.hasOwnProperty('Deadline') ? drawerDirtyFields['Deadline'] : (row['Deadline'] || ''));
       const _dlValDrawer = drawerDirtyFields.hasOwnProperty('Deadline') ? drawerDirtyFields['Deadline'] : (row['Deadline'] || '');
       body += sec('Notes & Deadline') + '<div class="drawer-section"><div class="info-card" style="margin-bottom:8px"><label>Note</label><textarea class="edit-textarea" oninput="markDirty(\'Note\',this.value)">' + esc(drawerDirtyFields.hasOwnProperty('Note') ? drawerDirtyFields['Note'] : (row['Note'] || '')) + '</textarea></div>' + (groupOnDrawer ? '<div class="info-card"><label style="display:flex;align-items:center;gap:6px">Deadline' + (_dlBadgeDrawer ? '&nbsp;' + _dlBadgeDrawer : '') + '</label><input type="date" class="edit-input date-input-styled" value="' + ea(toInputDate(_dlValDrawer)) + '" oninput="markDirty(\'Deadline\',this.value)"></div>' : '') + '</div>';
@@ -1236,6 +1239,14 @@ if (!infoAndPrepReadonly && source !== 'fba') {
   }
 
   if (activeTab === 'prep') {
+    const palletOnDrawer = drawerDirtyFields.hasOwnProperty('Palletisation') ? !!drawerDirtyFields['Palletisation'] : !!row['Palletisation'];
+    const groupOnPrep = drawerDirtyFields.hasOwnProperty('Group') ? !!drawerDirtyFields['Group'] : !!row['Group'];
+    const palletDisabled = infoAndPrepReadonly || groupOnPrep;
+    body += '<div class="drawer-section">'
+      + '<div class="tgl-head' + (palletDisabled ? ' toggle-disabled' : '') + '">Palletisation<label class="slide-switch"><input type="checkbox" ' + (palletOnDrawer ? 'checked ' : '') + (palletDisabled ? 'disabled ' : '') + 'onchange="togglePalletInDrawer(\'' + ea(id) + '\',this.checked)"><span class="slide-switch-track"></span></label><span class="tgl-rule"></span></div>'
+      + '<div class="group-toggle-hint" style="margin:-2px 0 10px 2px">' + (groupOnPrep ? 'Disabled while Group is on' : 'Turn on to add a pallet link') + '</div>'
+      + (palletOnDrawer ? '<div class="info-grid full">' + eCard(id, 'Pallet', row['Pallet'] || '', 'url', infoAndPrepReadonly) + '</div>' : '')
+      + '</div>';
     body += sec('Instructions') + '<div class="info-grid full">' + taCard(id, 'Prep Instructions', row['Prep Instructions'] || '', infoAndPrepReadonly) + '</div></div>'
       + sec('Packaging') + '<div class="info-grid">'
       + bCard(id, 'Bundle', row['Bundle'], infoAndPrepReadonly) + bCard(id, 'DG Label', row['DG Label'], infoAndPrepReadonly)
@@ -1382,6 +1393,14 @@ function toggleGroupInDrawer(id, checked) {
 }
 window.toggleGroupInDrawer = toggleGroupInDrawer;
 
+function togglePalletInDrawer(id, checked) {
+  markDirty('Palletisation', checked);
+  const dataSource = drawerSource === 'fba' ? fbaData : warehouseData;
+  const row = dataSource.find(r => String(r['ID']) === String(id));
+  if (row) renderDrawer(row);
+}
+window.togglePalletInDrawer = togglePalletInDrawer;
+
   
 function awSetVeeqoToggle(val){
   document.getElementById('awVeeqoAdjusted').value = val;
@@ -1396,8 +1415,20 @@ function awSetGroupToggle(on) {
   document.getElementById('awDeadlineVeeqoWrap').style.display = on ? '' : 'none';
   const area = document.getElementById('awGroupingImgUploadArea');
   if (area) area.style.borderColor = '';
+  // mutual exclusivity: disable Palletisation while Group is on
+  const pt = document.getElementById('awPalletToggle'); if (pt) pt.disabled = on;
+  const pr = document.getElementById('awPalletToggleRow'); if (pr) pr.classList.toggle('toggle-disabled', on);
 }
 window.awSetGroupToggle = awSetGroupToggle;
+
+function awSetPalletToggle(on) {
+  document.getElementById('awPalletWrap').style.display = on ? '' : 'none';
+  // mutual exclusivity: hide grouping fields and disable Group while Palletisation is on
+  const gf = document.getElementById('awGroupFieldsWrap'); if (gf) gf.style.display = on ? 'none' : '';
+  const gt = document.getElementById('awGroupToggle'); if (gt) gt.disabled = on;
+  const gr = document.getElementById('awGroupToggleRow'); if (gr) gr.classList.toggle('toggle-disabled', on);
+}
+window.awSetPalletToggle = awSetPalletToggle;
   
 function getDrawerRow() {
   const dataSource = drawerSource === 'fba' ? fbaData : warehouseData;
@@ -1836,6 +1867,7 @@ function openAddWorkModal() {
   document.getElementById('awLabelCodeRows').innerHTML = ''; document.getElementById('awMatchedProducts').innerHTML = '';
   document.getElementById('addWorkModalOverlay').classList.add('visible');
   document.getElementById('awGroupingLink').value = ''; document.getElementById('awCollectionBooked').value = ''; document.getElementById('awDeadline').value = ''; document.getElementById('awNote').value = ''; awSetVeeqoToggle(''); document.getElementById('awGroupToggle').checked = false; awSetGroupToggle(false);
+  document.getElementById('awPallet').value = ''; document.getElementById('awPalletToggle').checked = false; awSetPalletToggle(false);
   awGroupingImgFiles = [];
   const prev = document.getElementById('awGroupingImgPreview'); if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
   const prevFile = document.getElementById('awGroupingImgFile'); if (prevFile) prevFile.value = '';
@@ -1899,6 +1931,9 @@ async function submitAddWork() {
   if (errorRows.length) { const ok = window.confirm(errorRows.length + ' row(s) are incomplete and will be skipped. Continue with ' + validRows.length + ' valid row(s)?'); if (!ok) return; }
 
     const groupOn = document.getElementById('awGroupToggle').checked;
+  const palletOn = document.getElementById('awPalletToggle').checked;
+  const palletLink = document.getElementById('awPallet').value.trim();
+  if (groupOn && palletOn) { showToast('Group and Palletisation can\'t both be on', 'error'); return; }
   const awGroupingImgArea = document.getElementById('awGroupingImgUploadArea');
   if (awGroupingImgArea) awGroupingImgArea.style.borderColor = '';
   if (groupOn && !awGroupingImgFiles.length) {
@@ -1926,7 +1961,7 @@ async function submitAddWork() {
   const maxWH = warehouseData.reduce((max, r) => { const n = parseInt(String(r['ID']||'').replace('WH-','')) || 0; return n > max ? n : max; }, 0);
   const now = new Date().toISOString();
 
-  const buildDisplayRow = (id, labelCode, brand, productLine, asin, ean, prepInstructions, bundle, dgLabel, polyBag, warningLabel, barcode, box, barcodeImage, productImage, groupingLink, groupingImage, collectionBooked, unitsRequired, note, deadline, veeqoAdjusted, groupEnabled) => ({
+  const buildDisplayRow = (id, labelCode, brand, productLine, asin, ean, prepInstructions, bundle, dgLabel, polyBag, warningLabel, barcode, box, barcodeImage, productImage, groupingLink, groupingImage, collectionBooked, unitsRequired, note, deadline, veeqoAdjusted, groupEnabled, palletisationEnabled, pallet) => ({
     'ID': id, 'Date Created': now, 'Last Updated': now,
     'Label Code': labelCode, 'Brand': brand, 'Product Line': productLine, 'ASIN': asin, 'EAN': ean,
     'Prep Instructions': prepInstructions, 'Bundle': bundle, 'DG Label': dgLabel,
@@ -1934,13 +1969,14 @@ async function submitAddWork() {
     'Barcode Image': barcodeImage, 'Product Image': productImage,
     'Grouping Link': groupingLink, 'Grouping Image': groupingImage, 'Collection Booked': collectionBooked,
     'Units Required': unitsRequired, 'Veeqo Stock Adjusted': veeqoAdjusted || '', 'Units Completed': 0, 'UPS Collected': '', 'Note': note,
-    'Deadline': deadline, 'Group': !!groupEnabled
+    'Deadline': deadline, 'Group': !!groupEnabled,
+    'Palletisation': !!palletisationEnabled, 'Pallet': pallet || ''
   });
 
   if (validRows.length === 1) {
     const r = validRows[0], m = r.match || {};
     const newId = 'WH-' + String(maxWH + 1).padStart(4, '0');
-    const newDisplayRow = buildDisplayRow(newId, r.code, m['Brand']||'', m['Product Line']||'', m['ASIN']||'', m['EAN']||'', m['Prep Instructions']||'', m['Bundle']||'', m['DG Label']||'', m['Poly Bag']||'', m['Warning Label']||'', m['Barcode']||'', m['Box']||'', m['Barcode Image']||'', m['Product Image']||'', sharedGroupingLink||m['Grouping Link']||'', uploadedGroupingImageValue||m['Grouping Image']||'', sharedCollectionBooked||m['Collection Booked']||'', Number(r.units)||0, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim(), document.getElementById('awVeeqoAdjusted').value, groupOn);
+    const newDisplayRow = buildDisplayRow(newId, r.code, m['Brand']||'', m['Product Line']||'', m['ASIN']||'', m['EAN']||'', m['Prep Instructions']||'', m['Bundle']||'', m['DG Label']||'', m['Poly Bag']||'', m['Warning Label']||'', m['Barcode']||'', m['Box']||'', m['Barcode Image']||'', m['Product Image']||'', sharedGroupingLink||m['Grouping Link']||'', uploadedGroupingImageValue||m['Grouping Image']||'', sharedCollectionBooked||m['Collection Booked']||'', Number(r.units)||0, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim(), document.getElementById('awVeeqoAdjusted').value, groupOn, palletOn, palletLink);
     warehouseData.unshift(newDisplayRow); closeAddWorkModal(); applyFilters();
     showToast('1 work item added', 'success'); btn.disabled = false; btn.innerHTML = 'Add Work';
     const { data: inserted, error } = await sb.from('fba_work').insert(displayRowToSb(newDisplayRow)).select().single();
@@ -1957,7 +1993,7 @@ async function submitAddWork() {
       return { labelCode:r.code, units:Number(r.units)||0, brand:m['Brand']||'', productLine:m['Product Line']||'', asin:m['ASIN']||'', ean:m['EAN']||'', bundle:m['Bundle']||'', dgLabel:m['DG Label']||'', polyBag:m['Poly Bag']||'', warningLabel:m['Warning Label']||'', barcode:m['Barcode']||'', box:m['Box']||'', barcodeImage:m['Barcode Image']||'', productImage:m['Product Image']||'', prepInstructions:m['Prep Instructions']||'' };
     });
     const newId = 'WH-' + String(maxWH + 1).padStart(4, '0');
-    const newDisplayRow = buildDisplayRow(newId, combinedLabel, first['Brand']||'', validRows.map(r=>(r.match||{})['Product Line']||r.code).join(' / '), first['ASIN']||'', first['EAN']||'', JSON.stringify(batchItems), first['Bundle']||'', first['DG Label']||'', first['Poly Bag']||'', first['Warning Label']||'', first['Barcode']||'', first['Box']||'', first['Barcode Image']||'', first['Product Image']||'', sharedGroupingLink||first['Grouping Link']||'', uploadedGroupingImageValue||first['Grouping Image']||'', sharedCollectionBooked||first['Collection Booked']||'', totalUnits, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim(), document.getElementById('awVeeqoAdjusted').value, groupOn);
+    const newDisplayRow = buildDisplayRow(newId, combinedLabel, first['Brand']||'', validRows.map(r=>(r.match||{})['Product Line']||r.code).join(' / '), first['ASIN']||'', first['EAN']||'', JSON.stringify(batchItems), first['Bundle']||'', first['DG Label']||'', first['Poly Bag']||'', first['Warning Label']||'', first['Barcode']||'', first['Box']||'', first['Barcode Image']||'', first['Product Image']||'', sharedGroupingLink||first['Grouping Link']||'', uploadedGroupingImageValue||first['Grouping Image']||'', sharedCollectionBooked||first['Collection Booked']||'', totalUnits, document.getElementById('awNote').value.trim(), document.getElementById('awDeadline').value.trim(), document.getElementById('awVeeqoAdjusted').value, groupOn, palletOn, palletLink);
     warehouseData.unshift(newDisplayRow); closeAddWorkModal(); applyFilters();
     showToast('Batch of ' + validRows.length + ' label codes added as 1 work item', 'success'); btn.disabled = false; btn.innerHTML = 'Add Work';
     const { data: inserted, error } = await sb.from('fba_work').insert(displayRowToSb(newDisplayRow)).select().single();
