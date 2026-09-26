@@ -700,16 +700,16 @@ async function rfGeneratePDF(){
   // — Business insights callout —
   const insights = [];
   if(C.out.length>0 && C.total>0 && C.out.length/C.total>0.5)
-    insights.push('⚠  Over half of requests are still outstanding — resolution velocity needs attention.');
+    insights.push('! Over half of requests are still outstanding — resolution velocity needs attention.');
   if(C.avgAge && parseFloat(C.avgAge)>7)
-    insights.push('⚠  Average outstanding age is '+C.avgAge+' days — aged refunds risk customer escalation.');
+    insights.push('! Average outstanding age is '+C.avgAge+' days — aged refunds risk customer escalation.');
   if(P && C.total > P.total*1.3)
-    insights.push('⚠  Refund volume is up '+delta(C.total,P.total)?.pct+'% vs the previous period.');
+    insights.push('! Refund volume is up '+delta(C.total,P.total)?.pct+'% vs the previous period.');
   const topReason = Object.entries(C.reasonMap).sort((a,b)=>b[1]-a[1])[0];
   if(topReason && C.total>0 && topReason[1]/C.total>0.35)
-    insights.push('ℹ  "'+topReason[0]+'" accounts for '+((topReason[1]/C.total)*100).toFixed(0)+'% of all requests — a process or supplier issue may exist.');
+    insights.push('> "'+topReason[0]+'" accounts for '+((topReason[1]/C.total)*100).toFixed(0)+'% of all requests — a process or supplier issue may exist.');
   if(C.outAmt>0)
-    insights.push('ℹ  '+fG(C.outAmt)+' in unrecovered exposure from pending refunds.');
+    insights.push('> '+fG(C.outAmt)+' in unrecovered exposure from pending refunds.');
 
   if(insights.length){
   sec('Key Observations');
@@ -754,19 +754,18 @@ async function rfGeneratePDF(){
       doc.setFillColor(219,234,254); doc.rect(bx, y, barCol*pct, 5,'F');
       doc.setFillColor(241,245,249); doc.rect(bx+barCol*pct, y, barCol*(1-pct), 5,'F');
       doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(37,99,235);
-      doc.text(String(count), bx+barCol+3, y+4);
+      const statsX = margin+col-28;
+doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(37,99,235);
+doc.text(String(count), statsX, y+4);
 if(C.total>0){
   doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(100,116,139);
-  doc.text(((count/C.total)*100).toFixed(0)+'%', bx+barCol+10, y+4);
+  doc.text(((count/C.total)*100).toFixed(0)+'%', statsX+8, y+4);
 }
-      
-      
-// Amount for this reason
 const reasonRows=C.rows?C.rows.filter(r=>r.reason===reason&&r.amount_requested!=null):[];
 const reasonAmt=reasonRows.reduce((s,r)=>s+(parseFloat(r.amount_requested)||0),0);
 if(reasonAmt>0){
   doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(71,85,105);
-  doc.text(fG(reasonAmt), bx+barCol+22, y+4);
+  doc.text(fG(reasonAmt), statsX+17, y+4, {align:'left'});
 }
       y+=10;
     });
@@ -830,16 +829,17 @@ if(reasonAmt>0){
       doc.setFillColor(167,243,208); doc.rect(bx,y,bw*pct,5,'F');
       doc.setFillColor(241,245,249); doc.rect(bx+bw*pct,y,bw*(1-pct),5,'F');
       doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(21,128,61);
-            doc.text(String(count), bx+bw+3, y+4);
+            const subStatsX = margin+col-28;
+      doc.text(String(count), subStatsX, y+4);
       if(C.total>0){
         doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(100,116,139);
-        doc.text(((count/C.total)*100).toFixed(0)+'%', bx+bw+10, y+4);
+        doc.text(((count/C.total)*100).toFixed(0)+'%', subStatsX+8, y+4);
       }
       const subRows=C.rows?C.rows.filter(r=>r.submitted_by===name&&r.amount_requested!=null):[];
       const subAmt=subRows.reduce((s,r)=>s+(parseFloat(r.amount_requested)||0),0);
       if(subAmt>0){
         doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(71,85,105);
-        doc.text(fG(subAmt), bx+bw+22, y+4);
+        doc.text(fG(subAmt), subStatsX+17, y+4);
       }
       y+=10;
     });
