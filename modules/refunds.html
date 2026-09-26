@@ -103,6 +103,12 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
   
 @media(max-width:900px){ .rf-form-grid{grid-template-columns:1fr 1fr;} .rf-summary{grid-template-columns:1fr 1fr;} }
 @media(max-width:600px){ .rf-page{padding:14px 14px 32px;} .rf-form-grid{grid-template-columns:1fr;} .rf-summary{grid-template-columns:1fr 1fr;gap:8px;} .rf-header{flex-direction:column;align-items:flex-start;} }
+
+.rf-pdf-range-btn { display:flex; align-items:center; justify-content:space-between; padding:11px 14px; border:1.5px solid #e2e8f0; border-radius:10px; background:#fff; font-size:13px; font-weight:600; font-family:inherit; color:#0f172a; cursor:pointer; transition:all .15s; text-align:left; }
+.rf-pdf-range-btn span { font-size:11px; font-weight:500; color:#94a3b8; }
+.rf-pdf-range-btn:hover { border-color:#2563eb; background:#eff6ff; }
+.rf-pdf-range-btn.active { border-color:#2563eb; background:#eff6ff; color:#1d4ed8; }
+.rf-pdf-range-btn.active span { color:#3b82f6; }
 </style>
 
 <div class="rf-page">
@@ -195,10 +201,31 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
         <button class="rf-detail-btn" style="width:auto;height:auto;padding:9px 16px;background:#f1f5f9;color:#334155;border-radius:9px;font-size:12.5px;font-weight:700;font-family:inherit;" onclick="rfCloseConfirm()">Cancel</button>
         <button class="rf-detail-btn danger" style="width:auto;height:auto;padding:9px 16px;border-radius:9px;font-size:12.5px;font-weight:700;font-family:inherit;color:#fff;" id="rfConfirmOkBtn">Delete</button>
       </div>
-    </div>
+       </div>
   </div>
 </div>
 
+<div class="rf-modal-overlay" id="rfPdfRangeOverlay" onclick="if(event.target===this)rfClosePdfRange()">
+  <div class="rf-modal" style="max-width:420px;">
+    <div class="rf-modal-hdr">
+      <div class="rf-card-title" style="margin:0">Download Summary PDF</div>
+      <button class="rf-modal-close" onclick="rfClosePdfRange()">✕</button>
+    </div>
+    <div class="rf-modal-body">
+      <p style="font-size:12.5px;color:#64748b;margin-bottom:16px;">Choose the period this report should cover.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;" id="rfPdfRangeBtns">
+        <button class="rf-pdf-range-btn active" data-days="7" onclick="rfSelectPdfRange(this)">Last 7 days <span>vs previous 7 days</span></button>
+        <button class="rf-pdf-range-btn" data-days="14" onclick="rfSelectPdfRange(this)">Last 14 days <span>vs previous 14 days</span></button>
+        <button class="rf-pdf-range-btn" data-days="30" onclick="rfSelectPdfRange(this)">Last 30 days <span>vs previous 30 days</span></button>
+        <button class="rf-pdf-range-btn" data-days="0" onclick="rfSelectPdfRange(this)">Current month view <span>no comparison</span></button>
+      </div>
+      <div style="margin-top:20px;display:flex;gap:8px;justify-content:flex-end;">
+        <button class="rf-detail-btn" style="width:auto;height:auto;padding:9px 16px;background:#f1f5f9;color:#334155;border-radius:9px;font-size:12.5px;font-weight:700;font-family:inherit;" onclick="rfClosePdfRange()">Cancel</button>
+        <button class="rf-add-btn" id="rfPdfGenerateBtn" onclick="rfGeneratePDF()">Generate PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
@@ -505,202 +532,409 @@ function rfShiftMonth(delta){
 }
 
 
-function rfDownloadPDF(){
-  const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-  if(!jsPDF){
-    // Try reloading the script on the fly
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-    s.onload = () => rfDownloadPDF();
-    s.onerror = () => alert('PDF library failed to load. Please check your connection and try again.');
-    document.head.appendChild(s);
-    return;
-  }
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const monthLabel = document.getElementById('rfMonthLabel').textContent;
-  const rows = RF_ROWS;
+let RF_PDF_DAYS = 7;
 
-  // — Metrics —
-  const total = rows.length;
-  const outstanding = rows.filter(r => !r.refunded);
-  const processed = rows.filter(r => r.refunded);
-  const outAmt = outstanding.reduce((s,r) => s + (parseFloat(r.amount_requested)||0), 0);
-  const procAmt = processed.reduce((s,r) => s + (parseFloat(r.amount_processed)||0), 0);
-  const reqAmt = rows.reduce((s,r) => s + (parseFloat(r.amount_requested)||0), 0);
-  const avgAge = outstanding.length ? (outstanding.reduce((s,r) => {
-    const d = new Date(r.date_submitted+'T00:00'); const t = new Date(); t.setHours(0,0,0,0);
-    return s + Math.round((t-d)/86400000);
-  }, 0) / outstanding.length).toFixed(1) : '—';
-  const resolutionRate = total > 0 ? ((processed.length / total) * 100).toFixed(0) : '0';
-
-  // — Reason breakdown —
-  const reasonMap = {};
-  rows.forEach(r => { reasonMap[r.reason] = (reasonMap[r.reason]||0) + 1; });
-  const reasonsSorted = Object.entries(reasonMap).sort((a,b) => b[1]-a[1]);
-
-  // — Marketplace breakdown —
-  const mktMap = {};
-  rows.forEach(r => { mktMap[r.marketplace] = (mktMap[r.marketplace]||0) + 1; });
-
-  // — Submitter breakdown —
-  const submitterMap = {};
-  rows.forEach(r => { submitterMap[r.submitted_by] = (submitterMap[r.submitted_by]||0) + 1; });
-  const submittersSorted = Object.entries(submitterMap).sort((a,b) => b[1]-a[1]);
-
-  const fmtGBP = n => '£' + (parseFloat(n)||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  const pageW = 210, pageH = 297, margin = 18, col = pageW - margin*2;
-  let y = margin;
-
-  // Header bar
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, 0, pageW, 22, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13); doc.setTextColor(255,255,255);
-  doc.text('Refunds Summary Report', margin, 14);
-  doc.setFontSize(9); doc.setFont('helvetica','normal');
-  doc.setTextColor(148,163,184);
-  doc.text(monthLabel, pageW - margin, 14, { align:'right' });
-  y = 32;
-
-  // Section helper
-  const sectionTitle = (label) => {
-    doc.setFont('helvetica','bold'); doc.setFontSize(8);
-    doc.setTextColor(100,116,139);
-    doc.text(label.toUpperCase(), margin, y);
-    doc.setDrawColor(226,232,240);
-    doc.line(margin + doc.getTextWidth(label.toUpperCase()) + 3, y - 0.5, pageW - margin, y - 0.5);
-    y += 6;
-  };
-
-  // KPI cards (2x3 grid)
-  sectionTitle('Overview');
-  const kpis = [
-    { label: 'Total Requests', value: String(total) },
-    { label: 'Outstanding', value: String(outstanding.length), sub: fmtGBP(outAmt) + ' requested' },
-    { label: 'Processed', value: String(processed.length), sub: fmtGBP(procAmt) + ' refunded' },
-    { label: 'Total Requested', value: fmtGBP(reqAmt) },
-    { label: 'Resolution Rate', value: resolutionRate + '%' },
-    { label: 'Avg Age (Outstanding)', value: avgAge === '—' ? '—' : avgAge + ' days' },
-  ];
-  const cardW = (col - 8) / 3, cardH = 18;
-  kpis.forEach((k, i) => {
-    const col3 = i % 3, row3 = Math.floor(i / 3);
-    const x = margin + col3 * (cardW + 4);
-    const cy = y + row3 * (cardH + 4);
-    doc.setFillColor(248,250,252); doc.setDrawColor(226,232,240);
-    doc.roundedRect(x, cy, cardW, cardH, 2, 2, 'FD');
-    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(15,23,42);
-    doc.text(k.value, x + cardW/2, cy + 9, { align:'center' });
-    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(100,116,139);
-    doc.text(k.label, x + cardW/2, cy + 14, { align:'center' });
-    if(k.sub){ doc.setFontSize(7); doc.setTextColor(148,163,184); doc.text(k.sub, x + cardW/2, cy + 17, {align:'center'}); }
-  });
-  y += 2 * (cardH + 4) + 8;
-
-  // Reason breakdown
-  sectionTitle('Requests by Reason');
-  if(reasonsSorted.length === 0){
-    doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(148,163,184);
-    doc.text('No data for this period.', margin, y); y += 8;
-  } else {
-    const barMax = reasonsSorted[0][1];
-    reasonsSorted.forEach(([reason, count]) => {
-      const pct = count / barMax;
-      const label = reason.length > 52 ? reason.slice(0,50)+'…' : reason;
-      doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(30,41,59);
-      doc.text(label, margin, y);
-      doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
-      doc.text(String(count), pageW - margin, y, { align:'right' });
-      y += 4;
-      doc.setFillColor(219,234,254); doc.rect(margin, y, col * pct, 3, 'F');
-      doc.setFillColor(226,232,240); doc.rect(margin + col * pct, y, col * (1 - pct), 3, 'F');
-      y += 7;
-    });
-    y += 4;
-  }
-
-  // Marketplace & Submitter side by side
-  sectionTitle('Marketplace & Top Submitters');
-  const halfW = (col - 8) / 2;
-  const colLeft = margin, colRight = margin + halfW + 8;
-  let yLeft = y, yRight = y;
-
-  // Marketplace
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(100,116,139);
-  doc.text('Marketplace', colLeft, yLeft); yLeft += 5;
-  Object.entries(mktMap).forEach(([mkt, count]) => {
-    const pct = count / total;
-    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(30,41,59);
-    doc.text(mkt, colLeft, yLeft);
-    doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
-    doc.text(count + ' (' + (pct*100).toFixed(0) + '%)', colLeft + halfW, yLeft, { align:'right' });
-    yLeft += 4;
-    doc.setFillColor(219,234,254); doc.rect(colLeft, yLeft, halfW * pct, 3, 'F');
-    doc.setFillColor(226,232,240); doc.rect(colLeft + halfW * pct, yLeft, halfW * (1-pct), 3, 'F');
-    yLeft += 7;
-  });
-
-  // Submitters
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(100,116,139);
-  doc.text('Top Submitters', colRight, yRight); yRight += 5;
-  submittersSorted.slice(0,6).forEach(([name, count]) => {
-    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(30,41,59);
-    const displayName = name.length > 22 ? name.slice(0,20)+'…' : name;
-    doc.text(displayName, colRight, yRight);
-    doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
-    doc.text(String(count), colRight + halfW, yRight, { align:'right' });
-    yRight += 8;
-  });
-
-  y = Math.max(yLeft, yRight) + 8;
-
-  // Outstanding requests table
-  if(outstanding.length > 0){
-    if(y > pageH - 60){ doc.addPage(); y = margin; }
-    sectionTitle('Outstanding Requests');
-    const headers = ['Order #', 'Marketplace', 'Submitted By', 'Requested', 'Date'];
-    const colWidths = [42, 26, 42, 24, 22];
-    // Header row
-    doc.setFillColor(15,23,42); doc.rect(margin, y, col, 7, 'F');
-    let cx = margin + 2;
-    headers.forEach((h, i) => {
-      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(255,255,255);
-      doc.text(h, cx, y + 5); cx += colWidths[i];
-    });
-    y += 7;
-    outstanding.slice(0, 20).forEach((r, idx) => {
-      if(y > pageH - 20){ doc.addPage(); y = margin; }
-      doc.setFillColor(idx%2===0?255:248,idx%2===0?255:250,idx%2===0?255:252);
-      doc.rect(margin, y, col, 6.5, 'F');
-      cx = margin + 2;
-      const cells = [
-        (r.order_number||'').slice(0,18),
-        r.marketplace||'',
-        (r.submitted_by||'').slice(0,18),
-        r.amount_requested!=null ? fmtGBP(r.amount_requested) : '—',
-        r.date_submitted ? new Date(r.date_submitted+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '—'
-      ];
-      cells.forEach((cell, i) => {
-        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(30,41,59);
-        doc.text(String(cell), cx, y + 4.5); cx += colWidths[i];
-      });
-      y += 6.5;
-    });
-    if(outstanding.length > 20){
-      y += 3; doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(148,163,184);
-      doc.text(`… and ${outstanding.length - 20} more outstanding requests`, margin, y); y += 6;
-    }
-  }
-
-  // Footer
-  const generatedOn = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
-  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(148,163,184);
-  doc.text('Generated ' + generatedOn + ' · Pharm & Domestic', pageW/2, pageH - 8, { align:'center' });
-
-  const safeName = monthLabel.replace(/\s/g,'-');
-  doc.save('Refunds-Summary-' + safeName + '.pdf');
+function rfSelectPdfRange(btn){
+  document.querySelectorAll('.rf-pdf-range-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  RF_PDF_DAYS = parseInt(btn.dataset.days);
 }
 
+function rfDownloadPDF(){
+  document.getElementById('rfPdfRangeOverlay').classList.add('open');
+}
+
+function rfClosePdfRange(){
+  document.getElementById('rfPdfRangeOverlay').classList.remove('open');
+}
+
+async function rfGeneratePDF(){
+  const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+  if(!jsPDF){
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload=()=>rfGeneratePDF();
+    s.onerror=()=>alert('PDF library failed to load. Please check your connection and try again.');
+    document.head.appendChild(s); return;
+  }
+
+  document.getElementById('rfPdfGenerateBtn').textContent='Generating…';
+  document.getElementById('rfPdfGenerateBtn').disabled=true;
+
+  // — Date range helpers —
+  const toStr = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  let rows, prevRows, periodLabel, compLabel;
+
+  if(RF_PDF_DAYS === 0){
+    // Current month view — use RF_ROWS already loaded, no comparison
+    rows = RF_ROWS;
+    prevRows = [];
+    periodLabel = RF_MONTH.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+    compLabel = '';
+  } else {
+    const end = new Date(today); end.setDate(end.getDate()+1); // exclusive
+    const start = new Date(today); start.setDate(start.getDate()-RF_PDF_DAYS);
+    const prevEnd = new Date(start);
+    const prevStart = new Date(start); prevStart.setDate(prevStart.getDate()-RF_PDF_DAYS);
+
+    const [curr, prev] = await Promise.all([
+      sb.from('refunds').select('*').gte('date_submitted',toStr(start)).lt('date_submitted',toStr(end)),
+      sb.from('refunds').select('*').gte('date_submitted',toStr(prevStart)).lt('date_submitted',toStr(prevEnd))
+    ]);
+    rows = curr.data || [];
+    prevRows = prev.data || [];
+    periodLabel = `Last ${RF_PDF_DAYS} days`;
+    const fmtD = d => d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+    compLabel = `${fmtD(start)}–${fmtD(new Date(end.getTime()-86400000))} vs ${fmtD(prevStart)}–${fmtD(new Date(prevEnd.getTime()-86400000))}`;
+  }
+
+  document.getElementById('rfPdfGenerateBtn').textContent='Generate PDF';
+  document.getElementById('rfPdfGenerateBtn').disabled=false;
+  rfClosePdfRange();
+
+  // — Compute metrics —
+  const metrics = (data) => {
+    const total = data.length;
+    const out = data.filter(r=>!r.refunded);
+    const proc = data.filter(r=>r.refunded);
+    const outAmt = out.reduce((s,r)=>s+(parseFloat(r.amount_requested)||0),0);
+    const procAmt = proc.reduce((s,r)=>s+(parseFloat(r.amount_processed)||0),0);
+    const reqAmt = data.reduce((s,r)=>s+(parseFloat(r.amount_requested)||0),0);
+    const resRate = total>0 ? ((proc.length/total)*100).toFixed(0)+'%' : '0%';
+    const avgAge = out.length ? (out.reduce((s,r)=>{
+      const d=new Date(r.date_submitted+'T00:00'),t=new Date();t.setHours(0,0,0,0);
+      return s+Math.round((t-d)/86400000);
+    },0)/out.length).toFixed(1) : null;
+    const reasonMap={}, mktMap={}, subMap={};
+    data.forEach(r=>{
+      reasonMap[r.reason]=(reasonMap[r.reason]||0)+1;
+      mktMap[r.marketplace]=(mktMap[r.marketplace]||0)+1;
+      subMap[r.submitted_by]=(subMap[r.submitted_by]||0)+1;
+    });
+    return {total,out,proc,outAmt,procAmt,reqAmt,resRate,avgAge,reasonMap,mktMap,subMap};
+  };
+
+  const C = metrics(rows);
+  const P = prevRows.length ? metrics(prevRows) : null;
+
+  const fG = n => '£'+(parseFloat(n)||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  const delta = (curr,prev) => {
+    if(prev===0||prev==null) return null;
+    const pct = ((curr-prev)/prev*100).toFixed(0);
+    return {pct, up: curr>=prev};
+  };
+
+  // — PDF setup —
+  const doc = new jsPDF({unit:'mm',format:'a4'});
+  const pageW=210, pageH=297, margin=18, col=pageW-margin*2;
+  let y=margin;
+
+  // Header
+  doc.setFillColor(15,23,42);
+  doc.rect(0,0,pageW,24,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(255,255,255);
+  doc.text('Refunds Analytics Report', margin, 13);
+  doc.setFontSize(8.5); doc.setFont('helvetica','normal'); doc.setTextColor(148,163,184);
+  doc.text(periodLabel, pageW-margin, 10, {align:'right'});
+  if(compLabel){ doc.setFontSize(7.5); doc.text(compLabel, pageW-margin, 16, {align:'right'}); }
+  doc.setFontSize(7.5); doc.setTextColor(100,116,139);
+  doc.text('Pharm & Domestic · Refunds', margin, 21);
+  y=32;
+
+  // — Section title helper —
+  const sec = (label) => {
+    if(y>pageH-40){ doc.addPage(); y=margin; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(100,116,139);
+    doc.text(label.toUpperCase(), margin, y);
+    doc.setDrawColor(226,232,240);
+    doc.line(margin+doc.getTextWidth(label.toUpperCase())+3, y-0.5, pageW-margin, y-0.5);
+    y+=7;
+  };
+
+  // — KPI cards with delta badges —
+  sec('Overview');
+  const kpis = [
+    { label:'Total Requests',       value:String(C.total),           prev:P?String(P.total):null,           delta:P?delta(C.total,P.total):null },
+    { label:'Outstanding',          value:String(C.out.length),      prev:P?String(P.out.length):null,      delta:P?delta(C.out.length,P.out.length):null, warn:true },
+    { label:'Processed',            value:String(C.proc.length),     prev:P?String(P.proc.length):null,     delta:P?delta(C.proc.length,P.proc.length):null },
+    { label:'Total Requested',      value:fG(C.reqAmt),              prev:P?fG(P.reqAmt):null,              delta:P?delta(C.reqAmt,P.reqAmt):null, warn:true },
+    { label:'Total Refunded',       value:fG(C.procAmt),             prev:P?fG(P.procAmt):null,             delta:P?delta(C.procAmt,P.procAmt):null },
+    { label:'Resolution Rate',      value:C.resRate,                 prev:P?P.resRate:null,                 delta:P?delta(parseFloat(C.resRate),parseFloat(P.resRate)):null },
+    { label:'Avg Age Outstanding',  value:C.avgAge!=null?C.avgAge+'d':'—', prev:P&&P.avgAge!=null?P.avgAge+'d':null, delta:P&&C.avgAge&&P.avgAge?delta(parseFloat(C.avgAge),parseFloat(P.avgAge)):null, warn:true },
+    { label:'Unrecovered Exposure', value:fG(C.outAmt),              prev:P?fG(P.outAmt):null,              delta:P?delta(C.outAmt,P.outAmt):null, warn:true },
+    { label:'Avg per Request',      value:C.total?fG(C.reqAmt/C.total):'—', prev:null, delta:null },
+  ];
+  const cardW=(col-16)/3, cardH=22;
+  kpis.forEach((k,i)=>{
+    const cx=i%3, ry=Math.floor(i/3);
+    if(ry>0&&cx===0&&i>0&&y+(cardH+4)>pageH-20){ doc.addPage(); y=margin; }
+    const x=margin+cx*(cardW+8);
+    const cy=y+ry*(cardH+5);
+    doc.setFillColor(248,250,252); doc.setDrawColor(226,232,240);
+    doc.roundedRect(x,cy,cardW,cardH,2,2,'FD');
+    // Value
+    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(15,23,42);
+    doc.text(k.value, x+cardW/2, cy+10, {align:'center'});
+    // Label
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(100,116,139);
+    doc.text(k.label, x+cardW/2, cy+15, {align:'center'});
+    // Delta badge
+    if(k.delta){
+      const sign=k.delta.up?'+':'';
+      const badgeText=sign+k.delta.pct+'%';
+      // warn=true means UP is bad (more outstanding = worse)
+      const isGood = k.warn ? !k.delta.up : k.delta.up;
+      doc.setFontSize(6.5);
+      doc.setTextColor(isGood?21:190, isGood?128:18, isGood?61:60);
+      doc.text(badgeText, x+cardW/2, cy+20, {align:'center'});
+    }
+    if(k.prev&&!k.delta){
+      doc.setFontSize(6.5); doc.setTextColor(148,163,184);
+      doc.text('prev: '+k.prev, x+cardW/2, cy+20, {align:'center'});
+    }
+  });
+  y += Math.ceil(kpis.length/3)*(cardH+5)+6;
+
+  // — Business insights callout —
+  const insights = [];
+  if(C.out.length>0 && C.total>0 && C.out.length/C.total>0.5)
+    insights.push('⚠  Over half of requests are still outstanding — resolution velocity needs attention.');
+  if(C.avgAge && parseFloat(C.avgAge)>7)
+    insights.push('⚠  Average outstanding age is '+C.avgAge+' days — aged refunds risk customer escalation.');
+  if(P && C.total > P.total*1.3)
+    insights.push('⚠  Refund volume is up '+delta(C.total,P.total)?.pct+'% vs the previous period.');
+  const topReason = Object.entries(C.reasonMap).sort((a,b)=>b[1]-a[1])[0];
+  if(topReason && C.total>0 && topReason[1]/C.total>0.35)
+    insights.push('ℹ  "'+topReason[0]+'" accounts for '+((topReason[1]/C.total)*100).toFixed(0)+'% of all requests — a process or supplier issue may exist.');
+  if(C.outAmt>0)
+    insights.push('ℹ  '+fG(C.outAmt)+' in unrecovered exposure from pending refunds.');
+
+  if(insights.length){
+    sec('Key Observations');
+    doc.setFillColor(255,247,237); doc.setDrawColor(254,215,170);
+    const insH = 6*insights.length+8;
+    doc.roundedRect(margin, y-2, col, insH, 2, 2, 'FD');
+    insights.forEach((ins,i)=>{
+      doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(120,53,15);
+      doc.text(ins, margin+4, y+5+i*6);
+    });
+    y += insH+8;
+  }
+
+  // — Horizontal bar chart: Reasons —
+  sec('Refund Reasons Breakdown');
+  const reasonsSorted = Object.entries(C.reasonMap).sort((a,b)=>b[1]-a[1]);
+  if(!reasonsSorted.length){
+    doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(148,163,184);
+    doc.text('No data.', margin, y); y+=8;
+  } else {
+    const barMax=reasonsSorted[0][1];
+    const barCol=col*0.55, labelCol=col-barCol-12;
+    reasonsSorted.forEach(([reason,count],idx)=>{
+      if(y>pageH-24){ doc.addPage(); y=margin; }
+      const pct=count/barMax;
+      const label=reason.length>38?reason.slice(0,36)+'…':reason;
+      // Alternating row bg
+      if(idx%2===0){ doc.setFillColor(248,250,252); doc.rect(margin,y-3,col,10,'F'); }
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(30,41,59);
+      doc.text(label, margin+2, y+3.5);
+      // Bar
+      const bx=margin+labelCol+4;
+      doc.setFillColor(219,234,254); doc.rect(bx, y, barCol*pct, 5,'F');
+      doc.setFillColor(241,245,249); doc.rect(bx+barCol*pct, y, barCol*(1-pct), 5,'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(37,99,235);
+      doc.text(String(count), bx+barCol+3, y+4);
+      // % label inside bar
+      if(C.total>0){
+        doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(100,116,139);
+        doc.text(((count/C.total)*100).toFixed(0)+'%', bx+barCol+10, y+4);
+      }
+      y+=10;
+    });
+    y+=6;
+  }
+
+  // — Marketplace pie-style columns —
+  sec('Marketplace Split');
+  const mktEntries=Object.entries(C.mktMap);
+  const mktColors=[[37,99,235],[245,158,11],[16,185,129],[139,92,246]];
+  if(!mktEntries.length){
+    doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(148,163,184);
+    doc.text('No data.', margin, y); y+=8;
+  } else {
+    // Draw segmented bar
+    let bx=margin;
+    mktEntries.forEach(([mkt,count],i)=>{
+      const w=(count/C.total)*col;
+      const [r,g,b]=mktColors[i%mktColors.length];
+      doc.setFillColor(r,g,b);
+      doc.rect(bx,y,w,8,'F');
+      bx+=w;
+    });
+    y+=12;
+    // Legend
+    let lx=margin;
+    mktEntries.forEach(([mkt,count],i)=>{
+      const [r,g,b]=mktColors[i%mktColors.length];
+      doc.setFillColor(r,g,b); doc.rect(lx,y-1,4,4,'F');
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(30,41,59);
+      doc.text(mkt+' ('+count+'  '+((count/C.total)*100).toFixed(0)+'%)', lx+6, y+2.5);
+      lx+=50;
+    });
+    // Comparison if available
+    if(P && Object.keys(P.mktMap).length){
+      y+=10;
+      doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(100,116,139);
+      const prevSplit=Object.entries(P.mktMap).map(([m,c])=>m+': '+c+' ('+((c/P.total)*100).toFixed(0)+'%)').join('  ·  ');
+      doc.text('Previous period — '+prevSplit, margin, y);
+    }
+    y+=10;
+  }
+
+  // — Top submitters —
+  sec('Submissions by Team Member');
+  const subSorted=Object.entries(C.subMap).sort((a,b)=>b[1]-a[1]);
+  if(!subSorted.length){
+    doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(148,163,184);
+    doc.text('No data.', margin, y); y+=8;
+  } else {
+    const subMax=subSorted[0][1];
+    subSorted.slice(0,8).forEach(([name,count],idx)=>{
+      if(y>pageH-20){ doc.addPage(); y=margin; }
+      const pct=count/subMax;
+      if(idx%2===0){ doc.setFillColor(248,250,252); doc.rect(margin,y-3,col,10,'F'); }
+      const dn=name.length>30?name.slice(0,28)+'…':name;
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(30,41,59);
+      doc.text(dn, margin+2, y+3.5);
+      const bx=margin+80;
+      const bw=col-82;
+      doc.setFillColor(167,243,208); doc.rect(bx,y,bw*pct,5,'F');
+      doc.setFillColor(241,245,249); doc.rect(bx+bw*pct,y,bw*(1-pct),5,'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(21,128,61);
+      doc.text(String(count), bx+bw+3, y+4);
+      if(C.total>0){
+        doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(100,116,139);
+        doc.text(((count/C.total)*100).toFixed(0)+'%', bx+bw+10, y+4);
+      }
+      y+=10;
+    });
+    y+=6;
+  }
+
+  // — Daily trend (column chart) —
+  if(RF_PDF_DAYS>0 && rows.length){
+    if(y>pageH-60){ doc.addPage(); y=margin; }
+    sec('Daily Volume Trend');
+    // Build day buckets
+    const dayMap={};
+    rows.forEach(r=>{ const d=r.date_submitted?.slice(0,10); if(d) dayMap[d]=(dayMap[d]||0)+1; });
+    let prevDayMap={};
+    if(prevRows.length){
+      const offset=RF_PDF_DAYS*86400000;
+      prevRows.forEach(r=>{
+        if(!r.date_submitted)return;
+        const shiftedDate=new Date(new Date(r.date_submitted+'T00:00').getTime()+offset);
+        const sk=toStr(shiftedDate);
+        prevDayMap[sk]=(prevDayMap[sk]||0)+1;
+      });
+    }
+    const allDays=[...new Set([...Object.keys(dayMap),...Object.keys(prevDayMap)])].sort();
+    const chartH=35, chartW=col;
+    const dayMax=Math.max(...allDays.map(d=>Math.max(dayMap[d]||0,prevDayMap[d]||0)),1);
+    const barW=Math.min((chartW/allDays.length)*0.4, 6);
+    const gap=(chartW/allDays.length);
+    // Axis
+    doc.setDrawColor(226,232,240); doc.line(margin,y+chartH,margin+chartW,y+chartH);
+    // Y axis labels
+    [0,Math.ceil(dayMax/2),dayMax].forEach(v=>{
+      const ly=y+chartH-(v/dayMax)*chartH;
+      doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(148,163,184);
+      doc.text(String(v), margin-2, ly+1, {align:'right'});
+      doc.setDrawColor(241,245,249); doc.line(margin,ly,margin+chartW,ly);
+    });
+    allDays.forEach((d,i)=>{
+      const bx=margin+i*gap+gap*0.1;
+      const curr=dayMap[d]||0;
+      const prev=prevDayMap[d]||0;
+      if(prev){
+        const ph=(prev/dayMax)*chartH;
+        doc.setFillColor(226,232,240);
+        doc.rect(bx, y+chartH-ph, barW, ph, 'F');
+      }
+      if(curr){
+        const ch=(curr/dayMax)*chartH;
+        doc.setFillColor(37,99,235);
+        doc.rect(bx+(prev?barW+1:0), y+chartH-ch, barW, ch, 'F');
+      }
+      // X label every 3rd day
+      if(i%3===0||allDays.length<=7){
+        doc.setFont('helvetica','normal'); doc.setFontSize(5.5); doc.setTextColor(148,163,184);
+        const dLabel=new Date(d+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        doc.text(dLabel, bx+barW/2, y+chartH+4, {align:'center'});
+      }
+    });
+    // Legend
+    y+=chartH+10;
+    doc.setFillColor(37,99,235); doc.rect(margin,y-1,4,4,'F');
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(30,41,59);
+    doc.text('Current period', margin+6, y+2.5);
+    if(prevRows.length){
+      doc.setFillColor(226,232,240); doc.rect(margin+40,y-1,4,4,'F');
+      doc.text('Previous period', margin+46, y+2.5);
+    }
+    y+=10;
+  }
+
+  // — Outstanding requests table —
+  if(C.out.length>0){
+    if(y>pageH-60){ doc.addPage(); y=margin; }
+    sec('Outstanding Requests');
+    const headers=['Order #','Marketplace','Submitted By','Requested','Date','Age'];
+    const cws=[40,26,38,24,20,18];
+    doc.setFillColor(15,23,42); doc.rect(margin,y,col,7,'F');
+    let cx=margin+2;
+    headers.forEach((h,i)=>{ doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(255,255,255); doc.text(h,cx,y+5); cx+=cws[i]; });
+    y+=7;
+    C.out.slice(0,20).forEach((r,idx)=>{
+      if(y>pageH-18){ doc.addPage(); y=margin; }
+      const age=r.date_submitted?Math.round((new Date()-new Date(r.date_submitted+'T00:00'))/86400000):0;
+      const ageStr=age===0?'Today':age+'d';
+      // Flag aged rows
+      if(age>=7){ doc.setFillColor(255,247,237); }
+      else { doc.setFillColor(idx%2===0?255:248,idx%2===0?255:250,idx%2===0?255:252); }
+      doc.rect(margin,y,col,6.5,'F');
+      cx=margin+2;
+      const cells=[(r.order_number||'').slice(0,16),r.marketplace||'',(r.submitted_by||'').slice(0,16),r.amount_requested!=null?fG(r.amount_requested):'—',r.date_submitted?new Date(r.date_submitted+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'—',ageStr];
+      cells.forEach((cell,i)=>{
+        const isAge=i===5;
+        doc.setFont('helvetica', isAge&&age>=7?'bold':'normal'); doc.setFontSize(8);
+        doc.setTextColor(isAge&&age>=7?190:30, isAge&&age>=7?18:41, isAge&&age>=7?60:59);
+        doc.text(String(cell),cx,y+4.5); cx+=cws[i];
+      });
+      y+=6.5;
+    });
+    if(C.out.length>20){ y+=3; doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(148,163,184); doc.text('… and '+(C.out.length-20)+' more',margin,y); y+=6; }
+    y+=4;
+  }
+
+  // — Footer on every page —
+  const totalPages=doc.getNumberOfPages();
+  const genOn=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+' '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  for(let i=1;i<=totalPages;i++){
+    doc.setPage(i);
+    doc.setFillColor(248,250,252); doc.rect(0,pageH-10,pageW,10,'F');
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(148,163,184);
+    doc.text('Generated '+genOn+' · Pharm & Domestic · Confidential', margin, pageH-4);
+    doc.text('Page '+i+' of '+totalPages, pageW-margin, pageH-4, {align:'right'});
+  }
+
+  const safeName=(periodLabel+'-'+new Date().toISOString().slice(0,10)).replace(/\s/g,'-');
+  doc.save('Refunds-'+safeName+'.pdf');
+}
+
+  
 function rfInit(){
     rfLoad();
 }
@@ -718,6 +952,9 @@ window.rfEditRefund=rfEditRefund;
 window.rfDeleteRefund=rfDeleteRefund;
 window.rfCloseConfirm=rfCloseConfirm;
 window.rfDownloadPDF=rfDownloadPDF;
+window.rfClosePdfRange=rfClosePdfRange;
+window.rfSelectPdfRange=rfSelectPdfRange;
+window.rfGeneratePDF=rfGeneratePDF;
   
 rfInit();
 })();
