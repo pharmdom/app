@@ -1,3 +1,5 @@
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color: #0f172a; background: #f8fafc; line-height: 1.5; -webkit-font-smoothing: antialiased; }
@@ -37,7 +39,9 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
 
 .rf-add-btn { padding: 8px 16px; background: #2563eb; color: #fff; border: none; border-radius: 9px; font-size: 12.5px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background .15s; white-space: nowrap; }
 .rf-add-btn:hover { background: #1d4ed8; }
-
+.rf-summary-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: #fff; color: #0f172a; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 12.5px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all .15s; white-space: nowrap; }
+.rf-summary-btn:hover { border-color: #94a3b8; background: #f8fafc; }
+  
 .rf-modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(2px); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
 .rf-modal-overlay.open { display: flex; }
 .rf-modal { background: #fff; border-radius: 16px; width: 100%; max-width: 620px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
@@ -110,7 +114,13 @@ html, body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color
     <div class="rf-pill blue" style="cursor:default"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Total Requested: <b id="rfReqAmt">—</b></span></div>
   
   </div>
-  <button class="rf-add-btn" onclick="rfOpenModal()">+ Submit Request</button>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <button class="rf-summary-btn" onclick="rfDownloadPDF()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Summary PDF
+    </button>
+    <button class="rf-add-btn" onclick="rfOpenModal()">+ Submit Request</button>
+  </div>
 </div>
 
 <div class="rf-requests-row">
@@ -492,8 +502,195 @@ function rfShiftMonth(delta){
 }
 
 
+function rfDownloadPDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const monthLabel = document.getElementById('rfMonthLabel').textContent;
+  const rows = RF_ROWS;
+
+  // — Metrics —
+  const total = rows.length;
+  const outstanding = rows.filter(r => !r.refunded);
+  const processed = rows.filter(r => r.refunded);
+  const outAmt = outstanding.reduce((s,r) => s + (parseFloat(r.amount_requested)||0), 0);
+  const procAmt = processed.reduce((s,r) => s + (parseFloat(r.amount_processed)||0), 0);
+  const reqAmt = rows.reduce((s,r) => s + (parseFloat(r.amount_requested)||0), 0);
+  const avgAge = outstanding.length ? (outstanding.reduce((s,r) => {
+    const d = new Date(r.date_submitted+'T00:00'); const t = new Date(); t.setHours(0,0,0,0);
+    return s + Math.round((t-d)/86400000);
+  }, 0) / outstanding.length).toFixed(1) : '—';
+  const resolutionRate = total > 0 ? ((processed.length / total) * 100).toFixed(0) : '0';
+
+  // — Reason breakdown —
+  const reasonMap = {};
+  rows.forEach(r => { reasonMap[r.reason] = (reasonMap[r.reason]||0) + 1; });
+  const reasonsSorted = Object.entries(reasonMap).sort((a,b) => b[1]-a[1]);
+
+  // — Marketplace breakdown —
+  const mktMap = {};
+  rows.forEach(r => { mktMap[r.marketplace] = (mktMap[r.marketplace]||0) + 1; });
+
+  // — Submitter breakdown —
+  const submitterMap = {};
+  rows.forEach(r => { submitterMap[r.submitted_by] = (submitterMap[r.submitted_by]||0) + 1; });
+  const submittersSorted = Object.entries(submitterMap).sort((a,b) => b[1]-a[1]);
+
+  const fmtGBP = n => '£' + (parseFloat(n)||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const pageW = 210, pageH = 297, margin = 18, col = pageW - margin*2;
+  let y = margin;
+
+  // Header bar
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, pageW, 22, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13); doc.setTextColor(255,255,255);
+  doc.text('Refunds Summary Report', margin, 14);
+  doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.setTextColor(148,163,184);
+  doc.text(monthLabel, pageW - margin, 14, { align:'right' });
+  y = 32;
+
+  // Section helper
+  const sectionTitle = (label) => {
+    doc.setFont('helvetica','bold'); doc.setFontSize(8);
+    doc.setTextColor(100,116,139);
+    doc.text(label.toUpperCase(), margin, y);
+    doc.setDrawColor(226,232,240);
+    doc.line(margin + doc.getTextWidth(label.toUpperCase()) + 3, y - 0.5, pageW - margin, y - 0.5);
+    y += 6;
+  };
+
+  // KPI cards (2x3 grid)
+  sectionTitle('Overview');
+  const kpis = [
+    { label: 'Total Requests', value: String(total) },
+    { label: 'Outstanding', value: String(outstanding.length), sub: fmtGBP(outAmt) + ' requested' },
+    { label: 'Processed', value: String(processed.length), sub: fmtGBP(procAmt) + ' refunded' },
+    { label: 'Total Requested', value: fmtGBP(reqAmt) },
+    { label: 'Resolution Rate', value: resolutionRate + '%' },
+    { label: 'Avg Age (Outstanding)', value: avgAge === '—' ? '—' : avgAge + ' days' },
+  ];
+  const cardW = (col - 8) / 3, cardH = 18;
+  kpis.forEach((k, i) => {
+    const col3 = i % 3, row3 = Math.floor(i / 3);
+    const x = margin + col3 * (cardW + 4);
+    const cy = y + row3 * (cardH + 4);
+    doc.setFillColor(248,250,252); doc.setDrawColor(226,232,240);
+    doc.roundedRect(x, cy, cardW, cardH, 2, 2, 'FD');
+    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(15,23,42);
+    doc.text(k.value, x + cardW/2, cy + 9, { align:'center' });
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(100,116,139);
+    doc.text(k.label, x + cardW/2, cy + 14, { align:'center' });
+    if(k.sub){ doc.setFontSize(7); doc.setTextColor(148,163,184); doc.text(k.sub, x + cardW/2, cy + 17, {align:'center'}); }
+  });
+  y += 2 * (cardH + 4) + 8;
+
+  // Reason breakdown
+  sectionTitle('Requests by Reason');
+  if(reasonsSorted.length === 0){
+    doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(148,163,184);
+    doc.text('No data for this period.', margin, y); y += 8;
+  } else {
+    const barMax = reasonsSorted[0][1];
+    reasonsSorted.forEach(([reason, count]) => {
+      const pct = count / barMax;
+      const label = reason.length > 52 ? reason.slice(0,50)+'…' : reason;
+      doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(30,41,59);
+      doc.text(label, margin, y);
+      doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
+      doc.text(String(count), pageW - margin, y, { align:'right' });
+      y += 4;
+      doc.setFillColor(219,234,254); doc.rect(margin, y, col * pct, 3, 'F');
+      doc.setFillColor(226,232,240); doc.rect(margin + col * pct, y, col * (1 - pct), 3, 'F');
+      y += 7;
+    });
+    y += 4;
+  }
+
+  // Marketplace & Submitter side by side
+  sectionTitle('Marketplace & Top Submitters');
+  const halfW = (col - 8) / 2;
+  const colLeft = margin, colRight = margin + halfW + 8;
+  let yLeft = y, yRight = y;
+
+  // Marketplace
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(100,116,139);
+  doc.text('Marketplace', colLeft, yLeft); yLeft += 5;
+  Object.entries(mktMap).forEach(([mkt, count]) => {
+    const pct = count / total;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(30,41,59);
+    doc.text(mkt, colLeft, yLeft);
+    doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
+    doc.text(count + ' (' + (pct*100).toFixed(0) + '%)', colLeft + halfW, yLeft, { align:'right' });
+    yLeft += 4;
+    doc.setFillColor(219,234,254); doc.rect(colLeft, yLeft, halfW * pct, 3, 'F');
+    doc.setFillColor(226,232,240); doc.rect(colLeft + halfW * pct, yLeft, halfW * (1-pct), 3, 'F');
+    yLeft += 7;
+  });
+
+  // Submitters
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(100,116,139);
+  doc.text('Top Submitters', colRight, yRight); yRight += 5;
+  submittersSorted.slice(0,6).forEach(([name, count]) => {
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(30,41,59);
+    const displayName = name.length > 22 ? name.slice(0,20)+'…' : name;
+    doc.text(displayName, colRight, yRight);
+    doc.setFont('helvetica','bold'); doc.setTextColor(37,99,235);
+    doc.text(String(count), colRight + halfW, yRight, { align:'right' });
+    yRight += 8;
+  });
+
+  y = Math.max(yLeft, yRight) + 8;
+
+  // Outstanding requests table
+  if(outstanding.length > 0){
+    if(y > pageH - 60){ doc.addPage(); y = margin; }
+    sectionTitle('Outstanding Requests');
+    const headers = ['Order #', 'Marketplace', 'Submitted By', 'Requested', 'Date'];
+    const colWidths = [42, 26, 42, 24, 22];
+    // Header row
+    doc.setFillColor(15,23,42); doc.rect(margin, y, col, 7, 'F');
+    let cx = margin + 2;
+    headers.forEach((h, i) => {
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(255,255,255);
+      doc.text(h, cx, y + 5); cx += colWidths[i];
+    });
+    y += 7;
+    outstanding.slice(0, 20).forEach((r, idx) => {
+      if(y > pageH - 20){ doc.addPage(); y = margin; }
+      doc.setFillColor(idx%2===0?255:248,idx%2===0?255:250,idx%2===0?255:252);
+      doc.rect(margin, y, col, 6.5, 'F');
+      cx = margin + 2;
+      const cells = [
+        (r.order_number||'').slice(0,18),
+        r.marketplace||'',
+        (r.submitted_by||'').slice(0,18),
+        r.amount_requested!=null ? fmtGBP(r.amount_requested) : '—',
+        r.date_submitted ? new Date(r.date_submitted+'T00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '—'
+      ];
+      cells.forEach((cell, i) => {
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(30,41,59);
+        doc.text(String(cell), cx, y + 4.5); cx += colWidths[i];
+      });
+      y += 6.5;
+    });
+    if(outstanding.length > 20){
+      y += 3; doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(148,163,184);
+      doc.text(`… and ${outstanding.length - 20} more outstanding requests`, margin, y); y += 6;
+    }
+  }
+
+  // Footer
+  const generatedOn = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(148,163,184);
+  doc.text('Generated ' + generatedOn + ' · Pharm & Domestic', pageW/2, pageH - 8, { align:'center' });
+
+  const safeName = monthLabel.replace(/\s/g,'-');
+  doc.save('Refunds-Summary-' + safeName + '.pdf');
+}
+
 function rfInit(){
-  rfLoad();
+    rfLoad();
 }
 
 window.rfShiftMonth=rfShiftMonth;
@@ -508,6 +705,7 @@ window.rfToggleRow=rfToggleRow;
 window.rfEditRefund=rfEditRefund;
 window.rfDeleteRefund=rfDeleteRefund;
 window.rfCloseConfirm=rfCloseConfirm;
+window.rfDownloadPDF=rfDownloadPDF;
   
 rfInit();
 })();
