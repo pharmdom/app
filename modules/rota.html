@@ -1096,7 +1096,7 @@ async function init() {
     // Load employees, tasks, and schedule in parallel
     const [empRes, taskRes, schedRes] = await Promise.all([
             sb.from('users_directory')
-        .select('user_id, first_name, last_name, status, permissions, role, holiday_hours, note')
+        .select('user_id, first_name, last_name, status, permissions, role, holiday_hours')
         .eq('status', 'Active')
         .contains('permissions', ['rota']),
       sb.from('rota_tasks').select('*').order('id'),
@@ -1116,10 +1116,18 @@ S.employees = (empRes.data || []).map((u, i) => {
         initials:   ((first[0] || '') + (last[0] || '')).toUpperCase(),
         department: u.role || '',
         avatar:     ['#6366f1','#ef4444','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6'][i % 8],
-        holidayHours: Array.isArray(u.holiday_hours) ? u.holiday_hours : [],
-        note: u.note || ''
+        holidayHours: Array.isArray(u.holiday_hours) ? u.holiday_hours : []
       };
     });
+
+        try {
+      const empIds = S.employees.map(e => e.id);
+      const { data: noteRows } = await sb.from('users').select('user_id, note').in('user_id', empIds);
+      if (noteRows) {
+        const noteMap = Object.fromEntries(noteRows.map(r => [String(r.user_id), r.note || '']));
+        S.employees.forEach(e => { e.note = noteMap[e.id] || ''; });
+      }
+    } catch(e) { console.warn('Could not load staff notes:', e); }
 
     S.tasks = (taskRes.data || []).map(t => ({
       id:         String(t.id),
