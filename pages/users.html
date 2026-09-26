@@ -343,9 +343,14 @@
           </div>
         </div>
 
-        <div class="sm-form-section">
+                <div class="sm-form-section">
           <div class="sm-section-label" style="margin-bottom:14px;">Module Access</div>
           <div id="smModuleGroups"></div>
+        </div>
+
+        <div class="sm-form-section">
+          <div class="sm-section-label" style="margin-bottom:10px;">Note</div>
+          <textarea id="smNote" class="pd-input" rows="4" placeholder="Internal notes about this staff member…" style="resize:vertical;min-height:80px;font-family:inherit;"></textarea>
         </div>
       </div>
 
@@ -755,6 +760,7 @@ async function loadStaff() {
     hourlyRate: r.hourly_rate || '',
     holidayHours: Array.isArray(r.holiday_hours) ? r.holiday_hours : [],
     createdAt: r.created_at,
+    note: r.note || null,
   }));
 
   smRenderChips();
@@ -918,20 +924,34 @@ const holidayEntries = Array.isArray(staff.holidayHours) ? [...staff.holidayHour
       ${holidayEntries.map(p => `<div class="sm-detail-card" style="flex:1;min-width:150px;"><div class="sm-field-label">${p.start} → ${p.end}</div><div class="sm-field-value">${p.hours}h</div></div>`).join('')}
     </div>` : '';
 
-  document.getElementById('smDrawerBody').innerHTML = `
-    <div class="sm-detail-label">Staff Details</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;">
-      <div class="sm-detail-card"><div class="sm-field-label">First Name</div><div class="sm-field-value">${staff.firstName}</div></div>
-      <div class="sm-detail-card"><div class="sm-field-label">Last Name</div><div class="sm-field-value">${staff.lastName}</div></div>
-      <div class="sm-detail-card" style="grid-column:1/-1;"><div class="sm-field-label">Email</div><div class="sm-field-value">${staff.email}</div></div>
-      <div class="sm-detail-card"><div class="sm-field-label">Role</div><div class="sm-field-value">${staff.role}</div></div>
-      <div class="sm-detail-card"><div class="sm-field-label">Hourly Rate</div><div class="sm-field-value">${staff.hourlyRate ? '£'+staff.hourlyRate : '—'}</div></div>
-      <div class="sm-detail-card" style="${statusStyle}border-radius:10px;padding:10px 13px;"><div class="sm-field-label">Status</div><div class="sm-field-value" style="${statusColor}font-weight:700;">${staff.status}</div></div>
-      ${tenure ? `<div class="sm-detail-card"><div class="sm-field-label">Time with Team</div><div class="sm-field-value">${tenure.label}</div></div>` : ''}
+    document.getElementById('smDrawerBody').innerHTML = `
+    <div style="display:flex;gap:0;border-bottom:1px solid #e2e8f0;margin-bottom:16px;">
+      <button id="smDTab-overview" onclick="smSwitchDrawerTab('overview')" style="flex:1;padding:10px 0;font-size:12.5px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid #6d28d9;color:#6d28d9;">Overview</button>
+      <button id="smDTab-notes" onclick="smSwitchDrawerTab('notes')" style="flex:1;padding:10px 0;font-size:12.5px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:#94a3b8;">Notes</button>
     </div>
-    ${holidayHtml}
-    <div class="sm-detail-label">Module Access <span style="color:#cbd5e1;font-size:9px;font-weight:400;">${perms.length} active</span></div>
-    ${modGroupsHtml}`;
+
+    <div id="smDPanel-overview">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:16px;">
+        <tbody>
+          <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:8px 4px;color:#64748b;width:42%;font-weight:500;">First Name</td><td style="padding:8px 4px;color:#0f172a;font-weight:600;">${staff.firstName}</td></tr>
+          <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:8px 4px;color:#64748b;font-weight:500;">Last Name</td><td style="padding:8px 4px;color:#0f172a;font-weight:600;">${staff.lastName}</td></tr>
+          <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:8px 4px;color:#64748b;font-weight:500;">Email</td><td style="padding:8px 4px;color:#0f172a;font-weight:600;word-break:break-all;">${staff.email}</td></tr>
+          <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:8px 4px;color:#64748b;font-weight:500;">Role</td><td style="padding:8px 4px;color:#0f172a;font-weight:600;">${staff.role}</td></tr>
+          <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:8px 4px;color:#64748b;font-weight:500;">Status</td><td style="padding:8px 4px;font-weight:700;${statusColor}">${staff.status}</td></tr>
+          <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:8px 4px;color:#64748b;font-weight:500;">Hourly Rate</td><td style="padding:8px 4px;color:#0f172a;font-weight:600;">${staff.hourlyRate ? '£'+staff.hourlyRate : '—'}</td></tr>
+          ${tenure ? `<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:8px 4px;color:#64748b;font-weight:500;">Time with Team</td><td style="padding:8px 4px;color:#0f172a;font-weight:600;">${tenure.label}</td></tr>` : ''}
+        </tbody>
+      </table>
+      ${holidayHtml}
+      <div class="sm-detail-label" style="margin-bottom:10px;">Module Access <span style="color:#cbd5e1;font-size:9px;font-weight:400;">${perms.length} active</span></div>
+      ${modGroupsHtml}
+    </div>
+
+    <div id="smDPanel-notes" style="display:none;">
+      ${staff.note
+        ? `<div style="font-size:13px;color:#0f172a;line-height:1.6;white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;">${staff.note.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`
+        : `<div style="font-size:12.5px;color:#94a3b8;text-align:center;padding:32px 0;">No notes recorded yet.<br>Use Edit to add a note.</div>`}
+    </div>`;
 
   smResetDrawerFooter();
   const overlay = document.getElementById('smDrawerOverlay');
@@ -950,6 +970,17 @@ function smToggleDrawerGroup(id) {
   chevron?.classList.toggle('open', !isOpen);
   header?.classList.toggle('open', !isOpen);
 }
+
+
+function smSwitchDrawerTab(tab) {
+  ['overview','notes'].forEach(t => {
+    document.getElementById('smDPanel-' + t).style.display = t === tab ? '' : 'none';
+    const btn = document.getElementById('smDTab-' + t);
+    btn.style.borderBottomColor = t === tab ? '#6d28d9' : 'transparent';
+    btn.style.color = t === tab ? '#6d28d9' : '#94a3b8';
+  });
+}
+  
 function smResetDrawerFooter() {
   document.getElementById('smDrawerFooter').innerHTML = `
     <button class="pd-btn pd-btn-outline pd-btn-sm" onclick="event.stopPropagation();smStartEdit();">
@@ -1254,6 +1285,7 @@ document.querySelectorAll('.sm-mod-toggle').forEach(b => b.classList.remove('act
   smCollapseRefundsSection();
   smEditHolidayHours = [];
   document.getElementById('smHolidaySection').style.display = 'none';
+  document.getElementById('smNote').value = '';
   document.getElementById('smModal').style.display = 'flex';
 }
 function smOpenEditModal(staff) {
@@ -1287,6 +1319,7 @@ document.getElementById('smHourlyRate').value = staff.hourlyRate || '';
   document.getElementById('smHolidayToggle').classList.toggle('active', smHasHolidayEntries);
   document.getElementById('smHolidayAddRow').style.display = smHasHolidayEntries ? 'grid' : 'none';
   smRenderHolidayList();
+  document.getElementById('smNote').value = staff.note || '';
   document.getElementById('smModal').style.display = 'flex';
 }
 
@@ -1339,7 +1372,8 @@ async function smSaveStaff() {
   const password = document.getElementById('smPwd').value.trim();
   const role = document.getElementById('smRole').value;
   const status = document.getElementById('smStatus').value;
-  const hourlyRate = document.getElementById('smHourlyRate').value.trim();
+    const hourlyRate = document.getElementById('smHourlyRate').value.trim();
+  const note = document.getElementById('smNote').value.trim();
   const permissions = Array.from(document.querySelectorAll('.sm-mod-toggle.active')).map(b => b.dataset.mod);
 
   // Validate
@@ -1385,13 +1419,13 @@ async function smSaveStaff() {
     res = await fetch(`${SUPABASE_URL}/functions/v1/update-user`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-      body: JSON.stringify({ userId, firstName, lastName, email, password: password || undefined, role, status, permissions, hourlyRate: hourlyRate || null, oldEmail, oldRole, oldStatus }),
+      body: JSON.stringify({ userId, firstName, lastName, email, password: password || undefined, role, status, permissions, hourlyRate: hourlyRate || null, note: note || null, oldEmail, oldRole, oldStatus }),
     });
   } else {
     res = await fetch(`${SUPABASE_URL}/functions/v1/create-user`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-      body: JSON.stringify({ firstName, lastName, email, password, role, status, permissions, hourlyRate: hourlyRate || null }),
+      body: JSON.stringify({ firstName, lastName, email, password, role, status, permissions, hourlyRate: hourlyRate || null, note: note || null }),
     });
   }
 
@@ -1402,7 +1436,7 @@ data = await res.json();
   if (data.success) {
     if (isEdit) {
       try {
-        await sb.from('users').update({ holiday_hours: smEditHolidayHours }).eq('user_id', document.getElementById('smEditId').value);
+        await sb.from('users').update({ holiday_hours: smEditHolidayHours, note: note || null }).eq('user_id', document.getElementById('smEditId').value);
       } catch(e) { /* non-fatal — staff record already saved */ }
     }
     smCloseModal();
@@ -1470,8 +1504,8 @@ window.smSyncRefundsWidgetState = smSyncRefundsWidgetState;
 window.smToggleRefundsSection = smToggleRefundsSection;
 window.smCollapseRefundsSection = smCollapseRefundsSection;
 window.smToggleDrawerGroup = smToggleDrawerGroup;
+window.smSwitchDrawerTab = smSwitchDrawerTab;
 })();
-
 
 /* ══ PAGE GUIDE & TOUR ══ */
 (function(){
