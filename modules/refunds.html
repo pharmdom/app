@@ -503,8 +503,16 @@ function rfShiftMonth(delta){
 
 
 function rfDownloadPDF(){
-    const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-  if(!jsPDF){ alert('PDF library failed to load. Please refresh the page and try again.'); return; }
+  const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+  if(!jsPDF){
+    // Try reloading the script on the fly
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload = () => rfDownloadPDF();
+    s.onerror = () => alert('PDF library failed to load. Please check your connection and try again.');
+    document.head.appendChild(s);
+    return;
+  }
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const monthLabel = document.getElementById('rfMonthLabel').textContent;
   const rows = RF_ROWS;
