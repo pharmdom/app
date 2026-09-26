@@ -1096,7 +1096,7 @@ async function init() {
     // Load employees, tasks, and schedule in parallel
     const [empRes, taskRes, schedRes] = await Promise.all([
             sb.from('users_directory')
-        .select('user_id, first_name, last_name, status, permissions, role, holiday_hours')
+        .select('user_id, first_name, last_name, status, permissions, role, holiday_hours, note')
         .eq('status', 'Active')
         .contains('permissions', ['rota']),
       sb.from('rota_tasks').select('*').order('id'),
@@ -1116,7 +1116,8 @@ S.employees = (empRes.data || []).map((u, i) => {
         initials:   ((first[0] || '') + (last[0] || '')).toUpperCase(),
         department: u.role || '',
         avatar:     ['#6366f1','#ef4444','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ec4899','#14b8a6'][i % 8],
-        holidayHours: Array.isArray(u.holiday_hours) ? u.holiday_hours : []
+        holidayHours: Array.isArray(u.holiday_hours) ? u.holiday_hours : [],
+        note: u.note || ''
       };
     });
 
@@ -1701,9 +1702,46 @@ function openDrawer(empId){
 
 function renderDrawerBody(){
   if (S.drawerTab === 'holidays') { renderHolidaysTabBody(); return; }
+  if (S.drawerTab === 'notes') { renderNotesTabBody(); return; }
   renderHoursTabBody();
 }
 
+async function renderNotesTabBody(){
+  const empId = S.drawerEmpId; if(!empId) return;
+  const emp = S.employees.find(e=>String(e.id)===String(empId));
+  const currentNote = emp?.note || '';
+  document.getElementById('drawerBody').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:10px;padding-top:4px;">
+      <textarea id="rotaNoteInput" rows="7" placeholder="No notes yet — write something about this staff member…" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:inherit;color:#0f172a;background:#fff;resize:vertical;min-height:120px;outline:none;line-height:1.55;transition:border-color .15s;"
+        onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#e2e8f0'"
+      >${esc(currentNote)}</textarea>
+      <div style="display:flex;justify-content:flex-end;gap:8px;align-items:center;">
+        <span id="rotaNoteSaveStatus" style="font-size:11.5px;color:#94a3b8;"></span>
+        <button onclick="saveRotaNote('${empId}')" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save Note
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+async function saveRotaNote(empId){
+  const val = (document.getElementById('rotaNoteInput')?.value || '').trim();
+  const statusEl = document.getElementById('rotaNoteSaveStatus');
+  if(statusEl) statusEl.textContent = 'Saving…';
+  try {
+    const { error } = await sb.from('users').update({ note: val || null }).eq('user_id', empId);
+    if(error) throw error;
+    const emp = S.employees.find(e=>String(e.id)===String(empId));
+    if(emp) emp.note = val;
+    if(statusEl) { statusEl.textContent = 'Saved ✓'; statusEl.style.color = '#15803d'; }
+    setTimeout(()=>{ if(statusEl) { statusEl.textContent=''; statusEl.style.color='#94a3b8'; } }, 2500);
+  } catch(e) {
+    if(statusEl) { statusEl.textContent = 'Failed to save'; statusEl.style.color = '#dc2626'; }
+  }
+}
+  
 function renderHoursTabBody(){
   const empId=S.drawerEmpId; if(!empId) return;
   const tm=buildTaskMap(),dates=getDates();
@@ -1841,9 +1879,10 @@ function getEmployeeHolidaySummary(empId){
 function renderDrawerTabs(){
   const empId = S.drawerEmpId;
   const showHolidays = canViewHolidaysTab(empId);
-  document.getElementById('drawerTabs').innerHTML = `
+    document.getElementById('drawerTabs').innerHTML = `
     <button class="drawer-tab-btn ${S.drawerTab==='hours'?'active':''}" onclick="switchDrawerTab('hours')">Hours</button>
     ${showHolidays ? `<button class="drawer-tab-btn ${S.drawerTab==='holidays'?'active':''}" onclick="switchDrawerTab('holidays')">Holidays</button>` : ''}
+    ${showHolidays ? `<button class="drawer-tab-btn ${S.drawerTab==='notes'?'active':''}" onclick="switchDrawerTab('notes')">Notes</button>` : ''}
   `;
 }
 
