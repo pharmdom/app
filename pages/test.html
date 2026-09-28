@@ -574,6 +574,13 @@ col.col-agent     { width: 110px; }
 }
 .drawer-product-name-editable:hover { border-color: #cbd5e1; background: rgba(255,255,255,.08); }
 .drawer-product-name-editable:focus { border-color: #2563eb; background: rgba(255,255,255,.12); box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+
+
+.basket-approve-section { display: flex; gap: 8px; align-items: center; width: 100%; }
+.btn-basket-approve { background: #7c3aed; color: #fff; border: none; padding: 7px 16px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; transition: background .15s; }
+.btn-basket-approve:hover { background: #6d28d9; }
+.btn-basket-reject { background: #fff; color: #dc2626; border: 1.5px solid #fecaca; padding: 7px 16px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; transition: background .15s; }
+.btn-basket-reject:hover { background: #fef2f2; }
  
  </style>
 
@@ -1485,15 +1492,57 @@ const reasonOpts = REJECT_REASONS.map(r => `<option value="${escAttr(r)}">${escH
       </div>`);
   }
   document.getElementById('drawerBody').innerHTML = body;
-  document.getElementById('drawerFooter').innerHTML =
-    `<button class="btn btn-danger" style="margin-left:auto" onclick="showDeleteConfirm('${escAttr(id)}')">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-      Delete Product
-    </button>`;
+    const isStage3 = row.approved && !isRejected(row) && !row.purchased;
+  const basketPending = isStage3 && row.basket_approved === null;
+  const basketRejected = isStage3 && row.basket_approved === false;
+
+  let footerHtml = '';
+  if (basketPending) {
+    footerHtml = `<div class="basket-approve-section">
+      <button class="btn-basket-approve" onclick="basketDecision('${escAttr(id)}',true)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        Add to Basket
+      </button>
+      <button class="btn-basket-reject" onclick="basketDecision('${escAttr(id)}',false)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Reject
+      </button>
+    </div>`;
+  } else if (basketRejected) {
+    footerHtml = `<div style="display:flex;align-items:center;gap:8px;flex:1">
+      <span style="font-size:12px;color:#dc2626;font-weight:600">Basket Rejected</span>
+      <button class="btn-basket-approve" style="margin-left:auto;flex:0" onclick="basketDecision('${escAttr(id)}',true)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        Add to Basket
+      </button>
+    </div>`;
+  }
+  footerHtml += `<button class="btn btn-danger" style="margin-left:${basketPending || basketRejected ? '8px' : 'auto'}" onclick="showDeleteConfirm('${escAttr(id)}')">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+    Delete Product
+  </button>`;
+  document.getElementById('drawerFooter').innerHTML = footerHtml;
   applyYNColors();
 }
 
-
+async function basketDecision(id, approve) {
+  const toastId = showToast(approve ? 'Adding to basket…' : 'Rejecting…', 'loading', 0);
+  const { error } = await sb.from('sourcing')
+    .update({ basket_approved: approve, last_updated: new Date().toISOString() })
+    .eq('opportunity_id', id);
+  removeToast(toastId);
+  if (error) { showToast('Failed to save', 'error'); return; }
+  const idx = allData.findIndex(p => p.opportunity_id === id);
+  if (idx > -1) { allData[idx].basket_approved = approve; }
+  showToast(approve ? 'Added to basket' : 'Rejected from basket', 'success');
+  renderTable();
+  updateStats();
+  if (window.renderCentralBasket) window.renderCentralBasket();
+  if (currentDrawerId === id) {
+    const fresh = allData.find(p => p.opportunity_id === id);
+    if (fresh) renderDrawer(fresh);
+  }
+}
 
 async function saveDrawerProductName(id, value) {
   const trimmed = value.trim();
@@ -3058,7 +3107,8 @@ document.addEventListener('click', () => {
 
  /* ══ SOURCING BASKET ══ */
 function isToPurchase(p) {
-  return p.approved && !isRejected(p) && !p.purchased;
+  return p.approved && !isRejected(p) && !p.purchased
+    && (p.basket_approved === null || p.basket_approved === true);
 }
 
 
@@ -3313,6 +3363,7 @@ window.toggleFModalMultiEan = toggleFModalMultiEan;
 window.addFModalMultiEanRow = addFModalMultiEanRow;
     
 /* ══ EXPOSE GLOBALS ══ */
+window.basketDecision = basketDecision;
 window.wizardNext = wizardNext; window.wizardBack = wizardBack; window.wizardGoTo = wizardGoTo;
 window.minimizeModal = minimizeModal;
 window.maximizeModal = maximizeModal;
