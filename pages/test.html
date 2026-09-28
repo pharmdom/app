@@ -1545,15 +1545,32 @@ if (type === 'supplier') {
     inp = `<select class="edit-select" onchange="saveField('${escAttr(id)}','${field}',this.value);applyYNColors()"><option value="">—</option>${opts}</select>`;
   } else if (type === 'number') {
     const n = parseFloat(value);
-    inp = `<input type="number" class="edit-input" value="${isNaN(n)?'':n}" step="0.01" onblur="saveFieldAndRefresh('${escAttr(id)}','${field}',this.value)">`;
+    inp = `<input type="number" class="edit-input" value="${isNaN(n)?'':n}" step="0.01" oninput="debounceSaveRefresh('${escAttr(id)}','${field}',this.value)" onblur="debounceSaveRefresh('${escAttr(id)}','${field}',this.value)">`;
   } else {
-    inp = `<input type="text" class="edit-input" value="${escAttr(disp)}" onblur="saveField('${escAttr(id)}','${field}',this.value)">`;
+    inp = `<input type="text" class="edit-input" value="${escAttr(disp)}" oninput="debounceSave('${escAttr(id)}','${field}',this.value)" onblur="debounceSave('${escAttr(id)}','${field}',this.value)">`;
   }
   return `<div class="info-card"><label>${escHtml(label)}</label>${inp}</div>`;
 }
 function staticCard(label, value) {
   return `<div class="info-card"><label>${escHtml(label)}</label><div class="val">${escHtml(String(value||'—'))}</div></div>`;
 }
+
+let _debounceSaveTimers = {};
+function debounceSave(id, field, value) {
+  const key = id + '_' + field;
+  clearTimeout(_debounceSaveTimers[key]);
+  _debounceSaveTimers[key] = setTimeout(() => {
+    saveField(id, field, value);
+  }, 400);
+}
+function debounceSaveRefresh(id, field, value) {
+  const key = id + '_' + field;
+  clearTimeout(_debounceSaveTimers[key]);
+  _debounceSaveTimers[key] = setTimeout(() => {
+    saveFieldAndRefresh(id, field, value);
+  }, 400);
+}
+ 
 function purchasedCard(id, isPurchased, qtyPurchased) {
   const row = allData.find(p => p.opportunity_id === id);
   const approvals = row?.sourcing_approvals || [];
