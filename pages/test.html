@@ -2258,7 +2258,7 @@ function updateWizardUI() {
   document.getElementById('wizardBackBtn').style.display = isFirst ? 'none' : '';
   document.getElementById('wizardNextBtn').style.display = isLast ? 'none' : '';
   document.getElementById('wizardSaveBtn').style.display = isLast ? '' : 'none';
-  var hints = ['Product name is required', 'Supplier is required', 'Fill in cost details', 'Review and save'];
+  var hints = ['Complete all required fields', 'All fields required', 'All fields required', 'All fields required except note'];
   document.getElementById('wizardFooterHint').textContent = hints[wizardCurrentStep] || '';
 }
 
@@ -2276,10 +2276,15 @@ function wizardGoTo(step) {
   wizardCurrentStep = step;
   updateWizardUI();
 }
+
+
 function validateWizardStep(step) {
+  const isMultiMode = document.getElementById('fEanMulti')?.style.display === 'flex';
   let requiredIds = [];
-  if (step === 0) requiredIds = ['f_productName'];
-  else if (step === 1) requiredIds = ['f_supplierName'];
+  if (step === 0) requiredIds = ['f_productName', 'f_primaryFulfillment', 'f_keepa'];
+  else if (step === 1) requiredIds = ['f_supplierName', 'f_supplierStock', 'f_supplierCheapest', ...(isMultiMode ? [] : ['f_code'])];
+  else if (step === 2) requiredIds = ['f_costOfSale', 'f_netProfit', 'f_unitQuantity', 'f_vatRate', ...(isMultiMode ? [] : ['f_costOfUnit'])];
+  else if (step === 3) requiredIds = ['f_packing', 'f_seasonality', 'f_competition'];
   let firstError = null;
   requiredIds.forEach(id => {
     const el = document.getElementById(id);
