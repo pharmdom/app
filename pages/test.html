@@ -581,12 +581,89 @@ col.col-agent     { width: 110px; }
 .btn-basket-approve:hover { background: #6d28d9; }
 .btn-basket-reject { background: #fff; color: #dc2626; border: 1.5px solid #fecaca; padding: 7px 16px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; transition: background .15s; }
 .btn-basket-reject:hover { background: #fef2f2; }
+
+
+ /* ══ STAGE NAV BAR ══ */
+.stage-nav {
+  display: flex; align-items: center; gap: 0;
+  margin-bottom: 20px; padding: 6px;
+  background: #f8fafc; border-radius: 14px; border: 1px solid #e2e8f0;
+}
+.stage-step {
+  flex: 1; display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-radius: 10px; cursor: pointer;
+  transition: all .2s; position: relative; user-select: none;
+}
+.stage-step:hover { background: #fff; }
+.stage-step.active { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.stage-step-number {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
+  transition: all .2s; background: #e2e8f0; color: #64748b;
+}
+.stage-step.active .stage-step-number { color: #fff; }
+.stage-step[data-stage="1"].active .stage-step-number { background: #f59e0b; }
+.stage-step[data-stage="2"].active .stage-step-number { background: #3b82f6; }
+.stage-step[data-stage="3"].active .stage-step-number { background: #8b5cf6; }
+.stage-step-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.stage-step-label {
+  font-size: 13px; font-weight: 600; color: #334155;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.stage-step-desc {
+  font-size: 11px; color: #94a3b8; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.stage-step.active .stage-step-label { color: #0f172a; }
+.stage-step.active .stage-step-desc { color: #64748b; }
+.stage-step-count {
+  margin-left: auto; font-size: 18px; font-weight: 700;
+  color: #cbd5e1; flex-shrink: 0; transition: color .2s;
+}
+.stage-step.active .stage-step-count { color: #334155; }
+.stage-connector {
+  width: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.stage-connector svg { color: #cbd5e1; }
  
  </style>
 
 
 
 <div class="page-wrapper">
+
+   <!-- Stage Navigation Bar -->
+  <div class="stage-nav" id="stageNav">
+    <div class="stage-step active" data-stage="1" onclick="setStage(1)">
+      <div class="stage-step-number">1</div>
+      <div class="stage-step-info">
+        <span class="stage-step-label">New Products</span>
+        <span class="stage-step-desc">Needs review & approval</span>
+      </div>
+      <span class="stage-step-count" id="stageCount1">0</span>
+    </div>
+    <div class="stage-connector"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+    <div class="stage-step" data-stage="2" onclick="setStage(2)">
+      <div class="stage-step-number">2</div>
+      <div class="stage-step-info">
+        <span class="stage-step-label">Approved</span>
+        <span class="stage-step-desc">Ready for basket</span>
+      </div>
+      <span class="stage-step-count" id="stageCount2">0</span>
+    </div>
+    <div class="stage-connector"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+    <div class="stage-step" data-stage="3" onclick="setStage(3)">
+      <div class="stage-step-number">3</div>
+      <div class="stage-step-info">
+        <span class="stage-step-label">Purchased</span>
+        <span class="stage-step-desc">Order completed</span>
+      </div>
+      <span class="stage-step-count" id="stageCount3">0</span>
+    </div>
+  </div>
+ 
+ 
   <div class="page-header">
     <div class="stats-row">
    <div class="src-actions-wrap">
@@ -984,6 +1061,7 @@ const perPage = 25;
 let startTime, timerInterval;
 let activeTab = 'overview';
 let activeStatFilter = null;
+let activeStage = 1;
 let currentDrawerId = null;
 let asinSaveTimer = null;
 /* ══ REALTIME ══ */
@@ -1012,6 +1090,23 @@ async function refreshData() {
     else closeDrawer();
   }
 }
+
+
+
+/* ══ STAGE NAV ══ */
+function setStage(stage) {
+  if (activeStage === stage) return;
+  activeStage = stage;
+  document.querySelectorAll('.stage-step').forEach(s => s.classList.remove('active'));
+  const el = document.querySelector(`.stage-step[data-stage="${stage}"]`);
+  if (el) el.classList.add('active');
+  activeStatFilter = null;
+  document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active-filter'));
+  currentPage = 1;
+  applyFilters();
+}
+   
+   
 /* ══ FETCH ══ */
 async function fetchSourcing() {
   const { data, error } = await sb
@@ -1062,6 +1157,12 @@ async function init() {
 }
 /* ══ STATS ══ */
 function updateStats() {
+   const stage1Count = allData.filter(p => !p.approved && !isRejected(p)).length;
+  const stage2Count = allData.filter(p => p.approved && !isRejected(p) && !p.purchased).length;
+  const stage3Count = allData.filter(p => p.purchased).length;
+  const sc1 = document.getElementById('stageCount1'); if (sc1) sc1.textContent = stage1Count;
+  const sc2 = document.getElementById('stageCount2'); if (sc2) sc2.textContent = stage2Count;
+  const sc3 = document.getElementById('stageCount3'); if (sc3) sc3.textContent = stage3Count;
   const needsApproval = allData.filter(p => !p.approved && !isRejected(p)).length;
   const needsPurchase = allData.filter(p => p.approved && !isRejected(p) && !p.purchased).length;
   const rejectedCount = allData.filter(p => isRejected(p)).length;
@@ -1117,6 +1218,10 @@ filtered = allData.filter(p => {
     if (fSupplier && p.supplier_name !== fSupplier) return false;
     if (fDateFrom && new Date(p.created_at) < new Date(fDateFrom)) return false;
     if (fDateTo   && new Date(p.created_at) > new Date(fDateTo + 'T23:59:59')) return false;
+     // Stage filter
+    if (activeStage === 1 && (p.approved || isRejected(p))) return false;
+    if (activeStage === 2 && (!p.approved || isRejected(p) || p.purchased)) return false;
+    if (activeStage === 3 && !p.purchased) return false;
     if (activeStatFilter === 'needApproval' && (p.approved || isRejected(p))) return false;
     if (activeStatFilter === 'toPurchase' && (!p.approved || isRejected(p) || p.purchased)) return false;
     if (activeStatFilter === 'rejected' && !isRejected(p)) return false;
@@ -1146,6 +1251,9 @@ function clearFilters() {
   document.getElementById('filterDot').style.display = 'none';
   document.getElementById('filterClearBtn').classList.remove('visible');
   activeStatFilter = null;
+   activeStage = 1;
+  document.querySelectorAll('.stage-step').forEach(s => s.classList.remove('active'));
+  document.querySelector('.stage-step[data-stage="1"]')?.classList.add('active');
   document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active-filter'));
   currentPage = 1; applyFilters();
 }
@@ -3363,6 +3471,7 @@ window.toggleFModalMultiEan = toggleFModalMultiEan;
 window.addFModalMultiEanRow = addFModalMultiEanRow;
     
 /* ══ EXPOSE GLOBALS ══ */
+window.setStage = setStage;
 window.basketDecision = basketDecision;
 window.wizardNext = wizardNext; window.wizardBack = wizardBack; window.wizardGoTo = wizardGoTo;
 window.minimizeModal = minimizeModal;
