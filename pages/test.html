@@ -1302,8 +1302,7 @@ function renderDrawer(row) {
     `<div class="drawer-hero">
       <button class="drawer-hero-close" onclick="closeDrawer()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       ${purchasedBadge}
-      <input type="text" class="drawer-product-name drawer-product-name-editable" value="${escAttr(row.product_name||'Product Details')}" oninput="saveDrawerProductName('${escAttr(id)}',this.value)" onkeydown="if(event.key==='Enter'){this.blur()}" spellcheck="false">
-      <div class="drawer-product-meta">${escHtml(row.supplier_name||'')}</div>
+<input type="text" class="drawer-product-name drawer-product-name-editable" value="${escAttr(row.product_name||'Product Details')}" onblur="saveDrawerProductName('${escAttr(id)}',this.value)" onkeydown="if(event.key==='Enter'){this.blur()}" spellcheck="false">      <div class="drawer-product-meta">${escHtml(row.supplier_name||'')}</div>
       <div class="drawer-kpi-row">
         ${kpiCard('Amt. ROI',   !isNaN(amtROI)    ? '£'+amtROI.toFixed(2)    : '—', amtROI >= 0    ? 'positive' : 'negative', 'amtroi')}
         ${kpiCard('After Pack', !isNaN(afterPack) ? '£'+afterPack.toFixed(2) : '—', afterPack >= 0 ? 'positive' : 'negative', 'pack')}
@@ -1494,14 +1493,10 @@ const reasonOpts = REJECT_REASONS.map(r => `<option value="${escAttr(r)}">${escH
 
 
 
-let _productNameTimer;
 async function saveDrawerProductName(id, value) {
   const trimmed = value.trim();
   if (!trimmed) return;
-  clearTimeout(_productNameTimer);
-  _productNameTimer = setTimeout(() => {
-    saveField(id, 'product_name', trimmed);
-  }, 400);
+  saveField(id, 'product_name', trimmed);
 }
 
    
@@ -1548,9 +1543,9 @@ if (type === 'supplier') {
     inp = `<select class="edit-select" onchange="saveField('${escAttr(id)}','${field}',this.value);applyYNColors()"><option value="">—</option>${opts}</select>`;
   } else if (type === 'number') {
     const n = parseFloat(value);
-    inp = `<input type="number" class="edit-input" value="${isNaN(n)?'':n}" step="0.01" oninput="debounceSaveRefresh('${escAttr(id)}','${field}',this.value)" onblur="debounceSaveRefresh('${escAttr(id)}','${field}',this.value)">`;
+    inp = `<input type="number" class="edit-input" value="${isNaN(n)?'':n}" step="0.01" onblur="saveFieldAndRefresh('${escAttr(id)}','${field}',this.value)" onkeydown="if(event.key==='Enter'){this.blur()}">`;
   } else {
-    inp = `<input type="text" class="edit-input" value="${escAttr(disp)}" oninput="debounceSave('${escAttr(id)}','${field}',this.value)" onblur="debounceSave('${escAttr(id)}','${field}',this.value)">`;
+    inp = `<input type="text" class="edit-input" value="${escAttr(disp)}" onblur="saveField('${escAttr(id)}','${field}',this.value)" onkeydown="if(event.key==='Enter'){this.blur()}">`;
   }
   return `<div class="info-card"><label>${escHtml(label)}</label>${inp}</div>`;
 }
