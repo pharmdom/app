@@ -1299,7 +1299,7 @@ function renderDrawer(row) {
     `<div class="drawer-hero">
       <button class="drawer-hero-close" onclick="closeDrawer()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       ${purchasedBadge}
-      <input type="text" class="drawer-product-name drawer-product-name-editable" value="${escAttr(row.product_name||'Product Details')}" onblur="saveDrawerProductName('${escAttr(id)}',this.value)" onkeydown="if(event.key==='Enter'){this.blur()}" spellcheck="false">
+      <input type="text" class="drawer-product-name drawer-product-name-editable" value="${escAttr(row.product_name||'Product Details')}" oninput="saveDrawerProductName('${escAttr(id)}',this.value)" onkeydown="if(event.key==='Enter'){this.blur()}" spellcheck="false">
       <div class="drawer-product-meta">${escHtml(row.supplier_name||'')}</div>
       <div class="drawer-kpi-row">
         ${kpiCard('Amt. ROI',   !isNaN(amtROI)    ? '£'+amtROI.toFixed(2)    : '—', amtROI >= 0    ? 'positive' : 'negative', 'amtroi')}
@@ -1491,10 +1491,14 @@ const reasonOpts = REJECT_REASONS.map(r => `<option value="${escAttr(r)}">${escH
 
 
 
- async function saveDrawerProductName(id, value) {
+let _productNameTimer;
+async function saveDrawerProductName(id, value) {
   const trimmed = value.trim();
   if (!trimmed) return;
-  await saveField(id, 'product_name', trimmed);
+  clearTimeout(_productNameTimer);
+  _productNameTimer = setTimeout(() => {
+    saveField(id, 'product_name', trimmed);
+  }, 400);
 }
 
    
