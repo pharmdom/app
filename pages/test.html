@@ -217,9 +217,7 @@ col.col-agent     { width: 110px; }
   font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; transition: border-color .15s;
 }
 .edit-input:focus, .edit-select:focus { border-color: #2563eb; }
-.asin-list { display: flex; flex-direction: column; gap: 6px; }
-.asin-row { display: flex; align-items: center; gap: 6px; }
-.asin-row .edit-input { flex: 1; }
+.asin-list { display: flex; flex-direction: column; gap: 0; }
 .asin-add-btn {
   display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px;
   border: 1.5px dashed #bfdbfe; border-radius: 7px; background: #f8fbff;
@@ -527,6 +525,50 @@ col.col-agent     { width: 110px; }
 .wizard-section-intro { font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 16px; padding: 10px 14px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 10px; display: flex; align-items: flex-start; gap: 8px; }
 .wizard-section-intro svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; color: #2563eb; }
 .field-hint { font-size: 10.5px; color: #94a3b8; margin-top: 1px; line-height: 1.4; }
+
+
+/* ── Modal ASIN + Pack Of row ── */
+.modal-asin-row .form-control.asin-modal-input { flex: 1; min-width: 0; }
+.modal-asin-row .form-control.packof-modal-input { width: 80px; flex-shrink: 0; }
+
+/* ── Drawer ASIN horizontal row ── */
+.asin-card-full { grid-column: 1 / -1; }
+.asin-header-row {
+  display: grid; grid-template-columns: 1fr 70px 100px 90px 28px;
+  gap: 8px; padding: 4px 0 6px; border-bottom: 1px solid #e2e8f0; margin-bottom: 4px;
+}
+.asin-header-row span {
+  font-size: 10px; font-weight: 700; color: #94a3b8;
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.asin-data-row {
+  display: grid; grid-template-columns: 1fr 70px 100px 90px 28px;
+  gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid #f1f5f9;
+}
+.asin-data-row:last-child { border-bottom: none; }
+.asin-data-row .edit-input { font-size: 12.5px; padding: 4px 6px; }
+.parcel-toggle {
+  display: inline-flex; border-radius: 6px; overflow: hidden;
+  border: 1.5px solid #e2e8f0; background: #f8fafc; height: 28px;
+}
+.parcel-toggle button {
+  border: none; background: transparent; padding: 0 8px;
+  font-size: 10.5px; font-weight: 600; color: #94a3b8;
+  cursor: pointer; transition: all .15s; font-family: inherit; white-space: nowrap;
+}
+.parcel-toggle button.active {
+  background: #2563eb; color: #fff;
+}
+
+/* ── Editable drawer product name ── */
+.drawer-product-name-editable {
+  font-size: inherit; font-weight: inherit; font-family: inherit;
+  color: inherit; background: transparent; border: 1.5px solid transparent;
+  border-radius: 6px; padding: 2px 6px; width: 100%; text-align: center;
+  outline: none; transition: all .15s; cursor: text;
+}
+.drawer-product-name-editable:hover { border-color: #cbd5e1; background: rgba(255,255,255,.08); }
+.drawer-product-name-editable:focus { border-color: #2563eb; background: rgba(255,255,255,.12); box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
  
  </style>
 
@@ -1257,7 +1299,7 @@ function renderDrawer(row) {
     `<div class="drawer-hero">
       <button class="drawer-hero-close" onclick="closeDrawer()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       ${purchasedBadge}
-      <div class="drawer-product-name">${escHtml(row.product_name||'Product Details')}</div>
+      <input type="text" class="drawer-product-name drawer-product-name-editable" value="${escAttr(row.product_name||'Product Details')}" onblur="saveDrawerProductName('${escAttr(id)}',this.value)" onkeydown="if(event.key==='Enter'){this.blur()}" spellcheck="false">
       <div class="drawer-product-meta">${escHtml(row.supplier_name||'')}</div>
       <div class="drawer-kpi-row">
         ${kpiCard('Amt. ROI',   !isNaN(amtROI)    ? '£'+amtROI.toFixed(2)    : '—', amtROI >= 0    ? 'positive' : 'negative', 'amtroi')}
@@ -1281,12 +1323,12 @@ function renderDrawer(row) {
     </div>`;
   let body = '';
   if (activeTab === 'overview') {
+    const unitQtyVal = row.unit_quantity || 0;
     body = section('Product Info',
       `<div class="info-grid">
-        ${editCard(id,'product_name',row.product_name||'','text')}
-        ${asinCard(id, row.asins||'')}
+        ${asinCard(id, row)}
         ${staticCard('Agent', row.agent)}
-        ${editCard(id,'keepa',row.keepa||'','text','SAS Combined Sales')}
+        <div class="info-card"><label>Unit Quantity (Recommended)</label><span id="static_unit_quantity_${escAttr(id)}">${unitQtyVal || '—'}</span></div>
       </div>`)
     + section('Supplier Details',
       `<div class="info-grid">
@@ -1331,7 +1373,7 @@ function renderDrawer(row) {
 })()}
         ${editCard(id,'cost_of_sale',row.cost_of_sale||'','number','Cost of Sale')}
         ${editCard(id,'net_profit',row.net_profit||'','number','Net Profit')}
-                ${editCard(id,'unit_quantity',row.unit_quantity||'','number','Unit Quantity (Recommended)')}
+                ${editCard(id,'keepa',row.keepa||'','text','SAS Combined Sales')}
         ${editCard(id,'vat_rate',row.vat_rate||'','select:0%,5%,20%','VAT Rate')}
       </div>`)
     + section('Calculated',
@@ -1446,6 +1488,16 @@ const reasonOpts = REJECT_REASONS.map(r => `<option value="${escAttr(r)}">${escH
     </button>`;
   applyYNColors();
 }
+
+
+
+ async function saveDrawerProductName(id, value) {
+  const trimmed = value.trim();
+  if (!trimmed) return;
+  await saveField(id, 'product_name', trimmed);
+}
+
+   
 /* ══ KPI CARD ══ */
 function kpiCard(label, value, cls, key) {
   const icons = {
@@ -1513,23 +1565,45 @@ function purchasedCard(id, isPurchased, qtyPurchased) {
   </div>`;
   return `<div class="info-card"><label>Purchased</label>${sel}${qty}</div>`;
 }
-function asinCard(id, asinValue) {
-  const asins = asinValue ? asinValue.split(',').map(a => a.trim()).filter(Boolean) : [''];
-  const rows = asins.map((a,i) =>
-    `<div class="asin-row" id="asinRow_${escAttr(id)}_${i}">
-      <input type="text" class="edit-input asin-input" data-id="${escAttr(id)}" value="${escAttr(a)}" placeholder="e.g. B08XYZ123" onblur="saveAsins('${escAttr(id)}')">
-      <button class="btn-icon danger" onclick="removeAsinRow('${escAttr(id)}',${i})" title="Remove ASIN"${asins.length<=1?' style="opacity:.3;pointer-events:none"':''}>
+
+
+
+function asinCard(id, row) {
+  const asins = row.asins ? row.asins.split(',').map(a => a.trim()).filter(Boolean) : [''];
+  const packOfs = row.pack_of ? row.pack_of.split(',').map(a => a.trim()) : [];
+  const parcelSizes = row.parcel_size ? row.parcel_size.split(',').map(a => a.trim()) : [];
+  const salesVols = row.sales_volume ? row.sales_volume.split(',').map(a => a.trim()) : [];
+
+  const header = `<div class="asin-header-row">
+    <span>ASIN</span><span>Pack of</span><span>Parcel Size</span><span>Sales Vol.</span><span></span>
+  </div>`;
+
+  const rows = asins.map((a, i) => {
+    const packVal = packOfs[i] || '';
+    const parcelVal = (parcelSizes[i] || 'Small');
+    const salesVal = salesVols[i] || '';
+    return `<div class="asin-data-row" id="asinRow_${escAttr(id)}_${i}">
+      <input type="text" class="edit-input asin-input" data-id="${escAttr(id)}" value="${escAttr(a)}" placeholder="e.g. B08XYZ123" onblur="saveAsinFields('${escAttr(id)}')">
+      <input type="number" class="edit-input packof-input" min="1" value="${escAttr(packVal)}" placeholder="1" onblur="saveAsinFields('${escAttr(id)}')">
+      <div class="parcel-toggle">
+        <button type="button" class="${parcelVal === 'Small' ? 'active' : ''}" onclick="setParcel('${escAttr(id)}',${i},'Small')">Small</button>
+        <button type="button" class="${parcelVal === 'Standard' ? 'active' : ''}" onclick="setParcel('${escAttr(id)}',${i},'Standard')">Std</button>
+      </div>
+      <input type="number" class="edit-input salesvol-input" min="0" value="${escAttr(salesVal)}" placeholder="0" onblur="saveAsinFields('${escAttr(id)}')">
+      <button class="btn-icon danger" onclick="removeAsinRow('${escAttr(id)}',${i})" title="Remove ASIN"${asins.length <= 1 ? ' style="opacity:.3;pointer-events:none"' : ''}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
-    </div>`).join('');
-  return `<div class="info-card" id="asinCard_${escAttr(id)}"><label>ASIN(s)</label>
+    </div>`;
+  }).join('');
+
+  return `<div class="info-card asin-card-full" id="asinCard_${escAttr(id)}"><label>ASIN(s)</label>
+    ${header}
     <div class="asin-list" id="asinList_${escAttr(id)}">${rows}</div>
     <button class="asin-add-btn" onclick="addAsinRow('${escAttr(id)}')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add ASIN
     </button>
   </div>`;
 }
-
 
 /* ══ ANALYZER (Keepa) — self-contained, never writes to any sourcing field ══ */
 const KEEPA_API_KEY = '3aq7cr8atsqmkqus7ap9g74dfk70om4e26ts9f63j0sel4egmipd8bc2q447th2l'; // TODO: move behind a proxy before wider rollout
@@ -1997,43 +2071,103 @@ async function onPurchasedChange(id, value) {
   if (extra) extra.style.display = value === 'true' ? 'block' : 'none';
   await saveField(id, 'purchased', value === 'true');
 }
-function saveAsins(id) {
-  clearTimeout(asinSaveTimer);
-  asinSaveTimer = setTimeout(() => {
+let asinFieldSaveTimer;
+function saveAsinFields(id) {
+  clearTimeout(asinFieldSaveTimer);
+  asinFieldSaveTimer = setTimeout(async () => {
     const list = document.getElementById(`asinList_${id}`);
     if (!list) return;
-    const vals = Array.from(list.querySelectorAll('.asin-input')).map(i => i.value.trim()).filter(Boolean);
-    saveField(id, 'asins', vals.join(', '));
+    const rows = list.querySelectorAll('.asin-data-row');
+    const asins = [], packs = [], parcels = [], vols = [];
+    rows.forEach(r => {
+      const asin = r.querySelector('.asin-input')?.value.trim();
+      if (!asin) return;
+      asins.push(asin);
+      packs.push(r.querySelector('.packof-input')?.value.trim() || '');
+      const activeParcel = r.querySelector('.parcel-toggle button.active');
+      parcels.push(activeParcel ? (activeParcel.textContent === 'Std' ? 'Standard' : activeParcel.textContent) : 'Small');
+      vols.push(r.querySelector('.salesvol-input')?.value.trim() || '');
+    });
+    const totalSalesVol = vols.reduce((sum, v) => sum + (parseInt(v) || 0), 0);
+    const updates = {
+      asins: asins.join(', '),
+      pack_of: packs.join(', '),
+      parcel_size: parcels.join(', '),
+      sales_volume: vols.join(', ')
+    };
+    // Auto-calculate unit_quantity only if it was empty/zero before
+    const currentRow = allRows.find(r => r.id === id);
+    if (currentRow && (!currentRow.unit_quantity || currentRow.unit_quantity === 0)) {
+      updates.unit_quantity = totalSalesVol;
+    }
+    await sb.from('sourcing').update(updates).eq('id', id);
+    // Update local data
+    if (currentRow) {
+      Object.assign(currentRow, updates);
+    }
+    // Refresh unit_quantity display in overview if visible
+    const uqEl = document.getElementById(`static_unit_quantity_${id}`);
+    if (uqEl) {
+      const displayVal = updates.unit_quantity !== undefined ? updates.unit_quantity : (currentRow?.unit_quantity || 0);
+      uqEl.textContent = displayVal || '—';
+    }
   }, 400);
 }
+
+function setParcel(id, idx, value) {
+  const list = document.getElementById(`asinList_${id}`);
+  if (!list) return;
+  const row = list.querySelectorAll('.asin-data-row')[idx];
+  if (!row) return;
+  row.querySelectorAll('.parcel-toggle button').forEach(b => b.classList.remove('active'));
+  const btns = row.querySelectorAll('.parcel-toggle button');
+  btns.forEach(b => {
+    if ((value === 'Standard' && b.textContent === 'Std') || b.textContent === value) b.classList.add('active');
+  });
+  saveAsinFields(id);
+}
+
 function addAsinRow(id) {
   const list = document.getElementById(`asinList_${id}`);
   if (!list) return;
   const idx = list.children.length;
   const row = document.createElement('div');
-  row.className = 'asin-row'; row.id = `asinRow_${id}_${idx}`;
-  row.innerHTML = `<input type="text" class="edit-input asin-input" data-id="${escAttr(id)}" value="" placeholder="e.g. B08XYZ123" onblur="saveAsins('${escAttr(id)}')">
+  row.className = 'asin-data-row';
+  row.id = `asinRow_${id}_${idx}`;
+  row.innerHTML = `
+    <input type="text" class="edit-input asin-input" data-id="${escAttr(id)}" value="" placeholder="e.g. B08XYZ123" onblur="saveAsinFields('${escAttr(id)}')">
+    <input type="number" class="edit-input packof-input" min="1" value="" placeholder="1" onblur="saveAsinFields('${escAttr(id)}')">
+    <div class="parcel-toggle">
+      <button type="button" class="active" onclick="setParcel('${escAttr(id)}',${idx},'Small')">Small</button>
+      <button type="button" onclick="setParcel('${escAttr(id)}',${idx},'Standard')">Std</button>
+    </div>
+    <input type="number" class="edit-input salesvol-input" min="0" value="" placeholder="0" onblur="saveAsinFields('${escAttr(id)}')">
     <button class="btn-icon danger" onclick="removeAsinRow('${escAttr(id)}',${idx})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
   list.appendChild(row);
-  row.querySelector('input').focus();
+  row.querySelector('.asin-input').focus();
   updateAsinRemoveBtns(id);
 }
+
+   
 function removeAsinRow(id, idx) {
   const list = document.getElementById(`asinList_${id}`);
   if (!list || list.children.length <= 1) return;
-  Array.from(list.querySelectorAll('.asin-row'))[idx]?.remove();
+  Array.from(list.querySelectorAll('.asin-data-row'))[idx]?.remove();
   updateAsinRemoveBtns(id);
-  saveAsins(id);
+  saveAsinFields(id);
 }
+
+   
 function updateAsinRemoveBtns(id) {
   const list = document.getElementById(`asinList_${id}`);
   if (!list) return;
-  const rows = list.querySelectorAll('.asin-row');
+  const rows = list.querySelectorAll('.asin-data-row');
   rows.forEach(r => {
     const btn = r.querySelector('.btn-icon.danger');
     if (btn) { btn.style.opacity = rows.length <= 1 ? '.3' : '1'; btn.style.pointerEvents = rows.length <= 1 ? 'none' : ''; }
   });
 }
+   
 function applyYNColors() {
   document.querySelectorAll('.edit-select, .form-control').forEach(el => {
     const v = (el.value||'').toLowerCase();
@@ -2175,11 +2309,11 @@ function buildAddForm() {
         <div class="form-group"><label>Fulfillment</label><select class="form-control" id="f_primaryFulfillment"><option value="">Select…</option><option>FBM</option><option>FBA</option><option>Both</option></select></div>
         <div class="form-group"><label>SAS Combined Sales</label><input class="form-control" id="f_keepa" type="text" placeholder="e.g. 120"></div>
         <div class="form-group full"><label>ASIN(s)</label>
-          <div class="modal-asin-list" id="modal_asinList">
-            <div class="modal-asin-row"><input class="form-control asin-modal-input" type="text" placeholder="e.g. B08XYZ123"><button type="button" class="btn-icon danger" onclick="removeModalAsin(this)" style="opacity:.3;pointer-events:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
-          </div>
-          <button type="button" class="modal-asin-add-btn" onclick="addModalAsin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add another ASIN</button>
-        </div>
+  <div class="modal-asin-list" id="modal_asinList">
+    <div class="modal-asin-row"><input class="form-control asin-modal-input" type="text" placeholder="e.g. B08XYZ123"><input class="form-control packof-modal-input" type="number" min="1" placeholder="Pack of" title="Pack of"><button type="button" class="btn-icon danger" onclick="removeModalAsin(this)" style="opacity:.3;pointer-events:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+  </div>
+  <button type="button" class="modal-asin-add-btn" onclick="addModalAsin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add another ASIN</button>
+</div>
       </div>
     </div></div>` +
 
@@ -2311,9 +2445,10 @@ function addModalAsin() {
   const row  = document.createElement('div');
   row.className = 'modal-asin-row';
   row.innerHTML = `<input class="form-control asin-modal-input" type="text" placeholder="e.g. B08XYZ123">
+    <input class="form-control packof-modal-input" type="number" min="1" placeholder="Pack of" title="Pack of">
     <button type="button" class="btn-icon danger" onclick="removeModalAsin(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
   list.appendChild(row);
-  row.querySelector('input').focus();
+  row.querySelector('.asin-modal-input').focus();
   updateModalAsinRemoveBtns();
 }
 function removeModalAsin(btn) {
@@ -2331,6 +2466,16 @@ function updateModalAsinRemoveBtns() {
 function getModalAsins() {
   const list = document.getElementById('modal_asinList');
   return list ? Array.from(list.querySelectorAll('.asin-modal-input')).map(i => i.value.trim()).filter(Boolean).join(', ') : '';
+}
+function getModalPackOfs() {
+  const list = document.getElementById('modal_asinList');
+  if (!list) return '';
+  const rows = list.querySelectorAll('.modal-asin-row');
+  return Array.from(rows).map(r => {
+    const asin = r.querySelector('.asin-modal-input')?.value.trim();
+    const pack = r.querySelector('.packof-modal-input')?.value.trim();
+    return asin ? (pack || '') : null;
+  }).filter(v => v !== null).join(', ');
 }
 async function saveProduct() {
   
@@ -2368,6 +2513,9 @@ const opportunityId = 'SRC-' + String(lastNum + 1).padStart(6, '0');
     })(),
     product_name:         productName,
     asins:                getModalAsins(),
+    pack_of:              getModalPackOfs(),
+    parcel_size:          '',
+    sales_volume:         '',
     cost_of_unit: (()=>{
       const isMulti = document.getElementById('fEanMulti')?.style.display === 'flex';
       if (!isMulti) return parseFloat(document.getElementById('f_costOfUnit').value) || 0;
@@ -3159,7 +3307,7 @@ window.clearFilters = clearFilters; window.addNote = addNote;
 window.decideProduct = decideProduct; window.saveField = saveField;
 window.saveFieldAndRefresh = saveFieldAndRefresh; window.filterByStatus = filterByStatus;
 window.addAsinRow = addAsinRow; window.removeAsinRow = removeAsinRow;
-window.saveAsins = saveAsins; window.addModalAsin = addModalAsin;
+window.saveAsinFields = saveAsinFields; window.addModalAsin = addModalAsin;
 window.removeModalAsin = removeModalAsin; window.onPurchasedChange = onPurchasedChange;
 window.applyYNColors = applyYNColors; window.deleteProduct = deleteProduct;
 window.showDeleteConfirm = showDeleteConfirm;
