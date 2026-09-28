@@ -2119,21 +2119,18 @@ function saveAsinFields(id) {
       parcel_size: parcels.join(', '),
       sales_volume: vols.join(', ')
     };
-    // Auto-calculate unit_quantity only if it was empty/zero before
-    const currentRow = allData.find(r => r.id === id);
-    if (currentRow && (!currentRow.unit_quantity || currentRow.unit_quantity === 0)) {
-      updates.unit_quantity = totalSalesVol;
-    }
-    await sb.from('sourcing').update(updates).eq('id', id);
+        // Always update unit_quantity as sum of sales volumes
+    updates.unit_quantity = totalSalesVol;
+    const currentRow = allData.find(r => r.opportunity_id === id);
+    await sb.from('sourcing').update(updates).eq('opportunity_id', id);
     // Update local data
     if (currentRow) {
       Object.assign(currentRow, updates);
     }
     // Refresh unit_quantity display in overview if visible
-    const uqEl = document.getElementById(`static_unit_quantity_${id}`);
+        const uqEl = document.getElementById(`static_unit_quantity_${id}`);
     if (uqEl) {
-      const displayVal = updates.unit_quantity !== undefined ? updates.unit_quantity : (currentRow?.unit_quantity || 0);
-      uqEl.textContent = displayVal || '—';
+      uqEl.textContent = totalSalesVol || '—';
     }
   }, 400);
 }
