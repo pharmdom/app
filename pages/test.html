@@ -496,6 +496,37 @@ col.col-agent     { width: 110px; }
 .src-actions-item:hover{background:#f1f5f9;color:#0f172a;}
 .src-actions-item svg{width:14px;height:14px;flex-shrink:0;opacity:.7;}
 
+ /* ══ WIZARD STEPPER ══ */
+.wizard-steps { display: flex; align-items: center; padding: 18px 22px 14px; border-bottom: 1px solid #f1f5f9; gap: 0; }
+.wizard-step-item { display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1; min-width: 0; }
+.wizard-step-item:last-child .wizard-step-line { display: none; }
+.wizard-step-num {
+  width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 11.5px; font-weight: 800; flex-shrink: 0; transition: all .2s;
+  background: #f1f5f9; color: #94a3b8; border: 2px solid #e2e8f0;
+}
+.wizard-step-num svg { width: 12px; height: 12px; }
+.wizard-step-item.active .wizard-step-num { background: #2563eb; color: #fff; border-color: #2563eb; box-shadow: 0 2px 8px rgba(37,99,235,.3); }
+.wizard-step-item.done .wizard-step-num { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+.wizard-step-label { font-size: 11.5px; font-weight: 600; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color .2s; }
+.wizard-step-item.active .wizard-step-label { color: #0f172a; }
+.wizard-step-item.done .wizard-step-label { color: #15803d; }
+.wizard-step-line { flex: 1; height: 2px; background: #e2e8f0; margin: 0 8px; min-width: 12px; transition: background .2s; }
+.wizard-step-item.done .wizard-step-line { background: #bbf7d0; }
+@media (max-width: 640px) { .wizard-step-label { display: none; } .wizard-step-line { min-width: 8px; margin: 0 4px; } }
+.wizard-panel { display: none; padding: 0; animation: wizardFadeIn .22s ease; }
+.wizard-panel.active { display: block; }
+@keyframes wizardFadeIn { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
+.wizard-footer { padding: 12px 22px; border-top: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: #fafafa; border-radius: 0 0 16px 16px; }
+.wizard-footer-left { font-size: 12px; color: #94a3b8; font-weight: 500; }
+.wizard-footer-right { display: flex; gap: 8px; }
+.field-currency-wrap { position: relative; }
+.field-currency-wrap::before { content: '£'; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 600; color: #94a3b8; pointer-events: none; }
+.field-currency-wrap .form-control { padding-left: 24px; }
+.wizard-section-intro { font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 16px; padding: 10px 14px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 10px; display: flex; align-items: flex-start; gap: 8px; }
+.wizard-section-intro svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; color: #2563eb; }
+.field-hint { font-size: 10.5px; color: #94a3b8; margin-top: 1px; line-height: 1.4; }
+ 
  </style>
 
 
@@ -613,25 +644,34 @@ col.col-agent     { width: 110px; }
   <div class="drawer-body"   id="drawerBody"></div>
   <div class="drawer-footer" id="drawerFooter"></div>
 </div>
+
+
 <div class="modal-overlay" id="addModal" onclick="if(event.target===this)minimizeModal()">
   <div class="modal-box">
     <div class="modal-header">
       <div class="modal-header-left">
         <div class="modal-header-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
-        <div><div class="modal-title">Add New Product</div><div class="modal-sub">Fill in the details below</div></div>
+        <div><div class="modal-title">Add New Product</div><div class="modal-sub" id="wizardStepSub">Step 1 of 4</div></div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <div class="modal-timer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span id="timerText">00:00</span></div>
         <button class="drawer-hero-close" style="position:static;background:#f1f5f9;color:#64748b;width:30px;height:30px;" onclick="closeModal()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     </div>
+    <div class="wizard-steps" id="wizardSteps"></div>
     <div class="modal-body" id="addForm"></div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" id="saveBtn" onclick="saveProduct()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Save Product</button>
+    <div class="wizard-footer">
+      <div class="wizard-footer-left" id="wizardFooterHint"></div>
+      <div class="wizard-footer-right">
+        <button class="btn btn-ghost" id="wizardBackBtn" onclick="wizardBack()" style="display:none">Back</button>
+        <button class="btn btn-primary" id="wizardNextBtn" onclick="wizardNext()">Next <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+        <button class="btn btn-primary" id="wizardSaveBtn" onclick="saveProduct()" style="display:none"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Save Product</button>
+      </div>
     </div>
   </div>
 </div>
+
+
 <div class="modal-overlay" id="reportModal" onclick="if(event.target===this)closeReportModal()">
   <div class="modal-box" style="width:560px;">
     <div class="modal-header">
@@ -2104,57 +2144,155 @@ function openAddModal() {
   window._sourcingStartTime = startTime;
   startTimer(); buildAddForm();
 }
+
+
+let wizardCurrentStep = 0;
+const WIZARD_STEPS = [
+  { label: 'Product',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>' },
+  { label: 'Supplier',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>' },
+  { label: 'Financials', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
+  { label: 'Attributes', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>' },
+];
+
 function buildAddForm() {
+  document.getElementById('wizardSteps').innerHTML = WIZARD_STEPS.map((s, i) =>
+    `<div class="wizard-step-item${i === 0 ? ' active' : ''}" onclick="wizardGoTo(${i})" id="wizStep${i}">
+      <div class="wizard-step-num" id="wizStepNum${i}">${i + 1}</div>
+      <span class="wizard-step-label">${s.label}</span>
+      <div class="wizard-step-line"></div>
+    </div>`
+  ).join('');
+
   const supOpts = suppliers.map(s => `<option value="${escAttr(s.name)}" data-code="${escAttr(s.code||'')}">${escHtml(s.name)}</option>`).join('');
-document.getElementById('addForm').innerHTML =
-    formSection('Identification',
-      `<div class="form-group full"><label>Product Name *</label><input class="form-control" id="f_productName" type="text" placeholder="e.g. Branded Widget 500ml"></div>
-      <div class="form-group"><label>Agent</label><input class="form-control" id="f_agent" type="text" value="${escAttr(getCurrentAgentName())}" readonly style="background:#f8fafc;color:#0f172a;cursor:not-allowed;"></div>
-      <div class="form-group"><label>Fulfillment</label><select class="form-control" id="f_primaryFulfillment"><option value="">Select…</option><option>FBM</option><option>FBA</option><option>Both</option></select></div>
-      <div class="form-group"><label>SAS Combined Sales</label><input class="form-control" id="f_keepa" type="text" placeholder="e.g. last 30 days"></div>
-      <div class="form-group"><label>ASIN(s)</label>
-        <div class="modal-asin-list" id="modal_asinList">
-          <div class="modal-asin-row"><input class="form-control asin-modal-input" type="text" placeholder="e.g. B08XYZ123"><button type="button" class="btn-icon danger" onclick="removeModalAsin(this)" style="opacity:.3;pointer-events:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+
+  document.getElementById('addForm').innerHTML =
+    `<div class="wizard-panel active" id="wizPanel0"><div style="padding:16px 22px 18px">
+      <div class="wizard-section-intro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg><span>Start by identifying the product — what is it, who found it, and its Amazon reference.</span></div>
+      <div class="form-grid2">
+        <div class="form-group full"><label>Product Name *</label><input class="form-control" id="f_productName" type="text" placeholder="e.g. Branded Widget 500ml" autofocus></div>
+        <div class="form-group"><label>Agent</label><input class="form-control" id="f_agent" type="text" value="${escAttr(getCurrentAgentName())}" readonly style="background:#f8fafc;color:#0f172a;cursor:not-allowed;"></div>
+        <div class="form-group"><label>Fulfillment</label><select class="form-control" id="f_primaryFulfillment"><option value="">Select…</option><option>FBM</option><option>FBA</option><option>Both</option></select></div>
+        <div class="form-group"><label>SAS Combined Sales</label><input class="form-control" id="f_keepa" type="text" placeholder="e.g. 120"></div>
+        <div class="form-group full"><label>ASIN(s)</label>
+          <div class="modal-asin-list" id="modal_asinList">
+            <div class="modal-asin-row"><input class="form-control asin-modal-input" type="text" placeholder="e.g. B08XYZ123"><button type="button" class="btn-icon danger" onclick="removeModalAsin(this)" style="opacity:.3;pointer-events:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+          </div>
+          <button type="button" class="modal-asin-add-btn" onclick="addModalAsin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add another ASIN</button>
         </div>
-        <button type="button" class="modal-asin-add-btn" onclick="addModalAsin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add another ASIN</button>
-      </div>`)
-    + formSection('Supplier',
-      `<div class="form-group"><label>Supplier *</label><select class="form-control" id="f_supplierName" onchange="fillSupplierCode()"><option value="">Select…</option>${supOpts}</select></div>
-      <div class="form-group">
-  <label style="display:flex;align-items:center;gap:6px">EAN
-    <button type="button" id="fMultiEanBtn" onclick="toggleFModalMultiEan()" style="width:16px;height:16px;border-radius:4px;border:1.5px solid #bfdbfe;background:#eff6ff;color:#2563eb;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    </button>
-  </label>
-  <div id="fEanSingle"><input class="form-control" id="f_code" type="text"></div>
-  <div id="fEanMulti" style="display:none;flex-direction:column;gap:5px">
-    <div style="display:grid;grid-template-columns:1fr 90px 20px;gap:5px;align-items:center">
-      <input class="form-control f-multi-ean" placeholder="EAN" style="font-size:12px">
-      <input class="form-control f-multi-cost" type="number" step="0.01" placeholder="Cost" style="font-size:12px">
-      <span></span>
-    </div>
-    <button type="button" onclick="addFModalMultiEanRow()" style="display:flex;align-items:center;justify-content:center;gap:4px;padding:5px 8px;border:1.5px dashed #bfdbfe;border-radius:8px;background:#eff6ff;color:#2563eb;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add EAN
-    </button>
-  </div>
-</div>
-      <div class="form-group"><label>Supplier Stock</label><select class="form-control" id="f_supplierStock"><option value="">Select…</option><option>Low</option><option>Medium</option><option>High</option></select></div>
-      <div class="form-group"><label>Supplier Cheapest?</label><select class="form-control" id="f_supplierCheapest" onchange="applyYNColors()"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>`)
-    + formSection('Financials',
-      `<div class="form-group" id="fCostOfUnitWrap"><label>Cost of Unit (£)</label><input class="form-control" id="f_costOfUnit" type="number" step="0.01" placeholder="0.00"></div>
-      <div class="form-group"><label>Cost of Sale (£)</label><input class="form-control" id="f_costOfSale" type="number" step="0.01" placeholder="0.00"></div>
-      <div class="form-group"><label>Net Profit (£)</label><input class="form-control" id="f_netProfit" type="number" step="0.01" placeholder="0.00"></div>
-            <div class="form-group"><label>Unit Quantity (Recommended)</label><input class="form-control" id="f_unitQuantity" type="number" placeholder="0"></div>
-      <div class="form-group"><label>VAT Rate</label><select class="form-control" id="f_vatRate"><option value="">Select…</option><option>0%</option><option>5%</option><option>20%</option></select></div>`)
-          + formSection('Attributes',
-      `<div class="form-group"><label>Packing</label><select class="form-control" id="f_packing"><option value="">Select…</option><option>Fast</option><option>Good</option><option>Medium</option><option>Large</option></select></div>
-      <div class="form-group"><label>Seasonality</label><select class="form-control" id="f_seasonality" onchange="applyYNColors()"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
-      <div class="form-group"><label>Competition</label><select class="form-control" id="f_competition"><option value="">Select…</option><option>Low</option><option>Medium</option><option>High</option></select></div>
-      <div class="form-group full"><label>Initial Note</label><textarea class="form-control" id="f_notes" rows="2" style="resize:none"></textarea></div>`);
+      </div>
+    </div></div>` +
+
+    `<div class="wizard-panel" id="wizPanel1"><div style="padding:16px 22px 18px">
+      <div class="wizard-section-intro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Where is this product coming from? Select the supplier and stock details.</span></div>
+      <div class="form-grid2">
+        <div class="form-group"><label>Supplier *</label><select class="form-control" id="f_supplierName" onchange="fillSupplierCode()"><option value="">Select…</option>${supOpts}</select></div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:6px">EAN
+            <button type="button" id="fMultiEanBtn" onclick="toggleFModalMultiEan()" style="width:16px;height:16px;border-radius:4px;border:1.5px solid #bfdbfe;background:#eff6ff;color:#2563eb;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0" title="Toggle multi-EAN mode">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </label>
+          <div id="fEanSingle"><input class="form-control" id="f_code" type="text"></div>
+          <div id="fEanMulti" style="display:none;flex-direction:column;gap:5px">
+            <div style="display:grid;grid-template-columns:1fr 90px 20px;gap:5px;align-items:center">
+              <input class="form-control f-multi-ean" placeholder="EAN" style="font-size:12px">
+              <input class="form-control f-multi-cost" type="number" step="0.01" placeholder="Cost" style="font-size:12px">
+              <span></span>
+            </div>
+            <button type="button" onclick="addFModalMultiEanRow()" style="display:flex;align-items:center;justify-content:center;gap:4px;padding:5px 8px;border:1.5px dashed #bfdbfe;border-radius:8px;background:#eff6ff;color:#2563eb;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add EAN
+            </button>
+          </div>
+        </div>
+        <div class="form-group"><label>Supplier Stock</label><select class="form-control" id="f_supplierStock"><option value="">Select…</option><option>Low</option><option>Medium</option><option>High</option></select></div>
+        <div class="form-group"><label>Supplier Cheapest?</label><select class="form-control" id="f_supplierCheapest" onchange="applyYNColors()"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
+      </div>
+    </div></div>` +
+
+    `<div class="wizard-panel" id="wizPanel2"><div style="padding:16px 22px 18px">
+      <div class="wizard-section-intro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Enter the cost and profit numbers — these drive the ROI calculations.</span></div>
+      <div class="form-grid2">
+        <div class="form-group" id="fCostOfUnitWrap"><label>Cost of Unit</label><div class="field-currency-wrap"><input class="form-control" id="f_costOfUnit" type="number" step="0.01" placeholder="0.00"></div></div>
+        <div class="form-group"><label>Cost of Sale</label><div class="field-currency-wrap"><input class="form-control" id="f_costOfSale" type="number" step="0.01" placeholder="0.00"></div></div>
+        <div class="form-group"><label>Net Profit</label><div class="field-currency-wrap"><input class="form-control" id="f_netProfit" type="number" step="0.01" placeholder="0.00"></div></div>
+        <div class="form-group"><label>Unit Quantity (Recommended)</label><input class="form-control" id="f_unitQuantity" type="number" placeholder="0"></div>
+        <div class="form-group"><label>VAT Rate</label><select class="form-control" id="f_vatRate"><option value="">Select…</option><option>0%</option><option>5%</option><option>20%</option></select></div>
+      </div>
+    </div></div>` +
+
+    `<div class="wizard-panel" id="wizPanel3"><div style="padding:16px 22px 18px">
+      <div class="wizard-section-intro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg><span>Final details — packing, seasonality, and any initial notes for the team.</span></div>
+      <div class="form-grid2">
+        <div class="form-group"><label>Packing</label><select class="form-control" id="f_packing"><option value="">Select…</option><option>Fast</option><option>Good</option><option>Medium</option><option>Large</option></select></div>
+        <div class="form-group"><label>Seasonality</label><select class="form-control" id="f_seasonality" onchange="applyYNColors()"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
+        <div class="form-group full"><label>Competition</label><select class="form-control" id="f_competition"><option value="">Select…</option><option>Low</option><option>Medium</option><option>High</option></select></div>
+        <div class="form-group full"><label>Initial Note</label><textarea class="form-control" id="f_notes" rows="3" style="resize:none" placeholder="Any context for the team…"></textarea><div class="field-hint">Optional — visible in the Notes tab after saving</div></div>
+      </div>
+    </div></div>`;
+
+  wizardCurrentStep = 0;
+  updateWizardUI();
 }
-function formSection(title, inner) {
-  return `<div class="form-section"><div class="form-section-title">${title}</div><div class="form-grid2">${inner}</div></div>`;
+
+function updateWizardUI() {
+  const total = WIZARD_STEPS.length;
+  const isLast = wizardCurrentStep === total - 1;
+  const isFirst = wizardCurrentStep === 0;
+  for (let i = 0; i < total; i++) {
+    const panel = document.getElementById('wizPanel' + i);
+    if (panel) panel.classList.toggle('active', i === wizardCurrentStep);
+  }
+  for (let i = 0; i < total; i++) {
+    const item = document.getElementById('wizStep' + i);
+    const num = document.getElementById('wizStepNum' + i);
+    if (!item) continue;
+    item.classList.remove('active', 'done');
+    if (i === wizardCurrentStep) item.classList.add('active');
+    else if (i < wizardCurrentStep) item.classList.add('done');
+    num.innerHTML = i < wizardCurrentStep ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : String(i + 1);
+  }
+  document.getElementById('wizardStepSub').textContent = 'Step ' + (wizardCurrentStep + 1) + ' of ' + total + ' — ' + WIZARD_STEPS[wizardCurrentStep].label;
+  document.getElementById('wizardBackBtn').style.display = isFirst ? 'none' : '';
+  document.getElementById('wizardNextBtn').style.display = isLast ? 'none' : '';
+  document.getElementById('wizardSaveBtn').style.display = isLast ? '' : 'none';
+  var hints = ['Product name is required', 'Supplier is required', 'Fill in cost details', 'Review and save'];
+  document.getElementById('wizardFooterHint').textContent = hints[wizardCurrentStep] || '';
 }
+
+function wizardNext() {
+  if (!validateWizardStep(wizardCurrentStep)) return;
+  if (wizardCurrentStep < WIZARD_STEPS.length - 1) { wizardCurrentStep++; updateWizardUI(); }
+}
+function wizardBack() {
+  if (wizardCurrentStep > 0) { wizardCurrentStep--; updateWizardUI(); }
+}
+function wizardGoTo(step) {
+  if (step > wizardCurrentStep) {
+    for (let i = wizardCurrentStep; i < step; i++) { if (!validateWizardStep(i)) return; }
+  }
+  wizardCurrentStep = step;
+  updateWizardUI();
+}
+function validateWizardStep(step) {
+  let requiredIds = [];
+  if (step === 0) requiredIds = ['f_productName'];
+  else if (step === 1) requiredIds = ['f_supplierName'];
+  let firstError = null;
+  requiredIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!el.value || !el.value.trim()) {
+      el.classList.add('required-error');
+      if (!firstError) firstError = el;
+      el.addEventListener('input', () => el.classList.remove('required-error'), { once: true });
+      el.addEventListener('change', () => el.classList.remove('required-error'), { once: true });
+    } else { el.classList.remove('required-error'); }
+  });
+  if (firstError) { firstError.focus(); showToast('Please complete required fields', 'error'); return false; }
+  return true;
+}
+   
+   
 function fillSupplierCode() {
   const select = document.getElementById('f_supplierName');
   const code   = select.options[select.selectedIndex]?.getAttribute('data-code') || '';
@@ -2187,20 +2325,14 @@ function getModalAsins() {
   return list ? Array.from(list.querySelectorAll('.asin-modal-input')).map(i => i.value.trim()).filter(Boolean).join(', ') : '';
 }
 async function saveProduct() {
+  
+ 
+   for (let i = 0; i < WIZARD_STEPS.length; i++) {
+    if (!validateWizardStep(i)) { wizardCurrentStep = i; updateWizardUI(); return; }
+  }
   const isMultiMode = document.getElementById('fEanMulti')?.style.display === 'flex';
-const requiredFields = ['f_productName','f_agent','f_primaryFulfillment','f_keepa','f_supplierName','f_supplierStock','f_supplierCheapest','f_costOfSale','f_netProfit','f_unitQuantity','f_vatRate','f_packing','f_seasonality','f_competition',...(isMultiMode?[]:['f_code','f_costOfUnit'])];
-  let firstError = null;
-  requiredFields.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el.value || !el.value.trim()) {
-      el.classList.add('required-error');
-      if (!firstError) firstError = el;
-      el.addEventListener('input', () => el.classList.remove('required-error'), { once: true });
-    } else { el.classList.remove('required-error'); }
-  });
-  if (firstError) { firstError.scrollIntoView({ behavior:'smooth', block:'center' }); firstError.focus(); showToast('Please complete all required fields', 'error'); return; }
-  const productName = document.getElementById('f_productName').value.trim();
-  const btn = document.getElementById('saveBtn');
+ const productName = document.getElementById('f_productName').value.trim();
+  const btn = document.getElementById('wizardSaveBtn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;margin-right:5px"></span>Saving…';
   const seconds   = Math.floor((Date.now() - startTime) / 1000);
@@ -2900,6 +3032,7 @@ function _saveFormValues() {
   if (asinList) {
     vals._asins = Array.from(asinList.querySelectorAll('.asin-modal-input')).map(i => i.value);
   }
+   vals._wizardStep = wizardCurrentStep;
   return vals;
 }
 function _restoreFormValues(vals) {
@@ -2924,6 +3057,7 @@ function _restoreFormValues(vals) {
     });
     updateModalAsinRemoveBtns();
   }
+   if (vals._wizardStep != null) { wizardCurrentStep = vals._wizardStep; updateWizardUI(); }
   applyYNColors();
 }
 function closeModal() {
@@ -3004,6 +3138,7 @@ window.toggleFModalMultiEan = toggleFModalMultiEan;
 window.addFModalMultiEanRow = addFModalMultiEanRow;
     
 /* ══ EXPOSE GLOBALS ══ */
+window.wizardNext = wizardNext; window.wizardBack = wizardBack; window.wizardGoTo = wizardGoTo;
 window.minimizeModal = minimizeModal;
 window.maximizeModal = maximizeModal;
 window.cancelMinimizedModal = cancelMinimizedModal;
