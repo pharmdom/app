@@ -635,7 +635,19 @@ col.col-agent     { width: 110px; }
 }
  
 .qty-breakdown-tip.visible { opacity: 1; }
- 
+
+
+ .qty-loading {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: qtySpin .6s linear infinite;
+  vertical-align: middle;
+}
+@keyframes qtySpin { to { transform: rotate(360deg); } }
  </style>
 
 
@@ -2397,6 +2409,8 @@ async function autoAnalyzeAndCalcQty(id) {
   _autoAnalyzeTimer = setTimeout(async () => {
     const list = document.getElementById(`asinList_${id}`);
     if (!list) return;
+     const uqEl = document.getElementById(`static_unit_quantity_${id}`);
+if (uqEl) uqEl.innerHTML = '<span class="qty-loading"></span>';
     const rows = list.querySelectorAll('.asin-data-row');
     const asins = [], vols = [];
     rows.forEach(r => {
@@ -2416,16 +2430,18 @@ async function autoAnalyzeAndCalcQty(id) {
       }
     }
     // Calculate and save recommended qty
-    const recQty = calcRecommendedQty(id, asins, vols);
+        const recQty = calcRecommendedQty(id, asins, vols);
     if (recQty > 0) {
       const currentRow = allData.find(r => r.opportunity_id === id);
-_suppressRealtimeDrawer = true;
-await sb.from('sourcing').update({ unit_quantity: recQty, last_updated: new Date().toISOString() }).eq('opportunity_id', id);
-setTimeout(() => { _suppressRealtimeDrawer = false; }, 2000);
-     if (currentRow) currentRow.unit_quantity = recQty;
-      const uqEl = document.getElementById(`static_unit_quantity_${id}`);
+      _suppressRealtimeDrawer = true;
+      await sb.from('sourcing').update({ unit_quantity: recQty, last_updated: new Date().toISOString() }).eq('opportunity_id', id);
+      setTimeout(() => { _suppressRealtimeDrawer = false; }, 2000);
+      if (currentRow) currentRow.unit_quantity = recQty;
       if (uqEl) uqEl.textContent = recQty;
       showToast(`Recommended qty: ${recQty} units`, 'success');
+    } else {
+      const currentRow = allData.find(r => r.opportunity_id === id);
+      if (uqEl) uqEl.textContent = currentRow?.unit_quantity || '—';
     }
   }, 600);
 }
