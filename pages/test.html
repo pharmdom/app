@@ -626,13 +626,14 @@ col.col-agent     { width: 110px; }
   vertical-align: middle; line-height: 1; transition: background .15s;
 }
 .qty-info-icon:hover { background: #c7d2fe; }
+
 .qty-breakdown-tip {
-  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
-  background: #1e293b; color: #f1f5f9; font-size: 11.5px; line-height: 1.5;
+  position: fixed; background: #1e293b; color: #f1f5f9; font-size: 11.5px; line-height: 1.5;
   padding: 10px 14px; border-radius: 10px; white-space: pre-line; width: max-content;
-  max-width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,.2); z-index: 100;
+  max-width: min(320px, 90vw); box-shadow: 0 8px 24px rgba(0,0,0,.2); z-index: 10000;
   opacity: 0; transition: opacity .15s; pointer-events: auto;
 }
+ 
 .qty-breakdown-tip.visible { opacity: 1; }
  
  </style>
@@ -1631,12 +1632,18 @@ function showQtyBreakdown(id) {
   if (existing) existing.remove();
   const icon = document.querySelector(`#static_unit_quantity_${CSS.escape(id)}`)?.closest('.info-card')?.querySelector('.qty-info-icon');
   if (!icon) return;
+  const rect = icon.getBoundingClientRect();
   const tip = document.createElement('div');
   tip.id = 'qtyBreakdownTip';
   tip.className = 'qty-breakdown-tip';
   tip.textContent = text;
-  icon.style.position = 'relative';
-  icon.appendChild(tip);
+  document.body.appendChild(tip);
+  const tipRect = tip.getBoundingClientRect();
+  let left = rect.left + rect.width / 2 - tipRect.width / 2;
+  if (left < 8) left = 8;
+  if (left + tipRect.width > window.innerWidth - 8) left = window.innerWidth - 8 - tipRect.width;
+  tip.style.left = left + 'px';
+  tip.style.top = (rect.top - tipRect.height - 8) + 'px';
   setTimeout(() => tip.classList.add('visible'), 10);
   const dismiss = (e) => { if (!tip.contains(e.target) && e.target !== icon) { tip.remove(); document.removeEventListener('click', dismiss); } };
   setTimeout(() => document.addEventListener('click', dismiss), 50);
@@ -1778,7 +1785,7 @@ function asinCard(id, row) {
         <button type="button" data-size="small" class="${parcelVal === 'Small' ? 'active' : ''}" onclick="setParcel('${escAttr(id)}',${i},'Small')">Small</button>
         <button type="button" data-size="standard" class="${parcelVal === 'Standard' ? 'active' : ''}" onclick="setParcel('${escAttr(id)}',${i},'Standard')">Std</button>
      </div>
-      <input type="number" class="edit-input salesvol-input" min="0" value="${escAttr(salesVal)}" placeholder="0" onblur="saveAsinFields('${escAttr(id)}')">
+      <input type="number" class="edit-input salesvol-input" min="0" value="${escAttr(salesVal)}" placeholder="0" onblur="saveAsinFields('${escAttr(id)}'); autoAnalyzeAndCalcQty('${escAttr(id)}')">
       <button class="btn-icon danger" onclick="removeAsinRow('${escAttr(id)}',${i})" title="Remove ASIN"${asins.length <= 1 ? ' style="opacity:.3;pointer-events:none"' : ''}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -2370,13 +2377,50 @@ function addAsinRow(id) {
       <button type="button" data-size="small" onclick="setParcel('${escAttr(id)}',${idx},'Small')">Small</button>
       <button type="button" data-size="standard" onclick="setParcel('${escAttr(id)}',${idx},'Standard')">Std</button>
     </div>
-    <input type="number" class="edit-input salesvol-input" min="0" value="" placeholder="0" onblur="saveAsinFields('${escAttr(id)}')">
+    <input type="number" class="edit-input salesvol-input" min="0" value="" placeholder="0" onblur="saveAsinFields('${escAttr(id)}'); autoAnalyzeAndCalcQty('${escAttr(id)}')">
     <button class="btn-icon danger" onclick="removeAsinRow('${escAttr(id)}',${idx})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
   list.appendChild(row);
   row.querySelector('.asin-input').focus();
   updateAsinRemoveBtns(id);
 }
-
+let _autoAnalyzeTimer;
+async function autoAnalyzeAndCalcQty(id) {
+  clearTimeout(_autoAnalyzeTimer);
+  _autoAnalyzeTimer = setTimeout(async () => {
+    const list = document.getElementById(`asinList_${id}`);
+    if (!list) return;
+    const rows = list.querySelectorAll('.asin-data-row');
+    const asins = [], vols = [];
+    rows.forEach(r => {
+      const asin = r.querySelector('.asin-input')?.value.trim();
+      if (!asin) return;
+      asins.push(asin);
+      vols.push(r.querySelector('.salesvol-input')?.value.trim() || '0');
+    });
+    // Auto-fetch Keepa for any ASIN not yet cached
+    for (const asin of asins) {
+      const cacheKey = id + '::' + asin;
+      if (!_analyzerCache[cacheKey]) {
+        try {
+          const product = await fetchKeepaProduct(asin);
+          _analyzerCache[cacheKey] = parseKeepaMarketData(product);
+        } catch (e) { /* skip failed fetches */ }
+      }
+    }
+    // Calculate and save recommended qty
+    const recQty = calcRecommendedQty(id, asins, vols);
+    if (recQty > 0) {
+      const currentRow = allData.find(r => r.opportunity_id === id);
+      await sb.from('sourcing').update({ unit_quantity: recQty, last_updated: new Date().toISOString() }).eq('opportunity_id', id);
+      if (currentRow) currentRow.unit_quantity = recQty;
+      const uqEl = document.getElementById(`static_unit_quantity_${id}`);
+      if (uqEl) uqEl.textContent = recQty;
+      showToast(`Recommended qty: ${recQty} units`, 'success');
+    }
+  }, 600);
+}
+window.autoAnalyzeAndCalcQty = autoAnalyzeAndCalcQty;
+   
    
 function removeAsinRow(id, idx) {
   const list = document.getElementById(`asinList_${id}`);
@@ -2580,7 +2624,7 @@ function buildAddForm() {
         <div class="form-group" id="fCostOfUnitWrap"><label>Cost of Unit</label><div class="field-currency-wrap"><input class="form-control" id="f_costOfUnit" type="number" step="0.01" placeholder="0.00"></div></div>
         <div class="form-group"><label>Cost of Sale</label><div class="field-currency-wrap"><input class="form-control" id="f_costOfSale" type="number" step="0.01" placeholder="0.00"></div></div>
         <div class="form-group"><label>Net Profit</label><div class="field-currency-wrap"><input class="form-control" id="f_netProfit" type="number" step="0.01" placeholder="0.00"></div></div>
-        <div class="form-group"><label>Unit Quantity (Recommended)</label><input class="form-control" id="f_unitQuantity" type="number" placeholder="0"></div>
+
         <div class="form-group"><label>VAT Rate</label><select class="form-control" id="f_vatRate"><option value="">Select…</option><option>0%</option><option>5%</option><option>20%</option></select></div>
       </div>
     </div></div>` +
@@ -2647,7 +2691,7 @@ function validateWizardStep(step) {
   let requiredIds = [];
   if (step === 0) requiredIds = ['f_productName', 'f_primaryFulfillment', 'f_keepa'];
   else if (step === 1) requiredIds = ['f_supplierName', 'f_supplierStock', 'f_supplierCheapest', ...(isMultiMode ? [] : ['f_code'])];
-  else if (step === 2) requiredIds = ['f_costOfSale', 'f_netProfit', 'f_unitQuantity', 'f_vatRate', ...(isMultiMode ? [] : ['f_costOfUnit'])];
+  else if (step === 2) requiredIds = ['f_costOfSale', 'f_netProfit', 'f_vatRate', ...(isMultiMode ? [] : ['f_costOfUnit'])];
   else if (step === 3) requiredIds = ['f_packing', 'f_seasonality', 'f_competition'];
   let firstError = null;
   requiredIds.forEach(id => {
@@ -2754,7 +2798,7 @@ const opportunityId = 'SRC-' + String(lastNum + 1).padStart(6, '0');
     })(),
     cost_of_sale:         parseFloat(document.getElementById('f_costOfSale').value) || 0,
     net_profit:           parseFloat(document.getElementById('f_netProfit').value) || 0,
-    unit_quantity:        parseInt(document.getElementById('f_unitQuantity').value) || 0,
+    unit_quantity:        0,
     keepa:                document.getElementById('f_keepa').value,
     primary_fulfillment:  document.getElementById('f_primaryFulfillment').value,
     supplier_cheapest:    supplierCheapestRaw === 'Yes' ? true : supplierCheapestRaw === 'No' ? false : null,
@@ -3399,7 +3443,7 @@ function _saveFormValues() {
   const ids = [
     'f_productName','f_agent','f_primaryFulfillment','f_keepa',
     'f_supplierName','f_code','f_supplierStock','f_supplierCheapest',
-    'f_costOfUnit','f_costOfSale','f_netProfit','f_unitQuantity',
+    'f_costOfUnit','f_costOfSale','f_netProfit',
     'f_packing','f_seasonality','f_competition','f_notes'
   ];
   const vals = {};
