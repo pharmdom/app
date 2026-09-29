@@ -617,6 +617,24 @@ col.col-agent     { width: 110px; }
 }
 .stage-connector svg { color: #cbd5e1; }
  .badge-purple { background: #f3e8ff; color: #7c3aed; }
+
+
+.qty-info-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%; background: #e0e7ff; color: #4338ca;
+  font-size: 10px; font-weight: 700; cursor: pointer; margin-left: 4px;
+  vertical-align: middle; line-height: 1; transition: background .15s;
+}
+.qty-info-icon:hover { background: #c7d2fe; }
+.qty-breakdown-tip {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: #1e293b; color: #f1f5f9; font-size: 11.5px; line-height: 1.5;
+  padding: 10px 14px; border-radius: 10px; white-space: pre-line; width: max-content;
+  max-width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,.2); z-index: 100;
+  opacity: 0; transition: opacity .15s; pointer-events: auto;
+}
+.qty-breakdown-tip.visible { opacity: 1; }
+ 
  </style>
 
 
@@ -1419,7 +1437,7 @@ function renderDrawer(row) {
       `<div class="info-grid">
         ${asinCard(id, row)}
         ${staticCard('Agent', row.agent)}
-        <div class="info-card"><label>Unit Quantity (Recommended)</label><span id="static_unit_quantity_${escAttr(id)}">${unitQtyVal || '—'}</span></div>
+        <div class="info-card"><label>Unit Quantity (Recommended) <span class="qty-info-icon" onclick="showQtyBreakdown('${escAttr(id)}')" title="How was this calculated?">ℹ</span></label><span id="static_unit_quantity_${escAttr(id)}">${unitQtyVal || '—'}</span></div>
       </div>`)
     + section('Supplier Details',
       `<div class="info-grid">
@@ -1605,6 +1623,27 @@ const reasonOpts = REJECT_REASONS.map(r => `<option value="${escAttr(r)}">${escH
   applyYNColors();
 }
 
+function showQtyBreakdown(id) {
+  const row = allData.find(p => p.opportunity_id === id);
+  if (!row) return;
+  const text = getQtyBreakdown(id, row);
+  const existing = document.getElementById('qtyBreakdownTip');
+  if (existing) existing.remove();
+  const icon = document.querySelector(`#static_unit_quantity_${CSS.escape(id)}`)?.closest('.info-card')?.querySelector('.qty-info-icon');
+  if (!icon) return;
+  const tip = document.createElement('div');
+  tip.id = 'qtyBreakdownTip';
+  tip.className = 'qty-breakdown-tip';
+  tip.textContent = text;
+  icon.style.position = 'relative';
+  icon.appendChild(tip);
+  setTimeout(() => tip.classList.add('visible'), 10);
+  const dismiss = (e) => { if (!tip.contains(e.target) && e.target !== icon) { tip.remove(); document.removeEventListener('click', dismiss); } };
+  setTimeout(() => document.addEventListener('click', dismiss), 50);
+}
+window.showQtyBreakdown = showQtyBreakdown;
+
+   
 async function basketDecision(id, approve) {
   const toastId = showToast(approve ? 'Adding to basket…' : 'Rejecting…', 'loading', 0);
   const { error } = await sb.from('sourcing')
@@ -2242,29 +2281,68 @@ function saveAsinFields(id) {
       parcels.push(activeParcel ? (activeParcel.textContent === 'Std' ? 'Standard' : activeParcel.textContent) : '');
       vols.push(r.querySelector('.salesvol-input')?.value.trim() || '');
     });
-    const totalSalesVol = vols.reduce((sum, v) => sum + (parseInt(v) || 0), 0);
-    const updates = {
+       const updates = {
       asins: asins.join(', '),
       pack_of: packs.join(', '),
       parcel_size: parcels.join(', '),
       sales_volume: vols.join(', ')
     };
-        // Always update unit_quantity as sum of sales volumes
-    updates.unit_quantity = totalSalesVol;
     const currentRow = allData.find(r => r.opportunity_id === id);
+    // Only auto-fill unit_quantity if currently empty
+    if (!currentRow || !currentRow.unit_quantity) {
+      const recQty = calcRecommendedQty(id, asins, vols);
+      updates.unit_quantity = recQty;
+    }
     await sb.from('sourcing').update(updates).eq('opportunity_id', id);
-    // Update local data
     if (currentRow) {
       Object.assign(currentRow, updates);
     }
-    // Refresh unit_quantity display in overview if visible
-        const uqEl = document.getElementById(`static_unit_quantity_${id}`);
+    const uqEl = document.getElementById(`static_unit_quantity_${id}`);
     if (uqEl) {
-      uqEl.textContent = totalSalesVol || '—';
+      uqEl.textContent = currentRow?.unit_quantity || '—';
     }
   }, 400);
 }
 
+function calcRecommendedQty(id, asins, vols) {
+  let totalQty = 0;
+  asins.forEach((asin, i) => {
+    const salesVol = parseInt(vols[i]) || 0;
+    if (!salesVol) return;
+    const cache = _analyzerCache[id + '::' + asin];
+    if (cache && cache.offersRaw) {
+      const validOffers = cache.offersRaw.filter(o => !o.isAmazon && (o.isFBA || o.isPrime) && o.stock > 1 && o.price > 0);
+      const sellerCount = Math.max(validOffers.length, 1);
+      totalQty += Math.round(salesVol / sellerCount);
+    } else {
+      totalQty += salesVol;
+    }
+  });
+  return totalQty;
+}
+function getQtyBreakdown(id, row) {
+  const asins = row.asins ? row.asins.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const vols = row.sales_volume ? row.sales_volume.split(',').map(s => s.trim()) : [];
+  const lines = [];
+  asins.forEach((asin, i) => {
+    const salesVol = parseInt(vols[i]) || 0;
+    if (!salesVol) return;
+    const cache = _analyzerCache[id + '::' + asin];
+    if (cache && cache.offersRaw) {
+      const validOffers = cache.offersRaw.filter(o => !o.isAmazon && (o.isFBA || o.isPrime) && o.stock > 1 && o.price > 0);
+      const sellerCount = Math.max(validOffers.length, 1);
+      const rec = Math.round(salesVol / sellerCount);
+      lines.push(`${asin}: ${salesVol} sales ÷ ${sellerCount} seller${sellerCount > 1 ? 's' : ''} (FBA+SFP) = ${rec} units`);
+    } else {
+      lines.push(`${asin}: ${salesVol} sales (no analyzer data yet)`);
+    }
+  });
+  if (!lines.length) return 'No sales volume data entered.';
+  return lines.join('\n') + '\n\n1 month stock · FBA + SFP sellers only';
+}
+window.calcRecommendedQty = calcRecommendedQty;
+window.getQtyBreakdown = getQtyBreakdown;
+  
 function setParcel(id, idx, value) {
   const list = document.getElementById(`asinList_${id}`);
   if (!list) return;
