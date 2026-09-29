@@ -289,14 +289,28 @@
     const { createClient } = supabase;
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    // ── REDIRECT IF ALREADY LOGGED IN ──
+    // ── REDIRECT IF ALREADY LOGGED IN / AFTER OAUTH REDIRECT ──
+    let _authRouted = false;
+    async function routeIfSignedIn(session) {
+      if (!session || _authRouted) return;
+      _authRouted = true;
+      // Strip any leftover OAuth hash from the URL
+      if (window.location.hash) {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+      const cached = sessionStorage.getItem('user');
+      if (cached) { routeByRole(JSON.parse(cached).role); return; }
+      const userObj = await loadProfileAndRoute(session.user.email);
+      if (!userObj) _authRouted = false; // let it retry if the lookup failed
+    }
+
+    sb.auth.onAuthStateChange((_event, session) => {
+      routeIfSignedIn(session);
+    });
+
     (async () => {
       const { data: { session } } = await sb.auth.getSession();
-      if (session) {
-        const cached = sessionStorage.getItem('user');
-        if (cached) { routeByRole(JSON.parse(cached).role); return; }
-        await loadProfileAndRoute(session.user.email);
-      }
+      routeIfSignedIn(session);
     })();
 
 function routeByRole(role) {
