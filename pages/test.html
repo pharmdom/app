@@ -1068,10 +1068,10 @@ async function refreshData() {
   populateSupplierFilter();
   document.getElementById('fSupplier').value = savedSupplier;
   applyFilters();
-  if (currentDrawerId) {
+    if (currentDrawerId) {
     const row = allData.find(p => p.opportunity_id === currentDrawerId);
-    if (row) renderDrawer(row);
-    else closeDrawer();
+    if (row && !_suppressRealtimeDrawer) renderDrawer(row);
+    else if (!row) closeDrawer();
   }
 }
 
@@ -2273,6 +2273,7 @@ async function onPurchasedChange(id, value) {
   await saveField(id, 'purchased', value === 'true');
 }
 let asinFieldSaveTimer;
+let _suppressRealtimeDrawer = false;
 function saveAsinFields(id) {
   clearTimeout(asinFieldSaveTimer);
   asinFieldSaveTimer = setTimeout(async () => {
@@ -2301,8 +2302,14 @@ function saveAsinFields(id) {
       const recQty = calcRecommendedQty(id, asins, vols);
       updates.unit_quantity = recQty;
     }
-    await sb.from('sourcing').update(updates).eq('opportunity_id', id);
-    if (currentRow) {
+
+   
+_suppressRealtimeDrawer = true;
+await sb.from('sourcing').update(updates).eq('opportunity_id', id);
+setTimeout(() => { _suppressRealtimeDrawer = false; }, 2000);
+   
+   
+   if (currentRow) {
       Object.assign(currentRow, updates);
     }
     const uqEl = document.getElementById(`static_unit_quantity_${id}`);
@@ -2412,8 +2419,10 @@ async function autoAnalyzeAndCalcQty(id) {
     const recQty = calcRecommendedQty(id, asins, vols);
     if (recQty > 0) {
       const currentRow = allData.find(r => r.opportunity_id === id);
-      await sb.from('sourcing').update({ unit_quantity: recQty, last_updated: new Date().toISOString() }).eq('opportunity_id', id);
-      if (currentRow) currentRow.unit_quantity = recQty;
+_suppressRealtimeDrawer = true;
+await sb.from('sourcing').update({ unit_quantity: recQty, last_updated: new Date().toISOString() }).eq('opportunity_id', id);
+setTimeout(() => { _suppressRealtimeDrawer = false; }, 2000);
+     if (currentRow) currentRow.unit_quantity = recQty;
       const uqEl = document.getElementById(`static_unit_quantity_${id}`);
       if (uqEl) uqEl.textContent = recQty;
       showToast(`Recommended qty: ${recQty} units`, 'success');
