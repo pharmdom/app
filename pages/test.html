@@ -616,7 +616,7 @@ col.col-agent     { width: 110px; }
   width: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .stage-connector svg { color: #cbd5e1; }
- 
+ .badge-purple { background: #f3e8ff; color: #7c3aed; }
  </style>
 
 
@@ -1820,7 +1820,7 @@ function parseKeepaMarketData(product) {
     const totalPrice = price != null ? price + shipping : null;
     const stockCsv = o.stockCSV || [];
     const stock = stockCsv.length ? stockCsv[stockCsv.length - 1] : null;
-    return { isFBA: !!o.isFBA, isAmazon: !!o.isAmazon, price: totalPrice, stock }; // verify isAmazon against a real response
+    return { isFBA: !!o.isFBA, isAmazon: !!o.isAmazon, isPrime: !!o.isPrime, price: totalPrice, stock }; // verify isAmazon against a real response
   }).filter(o => o.price != null).sort((a, b) => a.price - b.price);
 
   const stats = product.stats || {};
@@ -1964,9 +1964,13 @@ function renderOffersTable(offers) {
   if (!offers.length) {
     return `<div class="aot-wrap">${header}<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12.5px">No live offers found.</div></div>`;
   }
-  const rows = offers.map((o, i) => {
-    const badgeCls = o.isAmazon ? 'badge-blue' : (o.isFBA ? 'badge-green' : 'badge-orange');
-    const badgeLbl = o.isAmazon ? 'AMZ' : (o.isFBA ? 'FBA' : 'FBM');
+    const validOffers = offers.filter(o => o.stock > 1 && o.price > 0);
+  if (!validOffers.length) {
+    return `<div class="aot-wrap">${header}<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12.5px">No live offers found.</div></div>`;
+  }
+  const rows = validOffers.map((o, i) => {
+    const badgeCls = o.isAmazon ? 'badge-blue' : (o.isFBA ? 'badge-green' : (o.isPrime ? 'badge-purple' : 'badge-orange'));
+    const badgeLbl = o.isAmazon ? 'AMZ' : (o.isFBA ? 'FBA' : (o.isPrime ? 'SFP' : 'FBM'));
     const good = o.profit >= 0;
     const pillBg = good ? '#f0fdf4' : '#fef2f2';
     const pillCol = good ? '#15803d' : '#dc2626';
@@ -2963,7 +2967,11 @@ async function generateSourcingReport() {
       .cbi-toggle-btn{display:none;}
       body{padding:14px;}
     }
-  </style></head><body>
+  </style>
+  
+  </head>
+  
+  <body>
   <div class="brand">
     <img src="https://raw.githubusercontent.com/pharmdom/app/refs/heads/main/assets/logo_pharm_and_domestic.png" alt="Pharm & Dom" onerror="this.style.display='none'">
     <div><div class="brand-name">Pharm &amp; Dom</div><div class="brand-sub">Sourcing Performance Report</div></div>
