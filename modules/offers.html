@@ -2038,10 +2038,9 @@ async function openSourcingModal(offer){
         <div class="src-group"><label class="src-lbl">Agent</label><div class="src-prefill">${esc(_agentName||'—')}</div><input type="hidden" id="src_agent" value="${esc(_agentName||'')}"></div>
         <div class="src-group"><label class="src-lbl">Fulfillment *</label><select class="src-inp" id="src_fulfillment"><option value="">Select…</option><option>FBM</option><option>FBA</option></select></div>
         <div class="src-group"><label class="src-lbl">SAS Combined Sales *</label><input class="src-inp" id="src_keepa" placeholder="e.g. 120"></div>
-        <div class="src-group"><label class="src-lbl">ASIN(s)</label>
-          <div style="display:flex;flex-direction:column;gap:6px;" id="src_asinList">
-            <div style="display:flex;align-items:center;gap:6px;"><input class="src-inp src-asin-input" type="text" placeholder="e.g. B08XYZ123" style="flex:1"><button type="button" onclick="removeSrcAsin(this)" style="width:28px;height:28px;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:.3;pointer-events:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
-          </div>
+        <div class="src-group src-full"><label class="src-lbl">ASIN(s)</label>
+          <div style="display:grid;grid-template-columns:1fr 84px 28px;gap:6px;margin-bottom:5px;"><span style="font-size:10.5px;font-weight:600;color:#94a3b8;">ASIN</span><span style="font-size:10.5px;font-weight:600;color:#94a3b8;">Pack of</span><span></span></div>
+          <div style="display:flex;flex-direction:column;gap:6px" id="src_asinList">${srcAsinRowHtml(true)}</div>
           <button type="button" onclick="addSrcAsin()" style="display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:7px 10px;border:1.5px dashed #c4d3f9;border-radius:8px;background:#eef2fd;color:#1847d4;font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;margin-top:6px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add ASIN
           </button>
@@ -2149,6 +2148,7 @@ const required=['src_productName','src_agent','src_fulfillment','src_keepa','src
     })(),
     product_name:document.getElementById('src_productName').value.trim(),
     asins:getSrcAsins(),
+    pack_of:getSrcPackOfs(),
     cost_of_unit:(()=>{
       const isMulti=document.getElementById('srcEanMulti')?.style.display==='flex';
       if(!isMulti) return parseFloat(document.getElementById('src_costOfUnit').value)||0;
@@ -2213,6 +2213,17 @@ const required=['src_productName','src_agent','src_fulfillment','src_keepa','src
   btn.disabled=false;btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Approve';
 }
 
+function srcAsinRowHtml(single){
+  return `<div class="src-asin-row" style="display:grid;grid-template-columns:1fr 84px 28px;gap:6px;align-items:center;"><input class="src-inp src-asin-input" type="text" placeholder="e.g. B08XYZ123"><input class="src-inp src-packof-input" type="number" min="1" step="1" placeholder="1" title="Pack of"><button type="button" onclick="removeSrcAsin(this)" title="Remove ASIN" style="width:28px;height:28px;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;${single?'opacity:.3;pointer-events:none':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>`;
+}
+function getSrcPackOfs(){
+  const list=document.getElementById('src_asinList');
+  if(!list)return'';
+  return Array.from(list.querySelectorAll('.src-asin-row')).map(r=>{
+    const a=r.querySelector('.src-asin-input')?.value.trim();
+    return a?(r.querySelector('.src-packof-input')?.value.trim()||''):null;
+  }).filter(v=>v!==null).join(', ');
+}
 function getSrcAsins(){
   const list=document.getElementById('src_asinList');
   if(!list)return'';
@@ -2221,17 +2232,15 @@ function getSrcAsins(){
 function addSrcAsin(){
   const list=document.getElementById('src_asinList');
   if(!list)return;
-  const row=document.createElement('div');
-  row.style.cssText='display:flex;align-items:center;gap:6px;';
-  row.innerHTML=`<input class="src-inp src-asin-input" type="text" placeholder="e.g. B08XYZ123" style="flex:1"><button type="button" onclick="removeSrcAsin(this)" style="width:28px;height:28px;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
-  list.appendChild(row);
+  list.insertAdjacentHTML('beforeend',srcAsinRowHtml(false));
+  const row=list.lastElementChild;
   row.querySelector('input').focus();
   updateSrcAsinBtns();
 }
 function removeSrcAsin(btn){
   const list=document.getElementById('src_asinList');
   if(!list||list.children.length<=1)return;
-  btn.closest('div').remove();
+  btn.closest('.src-asin-row').remove();
   updateSrcAsinBtns();
 }
 function updateSrcAsinBtns(){
