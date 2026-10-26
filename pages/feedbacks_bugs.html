@@ -1,10 +1,37 @@
 <style>
 .fb-wrap{display:flex;flex-direction:column;height:100%;font-family:'Inter',system-ui,sans-serif;font-size:13px;color:#0d0f14;}
 .fb-topbar{flex-shrink:0;padding:14px 18px;border-bottom:1px solid #e5e7eb;background:#fff;display:flex;align-items:center;gap:10px;min-height:24px;}
-.fb-tabs{display:flex;gap:5px;flex:1;flex-wrap:wrap;}
-.fb-tab{padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;color:#6b7280;cursor:pointer;transition:all .15s;user-select:none;}
+.fb-tabs{display:flex;gap:4px;flex:1;flex-wrap:wrap;}
+.fb-tab{padding:6px 10px;white-space:nowrap;border-radius:20px;font-size:12px;font-weight:600;color:#6b7280;cursor:pointer;transition:all .15s;user-select:none;}
 .fb-tab:hover{background:#f5f6fa;}
 .fb-tab.active{background:#3b6ef820;color:#3b6ef8;}
+.fb-tab-count{display:inline-block;min-width:16px;margin-left:5px;padding:0 5px;border-radius:10px;background:#f1f2f5;color:#9ca3af;font-size:10px;font-weight:700;line-height:16px;text-align:center;}
+.fb-tab.active .fb-tab-count{background:#3b6ef826;color:#3b6ef8;}
+.fb-topbar.has-filter{flex-wrap:wrap;row-gap:10px;}
+.fb-filter-row{flex-basis:100%;display:flex;align-items:center;gap:8px;}
+.fb-person-wrap{position:relative;}
+.fb-person-btn{display:inline-flex;align-items:center;gap:7px;padding:5px 10px 5px 5px;border-radius:20px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s;}
+.fb-person-btn:hover{border-color:#c7cbd6;background:#fafbfc;}
+.fb-person-btn.active{border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8;}
+.fb-person-btn .fb-avatar{width:20px;height:20px;font-size:8.5px;}
+.fb-person-btn .fb-avatar.all{background:#f1f2f5;color:#6b7280;}
+.fb-person-btn .fb-avatar.all svg{width:11px;height:11px;}
+.fb-person-btn .chev{width:12px;height:12px;color:#9ca3af;}
+.fb-person-clear{width:20px;height:20px;border-radius:50%;border:none;background:transparent;color:#9ca3af;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;line-height:1;}
+.fb-person-clear:hover{background:#f1f2f5;color:#dc2626;}
+.fb-person-menu{position:absolute;top:calc(100% + 6px);left:0;width:240px;max-height:300px;overflow-y:auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:5px;z-index:20;display:none;}
+.fb-person-menu.open{display:block;}
+.fb-person-opt{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;color:#374151;}
+.fb-person-opt:hover{background:#f5f6fa;}
+.fb-person-opt.selected{background:#eff6ff;color:#1d4ed8;}
+.fb-person-opt .fb-avatar{width:22px;height:22px;font-size:9px;}
+.fb-person-opt .fb-avatar.all{background:#f1f2f5;color:#6b7280;}
+.fb-person-opt .fb-avatar.all svg{width:12px;height:12px;}
+.fb-person-opt .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fb-person-opt .you{font-size:10px;font-weight:600;color:#9ca3af;margin-left:4px;}
+.fb-person-opt .cnt{font-size:11px;font-weight:700;color:#9ca3af;}
+.fb-person-opt.selected .cnt{color:#3b6ef8;}
+.fb-filter-note{font-size:11.5px;color:#9ca3af;}
 .fb-new-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;border:none;background:#3b6ef8;color:#fff;font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer;transition:background .15s;white-space:nowrap;}
 .fb-new-btn:hover{background:#4c7df9;}
 .fb-back-btn{display:inline-flex;align-items:center;gap:7px;padding:7px 12px 7px 8px;border-radius:9px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s;}
@@ -188,7 +215,8 @@
   const currentUserName = ((window.currentUser?.firstName||'') + ' ' + (window.currentUser?.lastName||'')).trim() || 'Unknown';
 
   let fbItems = [];
-  let fbFilter = 'all';
+  let fbFilter = 'open';
+  let fbPerson = ''; // '' = everyone; otherwise the created_by name
   let fbCurrentItem = null;
   let fbCurrentComments = [];
   let fbCurrentAttachments = [];
@@ -233,20 +261,56 @@
   ];
 
   // ── TOPBAR ──
+  const FB_ALL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+  function fbByPerson(items){ return fbPerson ? items.filter(i => (i.created_by||'') === fbPerson) : items; }
+  function fbByStatus(items, f){ return f === 'all' ? items : items.filter(i => i.status === f); }
   function renderListTopbar(){
-    document.getElementById('fbTopbar').innerHTML = `
+    const base = fbByPerson(fbItems);
+    const tab = (key, label) => `<span class="fb-tab ${fbFilter===key?'active':''}" onclick="fbSetFilter('${key}')">${label}<span class="fb-tab-count">${fbByStatus(base, key).length}</span></span>`;
+    // People list: everyone who has logged something, with counts for the current tab
+    const inTab = fbByStatus(fbItems, fbFilter);
+    const names = [...new Set(fbItems.map(i => i.created_by).filter(Boolean))]
+      .sort((a, b) => (b === currentUserName) - (a === currentUserName) || a.localeCompare(b));
+    const opt = (val, label, avatar, count, isYou) => `<div class="fb-person-opt ${fbPerson===val?'selected':''}" onclick="fbSetPerson(${JSON.stringify(val).replace(/"/g,'&quot;')})">
+        ${avatar}<span class="name">${esc(label)}${isYou?'<span class="you">(you)</span>':''}</span><span class="cnt">${count}</span></div>`;
+    const menu = opt('', 'Everyone', `<div class="fb-avatar all">${FB_ALL_ICON}</div>`, inTab.length, false)
+      + names.map(n => opt(n, n, `<div class="fb-avatar">${esc(initials(n))}</div>`, inTab.filter(i => i.created_by === n).length, n === currentUserName)).join('');
+    const btnAvatar = fbPerson ? `<div class="fb-avatar">${esc(initials(fbPerson))}</div>` : `<div class="fb-avatar all">${FB_ALL_ICON}</div>`;
+    const topbar = document.getElementById('fbTopbar');
+    topbar.classList.add('has-filter');
+    topbar.innerHTML = `
       <div class="fb-tabs">
-        <span class="fb-tab ${fbFilter==='all'?'active':''}" onclick="fbSetFilter('all')">All</span>
-        <span class="fb-tab ${fbFilter==='open'?'active':''}" onclick="fbSetFilter('open')">Open</span>
-        <span class="fb-tab ${fbFilter==='in_progress'?'active':''}" onclick="fbSetFilter('in_progress')">In Progress</span>
-        <span class="fb-tab ${fbFilter==='completed'?'active':''}" onclick="fbSetFilter('completed')">Completed</span>
+        ${tab('all','All')}${tab('open','Open')}${tab('in_progress','In Progress')}${tab('completed','Completed')}
       </div>
-      <button class="fb-new-btn" onclick="fbShowForm()">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        New
-      </button>`;
+      <div class="fb-filter-row">
+        <div class="fb-person-wrap" id="fbPersonWrap">
+          <button type="button" class="fb-person-btn ${fbPerson?'active':''}" onclick="fbTogglePersonMenu(event)">
+            ${btnAvatar}<span>${fbPerson ? esc(fbPerson) : 'Everyone'}</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="fb-person-menu" id="fbPersonMenu">${menu}</div>
+        </div>
+        ${fbPerson ? `<button type="button" class="fb-person-clear" title="Show everyone" onclick="fbSetPerson('')">&times;</button>` : `<span class="fb-filter-note">Filter by who logged it</span>`}
+        <button class="fb-new-btn" style="margin-left:auto" onclick="fbShowForm()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New
+        </button>
+      </div>`;
   }
+  function fbTogglePersonMenu(e){
+    e.stopPropagation();
+    document.getElementById('fbPersonMenu')?.classList.toggle('open');
+  }
+  function fbSetPerson(name){ fbPerson = name || ''; renderListTopbar(); fbRenderList(); }
+  // Close the people menu on any outside click (replace any listener left from a previous panel load)
+  document.removeEventListener('click', window.__fbPersonOutside);
+  window.__fbPersonOutside = (e) => {
+    const wrap = document.getElementById('fbPersonWrap');
+    if (wrap && !wrap.contains(e.target)) document.getElementById('fbPersonMenu')?.classList.remove('open');
+  };
+  document.addEventListener('click', window.__fbPersonOutside);
   function renderBackTopbar(title){
+    document.getElementById('fbTopbar').classList.remove('has-filter');
     document.getElementById('fbTopbar').innerHTML = `
       <button class="fb-back-btn" onclick="fbShowList()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -263,6 +327,7 @@
       const { data, error } = await sb.from('feedback_bugs').select('*, feedback_bugs_comments(id)').order('created_at', { ascending:false });
       if (error) throw error;
       fbItems = data || [];
+      renderListTopbar();
       fbRenderList();
     } catch(e) {
       document.getElementById('fbBody').innerHTML = `<div class="fb-empty"><div class="fb-empty-title">Couldn't load items</div><div class="fb-empty-sub">${esc(e.message||'')}</div></div>`;
@@ -271,13 +336,13 @@
   function fbSetFilter(f){ fbFilter = f; renderListTopbar(); fbRenderList(); }
   function fbRenderList(){
     const body = document.getElementById('fbBody');
-    let items = fbItems;
-    if (fbFilter !== 'all') items = items.filter(i => i.status === fbFilter);
+    const items = fbByStatus(fbByPerson(fbItems), fbFilter);
     if (!items.length) {
+      const filtered = fbPerson || fbFilter !== 'all';
       body.innerHTML = `<div class="fb-empty">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-        <div class="fb-empty-title">Nothing here yet</div>
-        <div class="fb-empty-sub">Log a bug or leave feedback to get started.</div>
+        <div class="fb-empty-title">${filtered ? 'No matching items' : 'Nothing here yet'}</div>
+        <div class="fb-empty-sub">${filtered ? (fbPerson ? esc(fbPerson) + ' has nothing ' + (fbFilter==='all' ? 'logged' : 'in ' + fbStatusLabel(fbFilter)) + '.' : 'Nothing in ' + fbStatusLabel(fbFilter) + '.') : 'Log a bug or leave feedback to get started.'}</div>
       </div>`;
       return;
     }
@@ -894,6 +959,8 @@
 
   // ── expose ──
   window.fbSetFilter = fbSetFilter;
+  window.fbSetPerson = fbSetPerson;
+  window.fbTogglePersonMenu = fbTogglePersonMenu;
   window.fbShowForm = fbShowForm;
   window.fbShowList = fbShowList;
   window.fbSetType = fbSetType;
