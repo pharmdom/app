@@ -916,8 +916,17 @@ let _navIndex    = 0;
 let _navSupplier = '';
 let _navAllGroups= [];
 let _mergeSelected = [];
-let _catalogMap = {}; 
-let _offersMap = {};
+/* ── EAN MATCHING: leading zeros are ignored (0012345678905 == 12345678905) ── */
+function normEan(v){const s=String(v==null?'':v).trim().replace(/\.0+$/,'');const t=s.replace(/^0+/,'');return t||s;}
+function eanVariants(v){const b=normEan(v);if(!b)return[];const out=new Set([String(v).trim(),b]);let x=b;while(x.length<14){x='0'+x;out.add(x);}return[...out];}
+function makeEanMap(){return new Proxy({},{get:(t,k)=>typeof k==='string'?t[normEan(k)]:t[k],set:(t,k,v)=>{t[typeof k==='string'?normEan(k):k]=v;return true;},has:(t,k)=>(typeof k==='string'?normEan(k):k) in t});}
+async function fetchByEans(table,cols,eans,refine){
+  const all=[...new Set(eans.flatMap(eanVariants))];const rows=[];
+  for(let i=0;i<all.length;i+=150){let q=sb.from(table).select(cols).in('ean',all.slice(i,i+150));if(refine)q=refine(q);const{data,error}=await q;if(error)throw error;rows.push(...(data||[]));}
+  return rows;
+}
+let _catalogMap = makeEanMap(); 
+let _offersMap = makeEanMap();
 let _pendingApprovalOffer = null;  // ean -> price
 let _supMapCache=null;
 let _supMapKey='';
@@ -1107,7 +1116,7 @@ let _bulkRejectIds=[];
 
 
 function buildOffersMap(){
-  _offersMap={};
+  _offersMap=makeEanMap();
   offersData.forEach(r=>{
     const k=String(r.ean||'').trim();
     if(!k||(r.approval||'').toLowerCase()==='rejected')return;
@@ -1123,9 +1132,9 @@ function buildOffersMap(){
 async function loadCatalogPrices(){
   try{
     const eans=[...new Set(offersData.map(r=>String(r.ean||'').trim()).filter(Boolean))];
-    if(!eans.length){_catalogMap={};return;}
-    const{data}=await sb.from('catalog').select('ean,cost,supplier_name').in('ean',eans).not('cost','is',null);
-    _catalogMap={};
+    if(!eans.length){_catalogMap=makeEanMap();return;}
+    const data=await fetchByEans('catalog','ean,cost,supplier_name',eans,q=>q.not('cost','is',null));
+    _catalogMap=makeEanMap();
     (data||[]).forEach(r=>{
       const k=String(r.ean||'').trim();
       if(!k)return;
@@ -2756,14 +2765,9 @@ async function doImportOffers() {
   let existingEanSet = new Set();
   try {
     if (rowEans.length) {
-      const { data: existingRows, error: existingErr } = await sb
-        .from('offers')
-        .select('ean')
-        .in('ean', rowEans)
-        .neq('approval', 'Rejected');
-      if (existingErr) throw existingErr;
+      const existingRows = await fetchByEans('offers', 'ean', rowEans, q => q.neq('approval', 'Rejected'));
       (existingRows || []).forEach(r => {
-        const k = String(r.ean || '').trim().toLowerCase();
+        const k = normEan(String(r.ean || '').trim().toLowerCase());
         if (k) existingEanSet.add(k);
       });
     }
@@ -2776,7 +2780,7 @@ async function doImportOffers() {
   const toInsert = [];
   let duplicates = 0;
   validRows.forEach(row => {
-    const key = String(row.ean || '').trim().toLowerCase();
+    const key = normEan(String(row.ean || '').trim().toLowerCase());
     if (row.ean && existingEanSet.has(key)) { duplicates++; return; }
     toInsert.push(row);
   });

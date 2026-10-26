@@ -934,7 +934,10 @@ let acSelectedIds  = new Set();
 let importRows     = [];     // parsed rows ready to import
 let importSupId    = null;   // supplier for import
 let _parsedLines   = [];     // raw lines for header picker
-let _catalogOffersMap = {};
+/* ── EAN MATCHING: leading zeros are ignored (0012345678905 == 12345678905) ── */
+function normEan(v){const s=String(v==null?'':v).trim().replace(/\.0+$/,'');const t=s.replace(/^0+/,'');return t||s;}
+function makeEanMap(){return new Proxy({},{get:(t,k)=>typeof k==='string'?t[normEan(k)]:t[k],set:(t,k,v)=>{t[typeof k==='string'?normEan(k):k]=v;return true;},has:(t,k)=>(typeof k==='string'?normEan(k):k) in t});}
+let _catalogOffersMap = makeEanMap();
 let catalogPage = 0;
 let acPage = 0;
 
@@ -954,7 +957,7 @@ function initials(n){const p=(n||'?').trim().split(/\s+/);return p.length>=2?(p[
 async function loadOffersForCatalog(){
   try{
     const{data}=await sb.from('offers').select('ean,supplier_name,cost_of_unit').not('ean','is',null).not('cost_of_unit','is',null);
-    _catalogOffersMap={};
+    _catalogOffersMap=makeEanMap();
     (data||[]).forEach(r=>{
       const k=String(r.ean||'').trim();
       if(!k)return;
@@ -2206,7 +2209,7 @@ function renderAllCatalog(){
   let data=_acAllData;
   if(q)data=data.filter(r=>(String(r.ean||'')+' '+String(r.product_name||'')+' '+String(r.supplier_name||'')).toLowerCase().includes(q));
   data=[...data].sort((a,b)=>{
-    const ea=String(a.ean||''),eb=String(b.ean||'');
+    const ea=normEan(a.ean),eb=normEan(b.ean);
     if(ea!==eb)return ea.localeCompare(eb);
     return(parseFloat(a.cost)||999999)-(parseFloat(b.cost)||999999);
   });
@@ -2226,7 +2229,7 @@ function renderAllCatalog(){
   </tr></thead><tbody>`;
   const eanGroups={};
   display.forEach(r=>{
-    const k=String(r.ean||'__no_ean__');
+    const k=r.ean?normEan(r.ean):'__no_ean__';
     if(!eanGroups[k])eanGroups[k]=[];
     eanGroups[k].push(r);
   });
@@ -2255,7 +2258,7 @@ function renderAllCatalog(){
       html+=`<tr style="${groupBg};${leftBorder};${topBorder}">
         ${acBulkMode?`<td><input type="checkbox" class="sc-row-cb sc-ac-cb-item" data-id="${rid}" ${acSelectedIds.has(rid)?'checked':''} onchange="if(this.checked)acSelectedIds.add('${rid}');else acSelectedIds.delete('${rid}');updateAcBulkCount()"></td>`:''}
         <td style="vertical-align:top;padding-top:10px">
-    <a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(ean)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(ean||'—')}</a>
+    <a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(r.ean||'')}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(r.ean||'—')}</a>
       ${(()=>{
       if(ri!==0)return'';
       const offers=_catalogOffersMap[String(r.ean||'').trim()]||[];
@@ -2615,7 +2618,7 @@ const tid=toast('Analysing '+importRows.length+' rows…','loading',0);
     const{data:existing}=await sb.from('catalog').select('id,ean,cost,supplier_id').eq('supplier_id',importSupId);
     const existingMap={};
     (existing||[]).forEach(r=>{
-      const k=String(r.ean||'').trim().replace(/\.0+$/,'');
+      const k=normEan(r.ean);
       if(k)existingMap[k]=r;
     });
 
@@ -2656,8 +2659,8 @@ const tid=toast('Analysing '+importRows.length+' rows…','loading',0);
 // Deduplicate validRows by EAN — last row wins
 const deduped=[];
 const seenEans=new Map();
-validRows.forEach((row,i)=>seenEans.set(String(row.ean||'').trim(),i));
-validRows.forEach((row,i)=>{if(seenEans.get(String(row.ean||'').trim())===i)deduped.push(row);});
+validRows.forEach((row,i)=>seenEans.set(normEan(row.ean),i));
+validRows.forEach((row,i)=>{if(seenEans.get(normEan(row.ean))===i)deduped.push(row);});
 
 const toInsertNew=[];
 const toUpdate=[];
@@ -2665,7 +2668,7 @@ let skipped=0;
 let idCounter=maxNum;
 
 deduped.forEach(row=>{
-      const eanKey=String(row.ean||'').trim().replace(/\.0+$/,'');
+      const eanKey=normEan(row.ean);
       const match=existingMap[eanKey];
       if(!match){
         row.id='CAT-'+String(++idCounter).padStart(4,'0');
@@ -2680,9 +2683,9 @@ deduped.forEach(row=>{
     const validInsert=toInsertNew; // already filtered above
 
     // Find EANs in DB not present in this import file — computed here so showImportConfirm can use it
-const importEanSet=new Set(deduped.map(r=>String(r.ean||'').trim().replace(/\.0+$/,'')));
+const importEanSet=new Set(deduped.map(r=>normEan(r.ean)));
 const toDelete=(existing||[]).filter(r=>{
-  const k=String(r.ean||'').trim().replace(/\.0+$/,'');
+  const k=normEan(r.ean);
   return k&&!importEanSet.has(k);
 }).map(r=>r.id);
 

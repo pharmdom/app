@@ -1085,8 +1085,11 @@ let reviewOpenSku = null;     // which review row's detail panel is currently ex
 
   
 // Catalog + offers data from Supabase
-let _catalogMap = {};  // ean -> [{supplier_name, cost}]
-let _offersMap  = {};  // ean -> [{supplier_name, cost}]
+// ── EAN MATCHING: leading zeros are ignored (0012345678905 == 12345678905) ──
+function normEan(v){const s=String(v==null?'':v).trim().replace(/\.0+$/,'');const t=s.replace(/^0+/,'');return t||s;}
+function makeEanMap(){return new Proxy({},{get:(t,k)=>typeof k==='string'?t[normEan(k)]:t[k],set:(t,k,v)=>{t[typeof k==='string'?normEan(k):k]=v;return true;},has:(t,k)=>(typeof k==='string'?normEan(k):k) in t});}
+let _catalogMap = makeEanMap();  // ean -> [{supplier_name, cost}]
+let _offersMap  = makeEanMap();  // ean -> [{supplier_name, cost}]
 
 // ── SUPABASE DATA LOAD ──
 async function loadPriceContext() {
@@ -1095,14 +1098,14 @@ async function loadPriceContext() {
       sb.from('catalog').select('ean,cost,supplier_name').not('ean','is',null).not('cost','is',null),
       sb.from('offers').select('ean,cost_of_unit,supplier_name').not('ean','is',null).not('cost_of_unit','is',null)
     ]);
-    _catalogMap = {};
+    _catalogMap = makeEanMap();
     (catRes.data || []).forEach(r => {
       const k = String(r.ean || '').trim().toLowerCase();
       if (!k) return;
       if (!_catalogMap[k]) _catalogMap[k] = [];
       _catalogMap[k].push({ name: r.supplier_name || '—', cost: parseFloat(r.cost) });
     });
-    _offersMap = {};
+    _offersMap = makeEanMap();
     (offRes.data || []).forEach(r => {
       const k = String(r.ean || '').trim().toLowerCase();
       if (!k) return;
@@ -1119,14 +1122,14 @@ async function loadPriceContext() {
 
 
 // ── LAST PURCHASED (reads directly from replenishment_skus — no separate table) ──
-let _lastPurchase = { byEan: {}, bySku: {} };
+let _lastPurchase = { byEan: makeEanMap(), bySku: {} };
 async function loadLastPurchaseInfo() {
   try {
     const { data } = await sb.from('replenishment_skus')
       .select('sku,ean,last_purchased_supplier,last_purchased_at')
       .not('last_purchased_at', 'is', null)
       .order('last_purchased_at', { ascending: true });
-    const byEan = {}, bySku = {};
+    const byEan = makeEanMap(), bySku = {};
     (data || []).forEach(r => {
       const rec = { date: r.last_purchased_at, supplier: r.last_purchased_supplier || '' };
       const eanKey = (r.ean || '').trim().toLowerCase();
@@ -1175,7 +1178,7 @@ async function loadSeenSkus() {
       sb.from('replenishment_skus').select('sku,ean,name,action,actioned_at,supplier_name,available,incoming,daily_rate,days_left,order_qty,cost_price,image_url,urgency,source,basket_added_at,original_cost_price,case_price,order_cases,last_purchased_at,last_purchased_supplier,order_submitted,uploaded_at'),
       loadLatestReplNotes(),
     ]);
-    const bySku = {}, byEan = {};
+    const bySku = {}, byEan = makeEanMap();
     (data || []).forEach(r => {
       const rec = { ...r, note: latestNotes[r.sku] || null };
       bySku[r.sku] = rec;
@@ -1183,7 +1186,7 @@ async function loadSeenSkus() {
       if (eanKey && (r.action === 'basket' || r.action === 'pur')) byEan[eanKey] = rec;
     });
     return { bySku, byEan };
-  } catch(e) { return { bySku: {}, byEan: {} }; }
+  } catch(e) { return { bySku: {}, byEan: makeEanMap() }; }
 }
 
 // Returns { sku: latestNoteText } — one entry per SKU, using the most recent thread message

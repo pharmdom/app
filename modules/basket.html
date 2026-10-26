@@ -821,6 +821,9 @@
   let _drawerItem   = null;
   let _drawerNoteCount = null;
   let _catalogCache = null;
+  /* ── EAN MATCHING: leading zeros are ignored (0012345678905 == 12345678905) ── */
+  function normEan(v){const s=String(v==null?'':v).trim().replace(/\.0+$/,'');const t=s.replace(/^0+/,'');return t||s;}
+  function eanVariants(v){const b=normEan(v);if(!b)return[];const out=new Set([String(v).trim(),b]);let x=b;while(x.length<14){x='0'+x;out.add(x);}return[...out];}
   let _allPurchased = { nl: [], repl: [] };
   const PAGE_SIZE   = 25;
   let _cbSupplierFilter = '';
@@ -1957,8 +1960,11 @@ ${isPurchased?`<div class="cb-info-card">
         <div style="padding:30px;text-align:center;color:#94a3b8;font-size:13px;">No EAN available for this product.</div>`;
       return;
     }
-    const catalog = await _loadCatalog();
-    const matches = catalog.filter(c=>(c.ean||'').trim()===ean.trim());
+    let matches = [];
+    try {
+      const { data } = await sb.from('catalog').select('ean,product_name,cost,old_cost,supplier_name').in('ean', eanVariants(ean));
+      matches = data || [];
+    } catch(e) { matches = []; }
 
     if (!matches.length) {
       document.getElementById('cbDrawerBody').innerHTML = `
@@ -2433,7 +2439,7 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
       if (data) return data;
     }
     if (ean) {
-      const { data } = await sb.from('replenishment_skus').select(CB_REPL_COLS).eq('ean', ean)
+      const { data } = await sb.from('replenishment_skus').select(CB_REPL_COLS).in('ean', eanVariants(ean))
         .order('last_purchased_at', { ascending:false, nullsFirst:false }).limit(1);
       if (data && data.length) return data[0];
     }
@@ -2530,7 +2536,7 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
     return String(code || '').split(',').map(x => x.split(':')[0].trim()).filter(Boolean);
   }
   function _cbCodeCost(code, ean) {
-    const part = String(code || '').split(',').map(x => x.trim()).find(x => x.split(':')[0].trim() === ean);
+    const part = String(code || '').split(',').map(x => x.trim()).find(x => normEan(x.split(':')[0]) === normEan(ean));
     const c = part && part.includes(':') ? parseFloat(part.split(':')[1]) : NaN;
     return isNaN(c) ? null : c;
   }
@@ -2542,21 +2548,23 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
     return 'pending';
   }
   async function _cbFindNLMatch(ean) {
-    const safe = ean.replace(/[%_,()]/g, '');
+    const safe = normEan(ean).replace(/[%_,()]/g, '');
     if (!safe) return null;
     const { data } = await sb.from('sourcing').select(CB_NL_COLS).ilike('code', '%' + safe + '%');
-    const rows = (data || []).filter(r => _cbCodeEans(r.code).includes(ean));
+    const key = normEan(ean);
+    const rows = (data || []).filter(r => _cbCodeEans(r.code).some(e => normEan(e) === key));
     if (!rows.length) return null;
     const t = v => new Date(v || 0).getTime();
     const pick = (st, key) => rows.filter(r => _cbNLState(r) === st).sort((a, b) => t(b[key]) - t(a[key]))[0];
     return pick('basket', 'basket_added_at') || pick('purchased', 'purchased_at') || pick('pending', 'created_at') || pick('rejected', 'created_at') || null;
   }
   async function _cbFindReplByEan(ean) {
-    const { data } = await sb.from('replenishment_skus').select(CB_REPL_COLS).eq('ean', ean)
+    const vars = eanVariants(ean);
+    const { data } = await sb.from('replenishment_skus').select(CB_REPL_COLS).in('ean', vars)
       .order('last_purchased_at', { ascending:false, nullsFirst:false }).limit(1);
     if (data && data.length) return data[0];
-    const { data: bySku } = await sb.from('replenishment_skus').select(CB_REPL_COLS).eq('sku', ean).maybeSingle();
-    return bySku || null;
+    const { data: bySku } = await sb.from('replenishment_skus').select(CB_REPL_COLS).in('sku', vars).limit(1);
+    return (bySku && bySku[0]) || null;
   }
 
   function _cbRenderNLHints() {
