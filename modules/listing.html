@@ -224,7 +224,8 @@ html, body {
 
 /* ══ PRODUCT DETAILS (VAT / per-ASIN, stored on the sourcing record) ══ */
 .pd-asin-table{display:flex;flex-direction:column}
-.pd-asin-head,.pd-asin-row{display:grid;grid-template-columns:minmax(96px,1.3fr) 64px 118px 78px;gap:8px;align-items:center}
+.pd-asin-head,.pd-asin-row{display:grid;grid-template-columns:minmax(96px,1.3fr) 44px 64px 118px 78px;gap:8px;align-items:center}
+.pd-asin-row .pd-check{width:28px;height:28px}
 .pd-asin-head{padding:0 0 6px;border-bottom:1px solid #f1f5f9}
 .pd-asin-head span{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8}
 .pd-asin-row{padding:7px 0;border-bottom:1px solid #f8fafc}
@@ -237,8 +238,7 @@ html, body {
 .pd-parcel button.active[data-size="Small"]{background:#eff6ff;color:#1d4ed8}
 .pd-parcel button.active[data-size="Standard"]{background:#f0fdf4;color:#15803d}
 .pd-empty{font-size:12px;color:#94a3b8;padding:4px 0}
-.pd-src-note{font-size:10.5px;color:#94a3b8;margin-top:8px}
-@media (max-width:640px){.pd-asin-head,.pd-asin-row{grid-template-columns:1fr 56px 108px 64px;gap:6px}}
+@media (max-width:640px){.pd-asin-head,.pd-asin-row{grid-template-columns:1fr 34px 56px 108px 64px;gap:6px}}
 
 /* ══ PAGE GUIDE SYSTEM ══ */
 .guide-fab{position:fixed;bottom:24px;right:24px;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 4px 20px rgba(37,99,235,.4);z-index:800;transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;animation:fabPulse 2.5s ease-in-out 1s 3}
@@ -703,8 +703,9 @@ async function fetchSrcDetails(ids) {
 }
 function pdSplit(v) { return v ? String(v).split(',').map(s => s.trim()) : []; }
 
-function renderProductDetails(id) {
+function renderProductDetails(id, row) {
   const d = srcDetails[id];
+  const checks = (row && row.asins_status) || {};
   if (!d) {
     return sec('Product Details')
       + '<div class="info-grid"><div class="info-card" style="grid-column:1/-1"><div class="pd-empty">No linked Sourcing record found for this product.</div></div></div></div>';
@@ -717,6 +718,9 @@ function renderProductDetails(id) {
     const parcel = parcels[i] || '';
     return '<div class="pd-asin-row" data-asin="' + esc(a) + '">'
       + '<span class="pd-asin-code" title="' + esc(a) + '">' + esc(a) + '</span>'
+      + '<button type="button" class="asin-check-btn pd-check' + (checks[a] ? ' checked' : '') + '" title="' + (checks[a] ? 'Reviewed' : 'Mark as reviewed') + '" onclick="toggleAsinRowCheck(\'' + ea(id) + '\',\'' + ea(a) + '\')">'
+      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+      + '</button>'
       + '<input type="number" class="edit-input pd-pack" min="1" value="' + esc(packs[i] || '') + '" placeholder="1" onblur="saveSrcAsinFields(\'' + ea(id) + '\')">'
       + '<div class="pd-parcel">'
       + '<button type="button" data-size="Small" class="' + (parcel === 'Small' ? 'active' : '') + '" onclick="setSrcParcel(\'' + ea(id) + '\',' + i + ',\'Small\')">Small</button>'
@@ -731,10 +735,9 @@ function renderProductDetails(id) {
     + '<div class="info-card" style="grid-column:1/-1"><label>Per ASIN</label>'
     + (asins.length
       ? '<div class="pd-asin-table" id="pdAsinList_' + esc(id) + '">'
-        + '<div class="pd-asin-head"><span>ASIN</span><span>Pack of</span><span>Parcel Size</span><span>Sales Vol.</span></div>'
+        + '<div class="pd-asin-head"><span>ASIN</span><span title="Reviewed">Check</span><span>Pack of</span><span>Parcel Size</span><span>Sales Vol.</span></div>'
         + rows + '</div>'
       : '<div class="pd-empty">No ASINs on the Sourcing record yet.</div>')
-    + '<div class="pd-src-note">Saved to the Sourcing record — changes show everywhere this product appears.</div>'
     + '</div></div></div>';
 }
 
@@ -763,6 +766,16 @@ window.saveSrcAsinFields = function(id) {
     if (updates.pack_of === (d.pack_of || '') && updates.parcel_size === (d.parcel_size || '') && updates.sales_volume === (d.sales_volume || '')) return;
     saveSrcUpdate(id, updates);
   }, 300);
+};
+window.toggleAsinRowCheck = async function(id, asin) {
+  const row = allData.find(p => p.opportunity_id === id);
+  if (!row) return;
+  const status = { ...(row.asins_status || {}) };
+  status[asin] = !status[asin];
+  const { error } = await sb.from('listing').update({ asins_status: status, last_updated: new Date().toISOString() }).eq('opportunity_id', id);
+  if (error) { showToast('Failed to save', 'error'); return; }
+  row.asins_status = status;
+  if (currentDrawerId === id) renderDrawer(row);
 };
 window.setSrcParcel = function(id, idx, value) {
   const list = document.getElementById('pdAsinList_' + id);
@@ -1053,7 +1066,6 @@ function renderDrawer(row) {
     body += sec('Listing Info')
       + '<div class="info-grid">'
       + '<div class="info-card" style="grid-column:1/-1"><label>Listing Name</label><input type="text" class="edit-input" value="' + esc(row.listing_name||'') + '" onblur="saveField(\'' + ea(id) + '\',\'listing_name\',this.value)"></div>'
-      + renderAsinField(id, row.asins, row.asins_status)
       + editCard(id,'supplier_name',row.supplier_name||'','text','Supplier Name')
       + editCard(id,'code',row.code||'','text','EAN')
       + (stage==='ready'||stage==='listed' ? boolCard(id,'arrived',row.arrived,'Delivery Received') : '')
@@ -1066,7 +1078,7 @@ function renderDrawer(row) {
       + editCard(id,'asin_cost',row.asin_cost||'','number','ASIN Cost')
       + editCard(id,'pack_size',row.pack_size||'','number','Pack Size')
       + '</div></div>'
-      + renderProductDetails(id);
+      + renderProductDetails(id, row);
   }
 
   if (activeDrawerTab === 'platforms') {
