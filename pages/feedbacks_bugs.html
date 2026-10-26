@@ -216,6 +216,21 @@
 
   let fbItems = [];
   let fbFilter = 'open';
+
+  // ── WATCHERS: always get an in-app notification (no email) for every new report,
+  //    status change and comment made by someone else. Add more emails here if needed.
+  const FB_WATCHERS = ['engineering@pharmdomestic.com'];
+  function fbNotifyWatchers(feedbackId, type, title, message, alreadyNotified){
+    const me = (window.currentUser?.email || '').toLowerCase();
+    const skip = (alreadyNotified || '').toLowerCase();
+    const rows = FB_WATCHERS
+      .map(e => e.toLowerCase())
+      .filter(e => e && e !== me && e !== skip) // never notify yourself; no doubles for the report's creator
+      .map(e => ({ recipient_email: e, feedback_id: feedbackId, type, title, message }));
+    if (!rows.length) return;
+    sb.from('feedback_notifications').insert(rows)
+      .then(({ error }) => { if (error) console.warn('Watcher notification failed', error); });
+  }
   let fbPerson = ''; // '' = everyone; otherwise the created_by name
   let fbCurrentItem = null;
   let fbCurrentComments = [];
@@ -553,6 +568,9 @@
       }
       fbPendingImages.forEach(p => URL.revokeObjectURL(p.previewUrl));
       fbPendingImages = []; fbPendingVideos = [];
+      fbNotifyWatchers(newReport.id, 'new_report',
+        type === 'feedback' ? 'New feedback logged' : 'New bug logged',
+        `${currentUserName} logged "${title}" (${payload.priority}).`);
       toast('Reported — thanks!', 'success');
       fbShowList();
     } catch(e) {
@@ -672,6 +690,9 @@
       if (idx > -1) fbItems[idx].status = 'in_progress';
       fbRenderDetail();
       toast('Marked in progress', 'success');
+      fbNotifyWatchers(i.id, 'in_progress', 'Report in progress',
+        `"${i.title}" was marked In Progress by ${currentUserName}.`,
+        i.created_by_email !== window.currentUser?.email ? i.created_by_email : '');
             if (i.created_by_email && i.created_by_email !== window.currentUser?.email) {
         fbSendNotificationEmail(
           i.created_by_email,
@@ -733,6 +754,10 @@
       if (idx > -1) Object.assign(fbItems[idx], patch);
       fbRenderDetail();
       toast(complete ? 'Marked completed' : 'Reopened', 'success');
+      fbNotifyWatchers(i.id, complete ? 'completed' : 'reopened',
+        complete ? 'Report completed' : 'Report reopened',
+        complete ? `"${i.title}" was marked Completed by ${currentUserName}.` : `"${i.title}" was reopened by ${currentUserName}.`,
+        complete && i.created_by_email !== window.currentUser?.email ? i.created_by_email : '');
             if (complete && i.created_by_email && i.created_by_email !== window.currentUser?.email) {
         fbSendNotificationEmail(
           i.created_by_email,
@@ -885,6 +910,9 @@
       document.querySelector('.fb-sec-lbl').textContent = `Comments (${fbCurrentComments.length})`;
       input.value = '';
             const reportEmail = fbCurrentItem.created_by_email;
+      fbNotifyWatchers(fbCurrentItem.id, 'comment', 'New comment',
+        `${currentUserName} commented on "${fbCurrentItem.title}": ${text}`,
+        reportEmail !== window.currentUser?.email ? reportEmail : '');
       if (reportEmail && reportEmail !== window.currentUser?.email) {
         fbSendNotificationEmail(
           reportEmail,
