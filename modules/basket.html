@@ -1391,8 +1391,8 @@ function _debounce(fn, wait) {
   async function _cbFetchNLPage(pageIndex) {
     const from = pageIndex*CB_PAGE_SIZE, to = from+CB_PAGE_SIZE-1;
                const cols = _cbTab==='purchased'
-      ? 'opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,qty_purchased,case_price,order_cases,approved,purchased,created_at,purchased_at,order_submitted,asins,vat_rate,pack_of,parcel_size,sales_volume,sourcing_approvals(status)'
-      : 'opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,case_price,order_cases,approved,purchased,created_at,basket_added_at,order_submitted,asins,vat_rate,pack_of,parcel_size,sales_volume,sourcing_approvals(status)';
+      ? 'opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,qty_purchased,case_price,order_cases,approved,purchased,created_at,purchased_at,order_submitted,asins,vat_rate,map_recommended,pack_of,parcel_size,sales_volume,sourcing_approvals(status)'
+      : 'opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,case_price,order_cases,approved,purchased,created_at,basket_added_at,order_submitted,asins,vat_rate,map_recommended,pack_of,parcel_size,sales_volume,sourcing_approvals(status)';
    let query = _cbApplySourcingFilters(sb.from('sourcing').select(cols));
     const orderField = _cbTab==='purchased' ? 'purchased_at' : 'basket_added_at';
     query = query.order(orderField, { ascending:false, nullsFirst:false }).range(from, to);
@@ -2210,6 +2210,10 @@ window.cbValidateNLQtyInput = function() {
             <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>VAT Rate</label>
             <select class="cb-edit-input" onchange="window.cbUpdateNLVat('${escA(id)}',this.value)">${vatOpts}</select>
           </div>
+          <div class="cb-info-card">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>MAP Recommended</label>
+            <input type="number" class="cb-edit-input" step="0.01" min="0" placeholder="£0.00" value="${p.map_recommended!=null&&p.map_recommended!==''?Number(p.map_recommended).toFixed(2):''}" onblur="window.cbUpdateNLMap('${escA(id)}',this.value)">
+          </div>
           <div class="cb-info-card" style="grid-column:1/-1">
             <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Per ASIN</label>
             ${asins.length
@@ -2231,6 +2235,12 @@ window.cbValidateNLQtyInput = function() {
     } catch(e) { _cbToast('Failed to save','error'); }
   }
   window.cbUpdateNLVat = function(id, val) { _cbSaveSrcDetails(id, { vat_rate: val || null }); };
+  window.cbUpdateNLMap = function(id, val) {
+    const v = val === '' || isNaN(parseFloat(val)) ? null : parseFloat(val);
+    const cur = _drawerItem && _drawerItem.data && _drawerItem.data.map_recommended != null ? Number(_drawerItem.data.map_recommended) : null;
+    if (v === cur) return;
+    _cbSaveSrcDetails(id, { map_recommended: v });
+  };
   let _cbPdTimer = null;
   window.cbSaveNLAsinFields = function(id) {
     clearTimeout(_cbPdTimer);
@@ -2512,7 +2522,7 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
   };
 
   /* ── NEW LINE: recognise an EAN already in Sourcing / Replenishments ── */
-  const CB_NL_COLS = 'opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,qty_purchased,case_price,order_cases,approved,purchased,inquire,created_at,purchased_at,basket_added_at,last_updated,order_submitted,asins,vat_rate,pack_of,parcel_size,sales_volume,sourcing_approvals(status)';
+  const CB_NL_COLS = 'opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,qty_purchased,case_price,order_cases,approved,purchased,inquire,created_at,purchased_at,basket_added_at,last_updated,order_submitted,asins,vat_rate,map_recommended,pack_of,parcel_size,sales_volume,sourcing_approvals(status)';
   let _cbNLMatch = null, _cbNLReplMatch = null;
   let _cbNLLookupTimer = null, _cbNLLookupSeq = 0;
 

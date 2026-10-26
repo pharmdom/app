@@ -1292,6 +1292,7 @@ function renderDrawer(row) {
         ${editCard(id,'net_profit',row.net_profit||'','number','Net Profit')}
                 ${editCard(id,'unit_quantity',row.unit_quantity||'','number','Unit Quantity (Recommended)')}
         ${editCard(id,'vat_rate',row.vat_rate||'','select:0%,5%,20%','VAT Rate')}
+        ${editCard(id,'map_recommended',row.map_recommended ?? '','number','MAP Recommended (£)')}
       </div>`)
     + section('Calculated',
       `<div class="info-grid">
@@ -1909,6 +1910,9 @@ async function saveField(opportunityId, field, value) {
   if (field === 'supplier_cheapest') {
     saveValue = value === 'Yes' ? true : value === 'No' ? false : null;
   }
+  if (field === 'map_recommended') {
+    saveValue = (value === '' || value === null || isNaN(parseFloat(value))) ? null : parseFloat(value);
+  }
   const toastId = showToast('Saving…', 'loading', 0);
   const update = { [field]: saveValue, last_updated: new Date().toISOString() };
   const { error } = await sb.from('sourcing').update(update).eq('opportunity_id', opportunityId);
@@ -2145,7 +2149,8 @@ document.getElementById('addForm').innerHTML =
       <div class="form-group"><label>Cost of Sale (£)</label><input class="form-control" id="f_costOfSale" type="number" step="0.01" placeholder="0.00"></div>
       <div class="form-group"><label>Net Profit (£)</label><input class="form-control" id="f_netProfit" type="number" step="0.01" placeholder="0.00"></div>
             <div class="form-group"><label>Unit Quantity (Recommended)</label><input class="form-control" id="f_unitQuantity" type="number" placeholder="0"></div>
-      <div class="form-group"><label>VAT Rate</label><select class="form-control" id="f_vatRate"><option value="">Select…</option><option>0%</option><option>5%</option><option>20%</option></select></div>`)
+      <div class="form-group"><label>VAT Rate</label><select class="form-control" id="f_vatRate"><option value="">Select…</option><option>0%</option><option>5%</option><option>20%</option></select></div>
+      <div class="form-group"><label>MAP Recommended (£)</label><input class="form-control" id="f_mapRecommended" type="number" step="0.01" min="0" placeholder="0.00"></div>`)
           + formSection('Attributes',
       `<div class="form-group"><label>Packing</label><select class="form-control" id="f_packing"><option value="">Select…</option><option>Fast</option><option>Good</option><option>Medium</option><option>Large</option></select></div>
       <div class="form-group"><label>Seasonality</label><select class="form-control" id="f_seasonality" onchange="applyYNColors()"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
@@ -2188,7 +2193,7 @@ function getModalAsins() {
 }
 async function saveProduct() {
   const isMultiMode = document.getElementById('fEanMulti')?.style.display === 'flex';
-const requiredFields = ['f_productName','f_agent','f_primaryFulfillment','f_keepa','f_supplierName','f_supplierStock','f_supplierCheapest','f_costOfSale','f_netProfit','f_unitQuantity','f_vatRate','f_packing','f_seasonality','f_competition',...(isMultiMode?[]:['f_code','f_costOfUnit'])];
+const requiredFields = ['f_productName','f_agent','f_primaryFulfillment','f_keepa','f_supplierName','f_supplierStock','f_supplierCheapest','f_costOfSale','f_netProfit','f_unitQuantity','f_vatRate','f_mapRecommended','f_packing','f_seasonality','f_competition',...(isMultiMode?[]:['f_code','f_costOfUnit'])];
   let firstError = null;
   requiredFields.forEach(id => {
     const el = document.getElementById(id);
@@ -2245,6 +2250,7 @@ const opportunityId = 'SRC-' + String(lastNum + 1).padStart(6, '0');
     competition:          document.getElementById('f_competition').value,
     supplier_stock:       document.getElementById('f_supplierStock').value,
     vat_rate:             document.getElementById('f_vatRate').value,
+    map_recommended:      parseFloat(document.getElementById('f_mapRecommended').value),
     purchased:            false,
     approved:             false,
   };
@@ -2271,6 +2277,7 @@ const opportunityId = 'SRC-' + String(lastNum + 1).padStart(6, '0');
     seasonality: insertData.seasonality, competition: insertData.competition,
        supplier_stock: insertData.supplier_stock,
     vat_rate: insertData.vat_rate,
+    map_recommended: insertData.map_recommended,
   });
   removeToast(toastId);
   showToast('Product saved', 'success');

@@ -673,7 +673,7 @@ async function loadSrcDetails(ids){
   const map={};
   for(let i=0;i<ids.length;i+=100){
     const {data,error}=await sb.from('sourcing')
-      .select('opportunity_id,asins,vat_rate,pack_of,parcel_size,sales_volume')
+      .select('opportunity_id,asins,vat_rate,map_recommended,pack_of,parcel_size,sales_volume')
       .in('opportunity_id',ids.slice(i,i+100));
     if(error){console.error(error);continue;}
     (data||[]).forEach(r=>{map[r.opportunity_id]=r;});
@@ -698,6 +698,7 @@ function productDetailsHtml(id){
   return sec('Product Details')
     +'<div class="info-grid">'
     +readCard('VAT Rate',d.vat_rate||'—','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>')
+    +readCard('MAP Recommended',d.map_recommended!=null?'£'+Number(d.map_recommended).toFixed(2):'—','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>')
     +'<div class="info-card" style="grid-column:1/-1"><label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Per ASIN</label>'
     +(asins.length
       ?'<div class="pd-asin-table"><div class="pd-asin-head"><span>ASIN</span><span>Pack of</span><span>Parcel Size</span><span>Sales Vol.</span></div>'+rows+'</div>'

@@ -694,7 +694,7 @@ async function fetchSrcDetails(ids) {
   const map = {};
   for (let i = 0; i < ids.length; i += 100) {
     const { data, error } = await sb.from('sourcing')
-      .select('opportunity_id,asins,vat_rate,pack_of,parcel_size,sales_volume')
+      .select('opportunity_id,asins,vat_rate,map_recommended,pack_of,parcel_size,sales_volume')
       .in('opportunity_id', ids.slice(i, i + 100));
     if (error) { console.error(error); continue; }
     (data || []).forEach(r => { map[r.opportunity_id] = r; });
@@ -732,6 +732,7 @@ function renderProductDetails(id, row) {
   return sec('Product Details')
     + '<div class="info-grid">'
     + '<div class="info-card"><label>VAT Rate</label><select class="edit-select" onchange="saveSrcVat(\'' + ea(id) + '\',this.value)">' + vatOpts + '</select></div>'
+    + '<div class="info-card"><label>MAP Recommended (£)</label><input type="number" class="edit-input" step="0.01" min="0" placeholder="0.00" value="' + (d.map_recommended != null ? esc(Number(d.map_recommended).toFixed(2)) : '') + '" onblur="saveSrcMap(\'' + ea(id) + '\',this.value)"></div>'
     + '<div class="info-card" style="grid-column:1/-1"><label>Per ASIN</label>'
     + (asins.length
       ? '<div class="pd-asin-table" id="pdAsinList_' + esc(id) + '">'
@@ -749,6 +750,12 @@ async function saveSrcUpdate(id, updates) {
   return true;
 }
 window.saveSrcVat = function(id, value) { saveSrcUpdate(id, { vat_rate: value || null }); };
+window.saveSrcMap = function(id, value) {
+  const v = value === '' || isNaN(parseFloat(value)) ? null : parseFloat(value);
+  const cur = srcDetails[id] && srcDetails[id].map_recommended != null ? Number(srcDetails[id].map_recommended) : null;
+  if (v === cur) return;
+  saveSrcUpdate(id, { map_recommended: v });
+};
 let _pdSaveTimer = null;
 window.saveSrcAsinFields = function(id) {
   clearTimeout(_pdSaveTimer);
