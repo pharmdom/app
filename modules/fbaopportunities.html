@@ -173,6 +173,18 @@ body{overflow:hidden}
 .info-card label{display:flex;align-items:center;gap:5px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:5px;}
 .info-card label svg{width:11px;height:11px;flex-shrink:0}
 .info-card .read-val{font-size:13px;font-weight:600;color:var(--text2);padding:3px 0}
+.pd-asin-table{display:flex;flex-direction:column}
+.pd-asin-head,.pd-asin-row{display:grid;grid-template-columns:minmax(96px,1.3fr) 64px 100px 78px;gap:8px;align-items:center}
+.pd-asin-head{padding:0 0 6px;border-bottom:1px solid var(--border2)}
+.pd-asin-head span{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4)}
+.pd-asin-row{padding:7px 0;border-bottom:1px solid var(--border2)}
+.pd-asin-row:last-child{border-bottom:none;padding-bottom:0}
+.pd-asin-code{font-family:'SF Mono','Fira Code',monospace;font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pd-val{font-size:13px;font-weight:600;color:var(--text2)}
+.pd-parcel-pill{display:inline-flex;padding:2px 9px;border-radius:100px;font-size:11px;font-weight:700}
+.pd-parcel-pill.small{background:#eff6ff;color:#1d4ed8}
+.pd-parcel-pill.std{background:#f0fdf4;color:#15803d}
+.pd-empty{font-size:12px;color:var(--text4);padding:4px 0}
 .info-card select,.info-card input[type="number"]{width:100%;padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;font-family:var(--font);background:var(--surface);color:var(--text2);outline:none;cursor:pointer;transition:all .15s;-webkit-appearance:none;appearance:none;}
 .info-card select:focus,.info-card input[type="number"]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(24,71,212,.07)}
 .info-card .select-wrap{position:relative}
@@ -646,12 +658,51 @@ async function loadData(){
       .order('created_at',{ascending:false});
     if(error) throw error;
     allData=data||[];
+    await loadSrcDetails(allData.map(r=>r.opportunity_id).filter(Boolean));
     renderView();
     updateChips();
   }catch(e){
     showEmpty('Failed to load','Check your Supabase connection');
     toast('Failed to load: '+e.message,'error');
   }finally{pDone();}
+}
+
+/* ── PRODUCT DETAILS (read-only; VAT / Pack of / Parcel Size / Sales Vol. live on the sourcing record) ── */
+let srcDetails={};
+async function loadSrcDetails(ids){
+  const map={};
+  for(let i=0;i<ids.length;i+=100){
+    const {data,error}=await sb.from('sourcing')
+      .select('opportunity_id,asins,vat_rate,pack_of,parcel_size,sales_volume')
+      .in('opportunity_id',ids.slice(i,i+100));
+    if(error){console.error(error);continue;}
+    (data||[]).forEach(r=>{map[r.opportunity_id]=r;});
+  }
+  srcDetails=map;
+}
+function pdSplit(v){return v?String(v).split(',').map(s=>s.trim()):[];}
+function productDetailsHtml(id){
+  const d=srcDetails[id];
+  if(!d) return sec('Product Details')+'<div class="info-grid"><div class="info-card" style="grid-column:1/-1"><div class="pd-empty">No linked Sourcing record found for this product.</div></div></div></div>';
+  const asins=pdSplit(d.asins).filter(Boolean);
+  const packs=pdSplit(d.pack_of),parcels=pdSplit(d.parcel_size),vols=pdSplit(d.sales_volume);
+  const rows=asins.map((a,i)=>{
+    const parcel=parcels[i]||'';
+    return '<div class="pd-asin-row">'
+      +'<span class="pd-asin-code" title="'+esc(a)+'">'+esc(a)+'</span>'
+      +'<span class="pd-val">'+esc(packs[i]||'—')+'</span>'
+      +'<span>'+(parcel?'<span class="pd-parcel-pill '+(parcel==='Small'?'small':'std')+'">'+esc(parcel)+'</span>':'<span class="pd-val">—</span>')+'</span>'
+      +'<span class="pd-val">'+esc(vols[i]||'—')+'</span>'
+      +'</div>';
+  }).join('');
+  return sec('Product Details')
+    +'<div class="info-grid">'
+    +readCard('VAT Rate',d.vat_rate||'—','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>')
+    +'<div class="info-card" style="grid-column:1/-1"><label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Per ASIN</label>'
+    +(asins.length
+      ?'<div class="pd-asin-table"><div class="pd-asin-head"><span>ASIN</span><span>Pack of</span><span>Parcel Size</span><span>Sales Vol.</span></div>'+rows+'</div>'
+      :'<div class="pd-empty">No ASINs on the Sourcing record yet.</div>')
+    +'</div></div></div>';
 }
 
 async function refreshData(){
@@ -939,7 +990,8 @@ function renderDrawer(row){
       +readCard('QTY Purchased',String(row.qty_purchased||'—'),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>')
       +readCard('SAS Combined Sales',fmtNum(row.sas),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>')
       +readCard('Cost of Unit',fmt(row.cost_of_unit),'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>')
-      +'</div></div>';
+      +'</div></div>'
+      +productDetailsHtml(id);
   }
 
    if(activeTab==='fba'){

@@ -322,6 +322,23 @@
   }
 .cb-sec-label::after { content: ''; flex: 1; height: 1px; background: #f1f5f9; }
 
+  /* Product Details (VAT / per-ASIN, stored on the sourcing record) */
+  .cb-pd-table { display: flex; flex-direction: column; }
+  .cb-pd-head, .cb-pd-row { display: grid; grid-template-columns: minmax(96px,1.3fr) 64px 118px 78px; gap: 8px; align-items: center; }
+  .cb-pd-head { padding: 0 0 6px; border-bottom: 1px solid #f1f5f9; }
+  .cb-pd-head span { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; }
+  .cb-pd-row { padding: 7px 0; border-bottom: 1px solid #f8fafc; }
+  .cb-pd-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .cb-pd-row .cb-edit-input { padding: 5px 8px; font-size: 12.5px; }
+  .cb-pd-asin { font-family: 'SF Mono','Fira Code',monospace; font-size: 12px; font-weight: 600; color: #0f172a; letter-spacing: .3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cb-pd-parcel { display: inline-flex; border: 1.5px solid #e2e8f0; border-radius: 7px; overflow: hidden; width: max-content; }
+  .cb-pd-parcel button { padding: 5px 9px; border: none; background: #fff; font-size: 11px; font-weight: 600; font-family: inherit; color: #64748b; cursor: pointer; transition: all .15s; }
+  .cb-pd-parcel button + button { border-left: 1.5px solid #e2e8f0; }
+  .cb-pd-parcel button.active[data-size="Small"] { background: #eff6ff; color: #1d4ed8; }
+  .cb-pd-parcel button.active[data-size="Standard"] { background: #f0fdf4; color: #15803d; }
+  .cb-pd-empty { font-size: 12px; color: #94a3b8; padding: 4px 0; }
+  @media (max-width: 480px) { .cb-pd-head, .cb-pd-row { grid-template-columns: 1fr 56px 108px 64px; gap: 6px; } }
+
   /* Price History (drawer) */
   .cb-price-history-list {
     display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px;
@@ -1342,8 +1359,8 @@ function _debounce(fn, wait) {
   async function _cbFetchNLPage(pageIndex) {
     const from = pageIndex*CB_PAGE_SIZE, to = from+CB_PAGE_SIZE-1;
                const cols = _cbTab==='purchased'
-      ? 'opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,qty_purchased,case_price,order_cases,approved,purchased,created_at,purchased_at,order_submitted,sourcing_approvals(status)'
-      : 'opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,case_price,order_cases,approved,purchased,created_at,basket_added_at,order_submitted,sourcing_approvals(status)';
+      ? 'opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,qty_purchased,case_price,order_cases,approved,purchased,created_at,purchased_at,order_submitted,asins,vat_rate,pack_of,parcel_size,sales_volume,sourcing_approvals(status)'
+      : 'opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,case_price,order_cases,approved,purchased,created_at,basket_added_at,order_submitted,asins,vat_rate,pack_of,parcel_size,sales_volume,sourcing_approvals(status)';
    let query = _cbApplySourcingFilters(sb.from('sourcing').select(cols));
     const orderField = _cbTab==='purchased' ? 'purchased_at' : 'basket_added_at';
     query = query.order(orderField, { ascending:false, nullsFirst:false }).range(from, to);
@@ -1827,6 +1844,7 @@ ${isPurchased?`<div class="cb-info-card">
               onblur="window.cbUpdateNLOrderCases('${escA(p.opportunity_id)}',this.value)" id="cbOrderCasesNL_${escA(p.opportunity_id)}">
           </div>
         </div>
+        ${_cbProductDetailsHtml(p)}
                 <div id="cbPriceHistorySection"></div>
         <div class="cb-sec-label">Timeline</div>
         <div class="cb-info-grid">
@@ -2139,6 +2157,80 @@ window.cbValidateNLQtyInput = function() {
     btn.disabled = !valid;
     btn.style.opacity = valid ? '1' : '.5';
     btn.style.cursor = valid ? 'pointer' : 'not-allowed';
+  };
+
+  /* ── PRODUCT DETAILS (VAT / Pack of / Parcel Size / Sales Vol. — stored on the sourcing record) ── */
+  function _cbPdSplit(v) { return v ? String(v).split(',').map(s => s.trim()) : []; }
+  function _cbProductDetailsHtml(p) {
+    const id = p.opportunity_id;
+    const vat = p.vat_rate || '';
+    const vatOpts = ['', '0%', '5%', '20%'].map(o => `<option value="${o}"${o===vat?' selected':''}>${o||'Select…'}</option>`).join('');
+    const asins = _cbPdSplit(p.asins).filter(Boolean);
+    const packs = _cbPdSplit(p.pack_of), parcels = _cbPdSplit(p.parcel_size), vols = _cbPdSplit(p.sales_volume);
+    const rows = asins.map((a, i) => {
+      const parcel = parcels[i] || '';
+      return `<div class="cb-pd-row">
+          <span class="cb-pd-asin" title="${escA(a)}">${escH(a)}</span>
+          <input type="number" class="cb-edit-input cb-pd-pack" min="1" value="${escA(packs[i]||'')}" placeholder="1" onblur="window.cbSaveNLAsinFields('${escA(id)}')">
+          <div class="cb-pd-parcel">
+            <button type="button" data-size="Small" class="${parcel==='Small'?'active':''}" onclick="window.cbSetNLParcel('${escA(id)}',${i},'Small')">Small</button>
+            <button type="button" data-size="Standard" class="${parcel==='Standard'?'active':''}" onclick="window.cbSetNLParcel('${escA(id)}',${i},'Standard')">Std</button>
+          </div>
+          <input type="number" class="cb-edit-input cb-pd-vol" min="0" value="${escA(vols[i]||'')}" placeholder="0" onblur="window.cbSaveNLAsinFields('${escA(id)}')">
+        </div>`;
+    }).join('');
+    return `
+        <div class="cb-sec-label">Product Details</div>
+        <div class="cb-info-grid">
+          <div class="cb-info-card">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>VAT Rate</label>
+            <select class="cb-edit-input" onchange="window.cbUpdateNLVat('${escA(id)}',this.value)">${vatOpts}</select>
+          </div>
+          <div class="cb-info-card" style="grid-column:1/-1">
+            <label><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Per ASIN</label>
+            ${asins.length
+              ? `<div class="cb-pd-table" id="cbPdList_${escA(id)}">
+                  <div class="cb-pd-head"><span>ASIN</span><span>Pack of</span><span>Parcel Size</span><span>Sales Vol.</span></div>
+                  ${rows}
+                </div>`
+              : `<div class="cb-pd-empty">No ASINs on the Sourcing record yet.</div>`}
+          </div>
+        </div>`;
+  }
+  async function _cbSaveSrcDetails(id, updates) {
+    try {
+      const { data, error } = await sb.from('sourcing').update(updates).eq('opportunity_id', id).select('opportunity_id');
+      if (error || !data || !data.length) throw error || new Error('not saved');
+      if (_drawerItem && _drawerItem.type==='nl' && _drawerItem.data.opportunity_id===id) Object.assign(_drawerItem.data, updates);
+      _cbToast('Saved','success');
+      window.renderCentralBasket(true);
+    } catch(e) { _cbToast('Failed to save','error'); }
+  }
+  window.cbUpdateNLVat = function(id, val) { _cbSaveSrcDetails(id, { vat_rate: val || null }); };
+  let _cbPdTimer = null;
+  window.cbSaveNLAsinFields = function(id) {
+    clearTimeout(_cbPdTimer);
+    _cbPdTimer = setTimeout(() => {
+      const list = document.getElementById('cbPdList_' + id);
+      if (!list) return;
+      const packs = [], parcels = [], vols = [];
+      list.querySelectorAll('.cb-pd-row').forEach(r => {
+        packs.push(r.querySelector('.cb-pd-pack')?.value.trim() || '');
+        parcels.push(r.querySelector('.cb-pd-parcel button.active')?.dataset.size || '');
+        vols.push(r.querySelector('.cb-pd-vol')?.value.trim() || '');
+      });
+      const cur = (_drawerItem && _drawerItem.data) || {};
+      const updates = { pack_of: packs.join(', '), parcel_size: parcels.join(', '), sales_volume: vols.join(', ') };
+      if (updates.pack_of===(cur.pack_of||'') && updates.parcel_size===(cur.parcel_size||'') && updates.sales_volume===(cur.sales_volume||'')) return;
+      _cbSaveSrcDetails(id, updates);
+    }, 300);
+  };
+  window.cbSetNLParcel = function(id, idx, value) {
+    const list = document.getElementById('cbPdList_' + id);
+    const row = list && list.querySelectorAll('.cb-pd-row')[idx];
+    if (!row) return;
+    row.querySelectorAll('.cb-pd-parcel button').forEach(b => b.classList.toggle('active', b.dataset.size === value));
+    window.cbSaveNLAsinFields(id);
   };
 
 window.cbUpdateNLQty = async function(id, val) {

@@ -222,6 +222,24 @@ html, body {
 .asin-add-btn:hover{border-color:#2563eb;color:#2563eb}
 .asin-add-btn svg{width:11px;height:11px}
 
+/* ══ PRODUCT DETAILS (VAT / per-ASIN, stored on the sourcing record) ══ */
+.pd-asin-table{display:flex;flex-direction:column}
+.pd-asin-head,.pd-asin-row{display:grid;grid-template-columns:minmax(96px,1.3fr) 64px 118px 78px;gap:8px;align-items:center}
+.pd-asin-head{padding:0 0 6px;border-bottom:1px solid #f1f5f9}
+.pd-asin-head span{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94a3b8}
+.pd-asin-row{padding:7px 0;border-bottom:1px solid #f8fafc}
+.pd-asin-row:last-child{border-bottom:none;padding-bottom:0}
+.pd-asin-code{font-family:'SF Mono','Fira Code',monospace;font-size:12px;font-weight:600;color:#0f172a;letter-spacing:.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pd-asin-row .edit-input{padding:5px 8px;font-size:12.5px}
+.pd-parcel{display:inline-flex;border:1.5px solid #e2e8f0;border-radius:7px;overflow:hidden;width:max-content}
+.pd-parcel button{padding:5px 9px;border:none;background:#fff;font-size:11px;font-weight:600;font-family:inherit;color:#64748b;cursor:pointer;transition:all .15s}
+.pd-parcel button+button{border-left:1.5px solid #e2e8f0}
+.pd-parcel button.active[data-size="Small"]{background:#eff6ff;color:#1d4ed8}
+.pd-parcel button.active[data-size="Standard"]{background:#f0fdf4;color:#15803d}
+.pd-empty{font-size:12px;color:#94a3b8;padding:4px 0}
+.pd-src-note{font-size:10.5px;color:#94a3b8;margin-top:8px}
+@media (max-width:640px){.pd-asin-head,.pd-asin-row{grid-template-columns:1fr 56px 108px 64px;gap:6px}}
+
 /* ══ PAGE GUIDE SYSTEM ══ */
 .guide-fab{position:fixed;bottom:24px;right:24px;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 4px 20px rgba(37,99,235,.4);z-index:800;transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;animation:fabPulse 2.5s ease-in-out 1s 3}
 .guide-fab:hover{transform:scale(1.12);box-shadow:0 6px 28px rgba(37,99,235,.5)}
@@ -666,8 +684,93 @@ async function fetchListing() {
   if (error) { console.error(error); return []; }
   const rows = data || [];
   rows.forEach(applyAutoFields);
+  await fetchSrcDetails(rows.map(r => r.opportunity_id).filter(Boolean));
   return rows;
 }
+
+/* ── PRODUCT DETAILS (VAT / Pack of / Parcel Size / Sales Vol. live on the sourcing record) ── */
+let srcDetails = {}; // opportunity_id -> { asins, vat_rate, pack_of, parcel_size, sales_volume }
+async function fetchSrcDetails(ids) {
+  const map = {};
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data, error } = await sb.from('sourcing')
+      .select('opportunity_id,asins,vat_rate,pack_of,parcel_size,sales_volume')
+      .in('opportunity_id', ids.slice(i, i + 100));
+    if (error) { console.error(error); continue; }
+    (data || []).forEach(r => { map[r.opportunity_id] = r; });
+  }
+  srcDetails = map;
+}
+function pdSplit(v) { return v ? String(v).split(',').map(s => s.trim()) : []; }
+
+function renderProductDetails(id) {
+  const d = srcDetails[id];
+  if (!d) {
+    return sec('Product Details')
+      + '<div class="info-grid"><div class="info-card" style="grid-column:1/-1"><div class="pd-empty">No linked Sourcing record found for this product.</div></div></div></div>';
+  }
+  const vat = d.vat_rate || '';
+  const vatOpts = ['', '0%', '5%', '20%'].map(o => '<option value="' + o + '"' + (o === vat ? ' selected' : '') + '>' + (o || 'Select…') + '</option>').join('');
+  const asins = pdSplit(d.asins).filter(Boolean);
+  const packs = pdSplit(d.pack_of), parcels = pdSplit(d.parcel_size), vols = pdSplit(d.sales_volume);
+  const rows = asins.map((a, i) => {
+    const parcel = parcels[i] || '';
+    return '<div class="pd-asin-row" data-asin="' + esc(a) + '">'
+      + '<span class="pd-asin-code" title="' + esc(a) + '">' + esc(a) + '</span>'
+      + '<input type="number" class="edit-input pd-pack" min="1" value="' + esc(packs[i] || '') + '" placeholder="1" onblur="saveSrcAsinFields(\'' + ea(id) + '\')">'
+      + '<div class="pd-parcel">'
+      + '<button type="button" data-size="Small" class="' + (parcel === 'Small' ? 'active' : '') + '" onclick="setSrcParcel(\'' + ea(id) + '\',' + i + ',\'Small\')">Small</button>'
+      + '<button type="button" data-size="Standard" class="' + (parcel === 'Standard' ? 'active' : '') + '" onclick="setSrcParcel(\'' + ea(id) + '\',' + i + ',\'Standard\')">Std</button>'
+      + '</div>'
+      + '<input type="number" class="edit-input pd-vol" min="0" value="' + esc(vols[i] || '') + '" placeholder="0" onblur="saveSrcAsinFields(\'' + ea(id) + '\')">'
+      + '</div>';
+  }).join('');
+  return sec('Product Details')
+    + '<div class="info-grid">'
+    + '<div class="info-card"><label>VAT Rate</label><select class="edit-select" onchange="saveSrcVat(\'' + ea(id) + '\',this.value)">' + vatOpts + '</select></div>'
+    + '<div class="info-card" style="grid-column:1/-1"><label>Per ASIN</label>'
+    + (asins.length
+      ? '<div class="pd-asin-table" id="pdAsinList_' + esc(id) + '">'
+        + '<div class="pd-asin-head"><span>ASIN</span><span>Pack of</span><span>Parcel Size</span><span>Sales Vol.</span></div>'
+        + rows + '</div>'
+      : '<div class="pd-empty">No ASINs on the Sourcing record yet.</div>')
+    + '<div class="pd-src-note">Saved to the Sourcing record — changes show everywhere this product appears.</div>'
+    + '</div></div></div>';
+}
+
+async function saveSrcUpdate(id, updates) {
+  const { data, error } = await sb.from('sourcing').update(updates).eq('opportunity_id', id).select('opportunity_id');
+  if (error || !data || !data.length) { showToast('Failed to save', 'error'); return false; }
+  srcDetails[id] = Object.assign(srcDetails[id] || {}, updates);
+  showToast('Saved', 'success');
+  return true;
+}
+window.saveSrcVat = function(id, value) { saveSrcUpdate(id, { vat_rate: value || null }); };
+let _pdSaveTimer = null;
+window.saveSrcAsinFields = function(id) {
+  clearTimeout(_pdSaveTimer);
+  _pdSaveTimer = setTimeout(() => {
+    const list = document.getElementById('pdAsinList_' + id);
+    if (!list) return;
+    const packs = [], parcels = [], vols = [];
+    list.querySelectorAll('.pd-asin-row').forEach(r => {
+      packs.push(r.querySelector('.pd-pack')?.value.trim() || '');
+      parcels.push(r.querySelector('.pd-parcel button.active')?.dataset.size || '');
+      vols.push(r.querySelector('.pd-vol')?.value.trim() || '');
+    });
+    const d = srcDetails[id] || {};
+    const updates = { pack_of: packs.join(', '), parcel_size: parcels.join(', '), sales_volume: vols.join(', ') };
+    if (updates.pack_of === (d.pack_of || '') && updates.parcel_size === (d.parcel_size || '') && updates.sales_volume === (d.sales_volume || '')) return;
+    saveSrcUpdate(id, updates);
+  }, 300);
+};
+window.setSrcParcel = function(id, idx, value) {
+  const list = document.getElementById('pdAsinList_' + id);
+  const row = list && list.querySelectorAll('.pd-asin-row')[idx];
+  if (!row) return;
+  row.querySelectorAll('.pd-parcel button').forEach(b => b.classList.toggle('active', b.dataset.size === value));
+  window.saveSrcAsinFields(id);
+};
 
 /* ── INIT ── */
 async function init() {
@@ -962,7 +1065,8 @@ function renderDrawer(row) {
       + editCard(id,'unit_cost',row.unit_cost||'','number','Unit Cost')
       + editCard(id,'asin_cost',row.asin_cost||'','number','ASIN Cost')
       + editCard(id,'pack_size',row.pack_size||'','number','Pack Size')
-      + '</div></div>';
+      + '</div></div>'
+      + renderProductDetails(id);
   }
 
   if (activeDrawerTab === 'platforms') {
