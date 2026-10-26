@@ -1239,6 +1239,28 @@ async function saveActionToDB(sku, action) {
   } catch(e) {}
 }
 
+async function requeuePurchasedSkus(skus) {
+  if (!sb || !skus.length) return;
+  try {
+    for (let i = 0; i < skus.length; i += 200) {
+      await sb.from('replenishment_skus')
+        .update({ action: null, actioned_at: null, supplier_name: null, order_submitted: false, order_cases: null })
+        .in('sku', skus.slice(i, i + 200)).eq('action', 'pur');
+    }
+  } catch(e) { console.warn('Requeue purchased error', e); }
+}
+
+// Undoing a purchase removes that purchase from the history (replenishment_purchases)
+async function removePurchaseRecord(sku) {
+  if (!sb) return;
+  try {
+    const { data } = await sb.from('replenishment_skus').select('action,actioned_at').eq('sku', sku).maybeSingle();
+    if (data && data.action === 'pur' && data.actioned_at) {
+      await sb.from('replenishment_purchases').delete().eq('sku', sku).eq('actioned_at', data.actioned_at);
+    }
+  } catch(e) { console.warn('Remove purchase record error', e); }
+}
+
 async function clearNonRejectedFromDB() {
   if (!sb) return;
   try {
@@ -1342,7 +1364,6 @@ const REJECT_EXPIRY_MS = 60 * 24 * 60 * 60 * 1000;
     ).map(([k]) => k)
   );
   
-const purchasedSkus = new Set(); // purchased SKUs always re-enter the queue on new upload
 
   // Step 1 — build clearance exclusion set from File 2 using sellable_id
   const clearanceIds = new Set(rawF2.map(r => (r.sellable_id || '').trim()).filter(Boolean));
@@ -1396,8 +1417,8 @@ const purchasedSkus = new Set(); // purchased SKUs always re-enter the queue on 
     const existingBasket = (eanKey && seenSkus.byEan[eanKey]) || (skuMatchIsTracked ? skuMatch : null);
 
           let obj;
-    const purchasedLongEnoughAgo = existingBasket && existingBasket.action === 'pur' && existingBasket.actioned_at
-      && (Date.now() - new Date(existingBasket.actioned_at).getTime()) > (Math.max(parseFloat(existingBasket.days_left) || 14, 7) * 86400000);
+        // Purchased lines no longer wait for a cover period — they come straight back as fresh lines
+        // (each purchase is kept in replenishment_purchases, so history isn't lost).
         if (existingBasket && existingBasket.action === 'basket') {
       // Already in the basket — do NOT auto-apply this file's numbers.
       // Keep showing the current, already-saved values; stash what THIS
@@ -1441,26 +1462,6 @@ const purchasedSkus = new Set(); // purchased SKUs always re-enter the queue on 
         incoming: { u: newUrgency, av: newAvailable, inc: newIncoming, r: newDailyRate, d: newDaysLeft, q: newOrderQty },
         full: existingBasket,
       });
-    } else if (existingBasket && !purchasedLongEnoughAgo) {
-      // Purchased, still within its expected coverage window — fully frozen,
-      // nothing refreshed from this file.
-      obj = {
-        s: existingBasket.sku,
-        t: existingBasket.name || existingBasket.sku,
-        ean: existingBasket.ean || ean,
-        u: existingBasket.urgency || 'O',
-        av: parseFloat(existingBasket.available) || 0,
-        inc: parseFloat(existingBasket.incoming) || 0,
-        r: parseFloat(existingBasket.daily_rate) || 0,
-        d: parseFloat(existingBasket.days_left) || 0,
-        q: parseInt(existingBasket.order_qty) || 0,
-        cogs: parseFloat(existingBasket.cost_price) || 0,
-        lastSupplier: existingBasket.supplier_name || '',
-        img: existingBasket.image_url || '',
-        subsets: [],
-        __preserved: true,
-        __frozen: true,
-      };
     } else {
       const dailyRate = parseFloat(r.daily_sell_out_rate) || 0;
       const available = parseFloat(r.available_qty) || 0;
@@ -1512,9 +1513,12 @@ const purchasedSkus = new Set(); // purchased SKUs always re-enter the queue on 
     }
   });
 
-    const frozenSkus = new Set(grouped.filter(x => x.__frozen).map(x => x.s));
   const pendingReviewSet = new Set(pendingBasketReview.map(p => p.sku));
-  const newSkus = grouped.filter(x => !rejectedSkus.has(x.s) && !frozenSkus.has(x.s) && !pendingReviewSet.has(x.s));
+  const newSkus = grouped.filter(x => !rejectedSkus.has(x.s) && !pendingReviewSet.has(x.s));
+  // Purchased lines that are in this file go back to "needs review". Done before saving the new
+  // figures so the purchase record in replenishment_purchases keeps the numbers it was bought with.
+  const requeueSkus = newSkus.filter(x => seenSkus.bySku[x.s] && seenSkus.bySku[x.s].action === 'pur').map(x => x.s);
+  await requeuePurchasedSkus(requeueSkus);
   await saveSkusToDB(newSkus);
 
   btn.disabled = false;
@@ -2098,10 +2102,12 @@ window.markBasketPurchased = markBasketPurchased;
 window.removeFromBasket = removeFromBasket;
 
 
-function undoAct(sku) {
+async function undoAct(sku) {
+  const wasPurchased = acts[sku] === 'pur';
   delete acts[sku];
   actsOrder = actsOrder.filter(s => s !== sku);
   persist();
+  if (wasPurchased) await removePurchaseRecord(sku);
   saveActionToDB(sku, null);
   // Find where this SKU lands in the pending list after undo, then jump to it
   const pending = ALL.filter(x => !acts[x.s]);

@@ -947,9 +947,9 @@ function monthLabel(d) {
       });
     } catch(e) { console.warn('CB week spent nl:', e); }
     try {
-      const { data: replData } = await sb.from('replenishment_skus')
+      const { data: replData } = await sb.from('replenishment_purchases')
         .select('sku,order_qty,cost_price,original_cost_price,actioned_at')
-        .eq('action','pur').gte('actioned_at', start).lt('actioned_at', end);
+        .gte('actioned_at', start).lt('actioned_at', end);
       const rows = replData||[];
       const costMap = await _cbBuildLastReplCostMap(rows.map(p=>p.sku));
       rows.forEach(p=>{
@@ -1051,9 +1051,9 @@ window.openCbBudgetModal = function(weekStartOverride) {
       nlRows = data||[];
     } catch(e) { console.warn('CB insights nl:', e); }
     try {
-            const { data } = await sb.from('replenishment_skus')
+            const { data } = await sb.from('replenishment_purchases')
         .select('sku,name,supplier_name,order_qty,cost_price,original_cost_price,actioned_at,order_submitted')
-        .eq('action','pur').gte('actioned_at', start).lt('actioned_at', end);
+        .gte('actioned_at', start).lt('actioned_at', end);
       replRows = data||[];
     } catch(e) { console.warn('CB insights repl:', e); }
     const replCostMap = await _cbBuildLastReplCostMap(replRows.map(p=>p.sku));
@@ -1376,6 +1376,27 @@ function _debounce(fn, wait) {
     return query;
   }
 
+  /* Purchased replenishment lines are read from the purchase history (replenishment_purchases);
+     To Purchase / Inquire still come from the live list (replenishment_skus). */
+  function _cbReplTable() { return _cbTab==='purchased' ? 'replenishment_purchases' : 'replenishment_skus'; }
+  function _cbIsHistoryItem(sku) {
+    const d = _drawerItem && _drawerItem.type==='repl' ? _drawerItem.data : null;
+    return !!(d && d._hid && d.sku===sku);
+  }
+  // Writes from the drawer: a purchased (history) item updates its purchase record, and the live
+  // line too if it is still that same purchase. Everything else updates the live line as before.
+  async function _cbReplUpdate(sku, patch) {
+    if (_cbIsHistoryItem(sku)) {
+      const d = _drawerItem.data;
+      const { error } = await sb.from('replenishment_purchases').update(patch).eq('id', d._hid);
+      if (error) throw error;
+      await sb.from('replenishment_skus').update(patch).eq('sku', sku).eq('action','pur').eq('actioned_at', d.actioned_at);
+      return;
+    }
+    const { error } = await sb.from('replenishment_skus').update(patch).eq('sku', sku);
+    if (error) throw error;
+  }
+
   function _cbApplyReplFilters(query) {
     const action = _cbTab==='tobuy' ? 'basket' : _cbTab==='inquire' ? 'inquire' : 'pur';
     query = query.eq('action', action);
@@ -1408,13 +1429,15 @@ function _debounce(fn, wait) {
 
 async function _cbFetchReplPage(pageIndex) {
     const from = pageIndex*CB_PAGE_SIZE, to = from+CB_PAGE_SIZE-1;
-               let query = _cbApplyReplFilters(sb.from('replenishment_skus')
-      .select('sku,name,ean,order_qty,cost_price,original_cost_price,case_price,order_cases,days_left,urgency,image_url,supplier_name,action,actioned_at,uploaded_at,basket_added_at,order_submitted,note'));
+               let query = _cbApplyReplFilters(sb.from(_cbReplTable())
+      .select(_cbTab==='purchased'
+        ? 'id,sku,name,ean,order_qty,cost_price,original_cost_price,case_price,order_cases,days_left,urgency,image_url,supplier_name,action,actioned_at,uploaded_at,basket_added_at,order_submitted,purchased_by'
+        : 'sku,name,ean,order_qty,cost_price,original_cost_price,case_price,order_cases,days_left,urgency,image_url,supplier_name,action,actioned_at,uploaded_at,basket_added_at,order_submitted,note'));
  const orderField = _cbTab==='purchased' ? 'actioned_at' : 'basket_added_at';
     query = query.order(orderField, { ascending:false, nullsFirst:false }).range(from, to);
     const { data, error } = await query;
     if (error) { console.warn('CB replens page:', error); return []; }
-    const rows = data||[];
+    const rows = (data||[]).map(r => (r.id != null && r.purchased_by !== undefined) ? { ...r, _hid: r.id } : r);
     _cbReplDone = rows.length < CB_PAGE_SIZE;
     return rows;
   }
@@ -1465,7 +1488,7 @@ async function _cbFetchTabCounts(){
     }
 if (wantRepl) {
       try {
-        const { data } = await _cbApplyReplFilters(sb.from('replenishment_skus').select('sku,supplier_name,order_qty,original_cost_price,cost_price'));
+        const { data } = await _cbApplyReplFilters(sb.from(_cbReplTable()).select('sku,supplier_name,order_qty,original_cost_price,cost_price'));
         replRows = data||[];
       } catch(e) { console.warn('CB totals repl:', e); }
     }
@@ -1605,9 +1628,8 @@ function _cbPriceTrend(histArr, currentCost, fallbackOriginal){
       nl = (data||[]).filter(p=>!(p.sourcing_approvals||[]).some(a=>a.status==='rejected'));
     } catch(e) { console.warn('CB pdf nl fetch:', e); }
     try {
-         const { data } = await sb.from('replenishment_skus')
+         const { data } = await sb.from('replenishment_purchases')
         .select('sku,name,ean,order_qty,cost_price,original_cost_price,case_price,order_cases,days_left,urgency,image_url,supplier_name,action,actioned_at,uploaded_at,basket_added_at')
-        .eq('action','pur')
         .order('actioned_at', { ascending:false, nullsFirst:false });
       repl = data||[];
     } catch(e) { console.warn('CB pdf repl fetch:', e); }
@@ -2169,7 +2191,8 @@ window.cbToggleOrderSubmitted = async function(checked) {
   p.order_submitted = checked;
   _renderCbDrawer();
   try {
-    await sb.from(table).update({ order_submitted: checked }).eq(idCol, idVal);
+    if (type === 'repl') await _cbReplUpdate(p.sku, { order_submitted: checked });
+    else await sb.from(table).update({ order_submitted: checked }).eq(idCol, idVal);
     window.renderCentralBasket(true);
   } catch(e) {
     p.order_submitted = !checked;
@@ -2286,7 +2309,7 @@ window.cbUpdateNLQty = async function(id, val) {
     window.cbUpdateReplQty = async function(sku, val) {
     const qty = val===''?null:parseInt(val);
     try {
-      await sb.from('replenishment_skus').update({ order_qty:qty }).eq('sku',sku);
+      await _cbReplUpdate(sku, { order_qty:qty });
 if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
       _cbToast('Qty updated','success');
       window.renderCentralBasket(true);
@@ -2316,7 +2339,7 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
   window.cbUpdateReplCasePrice = async function(sku, val) {
     const price = val===''?null:parseFloat(val);
     try {
-      await sb.from('replenishment_skus').update({ case_price:price }).eq('sku',sku);
+      await _cbReplUpdate(sku, { case_price:price });
       if (_drawerItem) { _drawerItem.data.case_price=price; }
       _cbToast('Case price updated','success');
       window.renderCentralBasket(true);
@@ -2325,7 +2348,7 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
   window.cbUpdateReplOrderCases = async function(sku, val) {
     const cases = val===''?null:parseInt(val);
     try {
-      await sb.from('replenishment_skus').update({ order_cases:cases }).eq('sku',sku);
+      await _cbReplUpdate(sku, { order_cases:cases });
       if (_drawerItem) { _drawerItem.data.order_cases=cases; }
       _cbToast('Order cases updated','success');
       window.renderCentralBasket(true);
@@ -3025,7 +3048,7 @@ window.cbUpdateNLSupplier = async function(id, name) {
 
 window.cbUpdateReplSupplier = async function(sku, name) {
     try {
-      await sb.from('replenishment_skus').update({ supplier_name:name||null }).eq('sku',sku);
+      await _cbReplUpdate(sku, { supplier_name:name||null });
       if (_drawerItem) { _drawerItem.data.supplier_name=name; _renderCbDrawer(); }
       if (window.render) window.render();
       _cbToast('Supplier updated','success');
@@ -3094,7 +3117,7 @@ window.cbUpdateReplCost = async function(sku, val) {
     const cost = val===''?null:parseFloat(val);
     const oldCost = _cbCostBaseline['repl::'+sku];
     try {
-      await sb.from('replenishment_skus').update({ original_cost_price:cost }).eq('sku',sku);
+      await _cbReplUpdate(sku, { original_cost_price:cost });
       const changed = cost!==null && !isNaN(cost) && (oldCost==null || oldCost!==cost);
       if (changed) { await _cbLogPriceChange('repl', sku, oldCost, cost); _cbCostBaseline['repl::'+sku] = cost; }
 if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer(); }
@@ -3193,7 +3216,16 @@ if (_drawerItem) { _drawerItem.data.original_cost_price=cost; _renderCbDrawer();
 
   window.cbUndoReplPurchased = async function(sku) {
     try {
-      await sb.from('replenishment_skus').update({ action:'basket', actioned_at:new Date().toISOString() }).eq('sku',sku);
+      const d = _drawerItem && _drawerItem.type==='repl' && _drawerItem.data.sku===sku ? _drawerItem.data : null;
+      const { data: live } = await sb.from('replenishment_skus').select('action,actioned_at').eq('sku',sku).maybeSingle();
+      const purchasedAt = d ? d.actioned_at : (live && live.action==='pur' ? live.actioned_at : null);
+      if (d && d._hid) await sb.from('replenishment_purchases').delete().eq('id', d._hid);
+      else if (purchasedAt) await sb.from('replenishment_purchases').delete().eq('sku', sku).eq('actioned_at', purchasedAt);
+      const isSamePurchase = live && live.action==='pur' && (!purchasedAt || new Date(live.actioned_at).getTime()===new Date(purchasedAt).getTime());
+      // Only put the live line back in To Purchase if this was its current purchase, or it isn't already active
+      if (isSamePurchase || !live || !live.action) {
+        await sb.from('replenishment_skus').update({ action:'basket', actioned_at:new Date().toISOString() }).eq('sku',sku);
+      }
       _cbToast('Moved back to To Purchase','success');
       window.closeCbDrawer(); window.renderCentralBasket(true);
      _cbLoadBudgetBar();
