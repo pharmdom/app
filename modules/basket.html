@@ -411,6 +411,12 @@
   .cb-add-hint-text span { font-size: 11.5px; opacity: .85; }
   .cb-add-hint-btn { flex-shrink: 0; background: #fff; color: #92400e; border-color: #fde68a; }
   .cb-add-hint-btn:hover { background: #fef3c7; }
+  .cb-add-hint.repl { background: #f5f3ff; border-color: #ddd6fe; color: #5b21b6; }
+  .cb-add-hint-btn.repl { color: #5b21b6; border-color: #ddd6fe; }
+  .cb-add-hint-btn.repl:hover { background: #ede9fe; }
+  .cb-add-ean-card { border-color: #bfdbfe; background: #f8fbff; }
+  .cb-add-ean-card .cb-edit-input { font-size: 14px; font-weight: 600; letter-spacing: .3px; }
+  .cb-add-ean-tip { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 10.5px; color: #60a5fa; }
   .cb-btn-green:hover  { background: #dcfce7; border-color: #86efac; }
   .cb-btn-amber  { background: #fef3c7; color: #92400e; border-color: #fde68a; }
   .cb-btn-amber:hover  { background: #fde68a; }
@@ -2321,37 +2327,48 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
   }
   function _renderCbAddForm() {
     const body = document.getElementById('cbAddFormBody');
-    _cbReplMatch = null;
+    _cbReplMatch = null; _cbNLMatch = null; _cbNLReplMatch = null;
+    const saveBtn = document.getElementById('cbAddSaveBtn');
+    if (saveBtn) saveBtn.disabled = false;
+    const eanLabel = `<label>EAN <span class="cb-add-ean-tip">Enter first — we'll check if it already exists</span></label>`;
     if (_cbAddType === 'nl') {
       body.innerHTML = `
         <div class="cb-info-grid">
+          <div class="cb-info-card cb-add-ean-card" style="grid-column:1/-1">
+            ${eanLabel}
+            <input type="text" class="cb-edit-input" id="cbAddNL_ean" placeholder="Paste or scan EAN, e.g. 5012345678900" oninput="window.cbNLLookup()" autocomplete="off">
+          </div>
+          <div id="cbAddNLHint" class="cb-add-hint" style="display:none"></div>
+          <div id="cbAddNLReplHint" class="cb-add-hint" style="display:none"></div>
           <div class="cb-info-card" style="grid-column:1/-1">
             <label>Product Name *</label>
-            <input type="text" class="cb-edit-input" id="cbAddNL_name" placeholder="e.g. Branded Widget 500ml">
+            <input type="text" class="cb-edit-input" id="cbAddNL_name" placeholder="e.g. Branded Widget 500ml" oninput="this.dataset.auto=''">
           </div>
           <div class="cb-info-card">
             <label>Supplier *</label>
-            <select class="cb-edit-input" id="cbAddNL_supplier">${_cbSupplierOptions('')}</select>
-          </div>
-          <div class="cb-info-card">
-            <label>EAN</label>
-            <input type="text" class="cb-edit-input" id="cbAddNL_ean" placeholder="e.g. 5012345678900">
+            <select class="cb-edit-input" id="cbAddNL_supplier" onchange="this.dataset.auto=''">${_cbSupplierOptions('')}</select>
           </div>
           <div class="cb-info-card">
             <label>Cost per Unit (£) *</label>
-            <input type="number" step="0.01" min="0" class="cb-edit-input" id="cbAddNL_cost" placeholder="0.00">
+            <input type="number" step="0.01" min="0" class="cb-edit-input" id="cbAddNL_cost" placeholder="0.00" oninput="this.dataset.auto=''">
           </div>
           <div class="cb-info-card">
             <label>Qty *</label>
             <input type="number" step="1" min="1" class="cb-edit-input" id="cbAddNL_qty" placeholder="0">
           </div>
         </div>`;
+      setTimeout(() => document.getElementById('cbAddNL_ean')?.focus(), 60);
     } else {
       body.innerHTML = `
         <div class="cb-info-grid">
+          <div class="cb-info-card cb-add-ean-card" style="grid-column:1/-1">
+            ${eanLabel}
+            <input type="text" class="cb-edit-input" id="cbAddRepl_ean" placeholder="Paste or scan EAN, e.g. 5012345678900" oninput="window.cbReplLookup()" autocomplete="off">
+          </div>
+          <div id="cbAddReplHint" class="cb-add-hint" style="display:none"></div>
           <div class="cb-info-card" style="grid-column:1/-1">
             <label>Product Name *</label>
-            <input type="text" class="cb-edit-input" id="cbAddRepl_name" placeholder="e.g. Vitamin C 1000mg 60s">
+            <input type="text" class="cb-edit-input" id="cbAddRepl_name" placeholder="e.g. Vitamin C 1000mg 60s" oninput="this.dataset.auto=''">
           </div>
           <div class="cb-info-card">
             <label>SKU *</label>
@@ -2361,20 +2378,16 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
             <label>Supplier</label>
             <select class="cb-edit-input" id="cbAddRepl_supplier" onchange="this.dataset.auto=''">${_cbSupplierOptions('')}</select>
           </div>
-          <div id="cbAddReplHint" class="cb-add-hint" style="display:none"></div>
-          <div class="cb-info-card">
-            <label>EAN</label>
-            <input type="text" class="cb-edit-input" id="cbAddRepl_ean" placeholder="e.g. 5012345678900" oninput="window.cbReplLookup()">
-          </div>
           <div class="cb-info-card">
             <label>Purchase Cost (£) *</label>
-            <input type="number" step="0.01" min="0" class="cb-edit-input" id="cbAddRepl_cost" placeholder="0.00">
+            <input type="number" step="0.01" min="0" class="cb-edit-input" id="cbAddRepl_cost" placeholder="0.00" oninput="this.dataset.auto=''">
           </div>
           <div class="cb-info-card">
             <label>Order Qty *</label>
             <input type="number" step="1" min="1" class="cb-edit-input" id="cbAddRepl_qty" placeholder="0">
           </div>
         </div>`;
+      setTimeout(() => document.getElementById('cbAddRepl_ean')?.focus(), 60);
     }
   }
   async function _cbNextSourcingId() {
@@ -2411,8 +2424,8 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
     el.value = value;
     el.dataset.auto = '1';
   }
-  function _cbClearAutoFill() {
-    ['cbAddRepl_name','cbAddRepl_ean','cbAddRepl_supplier','cbAddRepl_cost','cbAddRepl_sku'].forEach(id => {
+  function _cbClearAutoFill(ids) {
+    (ids || ['cbAddRepl_name','cbAddRepl_ean','cbAddRepl_supplier','cbAddRepl_cost','cbAddRepl_sku']).forEach(id => {
       const el = document.getElementById(id);
       if (el && el.dataset.auto === '1') { el.value = ''; el.dataset.auto = ''; }
     });
@@ -2483,6 +2496,131 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
     window.openCbDrawer('repl', r);
   };
 
+  /* ── NEW LINE: recognise an EAN already in Sourcing / Replenishments ── */
+  const CB_NL_COLS = 'opportunity_id,product_name,supplier_name,code,cost_of_unit,unit_quantity,qty_purchased,case_price,order_cases,approved,purchased,inquire,created_at,purchased_at,basket_added_at,last_updated,order_submitted,asins,vat_rate,pack_of,parcel_size,sales_volume,sourcing_approvals(status)';
+  let _cbNLMatch = null, _cbNLReplMatch = null;
+  let _cbNLLookupTimer = null, _cbNLLookupSeq = 0;
+
+  function _cbCodeEans(code) {
+    return String(code || '').split(',').map(x => x.split(':')[0].trim()).filter(Boolean);
+  }
+  function _cbCodeCost(code, ean) {
+    const part = String(code || '').split(',').map(x => x.trim()).find(x => x.split(':')[0].trim() === ean);
+    const c = part && part.includes(':') ? parseFloat(part.split(':')[1]) : NaN;
+    return isNaN(c) ? null : c;
+  }
+  function _cbNLState(r) {
+    const rejected = (r.sourcing_approvals || []).some(a => a.status === 'rejected');
+    if (r.purchased) return 'purchased';
+    if (rejected) return 'rejected';
+    if (r.approved) return 'basket';
+    return 'pending';
+  }
+  async function _cbFindNLMatch(ean) {
+    const safe = ean.replace(/[%_,()]/g, '');
+    if (!safe) return null;
+    const { data } = await sb.from('sourcing').select(CB_NL_COLS).ilike('code', '%' + safe + '%');
+    const rows = (data || []).filter(r => _cbCodeEans(r.code).includes(ean));
+    if (!rows.length) return null;
+    const t = v => new Date(v || 0).getTime();
+    const pick = (st, key) => rows.filter(r => _cbNLState(r) === st).sort((a, b) => t(b[key]) - t(a[key]))[0];
+    return pick('basket', 'basket_added_at') || pick('purchased', 'purchased_at') || pick('pending', 'created_at') || pick('rejected', 'created_at') || null;
+  }
+  async function _cbFindReplByEan(ean) {
+    const { data } = await sb.from('replenishment_skus').select(CB_REPL_COLS).eq('ean', ean)
+      .order('last_purchased_at', { ascending:false, nullsFirst:false }).limit(1);
+    if (data && data.length) return data[0];
+    const { data: bySku } = await sb.from('replenishment_skus').select(CB_REPL_COLS).eq('sku', ean).maybeSingle();
+    return bySku || null;
+  }
+
+  function _cbRenderNLHints() {
+    const el = document.getElementById('cbAddNLHint'), rel = document.getElementById('cbAddNLReplHint');
+    const saveBtn = document.getElementById('cbAddSaveBtn');
+    if (!el || !rel) return;
+    const icoClock = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+    const icoBasket = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>';
+    const icoSwap = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+    const r = _cbNLMatch;
+    let blocked = false;
+    if (!r) { el.style.display = 'none'; el.innerHTML = ''; }
+    else {
+      const st = _cbNLState(r);
+      let cls = 'info', ico = icoClock, title = '', sub = [], btn = '';
+      if (st === 'basket') {
+        cls = 'warn'; ico = icoBasket; title = 'Already in the basket'; blocked = true;
+        sub = [(r.inquire ? 'Inquire' : 'To Purchase') + ' tab', r.unit_quantity ? r.unit_quantity + ' units' : '', r.supplier_name || '', r.opportunity_id];
+        btn = '<button type="button" class="cb-btn cb-add-hint-btn" onclick="window.cbOpenExistingNL()">Open it</button>';
+      } else if (st === 'purchased') {
+        title = 'Previously purchased — will be added as a new line';
+        sub = [r.purchased_at ? fmtDate(r.purchased_at) : '', r.supplier_name || '', r.qty_purchased ? r.qty_purchased + ' units' : '', r.opportunity_id];
+      } else if (st === 'pending') {
+        title = 'Already in Sourcing — awaiting approval';
+        sub = [r.opportunity_id, r.supplier_name || ''];
+      } else {
+        title = 'Seen before in Sourcing — rejected';
+        sub = [r.opportunity_id, r.supplier_name || ''];
+      }
+      el.className = 'cb-add-hint ' + cls;
+      el.innerHTML = `<div class="cb-add-hint-ico">${ico}</div>
+        <div class="cb-add-hint-text"><strong>${escH(title)}</strong><span>${escH(sub.filter(Boolean).join(' · '))}</span></div>${btn}`;
+      el.style.display = 'flex';
+    }
+    const rr = _cbNLReplMatch;
+    if (!rr) { rel.style.display = 'none'; rel.innerHTML = ''; }
+    else {
+      const sub = ['SKU ' + rr.sku, rr.last_purchased_at ? 'last purchased ' + fmtDate(rr.last_purchased_at) : ''].filter(Boolean).join(' · ');
+      rel.className = 'cb-add-hint repl';
+      rel.innerHTML = `<div class="cb-add-hint-ico">${icoSwap}</div>
+        <div class="cb-add-hint-text"><strong>This product is a Replenishment item</strong><span>${escH(sub)} — usually reordered under Replenishment</span></div>
+        <button type="button" class="cb-btn cb-add-hint-btn repl" onclick="window.cbSwitchToReplFromNL()">Add as Replenishment</button>`;
+      rel.style.display = 'flex';
+    }
+    if (saveBtn) saveBtn.disabled = blocked;
+  }
+
+  window.cbNLLookup = function() {
+    clearTimeout(_cbNLLookupTimer);
+    _cbNLLookupTimer = setTimeout(async () => {
+      const eanEl = document.getElementById('cbAddNL_ean');
+      if (!eanEl) return;
+      const ean = eanEl.value.trim();
+      const seq = ++_cbNLLookupSeq;
+      const [match, replMatch] = ean ? await Promise.all([_cbFindNLMatch(ean), _cbFindReplByEan(ean)]) : [null, null];
+      if (seq !== _cbNLLookupSeq) return;
+      const prevId = _cbNLMatch && _cbNLMatch.opportunity_id;
+      if (!match || match.opportunity_id !== prevId) _cbClearAutoFill(['cbAddNL_name','cbAddNL_supplier','cbAddNL_cost']);
+      _cbNLMatch = match; _cbNLReplMatch = replMatch;
+      if (match) {
+        _cbAutoFill('cbAddNL_name', match.product_name);
+        _cbAutoFill('cbAddNL_supplier', match.supplier_name);
+        const c = _cbCodeCost(match.code, ean) ?? parseFloat(match.cost_of_unit);
+        if (c != null && !isNaN(c) && c > 0) _cbAutoFill('cbAddNL_cost', Number(c).toFixed(2));
+      } else if (replMatch) {
+        _cbAutoFill('cbAddNL_name', replMatch.name);
+      }
+      _cbRenderNLHints();
+    }, 350);
+  };
+
+  window.cbOpenExistingNL = function() {
+    const r = _cbNLMatch;
+    if (!r) return;
+    window.closeCbAddModal();
+    window.setCbTab(r.inquire ? 'inquire' : 'tobuy');
+    window.openCbDrawer('nl', r);
+  };
+
+  window.cbSwitchToReplFromNL = function() {
+    const ean = (document.getElementById('cbAddNL_ean')?.value || '').trim();
+    const qty = (document.getElementById('cbAddNL_qty')?.value || '').trim();
+    window.cbSetAddType('repl');
+    const eanEl = document.getElementById('cbAddRepl_ean');
+    if (eanEl) eanEl.value = ean;
+    if (qty) document.getElementById('cbAddRepl_qty').value = qty;
+    window.cbReplLookup();
+  };
+
   window.cbSaveAddItem = async function() {
     const btn = document.getElementById('cbAddSaveBtn');
     if (_cbAddType === 'nl') {
@@ -2493,6 +2631,14 @@ if (_drawerItem) { _drawerItem.data.order_qty=qty; _renderCbDrawer(); }
       const qty = parseInt(document.getElementById('cbAddNL_qty').value);
       if (!name || !supplier || isNaN(cost) || cost<0 || isNaN(qty) || qty<=0) { _cbToast('Please fill in all required fields','error'); return; }
       btn.disabled = true;
+      if (ean) {
+        const existing = await _cbFindNLMatch(ean);
+        if (existing && _cbNLState(existing) === 'basket') {
+          _cbNLMatch = existing; _cbRenderNLHints();
+          _cbToast('Already in the basket','error');
+          return;
+        }
+      }
       try {
         const opportunityId = await _cbNextSourcingId();
         const nowIso = new Date().toISOString();
