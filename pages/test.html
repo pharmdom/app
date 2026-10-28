@@ -1797,7 +1797,7 @@ function asinCard(id, row) {
         <button type="button" data-size="small" class="${parcelVal === 'Small' ? 'active' : ''}" onclick="setParcel('${escAttr(id)}',${i},'Small')">Small</button>
         <button type="button" data-size="standard" class="${parcelVal === 'Standard' ? 'active' : ''}" onclick="setParcel('${escAttr(id)}',${i},'Standard')">Std</button>
      </div>
-      <input type="number" class="edit-input salesvol-input" min="0" value="${escAttr(salesVal)}" placeholder="0" onblur="saveAsinFields('${escAttr(id)}'); autoAnalyzeAndCalcQty('${escAttr(id)}')">
+      <input type="number" class="edit-input salesvol-input" min="0" value="${escAttr(salesVal)}" placeholder="0" onblur="saveAsinFields('${escAttr(id)}')">
       <button class="btn-icon danger" onclick="removeAsinRow('${escAttr(id)}',${i})" title="Remove ASIN"${asins.length <= 1 ? ' style="opacity:.3;pointer-events:none"' : ''}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -2311,10 +2311,9 @@ function saveAsinFields(id) {
       sales_volume: vols.join(', ')
     };
     const currentRow = allData.find(r => r.opportunity_id === id);
-    // Only auto-fill unit_quantity if currently empty
-    if (!currentRow || !currentRow.unit_quantity) {
-      const recQty = calcRecommendedQty(id, asins, vols);
-      updates.unit_quantity = recQty;
+    // Unit Quantity (Recommended) = total of all ASINs' sales volumes, recalculated whenever sales volume changes
+    if (!currentRow || updates.sales_volume !== (currentRow.sales_volume || '')) {
+      updates.unit_quantity = calcRecommendedQty(id, asins, vols);
     }
 
    
@@ -2328,46 +2327,28 @@ setTimeout(() => { _suppressRealtimeDrawer = false; }, 2000);
     }
     const uqEl = document.getElementById(`static_unit_quantity_${id}`);
     if (uqEl) {
-      uqEl.textContent = currentRow?.unit_quantity || '—';
+      uqEl.textContent = currentRow?.unit_quantity ?? '—';
     }
   }, 400);
 }
 
 function calcRecommendedQty(id, asins, vols) {
-  let totalQty = 0;
-  asins.forEach((asin, i) => {
-    const salesVol = parseInt(vols[i]) || 0;
-    if (!salesVol) return;
-    const cache = _analyzerCache[id + '::' + asin];
-    if (cache && cache.offersRaw) {
-      const validOffers = cache.offersRaw.filter(o => !o.isAmazon && (o.isFBA || o.isPrime) && o.stock > 1 && o.price > 0);
-      const sellerCount = Math.max(validOffers.length, 1);
-      totalQty += Math.round(salesVol / sellerCount);
-    } else {
-      totalQty += salesVol;
-    }
-  });
-  return totalQty;
+  // Plain total of every ASIN's sales volume
+  return Math.round(asins.reduce((s, asin, i) => s + (parseFloat(vols[i]) || 0), 0));
 }
 function getQtyBreakdown(id, row) {
   const asins = row.asins ? row.asins.split(',').map(s => s.trim()).filter(Boolean) : [];
   const vols = row.sales_volume ? row.sales_volume.split(',').map(s => s.trim()) : [];
   const lines = [];
+  let total = 0;
   asins.forEach((asin, i) => {
-    const salesVol = parseInt(vols[i]) || 0;
+    const salesVol = parseFloat(vols[i]) || 0;
     if (!salesVol) return;
-    const cache = _analyzerCache[id + '::' + asin];
-    if (cache && cache.offersRaw) {
-      const validOffers = cache.offersRaw.filter(o => !o.isAmazon && (o.isFBA || o.isPrime) && o.stock > 1 && o.price > 0);
-      const sellerCount = Math.max(validOffers.length, 1);
-      const rec = Math.round(salesVol / sellerCount);
-      lines.push(`${asin}: ${salesVol} sales ÷ ${sellerCount} seller${sellerCount > 1 ? 's' : ''} (FBA+SFP) = ${rec} units`);
-    } else {
-      lines.push(`${asin}: ${salesVol} sales (no analyzer data yet)`);
-    }
+    total += salesVol;
+    lines.push(`${asin}: ${salesVol} sales`);
   });
   if (!lines.length) return 'No sales volume data entered.';
-  return lines.join('\n') + '\n\n1 month stock · FBA + SFP sellers only';
+  return lines.join('\n') + `\n\nTotal: ${Math.round(total)} units (sum of all ASINs' sales volume)`;
 }
 window.calcRecommendedQty = calcRecommendedQty;
 window.getQtyBreakdown = getQtyBreakdown;
@@ -2399,55 +2380,12 @@ function addAsinRow(id) {
       <button type="button" data-size="small" onclick="setParcel('${escAttr(id)}',${idx},'Small')">Small</button>
       <button type="button" data-size="standard" onclick="setParcel('${escAttr(id)}',${idx},'Standard')">Std</button>
     </div>
-    <input type="number" class="edit-input salesvol-input" min="0" value="" placeholder="0" onblur="saveAsinFields('${escAttr(id)}'); autoAnalyzeAndCalcQty('${escAttr(id)}')">
+    <input type="number" class="edit-input salesvol-input" min="0" value="" placeholder="0" onblur="saveAsinFields('${escAttr(id)}')">
     <button class="btn-icon danger" onclick="removeAsinRow('${escAttr(id)}',${idx})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
   list.appendChild(row);
   row.querySelector('.asin-input').focus();
   updateAsinRemoveBtns(id);
 }
-let _autoAnalyzeTimer;
-async function autoAnalyzeAndCalcQty(id) {
-  clearTimeout(_autoAnalyzeTimer);
-  _autoAnalyzeTimer = setTimeout(async () => {
-    const list = document.getElementById(`asinList_${id}`);
-    if (!list) return;
-     const uqEl = document.getElementById(`static_unit_quantity_${id}`);
-if (uqEl) uqEl.innerHTML = '<span class="qty-loading"></span>';
-    const rows = list.querySelectorAll('.asin-data-row');
-    const asins = [], vols = [];
-    rows.forEach(r => {
-      const asin = r.querySelector('.asin-input')?.value.trim();
-      if (!asin) return;
-      asins.push(asin);
-      vols.push(r.querySelector('.salesvol-input')?.value.trim() || '0');
-    });
-    // Auto-fetch Keepa for any ASIN not yet cached
-    for (const asin of asins) {
-      const cacheKey = id + '::' + asin;
-      if (!_analyzerCache[cacheKey]) {
-        try {
-          const product = await fetchKeepaProduct(asin);
-          _analyzerCache[cacheKey] = parseKeepaMarketData(product);
-        } catch (e) { /* skip failed fetches */ }
-      }
-    }
-    // Calculate and save recommended qty
-        const recQty = calcRecommendedQty(id, asins, vols);
-    if (recQty > 0) {
-      const currentRow = allData.find(r => r.opportunity_id === id);
-      _suppressRealtimeDrawer = true;
-      await sb.from('sourcing').update({ unit_quantity: recQty, last_updated: new Date().toISOString() }).eq('opportunity_id', id);
-      setTimeout(() => { _suppressRealtimeDrawer = false; }, 2000);
-      if (currentRow) currentRow.unit_quantity = recQty;
-      if (uqEl) uqEl.textContent = recQty;
-      showToast(`Recommended qty: ${recQty} units`, 'success');
-    } else {
-      const currentRow = allData.find(r => r.opportunity_id === id);
-      if (uqEl) uqEl.textContent = currentRow?.unit_quantity || '—';
-    }
-  }, 600);
-}
-window.autoAnalyzeAndCalcQty = autoAnalyzeAndCalcQty;
    
    
 function removeAsinRow(id, idx) {

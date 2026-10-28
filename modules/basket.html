@@ -2261,6 +2261,15 @@ window.cbValidateNLQtyInput = function() {
       if (_drawerItem && _drawerItem.type==='nl' && _drawerItem.data.opportunity_id===id) Object.assign(_drawerItem.data, updates);
       _cbToast('Saved','success');
       window.renderCentralBasket(true);
+      if ('unit_quantity' in updates) {
+        _cbLoadBudgetBar();
+        // Refresh the drawer's Qty/Total; if the user is mid-typing, only update the Qty box so focus isn't lost
+        const ae = document.activeElement;
+        if (_drawerItem && _drawerItem.type==='nl' && _drawerItem.data.opportunity_id===id) {
+          if (ae && ae.matches && ae.matches('input,select,textarea')) { const q=document.getElementById('cbQtyNL_'+id); if (q) q.value = updates.unit_quantity || ''; }
+          else _renderCbDrawer();
+        }
+      }
     } catch(e) { _cbToast('Failed to save','error'); }
   }
   window.cbUpdateNLVat = function(id, val) { _cbSaveSrcDetails(id, { vat_rate: val || null }); };
@@ -2285,6 +2294,8 @@ window.cbValidateNLQtyInput = function() {
       const cur = (_drawerItem && _drawerItem.data) || {};
       const updates = { pack_of: packs.join(', '), parcel_size: parcels.join(', '), sales_volume: vols.join(', ') };
       if (updates.pack_of===(cur.pack_of||'') && updates.parcel_size===(cur.parcel_size||'') && updates.sales_volume===(cur.sales_volume||'')) return;
+      // Unit Quantity (Recommended) = total of all ASINs' sales volumes, recalculated whenever sales volume changes
+      if (updates.sales_volume!==(cur.sales_volume||'')) updates.unit_quantity = Math.round(vols.reduce((s,v)=>s+(parseFloat(v)||0),0));
       _cbSaveSrcDetails(id, updates);
     }, 300);
   };
