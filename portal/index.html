@@ -1307,23 +1307,35 @@ function closeSidebar() {
     menu.style.right = 'auto';
     menu.style.bottom = 'auto';
   }
-  // Called by page_guides.html entries — navigates to the target page/module, then opens its guide once ready
-  window.gwOpenPageGuide = function(key) {
+  // ── PAGE GUIDES (pages/page_guides.html runs inside the widget panel) ──
+  // What the guide panel needs to know: the page you're on and which pages you can open
+  window.gwGuideCtx = function() {
+    const roleOverview = user.role === 'Warehouse' ? 'overview_warehouse'
+      : user.role === 'Digital Ops' ? 'overview_digitalops' : 'overview';
+    const accessible = Object.keys(modules).filter(k => hasPermission(modules[k].permission));
+    accessible.push(roleOverview, 'settings');
+    return { current: currentKey, accessible, role: user.role, isAdmin: user.role === 'Admin', email: user.email || '' };
+  };
+  // Navigate to a page from a guide (quick actions / tours / "Open page")
+  window.gwGoToPage = function(key) {
     closeWidgetPanel();
     if (modules[key]) loadModule(key);
     else if (pages[key]) loadPage(key);
-    else return;
-    let tries = 0;
-    const poll = setInterval(() => {
-      tries++;
-      if (typeof window.openGuide === 'function') {
-        clearInterval(poll);
-        setTimeout(() => window.openGuide(), 250);
-      } else if (tries > 20) {
-        clearInterval(poll);
-      }
-    }, 150);
   };
+  // Open the Page Guides panel on a given page's guide (defaults to the current page)
+  window.gwOpenPageGuide = function(key) {
+    window.__pgxOpenKey = key || null;
+    openWidgetPanel('guides');
+  };
+  // Ctrl/Cmd + G toggles the Page Guides panel from anywhere
+  document.addEventListener('keydown', e => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || (e.key || '').toLowerCase() !== 'g') return;
+    e.preventDefault();
+    if (typeof window.pgTourActive === 'function' && window.pgTourActive()) { window.pgTourEnd(); return; }
+    const panelOpen = document.getElementById('gwPanel')?.classList.contains('open');
+    if (panelOpen && document.getElementById('pgxRoot')) { closeWidgetPanel(); return; }
+    window.gwOpenPageGuide();
+  });
   window.openWidgetPanel  = openWidgetPanel;
   window.closeWidgetPanel = closeWidgetPanel;
   window.backToWidgetMenu = backToWidgetMenu;
