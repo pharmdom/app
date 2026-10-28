@@ -201,8 +201,21 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sc-kb-foot{margin-top:6px;padding-top:8px;border-top:1px solid var(--border2);font-size:11px;color:var(--text4);display:flex;align-items:center;gap:6px;}
 .sc-kb-foot svg{width:12px;height:12px;flex-shrink:0;}
 
+/* help icon: calm, non-distracting tint; placement */
+.sc-kb-help{border-color:#dbe3f3;background:#f4f7fd;color:#7b8db4;}
+.sc-kb-help:hover,.sc-kb-help.open{border-color:var(--accent-bd);background:var(--accent-bg);color:var(--accent);}
+.sc-cat-toolbar .sc-kb-help{margin-left:auto;}
+#scAllCatOverlay .sc-kb-help{margin-left:auto;}
+/* All Catalog: compact search + coloured download */
+#scAllCatOverlay .sc-allcat-search-wrap{flex:0 1 240px;min-width:170px;max-width:240px;}
+.sc-select-toggle.sc-dl-btn{background:var(--role-bg,#eef2fd);border-color:var(--role-bd,#c4d3f9);color:var(--role,#1847d4);}
+.sc-select-toggle.sc-dl-btn:hover{background:var(--role-bd,#c4d3f9);border-color:var(--role,#1847d4);color:var(--role,#1847d4);}
+/* no row fade-in on re-renders (status changes, paging, filters) */
+.sc-cat-table.no-anim tbody tr{animation:none!important;}
+
 /* ── COUNT PILL: Total · Rejected · Approved ── */
 .sc-right-title-count,.sc-allcat-count{display:inline-flex;align-items:center;padding:0;background:var(--surface);border:1px solid var(--border);border-radius:100px;overflow:hidden;flex-shrink:0;}
+#scCatCount,#scAllCatCount{padding:0;background:var(--surface);border:1px solid var(--border);color:inherit;}
 .sc-stat{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;font-size:10.5px;font-weight:600;color:var(--text3);white-space:nowrap;}
 .sc-stat+.sc-stat{border-left:1px solid var(--border);}
 .sc-stat b{font-size:11.5px;font-weight:800;color:var(--text);}
@@ -699,13 +712,13 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
       <input type="text" class="sc-allcat-search-input" id="scAllCatSearch" placeholder="Search by EAN or product name…" oninput="clearTimeout(window._acSt);window._acSt=setTimeout(()=>{window.acPage=0;renderAllCatalog()},250)">
     </div>
     
-<button class="sc-select-toggle" id="scAcDownloadBtn" onclick="openDownloadDialog()">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-  Download
-</button>
 <button class="sc-select-toggle" id="scAcSelectToggle" onclick="toggleAcBulkSelect()">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 11 12 14 22 4"/></svg>
   Select
+</button>
+<button class="sc-select-toggle sc-dl-btn" id="scAcDownloadBtn" onclick="openDownloadDialog()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+  Download
 </button>
   </div>
   <div class="sc-bulk-bar" id="scAcBulkBar" style="display:none">
@@ -1137,13 +1150,29 @@ async function selectSupplier(sid){
   renderSupplierCard(s);
   renderSupDropdown();
 
-  // Show loading state 
-  document.getElementById('scCatContent').innerHTML=`<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading catalog…</p></div>`;
-  document.getElementById('scCatCount').style.display='none';
+  const t0=Date.now();
+  const cached=(_acHasFull||_scLoadedSups.has(sid))?allCatalogData.filter(c=>c.supplier_id===sid):[];
+  if(cached.length){
+    // Show what's already loaded straight away; fresh data replaces it in a moment
+    catalogData=cached.sort((a,b)=>String(a.product_name||'').localeCompare(String(b.product_name||'')));
+    renderCatalog();
+    const c0=document.getElementById('scCatCount');c0.style.display='';c0.innerHTML=scStatsHtml(catalogData);
+  }else{
+    document.getElementById('scCatContent').innerHTML=`<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading catalog…</p></div>`;
+    document.getElementById('scCatCount').style.display='none';
+  }
 
   const{data:cats,error:cErr}=await sb.from('catalog').select('*').eq('supplier_id',sid).order('product_name').limit(10000);
   if(cErr){toast('Failed to load catalog: '+cErr.message,'error');return;}
-  catalogData=cats||[];
+  const freshRows=scMergeLocal(cats||[],t0);
+  _scLoadedSups.add(sid);
+  if(currentSupId!==sid){
+    // user switched supplier while this was loading — just keep the data for later
+    const fids=new Set(freshRows.map(c=>c.id));
+    allCatalogData=allCatalogData.filter(c=>!fids.has(c.id));allCatalogData.push(...freshRows);
+    return;
+  }
+  catalogData=freshRows;
 
   // Merge into allCatalogData (for All Catalog overlay)
   const ids=new Set(catalogData.map(c=>c.id));
@@ -1835,24 +1864,24 @@ async function updateStatus(id,status){
     }
   }
   const agent=status?getAgent():'';
+  // Update the screen instantly, save in the background, undo if the save fails
+  const rows=new Set();
+  [catalogData,allCatalogData,_acAllData].forEach(arr=>{const r=arr.find(x=>String(x.id||'')===id);if(r)rows.add(r);});
+  const first=[...rows][0];
+  const prev=first?{status:first.status,agent:first.agent}:{status:'',agent:''};
+  const paint=(st,ag)=>{
+    rows.forEach(r=>{r.status=st;r.agent=ag;});
+    const cls='sc-status-sel'+(st==='Approved'?' approved':st==='Rejected'?' rejected':'');
+    ['status_','ac_status_'].forEach(p=>{const el=document.getElementById(p+id);if(el){el.value=st||'';el.className=cls;}});
+    ['agent_','ac_agent_'].forEach(p=>{const el=document.getElementById(p+id);if(el)el.textContent=ag||'—';});
+    scRefreshStats();
+  };
+  paint(status,agent);scNoteEdit([id],status,agent);
   try{
     const{error}=await sb.from('catalog').update({status:status||null,agent:agent||null}).eq('id',id);
     if(error)throw error;
-    [catalogData,allCatalogData,_acAllData].forEach(arr=>{
-      const r=arr.find(x=>String(x.id||'')===id);
-      if(r){r.status=status;r.agent=agent;}
-    });
-    const sel=document.getElementById('status_'+id);
-    if(sel)sel.className='sc-status-sel'+(status==='Approved'?' approved':status==='Rejected'?' rejected':'');
-    const agEl=document.getElementById('agent_'+id);
-    if(agEl)agEl.textContent=agent||'—';
-    const acSel=document.getElementById('ac_status_'+id);
-    if(acSel)acSel.className='sc-status-sel'+(status==='Approved'?' approved':status==='Rejected'?' rejected':'');
-    const acAgEl=document.getElementById('ac_agent_'+id);
-    if(acAgEl)acAgEl.textContent=agent||'—';
-    scRefreshStats();
     toast('Status updated','success');
-  }catch(e){toast('Update failed: '+e.message,'error');}
+  }catch(e){paint(prev.status,prev.agent);scNoteEdit([id],prev.status,prev.agent);toast('Update failed: '+e.message,'error');}
 }
 
 
@@ -2259,14 +2288,13 @@ async function bulkSetStatus(status){
   const agent=status?getAgent():'';
   const ids=[...selectedIds];
   const tid=toast('Updating '+ids.length+'…','loading',0);
+  const prev=scApplyLocal(ids,status,agent);
+  selectedIds.clear();renderCatalog();updateBulkCount();
   try{
-    await sb.from('catalog').update({status:status||null,agent:agent||null}).in('id',ids);
-    ids.forEach(id=>{
-      [catalogData,allCatalogData].forEach(arr=>{const r=arr.find(x=>String(x.id||'')===id);if(r){r.status=status;r.agent=agent;}});
-    });
+    const{error}=await sb.from('catalog').update({status:status||null,agent:agent||null}).in('id',ids);
+    if(error)throw error;
     removeToast(tid);toast('Updated '+ids.length+' products','success');
-    selectedIds.clear();renderCatalog();updateBulkCount();
-  }catch(e){removeToast(tid);toast('Failed: '+e.message,'error');}
+  }catch(e){scRestoreLocal(prev);renderCatalog();removeToast(tid);toast('Failed: '+e.message,'error');}
 }
 async function bulkDeleteSelected(){
   if(!selectedIds.size)return;
@@ -2276,8 +2304,9 @@ async function bulkDeleteSelected(){
     closeConfirm();
     const tid=toast('Deleting…','loading',0);
     await sb.from('catalog').delete().in('id',ids);
-    catalogData=catalogData.filter(x=>!ids.includes(String(x.id||'')));
-    allCatalogData=allCatalogData.filter(x=>!ids.includes(String(x.id||'')));
+    const idSet=new Set(ids);scNoteDelete(ids);
+    catalogData=catalogData.filter(x=>!idSet.has(String(x.id||'')));
+    allCatalogData=allCatalogData.filter(x=>!idSet.has(String(x.id||'')));
     selectedIds.clear();removeToast(tid);toast('Deleted '+ids.length,'success');
     renderCatalog();updateBulkCount();
     const cnt=document.getElementById('scCatCount');
@@ -2299,12 +2328,13 @@ async function acBulkSetStatus(status){
   const agent=status?getAgent():'';
   const ids=[...acSelectedIds];
   const tid=toast('Updating '+ids.length+'…','loading',0);
-  await sb.from('catalog').update({status:status||null,agent:agent||null}).in('id',ids);
-  ids.forEach(id=>{
-    [allCatalogData,catalogData].forEach(arr=>{const r=arr.find(x=>String(x.id||'')===id);if(r){r.status=status;r.agent=agent;}});
-  });
-  removeToast(tid);toast('Updated '+ids.length,'success');
+  const prev=scApplyLocal(ids,status,agent);
   acSelectedIds.clear();renderAllCatalog();updateAcBulkCount();
+  try{
+    const{error}=await sb.from('catalog').update({status:status||null,agent:agent||null}).in('id',ids);
+    if(error)throw error;
+    removeToast(tid);toast('Updated '+ids.length,'success');
+  }catch(e){scRestoreLocal(prev);renderAllCatalog();removeToast(tid);toast('Failed: '+e.message,'error');}
 }
 async function acBulkDelete(){
   if(!acSelectedIds.size)return;
@@ -2314,8 +2344,9 @@ async function acBulkDelete(){
     closeConfirm();
     const tid=toast('Deleting…','loading',0);
     await sb.from('catalog').delete().in('id',ids);
-    allCatalogData=allCatalogData.filter(x=>!ids.includes(String(x.id||'')));
-    catalogData=catalogData.filter(x=>!ids.includes(String(x.id||'')));
+    const idSet=new Set(ids);scNoteDelete(ids);
+    allCatalogData=allCatalogData.filter(x=>!idSet.has(String(x.id||'')));
+    catalogData=catalogData.filter(x=>!idSet.has(String(x.id||'')));
     acSelectedIds.clear();removeToast(tid);toast('Deleted '+ids.length,'success');
     renderAllCatalog();updateAcBulkCount();
   };
@@ -2330,11 +2361,15 @@ async function openAllCatalog(){
   document.getElementById('scAllCatOverlay').classList.add('open');
   document.getElementById('scAllCatSearch').value='';
   _kbCur.ac=null;
-  document.getElementById('scAllCatBody').innerHTML=`<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading all catalog…</p></div>`;
+  const t0=Date.now();
+  if(_acHasFull&&allCatalogData.length){_acAllData=allCatalogData;renderAllCatalog();}
+  else document.getElementById('scAllCatBody').innerHTML=`<div class="sc-state"><span class="sc-spin sc-spin-md dark"></span><p>Loading all catalog…</p></div>`;
   const{data:all,error}=await sb.from('catalog').select('*').order('product_name').limit(50000);
   if(error){toast('Failed: '+error.message,'error');return;}
-  _acAllData=all||[];
-  allCatalogData=_acAllData;
+  const fresh=scMergeLocal(all||[],t0);
+  allCatalogData=fresh;_acHasFull=true;
+  if(!document.getElementById('scAllCatOverlay').classList.contains('open'))return;
+  _acAllData=fresh;
   renderAllCatalog();
 }
 
@@ -2347,13 +2382,8 @@ function closeAllCatalog(){
 function renderAllCatalog(){
   if(typeof window.acPage==='number')acPage=window.acPage;
   const q=(document.getElementById('scAllCatSearch').value||'').toLowerCase().trim();
-  let data=_acAllData;
+  let data=scAcSorted();
   if(q)data=data.filter(r=>(String(r.ean||'')+' '+String(r.product_name||'')+' '+String(r.supplier_name||'')).toLowerCase().includes(q));
-  data=[...data].sort((a,b)=>{
-    const ea=normEan(a.ean),eb=normEan(b.ean);
-    if(ea!==eb)return ea.localeCompare(eb);
-    return(parseFloat(a.cost)||999999)-(parseFloat(b.cost)||999999);
-  });
   const total=data.length;
   const PAGE=500;
   const totalPages=Math.ceil(total/PAGE);
@@ -3220,17 +3250,62 @@ function scRefreshStats(){
   const ROLE={ 'Admin':'#3b6ef8','Digital Ops':'#7c3aed','Warehouse':'#0d9488' };
   const role=(window.currentUser&&window.currentUser.role)||'Admin';
   const hex=ROLE[role]||ROLE.Admin;
-  const root=document.getElementById('scRoot');if(!root)return;
-  root.style.setProperty('--role',hex);
-  root.style.setProperty('--role-bg',hex+'14');
-  root.style.setProperty('--role-bd',hex+'40');
-  root.style.setProperty('--role-glow',hex+'40');
+  ['scRoot','scAllCatOverlay'].forEach(rid=>{
+    const root=document.getElementById(rid);if(!root)return;
+    root.style.setProperty('--role',hex);
+    root.style.setProperty('--role-bg',hex+'14');
+    root.style.setProperty('--role-bd',hex+'40');
+    root.style.setProperty('--role-glow',hex+'40');
+  });
 })();
 window.scCopyEan=scCopyEan;window.scToggleKbHelp=scToggleKbHelp;
 
+/* ── SPEED: instant local updates, cached sorting, no re-render animation ── */
+let _acHasFull=false;                 // a full All Catalog load has happened (local copy is complete)
+const _scLoadedSups=new Set();        // suppliers whose catalog is already in memory
+const _scEdits=new Map();             // id -> {status,agent,t} local status edits
+const _scDeletes=new Map();           // id -> t local deletes
+function scNoteEdit(ids,status,agent){const t=Date.now();ids.forEach(id=>_scEdits.set(String(id),{status,agent,t}));}
+function scNoteDelete(ids){const t=Date.now();ids.forEach(id=>_scDeletes.set(String(id),t));}
+// Apply status to every in-memory copy of these rows; returns what to restore on failure
+function scApplyLocal(ids,status,agent){
+  const idSet=new Set(ids.map(String)),prev=new Map();
+  [catalogData,allCatalogData,_acAllData].forEach(arr=>arr.forEach(r=>{
+    if(!idSet.has(String(r.id||'')))return;
+    if(!prev.has(r))prev.set(r,{status:r.status,agent:r.agent});
+    r.status=status;r.agent=agent;
+  }));
+  scNoteEdit(ids,status,agent);
+  return prev;
+}
+function scRestoreLocal(prev){prev.forEach((v,r)=>{r.status=v.status;r.agent=v.agent;_scEdits.set(String(r.id||''),{status:v.status,agent:v.agent,t:Date.now()});});}
+// Fresh rows from the server may have been fetched before a local change landed — keep the local change
+function scMergeLocal(rows,since){
+  return rows.filter(r=>{const d=_scDeletes.get(String(r.id||''));return !(d&&d>=since);}).map(r=>{
+    const e=_scEdits.get(String(r.id||''));
+    if(e&&e.t>=since){r.status=e.status;r.agent=e.agent;}
+    return r;
+  });
+}
+let _acSortCache={src:null,len:-1,out:[]};
+function scAcSorted(){
+  const src=_acAllData;
+  if(_acSortCache.src===src&&_acSortCache.len===src.length)return _acSortCache.out;
+  const keyed=src.map(r=>({r,e:normEan(r.ean),c:parseFloat(r.cost)||999999}));
+  keyed.sort((a,b)=>a.e!==b.e?a.e.localeCompare(b.e):a.c-b.c);
+  _acSortCache={src,len:src.length,out:keyed.map(k=>k.r)};
+  return _acSortCache.out;
+}
+let _scAnimSup=null;
+
 // Re-apply current-row box and counts after every table render
 const _scRenderCatalog=renderCatalog;
-renderCatalog=function(){_scRenderCatalog.apply(this,arguments);scRefreshStats();scKbReapply('cat');};
+renderCatalog=function(){
+  _scRenderCatalog.apply(this,arguments);
+  const tbl=document.querySelector('#scCatContent .sc-cat-table');
+  if(tbl){if(_scAnimSup===currentSupId)tbl.classList.add('no-anim');else _scAnimSup=currentSupId;}
+  scRefreshStats();scKbReapply('cat');
+};
 const _scRenderAllCatalog=renderAllCatalog;
 renderAllCatalog=function(){_scRenderAllCatalog.apply(this,arguments);scRefreshStats();scKbReapply('ac');};
 
