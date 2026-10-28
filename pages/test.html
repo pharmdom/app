@@ -801,8 +801,6 @@ col.col-agent     { width: 110px; }
     <div class="wizard-footer">
       <div class="wizard-footer-left" id="wizardFooterHint"></div>
       <div class="wizard-footer-right">
-        <button class="btn btn-ghost" id="wizardBackBtn" onclick="wizardBack()" style="display:none">Back</button>
-        <button class="btn btn-primary" id="wizardNextBtn" onclick="wizardNext()">Next <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
         <button class="btn btn-primary" id="wizardSaveBtn" onclick="saveProduct()" style="display:none"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Save Product</button>
       </div>
     </div>
@@ -2673,12 +2671,16 @@ function buildAddForm() {
   wizardCurrentStep = 0;
   updateWizardUI();
    document.getElementById('f_productName')?.addEventListener('input', () => updateWizardUI());
+   const _addFormEl = document.getElementById('addForm');
+   if (_addFormEl && !_addFormEl.dataset.wizWatch) {
+     _addFormEl.dataset.wizWatch = '1';
+     ['input', 'change'].forEach(ev => _addFormEl.addEventListener(ev, () => updateWizardUI()));
+   }
 }
 
 function updateWizardUI() {
   const total = WIZARD_STEPS.length;
   const isLast = wizardCurrentStep === total - 1;
-  const isFirst = wizardCurrentStep === 0;
   for (let i = 0; i < total; i++) {
     const panel = document.getElementById('wizPanel' + i);
     if (panel) panel.classList.toggle('active', i === wizardCurrentStep);
@@ -2688,42 +2690,38 @@ function updateWizardUI() {
     const num = document.getElementById('wizStepNum' + i);
     if (!item) continue;
     item.classList.remove('active', 'done');
+    const complete = wizardStepComplete(i);
     if (i === wizardCurrentStep) item.classList.add('active');
-    else if (i < wizardCurrentStep) item.classList.add('done');
-    num.innerHTML = i < wizardCurrentStep ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : String(i + 1);
+    else if (complete) item.classList.add('done');
+    num.innerHTML = (complete && i !== wizardCurrentStep) ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : String(i + 1);
   }
     const productNameVal = (document.getElementById('f_productName')?.value || '').trim();
   document.getElementById('wizardStepSub').textContent = 'Step ' + (wizardCurrentStep + 1) + ' of ' + total + (productNameVal ? ' — ' + productNameVal : '');
-  document.getElementById('wizardBackBtn').style.display = isFirst ? 'none' : '';
-  document.getElementById('wizardNextBtn').style.display = isLast ? 'none' : '';
   document.getElementById('wizardSaveBtn').style.display = isLast ? '' : 'none';
-  var hints = ['Complete all required fields', 'All fields required', 'All fields required', 'All fields required except note'];
+  var hints = ['Click any step above to move between them', 'Click any step above to move between them', 'Click any step above to move between them', 'All required fields in every step are checked when you save'];
   document.getElementById('wizardFooterHint').textContent = hints[wizardCurrentStep] || '';
 }
 
-function wizardNext() {
-  if (!validateWizardStep(wizardCurrentStep)) return;
-  if (wizardCurrentStep < WIZARD_STEPS.length - 1) { wizardCurrentStep++; updateWizardUI(); }
-}
-function wizardBack() {
-  if (wizardCurrentStep > 0) { wizardCurrentStep--; updateWizardUI(); }
-}
 function wizardGoTo(step) {
-  if (step > wizardCurrentStep) {
-    for (let i = wizardCurrentStep; i < step; i++) { if (!validateWizardStep(i)) return; }
-  }
+  // Steps can be visited in any order — required fields are only enforced on Save
   wizardCurrentStep = step;
   updateWizardUI();
 }
 
 
-function validateWizardStep(step) {
+function wizardRequiredIds(step) {
   const isMultiMode = document.getElementById('fEanMulti')?.style.display === 'flex';
-  let requiredIds = [];
-  if (step === 0) requiredIds = ['f_productName', 'f_primaryFulfillment', 'f_keepa'];
-  else if (step === 1) requiredIds = ['f_supplierName', 'f_supplierStock', 'f_supplierCheapest', ...(isMultiMode ? [] : ['f_code'])];
-  else if (step === 2) requiredIds = ['f_costOfSale', 'f_netProfit', 'f_vatRate', 'f_mapRecommended', ...(isMultiMode ? [] : ['f_costOfUnit'])];
-  else if (step === 3) requiredIds = ['f_packing', 'f_seasonality', 'f_competition'];
+  if (step === 0) return ['f_productName', 'f_primaryFulfillment', 'f_keepa'];
+  if (step === 1) return ['f_supplierName', 'f_supplierStock', 'f_supplierCheapest', ...(isMultiMode ? [] : ['f_code'])];
+  if (step === 2) return ['f_costOfSale', 'f_netProfit', 'f_vatRate', 'f_mapRecommended', ...(isMultiMode ? [] : ['f_costOfUnit'])];
+  if (step === 3) return ['f_packing', 'f_seasonality', 'f_competition'];
+  return [];
+}
+function wizardStepComplete(step) {
+  return wizardRequiredIds(step).every(id => { const el = document.getElementById(id); return !el || (el.value && el.value.trim()); });
+}
+function validateWizardStep(step) {
+  const requiredIds = wizardRequiredIds(step);
   let firstError = null;
   requiredIds.forEach(id => {
     const el = document.getElementById(id);
@@ -3598,7 +3596,7 @@ window.addFModalMultiEanRow = addFModalMultiEanRow;
 window.updateToolbarVisibility = updateToolbarVisibility;
 window.setStage = setStage;
 window.basketDecision = basketDecision;
-window.wizardNext = wizardNext; window.wizardBack = wizardBack; window.wizardGoTo = wizardGoTo;
+window.wizardGoTo = wizardGoTo;
 window.minimizeModal = minimizeModal;
 window.maximizeModal = maximizeModal;
 window.cancelMinimizedModal = cancelMinimizedModal;
