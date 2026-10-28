@@ -330,6 +330,27 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .src-form-section{margin-bottom:16px;}
 .src-section-title{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#94a3b8;margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid #f1f5f9;}
 .src-grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+/* ── APPROVE WIZARD (same layout as Test page › Add New Product) ── */
+.apw-steps{display:flex;align-items:center;padding:18px 22px 14px;border-bottom:1px solid #f1f5f9;flex-shrink:0;}
+.apw-step{display:flex;align-items:center;gap:8px;cursor:pointer;flex:1;min-width:0;}
+.apw-step:last-child .apw-line{display:none;}
+.apw-num{width:26px;height:26px;border-radius:50%;border:1.5px solid #e2e8f0;background:#f8fafc;color:#94a3b8;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;}
+.apw-num svg{width:12px;height:12px;}
+.apw-step.active .apw-num{background:#2563eb;color:#fff;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.3);}
+.apw-step.done .apw-num{background:#dcfce7;color:#15803d;border-color:#bbf7d0;}
+.apw-label{font-size:11.5px;font-weight:600;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .2s;}
+.apw-step.active .apw-label{color:#0f172a;}
+.apw-step.done .apw-label{color:#15803d;}
+.apw-line{flex:1;height:2px;background:#e2e8f0;margin:0 8px;min-width:12px;transition:background .2s;}
+.apw-step.done .apw-line{background:#bbf7d0;}
+@media (max-width:640px){.apw-label{display:none;}.apw-line{min-width:8px;margin:0 4px;}}
+.apw-panel{display:none;min-height:340px;animation:apwFadeIn .22s ease;}
+.apw-panel.active{display:block;}
+@keyframes apwFadeIn{from{opacity:0;transform:translateX(12px);}to{opacity:1;transform:translateX(0);}}
+.apw-intro{font-size:13px;color:#64748b;line-height:1.6;margin-bottom:16px;padding:10px 14px;background:#f8fafc;border:1px solid #f1f5f9;border-radius:10px;display:flex;align-items:flex-start;gap:8px;}
+.apw-intro svg{width:14px;height:14px;flex-shrink:0;margin-top:2px;color:#2563eb;}
+.apw-footer{padding:12px 22px;border-top:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fafafa;border-radius:0 0 18px 18px;flex-shrink:0;}
+.apw-hint{font-size:12px;color:#94a3b8;font-weight:500;}
 .src-full{grid-column:1/-1;}
 .src-prefill{padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;color:#0f172a;background:#f8fafc;font-weight:600;min-height:38px;display:flex;align-items:center;}
 .cat-cost.red-pill{background:var(--red-bg);border-color:var(--red-bd);color:var(--red)}
@@ -1789,6 +1810,81 @@ let _catSrcStartTime=null;
 let _catSrcTimerInterval=null;
 let _catSrcRow=null;
 
+/* ── APPROVE WIZARD — same 4-step layout/behaviour as Test page › Add New Product ──
+   Click any step to move freely; Approve shows on step 4 only and checks every step. */
+const APW_INTRO_ICONS=[
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>'
+];
+const APW_LABELS=['Product','Supplier','Financials','Attributes'];
+const APW_INTROS=[
+  'Identifying the product — what it is, who, and its Amazon reference.',
+  'Where is this product coming from? Confirm the EAN and stock details.',
+  'Enter the cost and profit numbers — these drive the ROI calculations.',
+  'Final details — packing, seasonality, and any initial notes for the team.'
+];
+const APW_HINTS=['Click any step above to move between them','Click any step above to move between them','Click any step above to move between them','All required fields in every step are checked when you approve'];
+function apwIntro(i){return `<div class="apw-intro">${APW_INTRO_ICONS[i]}<span>${APW_INTROS[i]}</span></div>`;}
+function apwCreate(cfg){
+  // cfg: { p:'src_', multiId, stepsId, bodyId, btnId, hintId, subId }
+  const st={cur:0};
+  const req=i=>{
+    const p=cfg.p, multi=document.getElementById(cfg.multiId)?.style.display==='flex';
+    return ([
+      [p+'productName',p+'agent',p+'fulfillment',p+'keepa'],
+      [p+'supplier',p+'supplierStock',p+'supplierCheapest',...(multi?[]:[p+'ean'])],
+      [p+'costOfSale',p+'netProfit',p+'vatRate',p+'mapRecommended',...(multi?[]:[p+'costOfUnit'])],
+      [p+'packing',p+'seasonality',p+'competition']
+    ])[i]||[];
+  };
+  const filled=id=>{const el=document.getElementById(id);return !el||!!(el.value&&el.value.trim());};
+  const complete=i=>req(i).every(filled);
+  function update(){
+    const body=document.getElementById(cfg.bodyId);if(!body)return;
+    body.querySelectorAll('.apw-panel').forEach(pn=>pn.classList.toggle('active',+pn.dataset.apw===st.cur));
+    for(let i=0;i<4;i++){
+      const item=document.getElementById(cfg.stepsId+'_'+i);if(!item)continue;
+      const done=i!==st.cur&&complete(i);
+      item.classList.toggle('active',i===st.cur);item.classList.toggle('done',done);
+      item.querySelector('.apw-num').innerHTML=done?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':String(i+1);
+    }
+    const name=(document.getElementById(cfg.p+'productName')?.value||'').trim();
+    const sub=document.getElementById(cfg.subId);if(sub)sub.textContent='Step '+(st.cur+1)+' of 4'+(name?' — '+name:'');
+    const btn=document.getElementById(cfg.btnId);if(btn)btn.style.display=st.cur===3?'':'none';
+    const hint=document.getElementById(cfg.hintId);if(hint)hint.textContent=APW_HINTS[st.cur];
+  }
+  function goTo(i){st.cur=i;update();document.getElementById(cfg.bodyId)?.scrollTo?.(0,0);}
+  function validateAll(){
+    for(let i=0;i<4;i++){
+      const missing=req(i).filter(id=>!filled(id));
+      if(!missing.length)continue;
+      missing.forEach(id=>{
+        const el=document.getElementById(id);if(!el)return;
+        el.style.borderColor='#ef4444';el.style.background='#fff1f2';
+        const clear=()=>{el.style.borderColor='';el.style.background='';};
+        el.addEventListener('input',clear,{once:true});el.addEventListener('change',clear,{once:true});
+      });
+      goTo(i);
+      const first=missing.map(id=>document.getElementById(id)).find(el=>el&&el.type!=='hidden');
+      if(first)setTimeout(()=>first.focus(),50);
+      return false;
+    }
+    return true;
+  }
+  function init(){
+    const steps=document.getElementById(cfg.stepsId);
+    if(steps)steps.innerHTML=APW_LABELS.map((l,i)=>`<div class="apw-step" id="${cfg.stepsId}_${i}" onclick="${cfg.goFn}(${i})"><div class="apw-num">${i+1}</div><span class="apw-label">${l}</span><div class="apw-line"></div></div>`).join('');
+    const body=document.getElementById(cfg.bodyId);
+    if(body&&!body.dataset.apwWatch){body.dataset.apwWatch='1';['input','change','click'].forEach(ev=>body.addEventListener(ev,()=>setTimeout(update,0)));}
+    st.cur=0;update();
+  }
+  return {init,update,goTo,validateAll};
+}
+const _catSrcWiz=apwCreate({p:'catsrc_',multiId:'catsrcEanMulti',stepsId:'catSrcWizSteps',bodyId:'catSrcFormBody',btnId:'catSrcSaveBtn',hintId:'catSrcWizHint',subId:'catSrcWizSub',goFn:'catSrcWizGoTo'});
+window.catSrcWizGoTo=i=>_catSrcWiz.goTo(i);
+
 async function openCatalogSourcingModal(row){
   _catSrcRow=row;
   // Reuse the same sourcing overlay from the offers page — it's included via window.sb shell
@@ -1820,7 +1916,7 @@ async function openCatalogSourcingModal(row){
             </div>
             <div>
               <div style="font-size:15px;font-weight:700;color:#0f172a">Approve to Sourcing</div>
-              <div style="font-size:11.5px;color:#94a3b8;margin-top:1px">Complete details — product stays in catalog after approval</div>
+              <div style="font-size:11.5px;color:#94a3b8;margin-top:1px" id="catSrcWizSub">Step 1 of 4</div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
@@ -1833,10 +1929,11 @@ async function openCatalogSourcingModal(row){
             </button>
           </div>
         </div>
+        <div class="apw-steps" id="catSrcWizSteps"></div>
         <div style="flex:1;overflow-y:auto;padding:16px 22px" id="catSrcFormBody"></div>
-        <div style="padding:12px 22px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:8px;background:#fafafa;border-radius:0 0 18px 18px;flex-shrink:0">
-          <button class="sc-btn sc-btn-secondary sc-btn-sm" onclick="closeCatalogSourcingModal()">Cancel</button>
-          <button class="sc-btn sc-btn-primary sc-btn-sm" id="catSrcSaveBtn" onclick="saveCatalogSourcing()">
+        <div class="apw-footer">
+          <div class="apw-hint" id="catSrcWizHint"></div>
+          <button class="sc-btn sc-btn-primary sc-btn-sm" id="catSrcSaveBtn" onclick="saveCatalogSourcing()" style="display:none">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             Approve
           </button>
@@ -1847,8 +1944,8 @@ async function openCatalogSourcingModal(row){
 
   // Populate form — identical structure to offers sourcing modal
   document.getElementById('catSrcFormBody').innerHTML=`
-    <div class="src-form-section" style="font-family:'DM Sans',system-ui,sans-serif">
-      <div class="src-section-title" style="font-family:'DM Sans',system-ui,sans-serif">Identification</div>
+    <div class="apw-panel active" data-apw="0">
+      ${apwIntro(0)}
       <div class="src-grid2">
         <div class="src-group src-full"><label class="src-lbl">Product Name *</label><input class="src-inp" id="catsrc_productName" value="${esc(row.product_name||'')}"></div>
         <div class="src-group"><label class="src-lbl">Agent</label><div class="src-prefill">${esc(agentName||'—')}</div><input type="hidden" id="catsrc_agent" value="${esc(agentName||'')}"></div>
@@ -1863,8 +1960,8 @@ async function openCatalogSourcingModal(row){
         </div>
       </div>
     </div>
-    <div class="src-form-section">
-      <div class="src-section-title">Supplier</div>
+    <div class="apw-panel" data-apw="1">
+      ${apwIntro(1)}
       <div class="src-grid2">
         <div class="src-group"><label class="src-lbl">Supplier</label><div class="src-prefill">${esc(row.supplier_name||'—')}</div><input type="hidden" id="catsrc_supplier" value="${esc(row.supplier_name||'')}"></div>
         <div class="src-group">
@@ -1890,18 +1987,18 @@ async function openCatalogSourcingModal(row){
         <div class="src-group"><label class="src-lbl">Supplier Cheapest? *</label><select class="src-inp" id="catsrc_supplierCheapest"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
       </div>
     </div>
-    <div class="src-form-section">
-      <div class="src-section-title">Financials</div>
+    <div class="apw-panel" data-apw="2">
+      ${apwIntro(2)}
       <div class="src-grid2">
         <div class="src-group" id="catsrcCostOfUnitWrap"><label class="src-lbl">Cost of Unit (£) *</label><input class="src-inp" type="number" step="0.01" id="catsrc_costOfUnit" value="${esc(String(row.cost||''))}"></div>
         <div class="src-group"><label class="src-lbl">Cost of Sale (£) *</label><input class="src-inp" type="number" step="0.01" id="catsrc_costOfSale"></div>
         <div class="src-group"><label class="src-lbl">Net Profit (£) *</label><input class="src-inp" type="number" step="0.01" id="catsrc_netProfit"></div>
-        <div class="src-group"><label class="src-lbl">Sale Quantity *</label><input class="src-inp" type="number" id="catsrc_unitQuantity"></div>
+        <div class="src-group"><label class="src-lbl">VAT Rate *</label><select class="src-inp" id="catsrc_vatRate"><option value="">Select…</option><option>0%</option><option>5%</option><option>20%</option></select></div>
         <div class="src-group"><label class="src-lbl">MAP Recommended (£) *</label><input class="src-inp" type="number" step="0.01" min="0" id="catsrc_mapRecommended" placeholder="0.00"></div>
       </div>
     </div>
-    <div class="src-form-section">
-      <div class="src-section-title">Attributes</div>
+    <div class="apw-panel" data-apw="3">
+      ${apwIntro(3)}
       <div class="src-grid2">
         <div class="src-group"><label class="src-lbl">Packing *</label><select class="src-inp" id="catsrc_packing"><option value="">Select…</option><option>Fast</option><option>Good</option><option>Medium</option><option>Large</option></select></div>
         <div class="src-group"><label class="src-lbl">Seasonality *</label><select class="src-inp" id="catsrc_seasonality"><option value="">Select…</option><option>Yes</option><option>No</option></select></div>
@@ -1910,6 +2007,7 @@ async function openCatalogSourcingModal(row){
       </div>
     </div>`;
 
+  _catSrcWiz.init();
   modalEl.classList.add('open');
   _catSrcStartTime=Date.now();
   clearInterval(_catSrcTimerInterval);
@@ -1963,18 +2061,7 @@ function updateCatSrcAsinBtns(){
 }
 
 async function saveCatalogSourcing(){
-  const isMultiModeCheck=document.getElementById('catsrcEanMulti').style.display==='flex';
-const required=['catsrc_productName','catsrc_agent','catsrc_fulfillment','catsrc_keepa','catsrc_supplier','catsrc_supplierStock','catsrc_supplierCheapest','catsrc_costOfSale','catsrc_netProfit','catsrc_unitQuantity','catsrc_mapRecommended','catsrc_packing','catsrc_seasonality','catsrc_competition',...(isMultiModeCheck?[]:['catsrc_ean','catsrc_costOfUnit'])];
-  let firstErr=null;
-  required.forEach(fid=>{
-    const el=document.getElementById(fid);
-    if(!el||!el.value.trim()){
-      el.style.borderColor='#ef4444';el.style.background='#fff1f2';
-      if(!firstErr)firstErr=el;
-      el.addEventListener('input',()=>{el.style.borderColor='';el.style.background='';},{once:true});
-    }
-  });
-  if(firstErr){firstErr.scrollIntoView({behavior:'smooth',block:'center'});firstErr.focus();toast('Please complete all required fields','error');return;}
+  if(!_catSrcWiz.validateAll()){toast('Please complete all required fields','error');return;}
 
   const btn=document.getElementById('catSrcSaveBtn');
   btn.disabled=true;btn.innerHTML='<span class="sc-spin sc-spin-sm" style="flex-shrink:0"></span> Saving…';
@@ -2023,7 +2110,8 @@ const insertData={
       cost_of_unit:resolvedCost,
       cost_of_sale:parseFloat(document.getElementById('catsrc_costOfSale').value)||0,
       net_profit:parseFloat(document.getElementById('catsrc_netProfit').value)||0,
-      unit_quantity:parseInt(document.getElementById('catsrc_unitQuantity').value)||0,
+      unit_quantity:0, // derived later from the sales-volume total
+      vat_rate:document.getElementById('catsrc_vatRate').value,
       keepa:document.getElementById('catsrc_keepa').value,
       primary_fulfillment:document.getElementById('catsrc_fulfillment').value,
       supplier_cheapest:supplierCheapestRaw==='Yes'?true:supplierCheapestRaw==='No'?false:null,
@@ -2050,6 +2138,7 @@ const insertData={
       unit_quantity:insertData.unit_quantity,packing:insertData.packing,
       seasonality:insertData.seasonality,competition:insertData.competition,
       supplier_stock:insertData.supplier_stock,
+      vat_rate:insertData.vat_rate,
       map_recommended:insertData.map_recommended,
     });
 
