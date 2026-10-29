@@ -219,6 +219,25 @@
     }
     .sidebar-secondary-collapse:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.9); }
     .sidebar-secondary-collapse svg { width: 14px; height: 14px; }
+    /* Expand tab — shows on the rail's edge after the secondary menu is collapsed */
+    .sec-expand-tab {
+      position: fixed; left: 50px; top: 120px; z-index: 29; height: 34px; width: 22px; padding: 0 0 0 4px;
+      display: none; align-items: center; gap: 7px; overflow: hidden; white-space: nowrap;
+      border: 1px solid rgba(255,255,255,0.08); border-left: none; border-radius: 0 9px 9px 0;
+      background: linear-gradient(160deg, var(--sidebar-bg1), var(--sidebar-bg2));
+      color: rgba(255,255,255,0.62); cursor: pointer; box-shadow: 4px 4px 14px rgba(0,0,0,0.18);
+      font: 700 10.5px/1 Inter, system-ui, sans-serif; letter-spacing: .7px; text-transform: uppercase;
+      transition: width .22s cubic-bezier(.4,0,.2,1), padding .22s, color .15s, background .2s, box-shadow .2s;
+    }
+    .sec-expand-tab.show { display: flex; animation: secTabIn .22s cubic-bezier(.16,1,.3,1); }
+    .sec-expand-tab svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .sec-expand-tab:hover, .sec-expand-tab:focus-visible {
+      width: var(--sec-tab-w, 140px); padding-right: 12px; color: #fff; outline: none;
+      background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 35%, var(--sidebar-bg1)), var(--sidebar-bg2));
+      box-shadow: 4px 4px 18px var(--accent-glow);
+    }
+    @keyframes secTabIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+    @media (max-width: 768px) { .sec-expand-tab { display: none !important; } }
     .nav-flyout-item {
       display: flex; align-items: center; padding: 9px 10px; border-radius: var(--radius-sm);
       font-size: 13.5px; font-weight: 500; color: rgba(255,255,255,0.55); cursor: pointer;
@@ -528,6 +547,9 @@
     <div class="sidebar-mesh"></div>
   </aside>
   <div class="sidebar-spacer"></div>
+  <button type="button" class="sec-expand-tab" id="secExpandTab" onclick="reopenSecondary()" title="Expand menu" aria-label="Expand menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg><span id="secExpandLabel"></span>
+  </button>
   <aside class="sidebar-secondary" id="sidebarSecondary">
     <div class="sidebar-orb-1"></div>
     <div class="sidebar-orb-2"></div>
@@ -911,7 +933,7 @@ function navItem(key, icon, label, onClick) {
       return `<div class="sidebar-secondary-group" id="secondary-group-${id}">
         <div class="sidebar-secondary-head">
           <div class="sidebar-secondary-title">${group.label}</div>
-          <button type="button" class="sidebar-secondary-collapse" title="Collapse" aria-label="Collapse ${group.label} menu" onclick="event.stopPropagation(); unpinGroup();">
+          <button type="button" class="sidebar-secondary-collapse" title="Collapse" aria-label="Collapse ${group.label} menu" onclick="event.stopPropagation(); collapseSecondary();">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
           </button>
         </div>
@@ -922,11 +944,12 @@ function navItem(key, icon, label, onClick) {
   function handleGroupClick(id) {
     const isMobile = window.innerWidth <= 768;
     if (isMobile) { toggleGroup(id); return; }
-    if (pinnedGroupId === id) { unpinGroup(); return; }
+    if (pinnedGroupId === id) { collapseSecondary(); return; }
     pinGroup(id);
   }
 function pinGroup(id) {
     if (!GROUP_CHILDREN[id]) return;
+    hideExpandTab();
     pinnedGroupId = id;
     document.querySelectorAll('.sidebar-secondary-group').forEach(el => el.classList.remove('active'));
     document.getElementById(`secondary-group-${id}`)?.classList.add('active');
@@ -940,7 +963,45 @@ function pinGroup(id) {
     lastPinTime = Date.now();
     syncTopbarBrandWidth();
   }
+  // ── Expand tab: remember the collapsed group so it can be reopened from the rail edge ──
+  let collapsedGroupId = null;
+  function hideExpandTab() {
+    collapsedGroupId = null;
+    document.getElementById('secExpandTab')?.classList.remove('show');
+  }
+  function positionExpandTab() {
+    const tab = document.getElementById('secExpandTab');
+    if (!tab || !collapsedGroupId) return;
+    const rail = document.getElementById('sidebar')?.getBoundingClientRect();
+    const head = document.getElementById(`group-header-${collapsedGroupId}`)?.getBoundingClientRect();
+    if (rail) tab.style.left = Math.round(rail.right) + 'px';
+    if (head && head.height) tab.style.top = Math.round(head.top + head.height / 2 - 17) + 'px';
+  }
+  function collapseSecondary() {
+    const id = pinnedGroupId;
+    unpinGroup();
+    if (!id || window.innerWidth <= 768) return;
+    collapsedGroupId = id;
+    const tab = document.getElementById('secExpandTab');
+    const lbl = document.getElementById('secExpandLabel');
+    if (!tab) return;
+    lbl.textContent = GROUP_CHILDREN[id]?.label || '';
+    tab.setAttribute('aria-label', 'Expand ' + (GROUP_CHILDREN[id]?.label || '') + ' menu');
+    tab.classList.add('show');
+    // width the tab grows to on hover = icon + label
+    tab.style.setProperty('--sec-tab-w', (lbl.scrollWidth + 44) + 'px');
+    requestAnimationFrame(positionExpandTab);
+    setTimeout(positionExpandTab, 320); // after the rail finishes its width transition
+  }
+  function reopenSecondary() {
+    const id = collapsedGroupId;
+    if (id) pinGroup(id);
+  }
+  window.collapseSecondary = collapseSecondary;
+  window.reopenSecondary = reopenSecondary;
+  window.addEventListener('resize', positionExpandTab);
   function unpinGroup() {
+    hideExpandTab();
     pinnedGroupId = null;
     document.getElementById('sidebarSecondary').classList.remove('open');
     document.querySelectorAll('.sidebar-secondary-group').forEach(el => el.classList.remove('active'));
