@@ -216,6 +216,24 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 
 /* ── HIDE avoided brands / categories ── */
 .sc-hide-wrap{position:relative;flex-shrink:0;}
+/* Download dialog: status multi-select */
+.sc-dl-status{margin:2px 0 10px;}
+.sc-dl-status-lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);margin-bottom:6px;}
+.sc-dl-st-wrap{position:relative;}
+.sc-dl-st-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 11px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:#fff;color:var(--text);font-size:12.5px;font-weight:600;font-family:var(--font);cursor:pointer;transition:border-color .15s;}
+.sc-dl-st-btn:hover,.sc-dl-st-wrap.open .sc-dl-st-btn{border-color:var(--accent);}
+.sc-dl-st-btn svg{color:var(--text4);transition:transform .15s;}
+.sc-dl-st-wrap.open .sc-dl-st-btn svg{transform:rotate(180deg);}
+.sc-dl-st-menu{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 30px rgba(15,23,42,.14);padding:5px;z-index:5;}
+.sc-dl-st-wrap.open .sc-dl-st-menu{display:block;}
+.sc-dl-st-opt{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--text2);cursor:pointer;user-select:none;}
+.sc-dl-st-opt:hover{background:var(--surface2);}
+.sc-dl-st-opt input{accent-color:var(--accent);margin:0;}
+.sc-dl-st-opt .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.sc-dl-st-opt .n{margin-left:auto;font-size:11px;font-weight:700;color:var(--text4);}
+.sc-dl-st-sep{height:1px;background:var(--border2);margin:4px 2px;}
+.sc-dl-summary{font-size:11.5px;color:var(--text3);margin:0 0 14px;}
+.sc-dl-summary b{color:var(--text);}
 .sc-hide-btn .sc-hide-chev{opacity:.6;margin-left:-1px;transition:transform .15s;}
 .sc-hide-wrap.open .sc-hide-chev{transform:rotate(180deg);}
 .sc-hide-btn.on{border-color:var(--accent-bd);color:var(--accent);background:var(--accent-bg);}
@@ -650,6 +668,17 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
       </label>
     </div>
     <div id="scDlSupList" style="display:none;max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r);padding:8px;margin-bottom:14px;display:none;flex-direction:column;gap:4px"></div>
+    <div class="sc-dl-status">
+      <div class="sc-dl-status-lbl">Product status</div>
+      <div class="sc-dl-st-wrap" id="scDlStWrap">
+        <button type="button" class="sc-dl-st-btn" id="scDlStBtn" onclick="event.stopPropagation();scDlStToggle()">
+          <span id="scDlStLabel">All statuses</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sc-dl-st-menu" id="scDlStMenu" onclick="event.stopPropagation()"></div>
+      </div>
+    </div>
+    <div class="sc-dl-summary" id="scDlSummary"></div>
     <div class="sc-confirm-btns">
       <button class="sc-btn sc-btn-secondary sc-btn-sm" onclick="closeDownloadDialog()">Cancel</button>
       <button class="sc-btn sc-btn-primary sc-btn-sm" onclick="doDownloadCatalog()">
@@ -1655,12 +1684,12 @@ async function updateStatus(id,status){
     ['agent_','ac_agent_'].forEach(p=>{const el=document.getElementById(p+id);if(el){el.textContent=scFirstName(ag);el.title=ag||'';}});
     scRefreshStats();
   };
-  paint(status,agent);scNoteEdit([id],status,agent);
+  paint(status,agent);scNoteEdit([id],status,agent);scSyncSend({t:'status',ids:[id],status,agent});
   try{
     const{error}=await sb.from('catalog').update({status:status||null,agent:agent||null}).eq('id',id);
     if(error)throw error;
     toast('Status updated','success');
-  }catch(e){paint(prev.status,prev.agent);scNoteEdit([id],prev.status,prev.agent);toast('Update failed: '+e.message,'error');}
+  }catch(e){paint(prev.status,prev.agent);scNoteEdit([id],prev.status,prev.agent);scSyncSend({t:'status',ids:[id],status:prev.status,agent:prev.agent});toast('Update failed: '+e.message,'error');}
 }
 
 
@@ -2022,6 +2051,7 @@ const insertData={
 
     closeCatalogSourcingModal();
     scRefreshStats();
+    scSyncSend({t:'status',ids:[rowId],status:'Approved',agent});
     toast('Approved — '+opportunityId,'success');
   }catch(e){
     toast('Failed: '+e.message,'error');
@@ -2046,6 +2076,7 @@ async function doDelProd(id){
     catalogData=catalogData.filter(x=>String(x.id||'')!==id);
     allCatalogData=allCatalogData.filter(x=>String(x.id||'')!==id);
     _acAllData=_acAllData.filter(x=>String(x.id||'')!==id);
+    scNoteDelete([id]);scSyncSend({t:'delete',ids:[id]});
     renderCatalog();
     const cnt=document.getElementById('scCatCount');
     cnt.innerHTML=scStatsHtml(scVisible(catalogData));
@@ -2084,7 +2115,7 @@ async function bulkDeleteSelected(){
     closeConfirm();
     const tid=toast('Deleting…','loading',0);
     await sb.from('catalog').delete().in('id',ids);
-    const idSet=new Set(ids);scNoteDelete(ids);
+    const idSet=new Set(ids);scNoteDelete(ids);scSyncSend({t:'delete',ids});
     catalogData=catalogData.filter(x=>!idSet.has(String(x.id||'')));
     allCatalogData=allCatalogData.filter(x=>!idSet.has(String(x.id||'')));
     selectedIds.clear();removeToast(tid);toast('Deleted '+ids.length,'success');
@@ -2124,7 +2155,7 @@ async function acBulkDelete(){
     closeConfirm();
     const tid=toast('Deleting…','loading',0);
     await sb.from('catalog').delete().in('id',ids);
-    const idSet=new Set(ids);scNoteDelete(ids);
+    const idSet=new Set(ids);scNoteDelete(ids);scSyncSend({t:'delete',ids});
     allCatalogData=allCatalogData.filter(x=>!idSet.has(String(x.id||'')));
     catalogData=catalogData.filter(x=>!idSet.has(String(x.id||'')));
     acSelectedIds.clear();removeToast(tid);toast('Deleted '+ids.length,'success');
@@ -2882,7 +2913,7 @@ function scKbReapply(scope){
 function scKbMove(dir){
   const {scope,box}=scKbScope();const rows=scKbRows(box);if(!rows.length)return;
   const idx=rows.findIndex(t=>t.dataset.kid===_kbCur[scope]);
-  if(idx<0){scKbSet(scope,box,rows[0].dataset.kid,true);return;}
+  if(idx<0){scKbUserSet(scope,box,rows[0].dataset.kid,true);return;}
   const ni=idx+dir;
   if(ni>=rows.length||ni<0){
     const pg=box.querySelector(dir>0?'.sc-pg-next:not([disabled])':'.sc-pg-prev:not([disabled])');
@@ -2890,9 +2921,9 @@ function scKbMove(dir){
     pg.click();
     const b2=scKbScope().box,r2=scKbRows(b2);if(!r2.length)return;
     const t=dir>0?r2[0]:r2[r2.length-1];
-    scKbSet(scope,b2,t.dataset.kid,true);return;
+    scKbUserSet(scope,b2,t.dataset.kid,true);return;
   }
-  scKbSet(scope,box,rows[ni].dataset.kid,true);
+  scKbUserSet(scope,box,rows[ni].dataset.kid,true);
 }
 function scKbRow(id){return [..._acAllData,...catalogData].find(x=>String(x.id||'')===id)||null;}
 function scKbFlash(box,id){
@@ -2948,7 +2979,7 @@ document.addEventListener('keydown',window._scKbHandler);
   box.addEventListener('click',e=>{
     if(e.target.closest('input,select,button,a,textarea,.ean-copy'))return;
     const tr=e.target.closest('tr[data-kid]');if(!tr)return;
-    scKbSet(bid==='scAllCatBody'?'ac':'cat',box,tr.dataset.kid,false);
+    scKbUserSet(bid==='scAllCatBody'?'ac':'cat',box,tr.dataset.kid,false);
   });
 });
 
@@ -3059,9 +3090,10 @@ function scApplyLocal(ids,status,agent){
     r.status=status;r.agent=agent;
   }));
   scNoteEdit(ids,status,agent);
+  scSyncSend({t:'status',ids:ids.map(String),status,agent});
   return prev;
 }
-function scRestoreLocal(prev){prev.forEach((v,r)=>{r.status=v.status;r.agent=v.agent;_scEdits.set(String(r.id||''),{status:v.status,agent:v.agent,t:Date.now()});});}
+function scRestoreLocal(prev){prev.forEach((v,r)=>{r.status=v.status;r.agent=v.agent;_scEdits.set(String(r.id||''),{status:v.status,agent:v.agent,t:Date.now()});scSyncSend({t:'status',ids:[String(r.id||'')],status:v.status,agent:v.agent});});}
 // Fresh rows from the server may have been fetched before a local change landed — keep the local change
 function scMergeLocal(rows,since){
   return rows.filter(r=>{const d=_scDeletes.get(String(r.id||''));return !(d&&d>=since);}).map(r=>{
@@ -3176,6 +3208,45 @@ document.addEventListener('click',window._scHideClose);
 window.scToggleHideMenu=scToggleHideMenu;window.scSetHide=scSetHide;
 scSyncHideButtons();
 
+/* ══ SPLIT-SCREEN SYNC — keeps two Suppliers windows/tabs in step (same browser) ══
+   Status changes (dropdown, keyboard L/X, bulk, approvals), deletes and the
+   highlighted row made in one window show up instantly in the other. */
+function scSyncSend(msg){try{window._scChan&&window._scChan.postMessage(msg);}catch(e){}}
+function scKbUserSet(scope,box,id,scroll){scKbSet(scope,box,id,scroll);scSyncSend({t:'cursor',id});}
+function scSyncApply(m){
+  if(!m||!document.getElementById('scRoot'))return;
+  if(m.t==='status'){
+    const ids=new Set((m.ids||[]).map(String));
+    [catalogData,allCatalogData,_acAllData].forEach(arr=>arr.forEach(r=>{if(ids.has(String(r.id||''))){r.status=m.status;r.agent=m.agent;}}));
+    scNoteEdit([...ids],m.status,m.agent);
+    const cls='sc-status-sel'+(m.status==='Approved'?' approved':m.status==='Rejected'?' rejected':'');
+    ids.forEach(id=>{
+      ['status_','ac_status_'].forEach(p=>{const el=document.getElementById(p+id);if(el){el.value=m.status||'';el.className=cls;}});
+      ['agent_','ac_agent_'].forEach(p=>{const el=document.getElementById(p+id);if(el){el.textContent=scFirstName(m.agent);el.title=m.agent||'';}});
+      document.querySelectorAll(`tr[data-kid="${CSS.escape(id)}"]`).forEach(tr=>{tr.classList.remove('kb-flash');void tr.offsetWidth;tr.classList.add('kb-flash');setTimeout(()=>tr.classList.remove('kb-flash'),550);});
+    });
+    // a status filter is on → the row may need to leave/enter the list
+    if(currentSupId&&document.getElementById('scCatStatusFilter')?.value)renderCatalog();
+    scRefreshStats();
+  }else if(m.t==='delete'){
+    const ids=new Set((m.ids||[]).map(String));
+    const keep=x=>!ids.has(String(x.id||''));
+    catalogData=catalogData.filter(keep);allCatalogData=allCatalogData.filter(keep);_acAllData=_acAllData.filter(keep);
+    scNoteDelete([...ids]);
+    if(currentSupId)renderCatalog();
+    if(document.getElementById('scAllCatOverlay')?.classList.contains('open'))renderAllCatalog();
+  }else if(m.t==='cursor'&&m.id){
+    if(scKbBlocked())return;
+    const {scope,box}=scKbScope();
+    if(box&&box.querySelector(`tr[data-kid="${CSS.escape(m.id)}"]`))scKbSet(scope,box,String(m.id),true);
+  }
+}
+try{
+  if(window._scChan)window._scChan.close();
+  window._scChan=('BroadcastChannel' in window)?new BroadcastChannel('pd-suppliers-sync'):null;
+  if(window._scChan)window._scChan.onmessage=e=>scSyncApply(e.data);
+}catch(e){window._scChan=null;}
+
 /* ── KEYBOARD / CLICK OUTSIDE ── */
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
@@ -3210,21 +3281,60 @@ function openDownloadDialog(){
   });
   document.querySelector('input[name="dlScope"][value="all"]').checked=true;
   list.style.display='none';
+  list.onchange=scDlUpdate;
+  _scDlStatuses=null; // all
+  scDlRenderMenu();
   document.getElementById('scDownloadOverlay').classList.add('open');
 }
 function closeDownloadDialog(){document.getElementById('scDownloadOverlay').classList.remove('open');}
 function toggleDlSupSelect(show){
   const list=document.getElementById('scDlSupList');
   list.style.display=show?'flex':'none';
+  scDlUpdate();
 }
+// ── Status filter for the CSV (multi-select, default = all) ──
+const SC_DL_STATUSES=[['Approved','Approved','var(--green)'],['Rejected','Rejected','var(--red)'],['New','New Lines','var(--accent)'],['New price','Price Changes','#d97706'],['__none__','No status','var(--text4)']];
+let _scDlStatuses=null; // null = all statuses
+function scDlStatusKey(r){const st=r.status||'';return st?st:'__none__';}
+function scDlSupplierRows(){
+  const scope=document.querySelector('input[name="dlScope"]:checked')?.value;
+  if(scope!=='select')return _acAllData;
+  const checked=new Set([...document.querySelectorAll('.sc-dl-sup-cb:checked')].map(c=>c.value));
+  return _acAllData.filter(r=>checked.has(r.supplier_name||''));
+}
+function scDlRows(){
+  const rows=scDlSupplierRows();
+  return _scDlStatuses?rows.filter(r=>_scDlStatuses.has(scDlStatusKey(r))):rows;
+}
+function scDlRenderMenu(){
+  const base=scDlSupplierRows(), cnt={};
+  base.forEach(r=>{const k=scDlStatusKey(r);cnt[k]=(cnt[k]||0)+1;});
+  const all=!_scDlStatuses;
+  document.getElementById('scDlStMenu').innerHTML=
+    `<label class="sc-dl-st-opt"><input type="checkbox" ${all?'checked':''} onchange="scDlPickAll()"><b>All statuses</b><span class="n">${base.length.toLocaleString()}</span></label><div class="sc-dl-st-sep"></div>`
+    + SC_DL_STATUSES.map(([k,l,c])=>`<label class="sc-dl-st-opt"><input type="checkbox" ${(all||_scDlStatuses.has(k))?'checked':''} onchange="scDlPick('${k}',this.checked)"><span class="dot" style="background:${c}"></span>${l}<span class="n">${(cnt[k]||0).toLocaleString()}</span></label>`).join('');
+  const lbl=document.getElementById('scDlStLabel');
+  lbl.textContent=all?'All statuses':(_scDlStatuses.size?SC_DL_STATUSES.filter(x=>_scDlStatuses.has(x[0])).map(x=>x[1]).join(', '):'No status selected');
+  const n=scDlRows().length;
+  document.getElementById('scDlSummary').innerHTML=`<b>${n.toLocaleString()}</b> product${n===1?'':'s'} will be downloaded`;
+}
+function scDlUpdate(){scDlRenderMenu();}
+function scDlStToggle(){document.getElementById('scDlStWrap').classList.toggle('open');}
+function scDlPickAll(){_scDlStatuses=_scDlStatuses?null:new Set();scDlRenderMenu();}
+function scDlPick(k,on){
+  if(!_scDlStatuses)_scDlStatuses=new Set(SC_DL_STATUSES.map(x=>x[0]));
+  if(on)_scDlStatuses.add(k);else _scDlStatuses.delete(k);
+  if(_scDlStatuses.size===SC_DL_STATUSES.length)_scDlStatuses=null;
+  scDlRenderMenu();
+}
+document.addEventListener('click',e=>{if(!e.target.closest('#scDlStWrap'))document.getElementById('scDlStWrap')?.classList.remove('open');});
+window.scDlStToggle=scDlStToggle;window.scDlPickAll=scDlPickAll;window.scDlPick=scDlPick;
 function doDownloadCatalog(){
   const scope=document.querySelector('input[name="dlScope"]:checked')?.value;
-  let data=_acAllData;
-  if(scope==='select'){
-    const checked=[...document.querySelectorAll('.sc-dl-sup-cb:checked')].map(c=>c.value);
-    if(!checked.length){toast('Select at least one supplier','error');return;}
-    data=data.filter(r=>checked.includes(r.supplier_name||''));
-  }
+  if(scope==='select'&&!document.querySelectorAll('.sc-dl-sup-cb:checked').length){toast('Select at least one supplier','error');return;}
+  if(_scDlStatuses&&!_scDlStatuses.size){toast('Select at least one status','error');return;}
+  const data=scDlRows();
+  if(!data.length){toast('No products match — nothing to download','error');return;}
   const cols=['ean','product_name','supplier_name','cost','code','case_size','category','status','agent','date'];
   const header=cols.join(',');
   const rows=data.map(r=>cols.map(c=>{
