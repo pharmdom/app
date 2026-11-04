@@ -215,6 +215,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sc-cat-table.no-anim tbody tr{animation:none!important;}
 
 /* ── HIDE avoided brands / categories ── */
+.sc-sync-tag{position:fixed;z-index:9600;transform:translateX(-100%);display:inline-flex;align-items:center;height:20px;padding:0 9px;border-radius:100px;background:var(--accent);color:#fff;font-size:10.5px;font-weight:700;font-family:var(--font);box-shadow:0 4px 12px rgba(15,23,42,.18);pointer-events:none;white-space:nowrap;animation:scHideIn .15s ease;}
 .sc-hide-wrap{position:relative;flex-shrink:0;}
 /* Download dialog: status multi-select */
 .sc-dl-status{margin:2px 0 10px;}
@@ -2954,6 +2955,7 @@ window._scKbHandler=function(e){
   e.preventDefault();
   const row=scKbRow(id);if(!row)return;
   scKbFlash(box,id);
+  scSyncSend({t:'act',id,key});
   if(key==='a'){
     const name=(row.product_name||'').trim();
     if(!name){toast('No product name to search','error');return;}
@@ -3211,6 +3213,37 @@ scSyncHideButtons();
 /* ══ SPLIT-SCREEN SYNC — keeps two Suppliers windows/tabs in step (same browser) ══
    Status changes (dropdown, keyboard L/X, bulk, approvals), deletes and the
    highlighted row made in one window show up instantly in the other. */
+// Bring a product into view in this window (switching page if needed) and make it the current row
+function scSyncFollow(id){
+  document.querySelectorAll('.sc-sync-tag').forEach(x=>x.remove());
+  const {scope,box}=scKbScope();if(!box)return null;
+  let tr=box.querySelector(`tr[data-kid="${CSS.escape(id)}"]`);
+  if(!tr){
+    const PAGE=500;
+    if(scope==='cat'&&currentSupId){
+      const idx=getFiltered().findIndex(r=>String(r.id||'')===id);
+      if(idx>=0){window.catalogPage=Math.floor(idx/PAGE);renderCatalog();}
+    }else if(scope==='ac'){
+      const q=(document.getElementById('scAllCatSearch')?.value||'').toLowerCase().trim();
+      let d=scAcSorted();
+      if(_scHide.brand||_scHide.cat)d=d.filter(r=>!scIsHidden(r));
+      if(q)d=d.filter(r=>(String(r.ean||'')+' '+String(r.product_name||'')+' '+String(r.supplier_name||'')).toLowerCase().includes(q));
+      const idx=d.findIndex(r=>String(r.id||'')===id);
+      if(idx>=0){window.acPage=Math.floor(idx/PAGE);renderAllCatalog();}
+    }
+    tr=scKbScope().box?.querySelector(`tr[data-kid="${CSS.escape(id)}"]`);
+  }
+  if(tr)scKbSet(scope,scKbScope().box,id,true);
+  return tr||null;
+}
+// Small label on the row showing what was done in the other window
+function scSyncTag(tr,label){
+  document.querySelectorAll('.sc-sync-tag').forEach(x=>x.remove());
+  const r=tr.getBoundingClientRect();
+  const t=document.createElement('div');t.className='sc-sync-tag';t.textContent='↔ '+label+' · other window';
+  t.style.top=Math.round(r.top+r.height/2-10)+'px';t.style.left=Math.round(r.right-12)+'px';
+  document.body.appendChild(t);setTimeout(()=>t.remove(),1900);
+}
 function scSyncSend(msg){try{window._scChan&&window._scChan.postMessage(msg);}catch(e){}}
 function scKbUserSet(scope,box,id,scroll){scKbSet(scope,box,id,scroll);scSyncSend({t:'cursor',id});}
 function scSyncApply(m){
@@ -3237,8 +3270,16 @@ function scSyncApply(m){
     if(document.getElementById('scAllCatOverlay')?.classList.contains('open'))renderAllCatalog();
   }else if(m.t==='cursor'&&m.id){
     if(scKbBlocked())return;
-    const {scope,box}=scKbScope();
-    if(box&&box.querySelector(`tr[data-kid="${CSS.escape(m.id)}"]`))scKbSet(scope,box,String(m.id),true);
+    scSyncFollow(String(m.id));
+  }else if(m.t==='act'&&m.id){
+    // A / G / L pressed in the other window: follow to that product and pulse it (no duplicate tabs or forms)
+    if(scKbBlocked())return;
+    const tr=scSyncFollow(String(m.id));
+    if(tr){
+      const {box}=scKbScope();scKbFlash(box,String(m.id));
+      const lbl={a:'Amazon search',g:'Google image',l:'Approve'}[m.key];
+      if(lbl)scSyncTag(tr,lbl);
+    }
   }
 }
 try{
