@@ -219,6 +219,12 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sc-hide-wrap{position:relative;flex-shrink:0;}
 /* Download dialog: status multi-select */
 .sc-dl-status{margin:2px 0 10px;}
+.sc-dl-sup-menu{z-index:6;}
+.sc-dl-sup-search{position:relative;margin:2px 2px 4px;}
+.sc-dl-sup-search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text4);}
+.sc-dl-sup-search input{width:100%;padding:7px 9px 7px 29px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:var(--font);outline:none;color:var(--text);background:var(--surface2);}
+.sc-dl-sup-search input:focus{border-color:var(--accent);background:#fff;}
+#scDlSupList{max-height:240px;overflow-y:auto;}
 .sc-dl-sup-row{display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;padding:5px 8px;border-radius:6px;transition:background .1s;}
 .sc-dl-sup-row:hover{background:var(--surface3);}
 .sc-dl-sup-row input{accent-color:var(--accent);margin:0;}
@@ -664,16 +670,20 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
   <div class="sc-confirm-overlay" id="scDownloadOverlay">
   <div class="sc-confirm-box" style="width:460px;max-width:95vw">
     <div class="sc-confirm-title">Download Catalog</div>
-    <div class="sc-confirm-desc" style="margin-bottom:14px">Choose which suppliers to include in the download.</div>
-    <div style="margin-bottom:14px">
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px">
-        <input type="radio" name="dlScope" value="all" checked onchange="toggleDlSupSelect(false)"> All Suppliers
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">
-        <input type="radio" name="dlScope" value="select" onchange="toggleDlSupSelect(true)"> Select Suppliers
-      </label>
+    <div class="sc-confirm-desc" style="margin-bottom:14px">Choose the suppliers and product statuses to include.</div>
+    <div class="sc-dl-status">
+      <div class="sc-dl-status-lbl">Suppliers</div>
+      <div class="sc-dl-st-wrap" id="scDlSupWrap">
+        <button type="button" class="sc-dl-st-btn" id="scDlSupBtn" onclick="event.stopPropagation();scDlSupToggle()">
+          <span id="scDlSupLabel">All suppliers</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sc-dl-st-menu sc-dl-sup-menu" id="scDlSupMenu" onclick="event.stopPropagation()">
+          <div class="sc-dl-sup-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" id="scDlSupQ" placeholder="Search suppliers…" oninput="scDlRenderSuppliers()"></div>
+          <div id="scDlSupList"></div>
+        </div>
+      </div>
     </div>
-    <div id="scDlSupList" style="display:none;max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r);padding:8px;margin-bottom:14px;display:none;flex-direction:column;gap:4px"></div>
     <div class="sc-dl-status">
       <div class="sc-dl-status-lbl">Product status</div>
       <div class="sc-dl-st-wrap" id="scDlStWrap">
@@ -3326,12 +3336,11 @@ async function scFetchCatalog(cols,supIds){
   return out.flat();
 }
 let _scDlIndex=null,_scDlIndexAt=0,_scDlLoading=false;
+let _scDlSups=null; // null = all suppliers, otherwise a Set of supplier ids
 function openDownloadDialog(){
-  document.querySelector('input[name="dlScope"][value="all"]').checked=true;
-  const list=document.getElementById('scDlSupList');
-  list.style.display='none';
-  list.onchange=scDlUpdate;
-  _scDlStatuses=null; // all
+  _scDlSups=null;_scDlStatuses=null;
+  const q=document.getElementById('scDlSupQ');if(q)q.value='';
+  document.querySelectorAll('#scDownloadOverlay .sc-dl-st-wrap').forEach(w=>w.classList.remove('open'));
   scDlRenderSuppliers();
   scDlRenderMenu();
   document.getElementById('scDownloadOverlay').classList.add('open');
@@ -3344,31 +3353,48 @@ function openDownloadDialog(){
     _scDlLoading=false;scDlRenderSuppliers();scDlRenderMenu();
   });
 }
-function scDlRenderSuppliers(){
-  const list=document.getElementById('scDlSupList');
-  const was=new Set([...list.querySelectorAll('.sc-dl-sup-cb:checked')].map(c=>c.value));
+function scDlSupplierOptions(){
   const cnt={};(_scDlIndex||[]).forEach(r=>{cnt[r.supplier_id]=(cnt[r.supplier_id]||0)+1;});
-  let sups=allSuppliers.map(x=>({id:x.supplier_id,name:x.name||x.supplier_id}));
-  if(_scDlIndex)sups=sups.filter(x=>cnt[x.id]);           // only suppliers that have products
-  sups.sort((a,b)=>a.name.localeCompare(b.name));
-  list.innerHTML=sups.length?sups.map(x=>`<label class="sc-dl-sup-row"><input type="checkbox" class="sc-dl-sup-cb" value="${esc(x.id)}" ${was.has(x.id)?'checked':''}><span>${esc(x.name)}</span><span class="n">${_scDlIndex?(cnt[x.id]||0).toLocaleString():'…'}</span></label>`).join('')
-    :'<div style="font-size:12px;color:var(--text4);padding:6px 8px">No suppliers found</div>';
+  let sups=allSuppliers.map(x=>({id:x.supplier_id,name:x.name||x.supplier_id,n:cnt[x.supplier_id]||0}));
+  if(_scDlIndex)sups=sups.filter(x=>x.n);           // only suppliers that have products
+  return sups.sort((a,b)=>a.name.localeCompare(b.name));
 }
+function scDlRenderSuppliers(){
+  const list=document.getElementById('scDlSupList');if(!list)return;
+  const all=scDlSupplierOptions();
+  const q=(document.getElementById('scDlSupQ')?.value||'').toLowerCase().trim();
+  const shown=q?all.filter(x=>x.name.toLowerCase().includes(q)):all;
+  const isAll=!_scDlSups, total=all.reduce((a,x)=>a+x.n,0);
+  list.innerHTML=(q?'':`<label class="sc-dl-st-opt"><input type="checkbox" ${isAll?'checked':''} onchange="scDlSupPickAll()"><b>All suppliers</b><span class="n">${_scDlIndex?total.toLocaleString():'…'}</span></label><div class="sc-dl-st-sep"></div>`)
+    + (shown.length?shown.map(x=>`<label class="sc-dl-st-opt"><input type="checkbox" ${(isAll||_scDlSups.has(x.id))?'checked':''} onchange="scDlSupPick('${esc(x.id)}',this.checked)"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.name)}</span><span class="n">${_scDlIndex?x.n.toLocaleString():'…'}</span></label>`).join('')
+      :`<div style="font-size:12px;color:var(--text4);padding:8px">No suppliers match “${esc(q)}”</div>`);
+  const lbl=document.getElementById('scDlSupLabel');
+  if(isAll)lbl.textContent='All suppliers';
+  else if(!_scDlSups.size)lbl.textContent='No supplier selected';
+  else{const names=all.filter(x=>_scDlSups.has(x.id)).map(x=>x.name);lbl.textContent=names.length<=2?names.join(', '):names.slice(0,2).join(', ')+' +'+(names.length-2)+' more';}
+}
+function scDlSupToggle(){
+  const w=document.getElementById('scDlSupWrap');const open=!w.classList.contains('open');
+  document.getElementById('scDlStWrap')?.classList.remove('open');
+  w.classList.toggle('open',open);
+  if(open)setTimeout(()=>document.getElementById('scDlSupQ')?.focus(),30);
+}
+function scDlSupPickAll(){_scDlSups=_scDlSups?null:new Set();scDlRenderSuppliers();scDlRenderMenu();}
+function scDlSupPick(id,on){
+  const ids=scDlSupplierOptions().map(x=>x.id);
+  if(!_scDlSups)_scDlSups=new Set(ids);
+  if(on)_scDlSups.add(id);else _scDlSups.delete(id);
+  if(ids.every(x=>_scDlSups.has(x)))_scDlSups=null;
+  scDlRenderSuppliers();scDlRenderMenu();
+}
+window.scDlSupToggle=scDlSupToggle;window.scDlSupPickAll=scDlSupPickAll;window.scDlSupPick=scDlSupPick;window.scDlRenderSuppliers=scDlRenderSuppliers;
 function closeDownloadDialog(){document.getElementById('scDownloadOverlay').classList.remove('open');}
-function toggleDlSupSelect(show){
-  const list=document.getElementById('scDlSupList');
-  list.style.display=show?'flex':'none';
-  scDlUpdate();
-}
+function toggleDlSupSelect(){scDlUpdate();}
 // ── Status filter for the CSV (multi-select, default = all) ──
 const SC_DL_STATUSES=[['Approved','Approved','var(--green)'],['Rejected','Rejected','var(--red)'],['New','New Lines','var(--accent)'],['New price','Price Changes','#d97706'],['__none__','No status','var(--text4)']];
 let _scDlStatuses=null; // null = all statuses
 function scDlStatusKey(r){const st=r.status||'';return st?st:'__none__';}
-function scDlSelectedSupIds(){
-  const scope=document.querySelector('input[name="dlScope"]:checked')?.value;
-  if(scope!=='select')return null;
-  return [...document.querySelectorAll('.sc-dl-sup-cb:checked')].map(c=>c.value);
-}
+function scDlSelectedSupIds(){return _scDlSups?[..._scDlSups]:null;}
 function scDlSupplierRows(){
   const rows=_scDlIndex||[];
   const ids=scDlSelectedSupIds();
@@ -3391,12 +3417,12 @@ function scDlRenderMenu(){
   const sum=document.getElementById('scDlSummary');
   const ids=scDlSelectedSupIds();
   if(!_scDlIndex){sum.innerHTML=_scDlLoading?'Counting products…':'';return;}
-  if(ids&&!ids.length){sum.innerHTML='Tick at least one supplier';return;}
+  if(ids&&!ids.length){sum.innerHTML='Pick at least one supplier';return;}
   const n=scDlRows().length;
   sum.innerHTML=`<b>${n.toLocaleString()}</b> product${n===1?'':'s'} will be downloaded`;
 }
 function scDlUpdate(){scDlRenderMenu();}
-function scDlStToggle(){document.getElementById('scDlStWrap').classList.toggle('open');}
+function scDlStToggle(){document.getElementById('scDlSupWrap')?.classList.remove('open');document.getElementById('scDlStWrap').classList.toggle('open');}
 function scDlPickAll(){_scDlStatuses=_scDlStatuses?null:new Set();scDlRenderMenu();}
 function scDlPick(k,on){
   if(!_scDlStatuses)_scDlStatuses=new Set(SC_DL_STATUSES.map(x=>x[0]));
@@ -3404,7 +3430,7 @@ function scDlPick(k,on){
   if(_scDlStatuses.size===SC_DL_STATUSES.length)_scDlStatuses=null;
   scDlRenderMenu();
 }
-document.addEventListener('click',e=>{if(!e.target.closest('#scDlStWrap'))document.getElementById('scDlStWrap')?.classList.remove('open');});
+document.addEventListener('click',e=>{if(!e.target.closest('#scDlStWrap'))document.getElementById('scDlStWrap')?.classList.remove('open');if(!e.target.closest('#scDlSupWrap'))document.getElementById('scDlSupWrap')?.classList.remove('open');});
 window.scDlStToggle=scDlStToggle;window.scDlPickAll=scDlPickAll;window.scDlPick=scDlPick;
 async function doDownloadCatalog(){
   const ids=scDlSelectedSupIds();
