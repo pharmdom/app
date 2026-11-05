@@ -219,6 +219,11 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sc-hide-wrap{position:relative;flex-shrink:0;}
 /* Download dialog: status multi-select */
 .sc-dl-status{margin:2px 0 10px;}
+.sc-dl-sup-row{display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;padding:5px 8px;border-radius:6px;transition:background .1s;}
+.sc-dl-sup-row:hover{background:var(--surface3);}
+.sc-dl-sup-row input{accent-color:var(--accent);margin:0;}
+.sc-dl-sup-row span:first-of-type{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sc-dl-sup-row .n{font-size:11px;font-weight:700;color:var(--text4);}
 .sc-dl-status-lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);margin-bottom:6px;}
 .sc-dl-st-wrap{position:relative;}
 .sc-dl-st-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 11px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:#fff;color:var(--text);font-size:12.5px;font-weight:600;font-family:var(--font);cursor:pointer;transition:border-color .15s;}
@@ -3308,24 +3313,46 @@ document.addEventListener('click',e=>{
 
 
 
+// Reads the whole catalog from the database in pages of 1,000 (never depends on what's loaded on screen)
+async function scFetchCatalog(cols,supIds){
+  const filt=q=>supIds?q.in('supplier_id',supIds):q;
+  const head=await filt(sb.from('catalog').select('id',{count:'exact',head:true}));
+  if(head.error)throw head.error;
+  const total=head.count||0,PAGE=1000,starts=[];
+  for(let f=0;f<total;f+=PAGE)starts.push(f);
+  const out=new Array(starts.length);let k=0;
+  async function worker(){while(k<starts.length){const n=k++,f=starts[n];const{data,error}=await filt(sb.from('catalog').select(cols)).order('id').range(f,f+PAGE-1);if(error)throw error;out[n]=data||[];}}
+  await Promise.all([worker(),worker(),worker(),worker()]);
+  return out.flat();
+}
+let _scDlIndex=null,_scDlIndexAt=0,_scDlLoading=false;
 function openDownloadDialog(){
-  const list=document.getElementById('scDlSupList');
-  list.innerHTML='';
-  const sups=[...new Set(_acAllData.map(r=>r.supplier_name||'').filter(Boolean))].sort();
-  sups.forEach(s=>{
-    const lbl=document.createElement('label');
-    lbl.style.cssText='display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;padding:5px 8px;border-radius:6px;transition:background .1s';
-    lbl.onmouseenter=()=>lbl.style.background='var(--surface3)';
-    lbl.onmouseleave=()=>lbl.style.background='';
-    lbl.innerHTML=`<input type="checkbox" class="sc-dl-sup-cb" value="${esc(s)}" style="accent-color:var(--accent)"> ${esc(s)}`;
-    list.appendChild(lbl);
-  });
   document.querySelector('input[name="dlScope"][value="all"]').checked=true;
+  const list=document.getElementById('scDlSupList');
   list.style.display='none';
   list.onchange=scDlUpdate;
   _scDlStatuses=null; // all
+  scDlRenderSuppliers();
   scDlRenderMenu();
   document.getElementById('scDownloadOverlay').classList.add('open');
+  // Counts per supplier & status, straight from the database (cached for a minute)
+  if(_scDlIndex&&Date.now()-_scDlIndexAt<60000)return;
+  _scDlLoading=true;scDlRenderMenu();
+  scFetchCatalog('supplier_id,supplier_name,status').then(rows=>{
+    _scDlIndex=rows;_scDlIndexAt=Date.now();
+  }).catch(e=>{toast('Could not load catalog counts: '+e.message,'error');}).finally(()=>{
+    _scDlLoading=false;scDlRenderSuppliers();scDlRenderMenu();
+  });
+}
+function scDlRenderSuppliers(){
+  const list=document.getElementById('scDlSupList');
+  const was=new Set([...list.querySelectorAll('.sc-dl-sup-cb:checked')].map(c=>c.value));
+  const cnt={};(_scDlIndex||[]).forEach(r=>{cnt[r.supplier_id]=(cnt[r.supplier_id]||0)+1;});
+  let sups=allSuppliers.map(x=>({id:x.supplier_id,name:x.name||x.supplier_id}));
+  if(_scDlIndex)sups=sups.filter(x=>cnt[x.id]);           // only suppliers that have products
+  sups.sort((a,b)=>a.name.localeCompare(b.name));
+  list.innerHTML=sups.length?sups.map(x=>`<label class="sc-dl-sup-row"><input type="checkbox" class="sc-dl-sup-cb" value="${esc(x.id)}" ${was.has(x.id)?'checked':''}><span>${esc(x.name)}</span><span class="n">${_scDlIndex?(cnt[x.id]||0).toLocaleString():'…'}</span></label>`).join('')
+    :'<div style="font-size:12px;color:var(--text4);padding:6px 8px">No suppliers found</div>';
 }
 function closeDownloadDialog(){document.getElementById('scDownloadOverlay').classList.remove('open');}
 function toggleDlSupSelect(show){
@@ -3337,11 +3364,16 @@ function toggleDlSupSelect(show){
 const SC_DL_STATUSES=[['Approved','Approved','var(--green)'],['Rejected','Rejected','var(--red)'],['New','New Lines','var(--accent)'],['New price','Price Changes','#d97706'],['__none__','No status','var(--text4)']];
 let _scDlStatuses=null; // null = all statuses
 function scDlStatusKey(r){const st=r.status||'';return st?st:'__none__';}
-function scDlSupplierRows(){
+function scDlSelectedSupIds(){
   const scope=document.querySelector('input[name="dlScope"]:checked')?.value;
-  if(scope!=='select')return _acAllData;
-  const checked=new Set([...document.querySelectorAll('.sc-dl-sup-cb:checked')].map(c=>c.value));
-  return _acAllData.filter(r=>checked.has(r.supplier_name||''));
+  if(scope!=='select')return null;
+  return [...document.querySelectorAll('.sc-dl-sup-cb:checked')].map(c=>c.value);
+}
+function scDlSupplierRows(){
+  const rows=_scDlIndex||[];
+  const ids=scDlSelectedSupIds();
+  if(!ids)return rows;
+  const set=new Set(ids);return rows.filter(r=>set.has(r.supplier_id));
 }
 function scDlRows(){
   const rows=scDlSupplierRows();
@@ -3352,12 +3384,16 @@ function scDlRenderMenu(){
   base.forEach(r=>{const k=scDlStatusKey(r);cnt[k]=(cnt[k]||0)+1;});
   const all=!_scDlStatuses;
   document.getElementById('scDlStMenu').innerHTML=
-    `<label class="sc-dl-st-opt"><input type="checkbox" ${all?'checked':''} onchange="scDlPickAll()"><b>All statuses</b><span class="n">${base.length.toLocaleString()}</span></label><div class="sc-dl-st-sep"></div>`
-    + SC_DL_STATUSES.map(([k,l,c])=>`<label class="sc-dl-st-opt"><input type="checkbox" ${(all||_scDlStatuses.has(k))?'checked':''} onchange="scDlPick('${k}',this.checked)"><span class="dot" style="background:${c}"></span>${l}<span class="n">${(cnt[k]||0).toLocaleString()}</span></label>`).join('');
+    `<label class="sc-dl-st-opt"><input type="checkbox" ${all?'checked':''} onchange="scDlPickAll()"><b>All statuses</b><span class="n">${_scDlIndex?base.length.toLocaleString():'…'}</span></label><div class="sc-dl-st-sep"></div>`
+    + SC_DL_STATUSES.map(([k,l,c])=>`<label class="sc-dl-st-opt"><input type="checkbox" ${(all||_scDlStatuses.has(k))?'checked':''} onchange="scDlPick('${k}',this.checked)"><span class="dot" style="background:${c}"></span>${l}<span class="n">${_scDlIndex?(cnt[k]||0).toLocaleString():'…'}</span></label>`).join('');
   const lbl=document.getElementById('scDlStLabel');
   lbl.textContent=all?'All statuses':(_scDlStatuses.size?SC_DL_STATUSES.filter(x=>_scDlStatuses.has(x[0])).map(x=>x[1]).join(', '):'No status selected');
+  const sum=document.getElementById('scDlSummary');
+  const ids=scDlSelectedSupIds();
+  if(!_scDlIndex){sum.innerHTML=_scDlLoading?'Counting products…':'';return;}
+  if(ids&&!ids.length){sum.innerHTML='Tick at least one supplier';return;}
   const n=scDlRows().length;
-  document.getElementById('scDlSummary').innerHTML=`<b>${n.toLocaleString()}</b> product${n===1?'':'s'} will be downloaded`;
+  sum.innerHTML=`<b>${n.toLocaleString()}</b> product${n===1?'':'s'} will be downloaded`;
 }
 function scDlUpdate(){scDlRenderMenu();}
 function scDlStToggle(){document.getElementById('scDlStWrap').classList.toggle('open');}
@@ -3370,25 +3406,33 @@ function scDlPick(k,on){
 }
 document.addEventListener('click',e=>{if(!e.target.closest('#scDlStWrap'))document.getElementById('scDlStWrap')?.classList.remove('open');});
 window.scDlStToggle=scDlStToggle;window.scDlPickAll=scDlPickAll;window.scDlPick=scDlPick;
-function doDownloadCatalog(){
-  const scope=document.querySelector('input[name="dlScope"]:checked')?.value;
-  if(scope==='select'&&!document.querySelectorAll('.sc-dl-sup-cb:checked').length){toast('Select at least one supplier','error');return;}
+async function doDownloadCatalog(){
+  const ids=scDlSelectedSupIds();
+  if(ids&&!ids.length){toast('Select at least one supplier','error');return;}
   if(_scDlStatuses&&!_scDlStatuses.size){toast('Select at least one status','error');return;}
-  const data=scDlRows();
-  if(!data.length){toast('No products match — nothing to download','error');return;}
-  const cols=['ean','product_name','supplier_name','cost','code','case_size','category','status','agent','date'];
-  const header=cols.join(',');
-  const rows=data.map(r=>cols.map(c=>{
-    const v=String(r[c]??'');
-    return v.includes(',')||v.includes('"')||v.includes('\n')?'"'+v.replace(/"/g,'""')+'"':v;
-  }).join(','));
-  const csv=[header,...rows].join('\n');
-  const blob=new Blob([csv],{type:'text/csv'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download='catalog_'+new Date().toISOString().split('T')[0]+'.csv';
-  a.click();URL.revokeObjectURL(url);
-  closeDownloadDialog();
-  toast('Downloaded '+data.length+' products','success');
+  const btn=document.querySelector('#scDownloadOverlay .sc-btn-primary');
+  const btnHtml=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="sc-spin sc-spin-sm" style="flex-shrink:0"></span> Preparing…';
+  const tid=toast('Preparing download…','loading',0);
+  try{
+    const cols=['ean','product_name','supplier_name','cost','code','case_size','category','status','agent','date'];
+    let data=await scFetchCatalog(cols.join(','),ids);
+    if(_scDlStatuses)data=data.filter(r=>_scDlStatuses.has(scDlStatusKey(r)));
+    if(!data.length){removeToast(tid);toast('No products match — nothing to download','error');return;}
+    data.sort((a,b)=>String(a.supplier_name||'').localeCompare(String(b.supplier_name||''))||String(a.product_name||'').localeCompare(String(b.product_name||'')));
+    const header=cols.join(',');
+    const rows=data.map(r=>cols.map(c=>{
+      const v=String(r[c]??'');
+      return v.includes(',')||v.includes('"')||v.includes('\n')?'"'+v.replace(/"/g,'""')+'"':v;
+    }).join(','));
+    const csv='﻿'+[header,...rows].join('\n');
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download='catalog_'+new Date().toISOString().split('T')[0]+'.csv';
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    closeDownloadDialog();
+    removeToast(tid);toast('Downloaded '+data.length.toLocaleString()+' products','success');
+  }catch(e){removeToast(tid);toast('Download failed: '+e.message,'error');}
+  finally{btn.disabled=false;btn.innerHTML=btnHtml;}
 }
 
 
