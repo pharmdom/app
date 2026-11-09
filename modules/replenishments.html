@@ -368,6 +368,37 @@
 #rp2 .dlg-total{margin-right:auto;font-size:12px;color:var(--tx3)}
 #rp2 .dlg-total b{color:var(--tx);font-size:14px;font-variant-numeric:tabular-nums}
 
+#rp2 .rv-dlg{width:640px}
+#rp2 .rv-all{display:flex;align-items:center;gap:8px;padding:8px 20px;font-size:12.5px;font-weight:600;color:var(--tx2);border-top:1px solid var(--bd2);border-bottom:1px solid var(--bd2);background:var(--sf2);cursor:pointer}
+#rp2 .rv-all input,#rp2 .rv-row input{width:15px;height:15px;accent-color:var(--ac);cursor:pointer;flex-shrink:0}
+#rp2 .rv-list{overflow:auto;padding:10px 20px 14px;display:flex;flex-direction:column;gap:8px;min-height:0;flex:1}
+#rp2 .rv-row{border:1px solid var(--bd);border-radius:12px;background:#fff;transition:border-color .15s,background .15s}
+#rp2 .rv-row.on{border-color:var(--acbd);background:var(--acbg)}
+#rp2 .rvw-main{display:flex;align-items:center;gap:10px;padding:10px 12px 0}
+#rp2 .rvw-main .thumb{width:34px;height:34px;border-radius:8px}
+#rp2 .rv-name{flex:1;min-width:0;cursor:pointer}
+#rp2 .rv-name b{display:block;font-size:12.5px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rp2 .rv-name span{font-size:10.5px;color:var(--tx4);font-family:var(--mono)}
+#rp2 .rv-name:hover b{color:var(--ac)}
+#rp2 .rv-chev{color:var(--tx4);transition:transform .15s;cursor:pointer;display:flex}
+#rp2 .rv-chev svg{width:14px;height:14px}
+#rp2 .rv-chev.open{transform:rotate(90deg)}
+#rp2 .rv-cmp{display:flex;align-items:stretch;gap:10px;padding:10px 12px 12px 37px}
+#rp2 .rv-side{flex:1;border:1px solid var(--bd);border-radius:9px;padding:7px 10px;background:var(--sf2);min-width:0}
+#rp2 .rv-side .l{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--tx4)}
+#rp2 .rv-side .q{font-size:16px;font-weight:800;color:var(--tx);font-variant-numeric:tabular-nums;margin:1px 0}
+#rp2 .rv-side .q small{font-size:11px;font-weight:500;color:var(--tx4);margin-left:3px}
+#rp2 .rv-side .m{font-size:11px;color:var(--tx3);font-variant-numeric:tabular-nums}
+#rp2 .rv-side.worse{background:var(--rdbg);border-color:var(--rdbd)} #rp2 .rv-side.worse .l{color:var(--rd)}
+#rp2 .rv-side.better{background:var(--grbg);border-color:var(--grbd)} #rp2 .rv-side.better .l{color:var(--gr)}
+#rp2 .rv-side .flags{margin-top:5px}
+#rp2 .rv-arrow{display:flex;align-items:center;color:var(--tx4)}
+#rp2 .rv-arrow svg{width:15px;height:15px}
+#rp2 .rv-same{flex:1;display:flex;align-items:center;justify-content:center;border:1px dashed var(--bd);border-radius:9px;font-size:12px;color:var(--tx4)}
+#rp2 .rv-det{display:none;margin:0 12px 12px 37px;padding:8px 10px;border-radius:9px;background:var(--sf2);font-size:11.5px;color:var(--tx3);grid-template-columns:1fr 1fr;gap:4px 14px}
+#rp2 .rv-det.open{display:grid}
+#rp2 .rv-det div{display:flex;justify-content:space-between;gap:8px}
+#rp2 .rv-det b{color:var(--tx2);font-weight:600;text-align:right}
 #rp2 .lb{position:fixed;inset:0;background:rgba(9,13,24,.88);z-index:10001;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s;padding:56px 24px 40px}
 #rp2 .lb.open{opacity:1;pointer-events:auto}
 #rp2 .lb img{max-width:min(900px,100%);max-height:100%;object-fit:contain;border-radius:12px;background:#fff;box-shadow:0 30px 80px rgba(0,0,0,.5);transform:scale(.97);transition:transform .2s}
@@ -419,7 +450,7 @@
           </div>
           <div class="up-grid" id="rp2Slots"></div>
           <div class="up-foot">
-            <div class="up-note" id="rp2UpNote">Lines already in the Basket and lines rejected in the last 60 days are kept. Everything else is replaced by the new reports.</div>
+            <div class="up-note" id="rp2UpNote">Lines already in the Basket are kept — you'll be asked which should take the new numbers. Lines rejected in the last 60 days stay rejected. Everything else is replaced by the new reports.</div>
             <button class="btn pri" id="rp2GenBtn" disabled onclick="rp2.generate()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>Generate list</button>
           </div>
         </div>
@@ -509,6 +540,19 @@
     </div>
   </div>
 
+  <!-- Basket review (after a new upload) -->
+  <div class="ov" id="rp2RvOv" onclick="if(event.target===this)rp2.rvRequestClose()">
+    <div class="dlg rv-dlg" role="dialog" aria-modal="true">
+      <div class="dlg-h">
+        <div style="min-width:0"><h3>Review Basket recommendations</h3><p><b id="rp2RvCount"></b> already in the Basket. Tick the ones that should take this upload's new numbers — anything left unticked keeps what it has.</p></div>
+        <button class="iconbtn" onclick="rp2.rvRequestClose()" title="Close (Esc)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <label class="rv-all"><input type="checkbox" id="rp2RvAll" onchange="rp2.rvAll(this.checked)">Select all</label>
+      <div class="rv-list" id="rp2RvList"></div>
+      <div class="dlg-f"><span class="dlg-total" id="rp2RvNote">Refreshed lines take the new recommended quantity.</span><button class="btn" onclick="rp2.rvRequestClose()">Cancel</button><button class="btn pri" id="rp2RvOk" onclick="rp2.rvProcess()">Process</button></div>
+    </div>
+  </div>
+
   <!-- Confirm dialog -->
   <div class="ov" id="rp2ConfOv" onclick="if(event.target===this)rp2.closeConf()">
     <div class="dlg" style="width:400px">
@@ -585,7 +629,7 @@
     tab: 'review', filter: 'order', side: 'basket', q: '',
     cur: null, preview: null, undo: [],
     files: {}, linesFilter: 'all', sort: { k:'days_left', d:1 },
-    bk: null, busy: false, cardTab: null,
+    bk: null, busy: false, cardTab: null, rv: [], rvOpenSku: null,
   };
 
   /* ───────── helpers ───────── */
@@ -874,6 +918,7 @@
 
       // build rows to save
       const save = [];
+      const review = [];
       const seen = new Set();
       lines.forEach(l => {
         const k = normEan(l.sku); seen.add(k);
@@ -881,7 +926,7 @@
         const w = watchByK[k];
         if (w && w.active && w.checks > 0) { l.flags.push('oos_watch'); l.watch_week = w.checks; } else l.watch_week = null;
         if (!l.image_url && e && e.image_url) l.image_url = e.image_url;
-        if (keepAsIs(e)) return;                          // already in the Basket — left exactly as it is
+        if (keepAsIs(e)) { review.push({ sku: e.sku, cur: { ...e }, nw: { ...l, cycle_id: cyc.id }, checked: false }); return; }   // already in the Basket — kept as is; offered in the review
         const row = { ...l, sku: e ? e.sku : l.sku, cycle_id: cyc.id, source: 'report', uploaded_at: now.toISOString() };
         if (keepRej(e)) { row.action = 'rej'; row.actioned_at = e.actioned_at; row.actioned_by = e.actioned_by; }
         else { row.action = null; row.actioned_at = null; row.actioned_by = null; row.basket_added_at = null; row.order_submitted = false; row.order_cases = null; row.case_price = null; row.original_cost_price = null; row.supplier_name = null; }
@@ -921,7 +966,8 @@
       await loadAll();
       S.filter = 'order'; S.cur = null; S.preview = null; S.undo = [];
       tab('review');
-      toast(`${fmtN(lines.length)} lines calculated · ${fmtN(stats.to_order)} need ordering · ${excluded} clearance excluded${kept ? ' · ' + kept + ' already in Basket kept' : ''}`, 'ok');
+      const doneMsg = `${fmtN(lines.length)} lines calculated · ${fmtN(stats.to_order)} need ordering · ${excluded} clearance excluded`;
+      if (review.length) rvOpen(review); else toast(doneMsg, 'ok');
     } catch (e) {
       console.error('Replenishment generate failed', e);
       toast('Could not generate the list — ' + (e.message || 'please try again'), 'err');
@@ -1353,6 +1399,95 @@
     catch(e) { Object.assign(x, before); renderAll(); toast('Could not add to the Basket — please try again', 'err'); }
   }
 
+  /* ───────── Basket review after a new upload ───────── */
+  const rvDays = v => v.current_stock != null && v.current_stock <= 0 ? 0 : (v.days_left == null ? null : v.days_left);
+  const rvDaysTxt = v => v.current_stock == null && v.days_left == null ? '—' : v.current_stock != null && v.current_stock <= 0 ? 'out of stock' : v.days_left == null ? '∞ days left' : fmtN(v.days_left, 1) + ' days left';
+  function rvOpen(list){
+    const dk = v => { const d = rvDays(v); return d == null ? 9999 : d; };
+    S.rv = list.sort((a, b) => Math.abs(dk(b.cur) - dk(b.nw)) - Math.abs(dk(a.cur) - dk(a.nw)));
+    S.rvOpenSku = null;
+    $('rp2RvCount').textContent = list.length + (list.length === 1 ? ' line is' : ' lines are');
+    $('rp2RvAll').checked = false;
+    rvRender();
+    $('rp2RvOv').classList.add('open');
+  }
+  function rvRender(){
+    const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+    const chev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+    $('rp2RvList').innerHTML = S.rv.map(p => {
+      const c = p.cur, n = p.nw, open = S.rvOpenSku === p.sku;
+      const dc = rvDays(c), dn = rvDays(n);
+      const same = (c.order_qty || 0) === (n.order_qty || 0) && dc === dn && (c.current_stock ?? null) === (n.current_stock ?? null);
+      const cls = same ? '' : (dc != null && (dn == null || dn > dc)) ? 'better' : (dn != null && (dc == null || dn < dc)) ? 'worse' : '';
+      const side = (lbl, v, k, flagsHtml) => `<div class="rv-side ${k}"><div class="l">${lbl}</div><div class="q">${fmtN(v.order_qty || 0)}<small>units</small></div>
+        <div class="m">${esc(rvDaysTxt(v))}${v.current_stock != null ? ' · stock ' + fmtN(v.current_stock) : ''}${v.daily_rate != null ? ' · ' + fmtN(v.daily_rate, 2) + '/day' : ''}</div>${flagsHtml || ''}</div>`;
+      const st = ACT[c.action] ? ACT[c.action].t : c.action;
+      return `<div class="rv-row${p.checked ? ' on' : ''}">
+        <div class="rvw-main">
+          <input type="checkbox" ${p.checked ? 'checked' : ''} onchange="rp2.rvTick('${jsq(p.sku)}',this.checked)">
+          ${thumb(c)}
+          <div class="rv-name" onclick="rp2.rvDetail('${jsq(p.sku)}')"><b title="${esc(c.name)}">${esc(c.name)}</b><span>${esc(c.sku)}</span></div>
+          <span class="pill ${ACT[c.action] ? ACT[c.action].c : 'pend'}">${esc(st)}</span>
+          <span class="rv-chev${open ? ' open' : ''}" onclick="rp2.rvDetail('${jsq(p.sku)}')">${chev}</span>
+        </div>
+        <div class="rv-cmp">
+          ${side('In the Basket now', c, '')}
+          ${same ? '<div class="rv-same">No change from this upload</div>' : `<span class="rv-arrow">${arrow}</span>${side('If refreshed', n, cls, n.flags && n.flags.length ? `<div class="flags">${flagChips(n)}</div>` : '')}`}
+        </div>
+        <div class="rv-det${open ? ' open' : ''}">
+          <div><span>EAN</span><b>${esc(c.ean || c.sku)}</b></div>
+          <div><span>Status</span><b>${esc(st)}</b></div>
+          <div><span>Supplier</span><b>${esc(c.supplier_name || '—')}</b></div>
+          <div><span>Unit cost</span><b>${c.cost_price != null ? fmtGBP(c.cost_price) : '—'}</b></div>
+          <div><span>Order submitted</span><b>${c.order_submitted ? 'Yes' : 'No'}</b></div>
+          <div><span>Cases</span><b>${c.order_cases ? fmtN(c.order_cases) + (c.case_price != null ? ' × ' + fmtGBP(c.case_price) : '') : '—'}</b></div>
+        </div>
+      </div>`;
+    }).join('');
+    const n = S.rv.filter(p => p.checked).length;
+    $('rp2RvOk').textContent = n ? `Process (${n} refreshed)` : 'Process';
+    $('rp2RvAll').checked = S.rv.length > 0 && n === S.rv.length;
+  }
+  function rvClose(){ $('rp2RvOv').classList.remove('open'); S.rv = []; S.rvOpenSku = null; }
+  function rvRequestClose(){
+    confirmDlg('Close without saving?', 'Nothing will be applied — every Basket line keeps its current numbers.', 'Close', () => { rvClose(); toast('Basket kept as it is', ''); });
+  }
+  async function rvProcess(){
+    const pick = S.rv.filter(p => p.checked);
+    const btn = $('rp2RvOk');
+    if (pick.length) {
+      btn.disabled = true; btn.textContent = 'Saving…';
+      const now = new Date().toISOString();
+      try {
+        await inChunks(pick, 25, async c => Promise.all(c.map(async p => {
+          const n = p.nw;
+          const patch = {
+            purchase_date: n.purchase_date, purchase_qty: n.purchase_qty, stock_after_purchase: n.stock_after_purchase,
+            last_order_date: n.last_order_date, current_stock: n.current_stock, units_sold: n.units_sold, days: n.days,
+            daily_rate: n.daily_rate, days_left: n.days_left, need_25: n.need_25, incoming: n.incoming, allocated_qty: n.allocated_qty,
+            flags: n.flags || [], watch_week: n.watch_week ?? null, po_expected: n.po_expected, po_suppliers: n.po_suppliers,
+            urgency: n.urgency, report_cost: n.report_cost, cycle_id: n.cycle_id, source: 'report', uploaded_at: now,
+            // the Basket quantity becomes the new recommendation; cases no longer match it, so they're cleared
+            order_qty: n.order_qty, order_cases: null, case_price: null,
+          };
+          if (n.image_url && !p.cur.image_url) patch.image_url = n.image_url;
+          const { error } = await sb.from('replen2_skus').update(patch).eq('sku', p.sku);
+          if (error) throw error;
+          const x = S.bySku[p.sku]; if (x) Object.assign(x, patch);
+        })));
+      } catch (e) {
+        console.error('Basket review save failed', e);
+        btn.disabled = false; rvRender();
+        toast('Could not save the refreshed lines — please try again', 'err');
+        return;
+      }
+      btn.disabled = false;
+    }
+    rvClose();
+    renderAll();
+    toast(pick.length ? `${pick.length} Basket line${pick.length === 1 ? '' : 's'} refreshed` : 'Basket kept as it is', pick.length ? 'ok' : '');
+  }
+
   /* notes */
   async function saveNote(sku){
     const el = $('rp2NoteIn'); const text = (el && el.value || '').trim();
@@ -1501,6 +1636,7 @@
       if ($('rp2Lb').classList.contains('open')) { closeImg(); e.preventDefault(); return; }
       if ($('rp2BasketOv').classList.contains('open')) { closeBasket(); e.preventDefault(); return; }
       if ($('rp2ConfOv').classList.contains('open')) { closeConf(); e.preventDefault(); return; }
+      if ($('rp2RvOv').classList.contains('open')) { rvRequestClose(); e.preventDefault(); return; }
       $('rp2KbHelp').classList.remove('open');
       if (S.preview) { exitPreview(); e.preventDefault(); }
       return;
@@ -1509,7 +1645,7 @@
       if (e.key === 'Enter' && !$('rp2BkOk').disabled) { e.preventDefault(); confirmBasket(); }
       return;
     }
-    if ($('rp2Lb').classList.contains('open') || $('rp2ConfOv').classList.contains('open')) return;
+    if ($('rp2Lb').classList.contains('open') || $('rp2ConfOv').classList.contains('open') || $('rp2RvOv').classList.contains('open')) return;
     if (S.tab !== 'review' || e.ctrlKey || e.metaKey || e.altKey) return;
     const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
     const k = e.key.toLowerCase();
@@ -1542,7 +1678,11 @@
     linesFilter: k => { S.linesFilter = k; renderLines(); },
     clearSearch: () => { S.q = ''; $('rp2Search').value = ''; renderAll(); },
     basket: (sku, sup, cost) => openBasket(sku, sup, cost),
-    bkRender, bkPick, bkCalc, bkCostTyped, bkTip, closeBasket, confirmBasket, closeConf,
+    bkRender, bkPick, bkCalc, bkCostTyped, bkTip,
+    rvRequestClose, rvProcess,
+    rvAll: on => { S.rv.forEach(p => p.checked = on); rvRender(); },
+    rvTick: (sku, on) => { const p = S.rv.find(x => x.sku === sku); if (p) p.checked = on; rvRender(); },
+    rvDetail: sku => { S.rvOpenSku = S.rvOpenSku === sku ? null : sku; rvRender(); }, closeBasket, confirmBasket, closeConf,
     kbHelp: e => { e.stopPropagation(); $('rp2KbHelp').classList.toggle('open'); },
     drop: (e, key) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove('drag'); if (e.dataTransfer.files.length) takeFiles(e.dataTransfer.files, key); },
     pick: (input, key) => { if (input.files.length) takeFiles(input.files, key); input.value = ''; },
