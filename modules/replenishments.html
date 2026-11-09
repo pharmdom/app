@@ -629,7 +629,7 @@
     tab: 'review', filter: 'order', side: 'basket', q: '',
     cur: null, preview: null, undo: [],
     files: {}, linesFilter: 'all', sort: { k:'days_left', d:1 },
-    bk: null, busy: false, cardTab: null, rv: [], rvOpenSku: null,
+    bk: null, busy: false, cardTab: null, rv: [], rvOpenSku: null, rvCycle: null,
   };
 
   /* ───────── helpers ───────── */
@@ -962,12 +962,17 @@
       await sb.from('replen2_po_lines').delete().neq('cycle_id', cyc.id);
 
       const kept = existing.filter(r => keepAsIs(r)).length;
+      // Basket lines waiting for review are saved on the cycle, so the review comes back until it's processed or cancelled
+      if (review.length) {
+        const { error } = await sb.from('replen2_cycles').update({ basket_review: review.map(p => ({ sku: p.sku, nw: p.nw })) }).eq('id', cyc.id);
+        if (error) console.warn('Could not save the pending Basket review', error);
+      }
       S.files = {};
       await loadAll();
       S.filter = 'order'; S.cur = null; S.preview = null; S.undo = [];
       tab('review');
       const doneMsg = `${fmtN(lines.length)} lines calculated · ${fmtN(stats.to_order)} need ordering · ${excluded} clearance excluded`;
-      if (review.length) rvOpen(review); else toast(doneMsg, 'ok');
+      if (review.length) rvOpen(review, cyc.id); else toast(doneMsg, 'ok');
     } catch (e) {
       console.error('Replenishment generate failed', e);
       toast('Could not generate the list — ' + (e.message || 'please try again'), 'err');
@@ -1402,7 +1407,8 @@
   /* ───────── Basket review after a new upload ───────── */
   const rvDays = v => v.current_stock != null && v.current_stock <= 0 ? 0 : (v.days_left == null ? null : v.days_left);
   const rvDaysTxt = v => v.current_stock == null && v.days_left == null ? '—' : v.current_stock != null && v.current_stock <= 0 ? 'out of stock' : v.days_left == null ? '∞ days left' : fmtN(v.days_left, 1) + ' days left';
-  function rvOpen(list){
+  function rvOpen(list, cycleId){
+    S.rvCycle = cycleId || null;
     const dk = v => { const d = rvDays(v); return d == null ? 9999 : d; };
     S.rv = list.sort((a, b) => Math.abs(dk(b.cur) - dk(b.nw)) - Math.abs(dk(a.cur) - dk(a.nw)));
     S.rvOpenSku = null;
@@ -1448,7 +1454,24 @@
     $('rp2RvOk').textContent = n ? `Process (${n} refreshed)` : 'Process';
     $('rp2RvAll').checked = S.rv.length > 0 && n === S.rv.length;
   }
-  function rvClose(){ $('rp2RvOv').classList.remove('open'); S.rv = []; S.rvOpenSku = null; }
+  function rvClose(){
+    $('rp2RvOv').classList.remove('open'); S.rv = []; S.rvOpenSku = null;
+    // processed or cancelled — the review is finished for this cycle
+    if (S.rvCycle) {
+      const id = S.rvCycle; S.rvCycle = null;
+      if (S.cycle && S.cycle.id === id) S.cycle.basket_review = null;
+      sb.from('replen2_cycles').update({ basket_review: null }).eq('id', id).then(({ error }) => { if (error) console.warn('Could not clear the Basket review', error); });
+    }
+  }
+  // Re-open a review that wasn't finished (e.g. the page was closed before Process / Cancel)
+  function rvResume(){
+    const pend = S.cycle && Array.isArray(S.cycle.basket_review) ? S.cycle.basket_review : [];
+    if (!pend.length) return;
+    const list = pend.map(p => ({ sku: p.sku, cur: S.bySku[p.sku], nw: p.nw, checked: false }))
+      .filter(p => p.cur && (p.cur.action === 'basket' || p.cur.action === 'inquire'));
+    if (list.length) rvOpen(list.map(p => ({ ...p, cur: { ...p.cur } })), S.cycle.id);
+    else { S.rvCycle = S.cycle.id; rvClose(); }   // nothing left to review (e.g. bought or removed since)
+  }
   function rvRequestClose(){
     confirmDlg('Close without saving?', 'Nothing will be applied — every Basket line keeps its current numbers.', 'Close', () => { rvClose(); toast('Basket kept as it is', ''); });
   }
@@ -1708,6 +1731,7 @@
     try {
       await loadAll();
       tab(S.cycle ? 'review' : 'setup');
+      rvResume();
     } catch (e) {
       console.error('Replenishment load failed', e);
       $('rp2Loading').innerHTML = `<div class="rp-center">${IC.warn.replace('<svg','<svg width="22" height="22"')}<div>Couldn't load replenishment data.</div><button class="btn" onclick="location.reload()">Retry</button></div>`;
