@@ -1,0 +1,2523 @@
+<style>  
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#eef1f8;--surface:#ffffff;--surface2:#f5f7fc;--border:#e2e8f5;--border2:#ecf0f9; 
+  --text:#0c1526;--text2:#2a3a54;--text3:#64748b;--text4:#98a7bc;
+  --accent:#1847d4;--accent-l:#2a5eed;--accent-bg:#eef2fd;--accent-bd:#c4d3f9;
+  --green:#0c7a42;--green-bg:#ecfdf5;--green-bd:#86efac;
+  --red:#b91c1c;--red-bg:#fef2f2;--red-bd:#fecaca;
+  --amber:#92400e;--amber-bg:#fffbeb;--amber-bd:#fde68a;
+  --navy:#0c1526;--navy2:#141d2e; 
+  --r:10px;--r-sm:7px;--r-lg:14px;--r-xl:18px;
+  --font:'Plus Jakarta Sans',system-ui,sans-serif;
+  --mono:'JetBrains Mono',monospace;
+  --sh-sm:0 1px 3px rgba(12,21,38,.06),0 1px 2px rgba(12,21,38,.04);
+  --sh:0 4px 16px rgba(12,21,38,.08),0 2px 6px rgba(12,21,38,.04);
+  --sh-lg:0 20px 50px rgba(12,21,38,.14),0 6px 16px rgba(12,21,38,.07);
+}
+html,body{font-family:var(--font);font-size:14px;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;height:100%;}
+body{overflow:hidden}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}::-webkit-scrollbar-thumb:hover{background:var(--text4)}
+
+/* ── APP SHELL ── */
+.rep-app{display:flex;flex-direction:column;height:100vh;max-height:100vh;overflow:hidden;position:relative;
+  background:radial-gradient(ellipse at 20% 0%,rgba(24,71,212,.04) 0%,transparent 60%),
+             radial-gradient(ellipse at 80% 100%,rgba(24,71,212,.03) 0%,transparent 60%),var(--bg);}
+
+/* ── TOPNAV ── */
+.topnav{display:flex;align-items:center;gap:10px;padding:8px 18px;background:rgba(255,255,255,.85);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex-shrink:0;z-index:10;}
+.tnav-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.tnav-chips{display:flex;align-items:center;gap:6px}
+.tnav-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:var(--surface2);
+  border:1px solid var(--border);color:var(--text3);font-size:11.5px;font-weight:600;white-space:nowrap;}
+.tnav-chip svg{width:11px;height:11px;flex-shrink:0}
+.tnav-chip.accent{background:var(--accent-bg);border-color:var(--accent-bd);color:var(--accent);}
+.tnav-chip.green{background:var(--green-bg);border-color:var(--green-bd);color:var(--green);}
+.tnav-chip.red{background:var(--red-bg);border-color:var(--red-bd);color:var(--red);}
+.tnav-chip.amber{background:var(--amber-bg);border-color:var(--amber-bd);color:var(--amber);}
+.tnav-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.nav-btn{display:flex;align-items:center;gap:5px;padding:6px 13px;border-radius:var(--r-sm);
+  background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:12px;
+  font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.nav-btn svg{width:13px;height:13px;flex-shrink:0}
+.nav-btn:hover{background:var(--border);color:var(--text)}
+.nav-btn.danger{border-color:var(--red-bd);color:var(--red);background:var(--red-bg);}
+.nav-btn.danger:hover{background:#fecaca}
+
+/* ── SEARCH ── */
+.search-box{position:relative;min-width:240px;max-width:320px;flex:1}
+.search-box svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text4);width:14px;height:14px;pointer-events:none;}
+.search-box input{width:100%;padding:7px 10px 7px 33px;border:1.5px solid var(--border);border-radius:var(--r-sm);
+  font-size:13px;font-family:var(--font);background:var(--surface2);color:var(--text);outline:none;transition:all .15s;}
+.search-box input:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(24,71,212,.07)}
+
+/* ── PROGRESS BAR ── */
+.progress-strip{height:3px;background:var(--border);flex-shrink:0;overflow:hidden;}
+.progress-strip-fill{height:100%;background:linear-gradient(90deg,var(--accent),#4f80f7);
+  transition:width .5s cubic-bezier(.4,0,.2,1);border-radius:0 2px 2px 0;}
+
+/* ── UPLOAD ZONE ── */
+.upload-zone{flex:1;display:flex;align-items:center;justify-content:center;padding:32px 24px;overflow-y:auto;}
+.upload-card{background:var(--surface);border-radius:var(--r-xl);border:1px solid var(--border);
+  box-shadow:var(--sh-sm);width:100%;max-width:680px;overflow:hidden;}
+.upload-card-header{padding:20px 24px 16px;border-bottom:1px solid var(--border2);}
+.upload-card-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.upload-body{padding:20px 24px;display:flex;flex-direction:column;gap:14px;}
+.upload-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:640px){.upload-row{grid-template-columns:1fr;}}
+.upload-slot{display:flex;flex-direction:column;gap:6px;}
+.upload-slot-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text4);
+  display:flex;align-items:center;gap:6px;}
+.upload-slot-label span{background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-bd);
+  border-radius:4px;padding:1px 6px;font-size:9px;font-weight:800;letter-spacing:.5px;}
+.upload-drop{border:1.5px dashed var(--border);border-radius:var(--r);background:var(--surface2);
+  padding:20px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:7px;cursor:pointer;transition:all .15s;position:relative;text-align:center;min-height:90px;}
+.upload-drop:hover,.upload-drop.drag-over{border-color:var(--accent);background:var(--accent-bg);}
+.upload-drop.loaded{border-color:var(--green-bd);background:var(--green-bg);}
+.upload-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-drop-icon{width:32px;height:32px;border-radius:8px;background:var(--surface);
+  border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text4);flex-shrink:0;}
+.upload-drop.loaded .upload-drop-icon{background:var(--green-bg);border-color:var(--green-bd);color:var(--green);}
+.upload-drop-icon svg{width:14px;height:14px;}
+.upload-drop-text{font-size:12px;font-weight:600;color:var(--text3);}
+.upload-drop.loaded .upload-drop-text{color:var(--green);}
+.upload-drop-hint{font-size:10.5px;color:var(--text4);}
+.upload-card-footer{padding:14px 24px;background:var(--surface2);border-top:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.upload-rules{font-size:11px;color:var(--text4);line-height:1.6;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:var(--r-sm);
+  border:1.5px solid;font-size:12.5px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.btn svg{width:13px;height:13px;flex-shrink:0}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-l);border-color:var(--accent-l)}
+.btn-primary:disabled{opacity:.45;cursor:default}
+.btn-secondary{background:var(--surface);border-color:var(--border);color:var(--text3)}
+.btn-secondary:hover{border-color:var(--text4);color:var(--text)}
+.btn-sm{padding:5px 11px;font-size:11.5px;}
+
+/* ── MAIN CONTENT ── */
+.rep-content{flex:1;overflow:hidden;min-height:0;display:flex;flex-direction:column;}
+
+/* ── TOAST ── */
+.toasts{position:fixed;top:16px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:7px;pointer-events:none;}
+.toast{display:flex;align-items:center;gap:9px;padding:11px 15px;background:var(--navy2);color:#fff;
+  border-radius:var(--r);font-size:13px;font-weight:600;box-shadow:var(--sh-lg);animation:toastIn .22s ease;
+  max-width:320px;border-left:3px solid rgba(255,255,255,.15);}
+.toast.success{background:#14532d;border-left-color:#22c55e;}
+.toast.error{background:#7f1d1d;border-left-color:#ef4444;}
+.toast.info{background:#1e3a8a;border-left-color:var(--accent);}
+@keyframes toastIn{from{opacity:0;transform:translateY(-8px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+/* ── CONFIRM MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(12,21,38,.5);z-index:9999;display:flex;align-items:center;
+  justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s;backdrop-filter:blur(3px);}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal-box{background:var(--surface);border-radius:var(--r-xl);padding:24px;width:360px;max-width:92vw;box-shadow:var(--sh-lg);}
+.modal-box h3{font-size:15px;font-weight:800;margin-bottom:8px;color:var(--text);}
+.modal-box p{font-size:13px;color:var(--text3);line-height:1.65;margin-bottom:20px;}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;}
+
+/* ── BADGES ── */
+.pill-sku{font-family:var(--mono);font-size:10px;color:var(--text3);background:var(--surface2);
+  padding:2px 7px;border-radius:4px;border:1px solid var(--border);letter-spacing:.02em;white-space:nowrap;}
+.urgency-badge{font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  padding:2px 7px;border-radius:4px;border:1px solid;}
+.badge-crit{color:var(--red);background:var(--red-bg);border-color:var(--red-bd);}
+.badge-order{color:var(--amber);background:var(--amber-bg);border-color:var(--amber-bd);}
+.badge-ok{color:var(--green);background:var(--green-bg);border-color:var(--green-bd);}
+.days-badge{font-family:var(--mono);font-size:12px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid;white-space:nowrap;}
+.days-crit{background:var(--red-bg);color:var(--red);border-color:var(--red-bd);}
+.days-warn{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd);}
+.days-ok{background:var(--green-bg);color:var(--green);border-color:var(--green-bd);}
+.rate-chip{font-family:var(--mono);font-size:11px;color:var(--text4);}
+.last-purchase-chip{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px 8px;white-space:nowrap;}
+.last-purchase-chip svg{width:10px;height:10px;flex-shrink:0;color:var(--text4);}
+  
+/* ── ACTION BUTTONS ── */
+.card-actions{display:flex;gap:6px;}
+.abtn{flex:1;padding:7px 0;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:11.5px;
+  font-weight:600;cursor:pointer;background:var(--surface2);color:var(--text3);font-family:var(--font);
+  transition:all .12s;display:flex;align-items:center;justify-content:center;gap:5px;}
+.abtn svg{width:11px;height:11px;flex-shrink:0;}
+.abtn:hover{background:var(--surface);border-color:var(--text4);color:var(--text2);}
+.abtn.on-pur{background:var(--green-bg);color:var(--green);border-color:var(--green-bd);}
+.abtn.on-na{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-bd);}
+.abtn.on-rej{background:var(--red-bg);color:var(--red);border-color:var(--red-bd);}
+
+/* ── SPLIT LAYOUT ── */
+.split-wrap{display:flex;flex:1;overflow:hidden;min-height:0;gap:0;}
+
+/* Left panel */
+.queue-panel{display:flex;flex-direction:column;width:420px;min-width:340px;max-width:48%;
+  flex-shrink:0;border-right:1px solid var(--border);background:var(--bg);
+  transition:width .4s cubic-bezier(.4,0,.2,1),min-width .4s cubic-bezier(.4,0,.2,1);}
+.queue-panel.all-done{width:260px;min-width:220px;}
+.queue-header{padding:12px 16px 10px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.queue-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.queue-title{font-size:12px;font-weight:700;color:var(--text2);letter-spacing:-.1px;}
+.queue-counter{font-family:var(--mono);font-size:11px;color:var(--text4);}
+.queue-mini-prog{height:3px;background:var(--border2);border-radius:99px;overflow:hidden;}
+.queue-mini-prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),#4f80f7);
+  border-radius:99px;transition:width .4s cubic-bezier(.4,0,.2,1);}
+.queue-body{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:0;}
+.queue-body::-webkit-scrollbar{width:4px}
+
+/* Focus card */
+.focus-card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:16px;box-shadow:var(--sh);margin-bottom:10px;}
+  
+.focus-card-pos{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:8px;}
+.focus-card-name{font-size:14px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:10px;}
+.focus-card-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+.focus-card-row2{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px;font-size:11.5px;color:var(--text3);}
+.focus-card-row2 span{display:flex;align-items:center;gap:3px;}
+.card-meta-sep{color:var(--border2);}
+
+/* Quantity breakdown */
+.qty-breakdown{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);
+  padding:9px 12px;margin-bottom:12px;display:flex;flex-direction:column;gap:5px;}
+.qty-row{display:flex;align-items:center;justify-content:space-between;font-size:11.5px;}
+.qty-row-label{color:var(--text3);display:flex;align-items:center;gap:5px;}
+.qty-row-val{font-family:var(--mono);font-weight:700;}
+.qty-row.qty-total{padding-top:5px;border-top:1px solid var(--border);margin-top:2px;}
+.qty-row.qty-total .qty-row-label{font-weight:700;color:var(--text2);}
+.qty-row.qty-total .qty-row-val{font-size:13px;color:var(--green);}
+.qty-row-val.val-available{color:var(--text2);}
+.qty-row-val.val-incoming{color:#0369a1;}
+.qty-row-val.val-rate{color:var(--text3);}
+
+/* EAN link */
+.ean-link{color:inherit;text-decoration:none;transition:color .12s;cursor:pointer;}
+.ean-link:hover{color:var(--accent);text-decoration:underline;}
+
+/* Price panel (collapsible) */
+.price-panel{margin-bottom:12px;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;}
+.price-panel-toggle{display:flex;align-items:center;justify-content:space-between;padding:8px 11px;
+  background:var(--surface2);cursor:pointer;user-select:none;transition:background .12s;}
+.price-panel-toggle:hover{background:var(--border2);}
+.price-panel-toggle-left{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text3);}
+.price-panel-toggle-left svg{width:11px;height:11px;flex-shrink:0;}
+.price-panel-chevron{width:12px;height:12px;color:var(--text4);transition:transform .2s;flex-shrink:0;}
+.price-panel-chevron.open{transform:rotate(180deg);}
+.price-panel-body{display:none;padding:10px 11px;display:none;flex-direction:column;gap:6px;background:var(--surface);}
+.price-panel-body.open{display:flex;}
+.price-section-lbl{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);
+  margin-bottom:4px;display:flex;align-items:center;gap:5px;}
+.price-section-lbl::after{content:'';flex:1;height:1px;background:var(--border2);}
+.price-row{display:flex;align-items:center;justify-content:space-between;font-size:11.5px;padding:3px 0;}
+.price-row-name{color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;margin-right:8px;}
+.price-row-cost{font-family:var(--mono);font-weight:700;font-size:12px;color:var(--green);flex-shrink:0;}
+.price-row-cost.above{color:var(--red);}
+.price-row-cost.within{color:var(--amber);}
+.price-empty{font-size:11.5px;color:var(--text4);font-style:italic;text-align:center;padding:4px 0;}
+.price-badge{font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;flex-shrink:0;margin-left:4px;}
+.pb-cheapest{background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);}
+.pb-offer{background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-bd);}
+
+/* Focus card actions */
+.focus-card-actions{display:flex;gap:6px;margin-bottom:10px;}
+.focus-card-actions .abtn{flex:1;padding:9px 0;font-size:12px;}
+.focus-card-note{width:100%;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);
+  font-size:12px;font-family:var(--font);color:var(--text);background:var(--surface2);outline:none;transition:border-color .15s;}
+.focus-card-note:focus{border-color:var(--accent);background:#fff;}
+.focus-card-note::placeholder{color:var(--text4);}
+
+/* Queue nav */
+.queue-nav{display:flex;align-items:center;justify-content:space-between;padding:0 14px 12px;}
+.qnav-btn{display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:var(--r-sm);
+  border:1px solid var(--border);background:var(--surface);color:var(--text3);font-size:11.5px;
+  font-weight:600;font-family:var(--font);cursor:pointer;transition:all .12s;}
+.qnav-btn:hover{border-color:var(--accent-bd);color:var(--accent);background:var(--accent-bg);}
+.qnav-btn:disabled{opacity:.3;cursor:default;pointer-events:none;}
+.qnav-btn svg{width:12px;height:12px;flex-shrink:0;}
+.qnav-pos{font-family:var(--mono);font-size:11px;color:var(--text4);}
+
+/* All-done state */
+.queue-done-state{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;}
+.queue-done-state::-webkit-scrollbar{width:4px}
+.summary-hero{background:linear-gradient(135deg,#0c1526 0%,#1a2640 100%);border-radius:var(--r-lg);
+  padding:18px 20px;display:flex;align-items:center;gap:14px;}
+.summary-hero-icon{width:42px;height:42px;border-radius:10px;background:rgba(12,122,66,.3);
+  border:1px solid rgba(134,239,172,.3);display:flex;align-items:center;justify-content:center;
+  color:#86efac;flex-shrink:0;}
+.summary-hero-icon svg{width:20px;height:20px;}
+.summary-hero-text{}
+.summary-hero-title{font-size:14px;font-weight:800;color:#fff;line-height:1.2;}
+.summary-hero-sub{font-size:11.5px;color:rgba(255,255,255,.5);margin-top:2px;}
+.summary-section-label{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;
+  color:var(--text4);display:flex;align-items:center;gap:7px;}
+.summary-section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.summary-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:11px 13px;display:flex;flex-direction:column;gap:3px;}
+.summary-stat-val{font-family:var(--mono);font-size:18px;font-weight:800;color:var(--text);line-height:1;}
+.summary-stat-val.green{color:var(--green);}
+.summary-stat-val.red{color:var(--red);}
+.summary-stat-val.amber{color:var(--amber);}
+.summary-stat-val.blue{color:var(--accent);}
+.summary-stat-label{font-size:10.5px;color:var(--text4);font-weight:600;}
+.summary-stat-sub{font-size:10px;color:var(--text4);margin-top:1px;}
+.summary-alert{display:flex;align-items:flex-start;gap:9px;padding:10px 12px;border-radius:var(--r-sm);
+  border:1px solid;font-size:11.5px;line-height:1.55;}
+.summary-alert svg{width:13px;height:13px;flex-shrink:0;margin-top:1px;}
+.summary-alert.warn{background:var(--amber-bg);border-color:var(--amber-bd);color:var(--amber);}
+.summary-alert.danger{background:var(--red-bg);border-color:var(--red-bd);color:var(--red);}
+.summary-alert.info{background:var(--accent-bg);border-color:var(--accent-bd);color:var(--accent);}
+
+/* Right panel — bucket */
+.bucket-panel{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--surface2);}
+.bucket-header{padding:10px 16px;border-bottom:1px solid var(--border);background:var(--surface);
+  flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.bucket-title{font-size:12px;font-weight:700;color:var(--text2);}
+.bucket-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+
+.bucket-body{flex:1;overflow-y:auto;padding:12px 14px;min-height:0;}
+.bucket-body::-webkit-scrollbar{width:4px}
+.bucket-list{display:flex;flex-direction:column;gap:6px;}
+.bucket-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;gap:10px;text-align:center;padding:40px 20px;color:var(--text4);}
+.bucket-empty svg{width:28px;height:28px;opacity:.4;}
+.bucket-empty-txt{font-size:12px;font-weight:600;}
+.bucket-empty-sub{font-size:11px;}
+
+/* Bucket card */
+.bucket-card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:0;transition:box-shadow .12s;}
+  
+.bucket-card-top{display:flex;align-items:flex-start;gap:10px;}
+.bucket-card-body{flex:1;min-width:0;}
+.bucket-card-name{font-size:12px;font-weight:600;color:var(--text);line-height:1.35;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bc-rej .bucket-card-name{text-decoration:line-through;color:var(--text4);}
+.bucket-card-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:4px;}
+.bucket-card-note{font-size:11px;color:var(--text3);margin-top:3px;font-style:italic;}
+.bucket-card-actions{display:flex;gap:4px;flex-shrink:0;opacity:0;transition:opacity .12s;}
+.bucket-card:hover .bucket-card-actions{opacity:1;}
+.bucket-undo{display:flex;align-items:center;justify-content:center;width:24px;height:24px;
+  border:1px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;
+  color:var(--text4);flex-shrink:0;transition:all .12s;}
+.bucket-undo:hover{border-color:var(--accent-bd);color:var(--accent);background:var(--accent-bg);}
+.bucket-undo svg{width:11px;height:11px;}
+
+/* Bucket price panel */
+.bucket-price-wrap{margin-top:8px;border-top:1px solid var(--border2);padding-top:8px;}
+
+/* Status pills */
+.status-pill{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  padding:1px 6px;border-radius:3px;border:1px solid;white-space:nowrap;}
+.sp-pur{color:var(--green);background:var(--green-bg);border-color:var(--green-bd);}
+.sp-na{color:var(--amber);background:var(--amber-bg);border-color:var(--amber-bd);}
+.sp-rej{color:var(--red);background:var(--red-bg);border-color:var(--red-bd);}
+
+/* Bucket tabs */
+.bucket-tab{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;color:var(--text3);
+  cursor:pointer;border:1px solid transparent;transition:all .12s;user-select:none;}
+.bucket-tab:hover{background:var(--surface2);border-color:var(--border);color:var(--text2);}
+.bt-count{opacity:.55;font-weight:700;margin-left:1px;}
+.bucket-tab.active{background:var(--accent-bg);border-color:var(--accent-bd);color:var(--accent);}
+.bucket-tab.bt-pur.active{background:var(--green-bg);border-color:var(--green-bd);color:var(--green);}
+.bucket-tab.bt-na.active{background:var(--amber-bg);border-color:var(--amber-bd);color:var(--amber);}
+.bucket-tab.bt-rej.active{background:var(--red-bg);border-color:var(--red-bd);color:var(--red);}
+.bucket-footer{padding:6px 14px;background:rgba(255,255,255,.6);border-top:1px solid var(--border2);
+  font-size:10.5px;color:var(--text4);font-family:var(--mono);flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;}
+
+/* Spinner */
+.spinner{display:inline-block;border:2.5px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .65s linear infinite;width:16px;height:16px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@media(min-width:640px){.upload-body{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}}
+
+
+
+/* ══ REPLENISHMENTS INSIGHTS ══ */
+.ri-pill-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:1.5px solid var(--text4);border-radius:9px;background:var(--surface);color:var(--text);font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;}
+.ri-pill-btn:hover{border-color:var(--accent-bd);background:var(--surface2);}
+.ri-pill-btn svg{width:13px;height:13px;flex-shrink:0;}
+
+.ri-overlay{position:fixed;inset:0;background:rgba(12,21,38,.4);z-index:1500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .22s;backdrop-filter:blur(3px);}
+.ri-overlay.open{opacity:1;pointer-events:all;}
+.ri-modal{background:var(--surface);border-radius:var(--r-xl);width:920px;height:720px;max-width:96vw;max-height:92vh;display:flex;flex-direction:column;box-shadow:var(--sh-lg);transform:scale(.97) translateY(8px);transition:transform .25s cubic-bezier(.34,1.56,.64,1);overflow:hidden;}
+.ri-overlay.open .ri-modal{transform:none;}
+
+.ri-modal-hdr{padding:18px 22px 0;flex-shrink:0;}
+.ri-modal-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;position:relative;}
+.ri-modal-title{font-size:15px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px;}
+.ri-modal-title-icon{width:26px;height:26px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text3);flex-shrink:0;}
+.ri-modal-title-icon svg{width:13px;height:13px;}
+.ri-modal-week{display:flex;align-items:center;gap:8px;position:absolute;left:50%;transform:translateX(-50%);}
+.ri-week-nav-btn{width:26px;height:26px;border-radius:7px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);transition:all .15s;}
+.ri-week-nav-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg);}
+.ri-week-nav-btn svg{width:12px;height:12px;}
+.ri-modal-sub{font-size:11.5px;color:var(--text3);font-weight:700;min-width:160px;text-align:center;}
+.ri-modal-close{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);transition:all .15s;flex-shrink:0;}
+.ri-modal-close:hover{background:var(--border);color:var(--text);}
+.ri-modal-close svg{width:12px;height:12px;}
+
+.ri-modal-body{flex:1;min-height:0;overflow-y:auto;padding:18px 22px 22px;}
+.ri-modal-body::-webkit-scrollbar{width:4px;}
+
+.ri-summary-row{display:flex;gap:10px;margin-bottom:16px;}
+.ri-summary-card{flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);padding:11px 13px;}
+.ri-summary-label{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);margin-bottom:5px;}
+.ri-summary-val{font-size:19px;font-weight:800;color:var(--text);letter-spacing:-.3px;line-height:1;}
+.ri-summary-val.green{color:var(--green);}
+.ri-summary-val.red{color:var(--red);}
+.ri-summary-val.amber{color:var(--amber);}
+.ri-summary-val.blue{color:var(--accent);}
+.ri-summary-sub{font-size:10.5px;color:var(--text4);margin-top:3px;}
+
+.ri-sec-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text4);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.ri-sec-lbl::after{content:'';flex:1;height:1px;background:var(--border);}
+
+.ri-card{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);padding:14px;margin-bottom:14px;}
+.ri-card:last-child{margin-bottom:0;}
+
+.ri-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.ri-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;display:flex;flex-direction:column;gap:3px;}
+.ri-stat-val{font-family:var(--mono);font-size:18px;font-weight:800;color:var(--text);line-height:1;}
+.ri-stat-val.green{color:var(--green);}
+.ri-stat-val.red{color:var(--red);}
+.ri-stat-val.amber{color:var(--amber);}
+.ri-stat-val.blue{color:var(--accent);}
+.ri-stat-label{font-size:10.5px;color:var(--text4);font-weight:600;}
+.ri-stat-sub{font-size:10px;color:var(--text4);margin-top:1px;}
+
+.ri-alert{display:flex;align-items:flex-start;gap:9px;padding:10px 12px;border-radius:var(--r-sm);border:1px solid;font-size:11.5px;line-height:1.55;margin-bottom:8px;}
+.ri-alert:last-child{margin-bottom:0;}
+.ri-alert svg{width:13px;height:13px;flex-shrink:0;margin-top:1px;}
+.ri-alert.warn{background:var(--amber-bg);border-color:var(--amber-bd);color:var(--amber);}
+.ri-alert.danger{background:var(--red-bg);border-color:var(--red-bd);color:var(--red);}
+.ri-alert.info{background:var(--accent-bg);border-color:var(--accent-bd);color:var(--accent);}
+.ri-alert.success{background:var(--green-bg);border-color:var(--green-bd);color:var(--green);}
+
+.ri-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:12px;text-align:center;color:var(--text4);}
+.ri-empty svg{width:32px;height:32px;opacity:.4;}
+.ri-empty-title{font-size:13px;font-weight:600;color:var(--text3);}
+.ri-empty-sub{font-size:12px;}
+
+.ri-action-row-bar{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border2);}
+.ri-action-row-bar:last-child{border-bottom:none;}
+.ri-action-name{font-size:12px;font-weight:600;color:var(--text2);width:90px;flex-shrink:0;}
+.ri-action-bar-wrap{flex:1;height:7px;background:var(--border2);border-radius:99px;overflow:hidden;}
+.ri-action-bar-fill{height:100%;border-radius:99px;transition:width .4s cubic-bezier(.4,0,.2,1);}
+.ri-action-count{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text);min-width:28px;text-align:right;}
+
+.ri-sku-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2);}
+.ri-sku-row:last-child{border-bottom:none;}
+.ri-sku-name{font-size:12px;font-weight:600;color:var(--text2);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ri-sku-pill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;border:1px solid;flex-shrink:0;white-space:nowrap;}
+.ri-sku-pill.pur{color:var(--green);background:var(--green-bg);border-color:var(--green-bd);}
+.ri-sku-pill.na{color:var(--amber);background:var(--amber-bg);border-color:var(--amber-bd);}
+.ri-sku-pill.rej{color:var(--red);background:var(--red-bg);border-color:var(--red-bd);}
+.ri-sku-days{font-family:var(--mono);font-size:11px;color:var(--text4);flex-shrink:0;}
+.ri-sku-qty{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--green);flex-shrink:0;}
+
+.ri-loading{display:flex;flex-direction:column;gap:10px;padding:8px 0;}
+.ri-loading-row{height:14px;border-radius:4px;background:var(--border);position:relative;overflow:hidden;}
+.ri-loading-row::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.6) 50%,transparent 100%);animation:riShimmer 1.4s infinite;transform:translateX(-100%);}
+@keyframes riShimmer{to{transform:translateX(100%)}}
+
+
+@keyframes fabPulse{0%,100%{box-shadow:0 4px 20px rgba(24,71,212,.4)}50%{box-shadow:0 4px 32px rgba(24,71,212,.7),0 0 0 8px rgba(24,71,212,.1)}}
+
+/* Defer action button */
+.abtn.on-def{background:#f5f3ff;color:#6d28d9;border-color:#c4b5fd;}
+/* Status pill for deferred */
+.sp-def{color:#6d28d9;background:#f5f3ff;border-color:#c4b5fd;}
+/* Bucket tab for deferred */
+.bucket-tab.bt-def.active{background:#f5f3ff;border-color:#c4b5fd;color:#6d28d9;}
+/* Basket tab in bucket */
+.bucket-tab.bt-basket.active{background:var(--accent-bg);border-color:var(--accent-bd);color:var(--accent);}
+/* Actions dropdown */
+.actions-dropdown-wrap{position:relative;flex-shrink:0;}
+.actions-btn{display:inline-flex;align-items:center;gap:6px;padding:2px 2px;border:1.5px solid var(--text4);border-radius:9px;background:var(--surface);color:var(--text);font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.actions-btn:hover{border-color:var(--accent-bd);background:var(--surface2);}
+.actions-btn svg{width:13px;height:13px;flex-shrink:0;}
+.actions-menu{position:absolute;top:calc(100% + 6px);left:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh-lg);min-width:150px;z-index:200;opacity:0;pointer-events:none;transform:translateY(-6px);transition:opacity .15s,transform .15s;}
+.actions-menu.open{opacity:1;pointer-events:all;transform:translateY(0);}
+.actions-menu-item{display:flex;align-items:center;gap:8px;padding:9px 13px;font-size:12.5px;font-weight:600;color:var(--text2);cursor:pointer;transition:background .1s;border-radius:0;}
+.actions-menu-item:first-child{border-radius:var(--r) var(--r) 0 0;}
+.actions-menu-item:last-child{border-radius:0 0 var(--r) var(--r);}
+.actions-menu-item:hover{background:var(--surface2);}
+.actions-menu-item svg{width:13px;height:13px;flex-shrink:0;color:var(--text3);}
+/* Supplier picker dialog */
+.supplier-overlay{position:fixed;inset:0;background:rgba(12,21,38,.45);z-index:2000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s;backdrop-filter:blur(3px);}
+.supplier-overlay.open{opacity:1;pointer-events:all;}
+.supplier-dialog{background:var(--surface);border-radius:var(--r-xl);width:420px;max-width:94vw;box-shadow:var(--sh-lg);transform:scale(.96) translateY(8px);transition:transform .22s cubic-bezier(.34,1.56,.64,1);overflow:hidden;}
+.supplier-overlay.open .supplier-dialog{transform:none;}
+.supplier-dialog-hdr{padding:18px 20px 14px;border-bottom:1px solid var(--border);}
+.supplier-dialog-title{font-size:14px;font-weight:800;color:var(--text);margin-bottom:3px;}
+.supplier-dialog-sub{font-size:12px;color:var(--text3);}
+.supplier-dialog-body{padding:14px 20px;display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;}
+.supplier-dialog-body::-webkit-scrollbar{width:4px;}
+.supplier-option{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);cursor:pointer;transition:all .12s;background:var(--surface2);font-size:13px;font-weight:600;color:var(--text2);}
+.supplier-option:hover{border-color:var(--accent-bd);background:var(--accent-bg);color:var(--accent);}
+.supplier-option.selected{border-color:var(--accent);background:var(--accent-bg);color:var(--accent);}
+.supplier-option-dot{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .12s;}
+.supplier-option.selected .supplier-option-dot{background:var(--accent);}
+.supplier-dialog-ftr{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;background:var(--surface2);}
+/* Basket modal */
+.basket-overlay{position:fixed;inset:0;background:rgba(12,21,38,.4);z-index:1500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .22s;backdrop-filter:blur(3px);}
+.basket-overlay.open{opacity:1;pointer-events:all;}
+.basket-modal{background:var(--surface);border-radius:var(--r-xl);width:920px;height:720px;max-width:96vw;max-height:92vh;display:flex;flex-direction:column;box-shadow:var(--sh-lg);transform:scale(.97) translateY(8px);transition:transform .25s cubic-bezier(.34,1.56,.64,1);overflow:hidden;}
+.basket-overlay.open .basket-modal{transform:none;}
+.basket-modal-hdr{padding:18px 22px 0;flex-shrink:0;}
+.basket-modal-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;}
+.basket-modal-title{font-size:15px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px;}
+.basket-modal-close{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);transition:all .15s;flex-shrink:0;}
+.basket-modal-close:hover{background:var(--border);color:var(--text);}
+.basket-modal-close svg{width:12px;height:12px;}
+.basket-modal-body{flex:1;min-height:0;overflow-y:auto;padding:16px 22px 22px;}
+.basket-modal-body::-webkit-scrollbar{width:4px;}
+.basket-modal-ftr{padding:12px 22px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2);flex-shrink:0;font-size:11.5px;color:var(--text3);font-family:var(--mono);}
+.basket-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;}
+.basket-item:last-child{margin-bottom:0;}
+.basket-item-body{flex:1;min-width:0;}
+.basket-item-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.basket-item-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.basket-item-supplier{font-size:11px;color:var(--text3);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 6px;}
+.basket-item-actions{display:flex;gap:6px;margin-top:8px;}
+.basket-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;text-align:center;padding:40px 20px;color:var(--text4);}
+.basket-empty svg{width:28px;height:28px;opacity:.4;}
+
+/* Basket modal toolbar */
+.basket-toolbar{padding:12px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;background:var(--surface);}
+.basket-counter{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--text3);font-size:11.5px;font-weight:600;white-space:nowrap;flex-shrink:0;}
+.basket-search-box{position:relative;flex:1;min-width:160px;}
+.basket-search-box svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text4);width:13px;height:13px;pointer-events:none;}
+.basket-search-box input{width:100%;padding:6px 9px 6px 30px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:var(--font);background:var(--surface2);color:var(--text);outline:none;transition:all .15s;}
+.basket-search-box input:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(24,71,212,.07)}
+.basket-supplier-filter{display:flex;align-items:center;gap:5px;flex-shrink:0;}
+.basket-supplier-select{padding:5px 9px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-family:var(--font);background:var(--surface2);color:var(--text2);outline:none;cursor:pointer;transition:all .15s;}
+.basket-supplier-select:focus{border-color:var(--accent);}
+
+.review-overlay{position:fixed;inset:0;background:rgba(12,21,38,.5);z-index:9995;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .15s;}
+.review-overlay.open{opacity:1;pointer-events:all;}
+.review-box{background:var(--surface);border-radius:var(--r-xl);width:480px;max-width:94vw;max-height:86vh;box-shadow:var(--sh-lg);display:flex;flex-direction:column;overflow:hidden;}
+.review-head{padding:18px 20px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.review-head h3{margin:0 0 4px;font-size:15px;}
+.review-head p{margin:0;font-size:12px;color:var(--text3);}
+.review-selectall{display:flex;align-items:center;gap:8px;padding:10px 20px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text3);flex-shrink:0;}
+.review-list{flex:1;overflow-y:auto;padding:6px 0;}
+.review-row{border-bottom:1px solid var(--border);}
+.review-row-main{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;}
+.review-row-main input[type="checkbox"]{width:15px;height:15px;flex-shrink:0;accent-color:var(--accent, #2563eb);}
+.review-row-name{flex:1;min-width:0;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.review-row-delta{font-size:11px;color:var(--text3);flex-shrink:0;display:flex;align-items:center;gap:3px;}
+.review-row-delta.worse{color:var(--red,#dc2626);}
+.review-row-delta.better{color:var(--green,#16a34a);}
+.review-row-chevron{flex-shrink:0;color:var(--text3);transition:transform .15s;}
+.review-row-chevron.open{transform:rotate(90deg);}
+.review-row.checked{background:rgba(37,99,235,.06);}
+.review-row-compare{display:flex;align-items:center;gap:10px;padding:0 20px 10px 39px;}
+.review-compare-side{display:flex;flex-direction:column;gap:1px;}
+.review-compare-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);}
+.review-compare-qty{font-size:13px;font-weight:700;color:var(--text1,#0f172a);}
+.review-compare-qty span{font-weight:500;font-size:10.5px;color:var(--text3);}
+.review-compare-days{font-size:10.5px;color:var(--text3);}
+.review-compare-arrow{color:var(--text3);flex-shrink:0;}
+.review-compare-side.new.worse .review-compare-qty,.review-compare-side.new.worse .review-compare-days{color:var(--red,#dc2626);}
+.review-compare-side.new.better .review-compare-qty,.review-compare-side.new.better .review-compare-days{color:var(--green,#16a34a);}
+.review-compare-same{font-size:11px;color:var(--text3);font-style:italic;}
+.review-detail{padding:0 20px 0 45px;font-size:12px;max-height:0;overflow:hidden;transition:max-height .22s ease,padding .22s ease;}
+.review-detail.open{padding:4px 20px 16px 45px;max-height:600px;}
+.review-detail-sec{margin-bottom:10px;}
+.review-detail-sec-label{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);margin-bottom:4px;}
+.review-detail-field{display:flex;justify-content:space-between;gap:10px;padding:3px 0;}
+.review-detail-field span:first-child{color:var(--text3);}
+.review-detail-field span:last-child{font-weight:600;text-align:right;}
+.review-detail-compare{display:flex;align-items:center;justify-content:flex-end;gap:5px;}
+.review-detail-compare .cur{color:var(--text3);font-weight:400;text-decoration:line-through;}
+.review-detail-compare .new{font-weight:700;}
+.review-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0;}
+</style>
+</style>
+
+
+<!-- ══ GUIDE FAB ══ -->
+
+
+
+<div class="toasts" id="toasts"></div>
+<div class="modal-overlay" id="confirmOverlay">
+<div class="modal-box">
+    <h3 id="confirmTitle">Confirm</h3>
+    <p id="confirmMsg">Are you sure?</p>
+    <label id="resetRejectedWrap" style="display:none;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer;font-size:12.5px;color:var(--text3);">
+      <input type="checkbox" id="resetIncludeRejected" style="accent-color:var(--red);width:14px;height:14px;cursor:pointer;">
+      Also delete all rejected SKUs
+    </label>
+    <div class="modal-actions">
+      <button class="btn btn-secondary btn-sm" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-sm" id="confirmOkBtn" style="background:var(--red);border-color:var(--red);color:#fff;" onclick="doConfirm()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="review-overlay" id="reviewOverlay">
+  <div class="review-box">
+    <div class="review-head">
+      <h3>Review Basket Recommendations</h3>
+      <p id="reviewSubtitle"><strong id="reviewCount"></strong> already in your basket. Choose which ones should pick up this file's new numbers — anything left unchecked keeps what's already there.</p>
+    </div>
+    <label class="review-selectall">
+      <input type="checkbox" id="reviewSelectAll" onchange="toggleSelectAllReview(this.checked)">
+      Select all
+    </label>
+    <div class="review-list" id="reviewList"></div>
+    <div class="review-foot">
+      <button class="btn btn-secondary btn-sm" onclick="requestCloseReview()">Cancel</button>
+      <button class="btn btn-sm" id="reviewProcessBtn" style="background:var(--accent,#2563eb);border-color:var(--accent,#2563eb);color:#fff;" onclick="processBasketReview()">Process</button>
+    </div>
+  </div>
+</div>
+
+<div class="rep-app" id="repApp">
+  <nav class="topnav">
+    <div class="tnav-left">
+      <div class="tnav-chips">
+        <div class="actions-dropdown-wrap" id="actionsDropdownWrap">
+  <button class="actions-btn" onclick="toggleActionsMenu(event)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+  </button>
+  <div class="actions-menu" id="actionsMenu">
+    <div class="actions-menu-item" onclick="closeActionsMenu();window.openCentralBasket('replens')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      Basket
+    </div>
+    <div class="actions-menu-item" onclick="closeActionsMenu();openRepInsights()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-6"/></svg>
+      Insights
+    </div>
+  </div>
+</div>
+        <div class="tnav-chip" id="chipTotal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          <span>0 SKUs</span>
+        </div>
+        <div class="tnav-chip amber" id="chipPending">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>0 Pending</span>
+        </div>
+        <div class="tnav-chip red" id="chipCritical">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>0 Critical</span>
+        </div>
+      </div>
+    </div>
+    <div class="tnav-actions">
+      <button class="nav-btn" onclick="showUpload()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload
+      </button>
+      <button class="nav-btn danger" onclick="confirmReset()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Delete
+      </button>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Search SKU, name or EAN…" oninput="resetQueueIdx();render();">
+      </div>
+
+      
+    </div>
+  </nav>
+
+
+  <!-- Upload zone -->
+  <div class="upload-zone" id="uploadZone">
+    <div class="upload-card">
+    <div class="upload-card-header">
+        <div class="upload-card-title">Upload this week's Veeqo forecast files</div>
+        <div style="font-size:12px;color:var(--text4);margin-top:3px;line-height:1.5">All 3 files required — clearance lines and SKU mapping are handled automatically</div>
+      </div>
+      <div class="upload-body">
+        <div class="upload-slot">
+          <div class="upload-slot-label"><span>File 1</span> All Forecast</div>
+          <div class="upload-drop" id="drop1" ondragover="dragOver(event,1)" ondragleave="dragLeave(this)" ondrop="dropFile(event,1)">
+            <input type="file" accept=".csv,.tsv,.txt" onchange="fileChosen(this,1)">
+            <div class="upload-drop-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
+            </div>
+            <div class="upload-drop-text" id="drop1text">Drop CSV here or click to browse</div>
+            <div class="upload-drop-hint">all_forecast…</div>
+          </div>
+        </div>
+        <div class="upload-slot">
+          <div class="upload-slot-label"><span>File 2</span> Clearance Forecast</div>
+          <div class="upload-drop" id="drop2" ondragover="dragOver(event,2)" ondragleave="dragLeave(this)" ondrop="dropFile(event,2)">
+            <input type="file" accept=".csv,.tsv,.txt" onchange="fileChosen(this,2)">
+            <div class="upload-drop-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
+            </div>
+            <div class="upload-drop-text" id="drop2text">Drop CSV here or click to browse</div>
+            <div class="upload-drop-hint">clearance_forecast…</div>
+          </div>
+        </div>
+        <div class="upload-slot">
+          <div class="upload-slot-label"><span>File 3</span> All SKUs</div>
+          <div class="upload-drop" id="drop3" ondragover="dragOver(event,3)" ondragleave="dragLeave(this)" ondrop="dropFile(event,3)">
+            <input type="file" accept=".csv,.tsv,.txt" onchange="fileChosen(this,3)">
+            <div class="upload-drop-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
+            </div>
+            <div class="upload-drop-text" id="drop3text">Drop CSV here or click to browse</div>
+            <div class="upload-drop-hint">sellables_export…</div>
+          </div>
+        </div>
+      </div>
+      <div class="upload-card-footer">
+        <div class="upload-rules">
+          Clearance excluded automatically · SKUs mapped from File 3 · Images pulled in
+        </div>        
+        <button class="btn btn-primary" id="processBtn" disabled onclick="processFiles()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          Generate List
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Split layout -->
+  <div class="rep-content" id="repContent" style="display:none;">
+    <div class="split-wrap">
+      <!-- LEFT: Review queue -->
+      <div class="queue-panel" id="queuePanel">
+        <div class="queue-header">
+          <div class="queue-header-top">
+            <span class="queue-title">Review Queue</span>
+            <span class="queue-counter" id="queueCounter">0 pending</span>
+          </div>
+          <div class="queue-mini-prog">
+            <div class="queue-mini-prog-fill" id="queueProgFill" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="queue-body" id="queueBody"></div>
+        <div class="queue-nav" id="queueNav">
+          <button class="qnav-btn" id="qnavPrev" onclick="queueNav(-1)" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Prev
+          </button>
+          <span class="qnav-pos" id="qnavPos">—</span>
+          <button class="qnav-btn" id="qnavNext" onclick="queueNav(1)">
+            Next
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+      <!-- RIGHT: Bucket -->
+      <div class="bucket-panel">
+               <div class="bucket-header">
+          <span class="bucket-title">Actioned</span>
+          <div class="bucket-controls">
+            <span class="bucket-tab active" id="btab-all" onclick="setBucketTab('all')">All</span>
+            <span class="bucket-tab bt-pur" id="btab-pur" onclick="setBucketTab('pur')">Purchased <span class="bt-count" id="btabcount-pur">0</span></span>
+            <span class="bucket-tab bt-na" id="btab-na" onclick="setBucketTab('na')">Not available <span class="bt-count" id="btabcount-na">0</span></span>
+            <span class="bucket-tab bt-def" id="btab-def" onclick="setBucketTab('def')">Deferred <span class="bt-count" id="btabcount-def">0</span></span>
+            <span class="bucket-tab bt-basket" id="btab-basket" onclick="setBucketTab('basket')">In Basket <span class="bt-count" id="btabcount-basket">0</span></span>
+            <span class="bucket-tab bt-rej" id="btab-rej" onclick="setBucketTab('rej')">Rejected <span class="bt-count" id="btabcount-rej">0</span></span>
+          </div>
+        </div>
+        <div class="bucket-body">
+          <div class="bucket-list" id="bucketList"></div>
+        </div>
+        <div class="bucket-footer">
+          <span id="bucketCount">0 actioned</span>
+          <span id="bucketProgress"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+                                                                                                                                                                           
+
+  <!-- ══ REPLENISHMENTS INSIGHTS MODAL ══ -->
+<div class="ri-overlay" id="riOverlay" onclick="if(event.target===this)closeRepInsights()">
+  <div class="ri-modal">
+    <div class="ri-modal-hdr">
+      <div class="ri-modal-title-row">
+        <div class="ri-modal-title">
+          <div class="ri-modal-title-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-6"/></svg>
+          </div>
+          <span>Replenishment Insights</span>
+        </div>
+        <div class="ri-modal-week">
+          <button class="ri-week-nav-btn" onclick="riShiftWeek(-1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <span class="ri-modal-sub" id="riWeekLabel">—</span>
+          <button class="ri-week-nav-btn" onclick="riShiftWeek(1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+        <button class="ri-modal-close" onclick="closeRepInsights()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="ri-modal-body" id="riModalBody">
+      <div class="ri-loading">
+        <div class="ri-loading-row"></div>
+        <div class="ri-loading-row"></div>
+        <div class="ri-loading-row"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+      <!-- Supplier Picker Dialog -->
+<div class="supplier-overlay" id="supplierOverlay">
+  <div class="supplier-dialog">
+    <div class="supplier-dialog-hdr">
+      <div class="supplier-dialog-title">Add to Basket</div>
+      <div class="supplier-dialog-sub" id="supplierDialogSub">Select a supplier for this order</div>
+    </div>
+    <div class="supplier-dialog-body" id="supplierDialogBody">
+      <div style="text-align:center;padding:20px;color:var(--text4);font-size:12px;">Loading suppliers…</div>
+    </div>
+    <div class="supplier-dialog-ftr">
+      <button class="btn btn-secondary btn-sm" onclick="closeSupplierDialog()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="supplierConfirmBtn" onclick="confirmSupplierPick()" disabled>Add to Basket</button>
+    </div>
+  </div>
+</div>
+  
+</div>
+
+<script>
+(function(){
+'use strict';
+
+const sb = window.sb;
+
+// ── STATE ──
+let ALL = [];
+let acts = {};
+let notes = {};
+let actsOrder = [];
+let sortK = 'days';
+let sortA = 1;
+let rawF1 = null;
+let rawF2 = null;
+let rawF3 = null;
+let confirmFn = null;
+let queueIdx = 0;
+let bucketTab = 'all';
+let _suppliers = [];
+let _pendingBasketSku = null;
+let _selectedSupplier = null;
+let basketSuppliers = {}; // sku -> supplier name
+let pendingBasketReview = []; // items awaiting a keep/refresh decision after upload
+let reviewOpenSku = null;     // which review row's detail panel is currently expanded
+
+  
+// Catalog + offers data from Supabase
+// ── EAN MATCHING: leading zeros are ignored (0012345678905 == 12345678905) ──
+function normEan(v){const s=String(v==null?'':v).trim().replace(/\.0+$/,'');const t=s.replace(/^0+/,'');return t||s;}
+function makeEanMap(){return new Proxy({},{get:(t,k)=>typeof k==='string'?t[normEan(k)]:t[k],set:(t,k,v)=>{t[typeof k==='string'?normEan(k):k]=v;return true;},has:(t,k)=>(typeof k==='string'?normEan(k):k) in t});}
+let _catalogMap = makeEanMap();  // ean -> [{supplier_name, cost}]
+let _offersMap  = makeEanMap();  // ean -> [{supplier_name, cost}]
+
+// ── SUPABASE DATA LOAD ──
+async function loadPriceContext() {
+  try {
+    const [catRes, offRes] = await Promise.all([
+      sb.from('catalog').select('ean,cost,supplier_name').not('ean','is',null).not('cost','is',null),
+      sb.from('offers').select('ean,cost_of_unit,supplier_name').not('ean','is',null).not('cost_of_unit','is',null)
+    ]);
+    _catalogMap = makeEanMap();
+    (catRes.data || []).forEach(r => {
+      const k = String(r.ean || '').trim().toLowerCase();
+      if (!k) return;
+      if (!_catalogMap[k]) _catalogMap[k] = [];
+      _catalogMap[k].push({ name: r.supplier_name || '—', cost: parseFloat(r.cost) });
+    });
+    _offersMap = makeEanMap();
+    (offRes.data || []).forEach(r => {
+      const k = String(r.ean || '').trim().toLowerCase();
+      if (!k) return;
+      if (!_offersMap[k]) _offersMap[k] = [];
+      _offersMap[k].push({ name: r.supplier_name || '—', cost: parseFloat(r.cost_of_unit) });
+    });
+    // Sort each by cost asc
+    Object.values(_catalogMap).forEach(arr => arr.sort((a,b) => a.cost - b.cost));
+    Object.values(_offersMap).forEach(arr => arr.sort((a,b) => a.cost - b.cost));
+  } catch(e) {
+    console.warn('Could not load price context', e);
+  }
+}
+
+
+// ── LAST PURCHASED (reads directly from replenishment_skus — no separate table) ──
+let _lastPurchase = { byEan: makeEanMap(), bySku: {} };
+async function loadLastPurchaseInfo() {
+  try {
+    const { data } = await sb.from('replenishment_skus')
+      .select('sku,ean,last_purchased_supplier,last_purchased_at')
+      .not('last_purchased_at', 'is', null)
+      .order('last_purchased_at', { ascending: true });
+    const byEan = makeEanMap(), bySku = {};
+    (data || []).forEach(r => {
+      const rec = { date: r.last_purchased_at, supplier: r.last_purchased_supplier || '' };
+      const eanKey = (r.ean || '').trim().toLowerCase();
+      if (eanKey) byEan[eanKey] = rec; // ascending order → last write wins → most recent
+      if (r.sku) bySku[r.sku] = rec;
+    });
+    _lastPurchase = { byEan, bySku };
+  } catch(e) { console.warn('Could not load last purchase info', e); }
+}
+function fmtLastPurchaseDate(iso) {
+  try { return new Date(iso).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }); }
+  catch(e) { return ''; }
+}
+function getLastPurchaseChip(x) {
+  const eanKey = (x.ean || '').toLowerCase();
+  const rec = (eanKey && _lastPurchase.byEan[eanKey]) || _lastPurchase.bySku[x.s];
+  if (!rec) return '';
+  const dateTxt = fmtLastPurchaseDate(rec.date);
+  const supTxt = rec.supplier ? ' · ' + esc(rec.supplier) : '';
+  return `<span class="last-purchase-chip" title="Last purchased">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    Last purchased ${dateTxt}${supTxt}
+  </span>`;
+}
+
+async function loadSuppliers() {
+  if (_suppliers.length) return _suppliers;
+  try {
+    const { data } = await sb.from('suppliers').select('name').order('name');
+    _suppliers = (data || []).map(s => s.name);
+  } catch(e) { _suppliers = []; }
+  return _suppliers;
+}
+  
+function _currentUserName() {
+  try {
+    const u = JSON.parse(sessionStorage.getItem('user') || '{}');
+    return ((u.firstName || '') + ' ' + (u.lastName || '')).trim();
+  } catch(e) { return ''; }
+}
+
+// ── DB: previously seen SKUs ──
+async function loadSeenSkus() {
+  try {
+    const [{ data }, latestNotes] = await Promise.all([
+      sb.from('replenishment_skus').select('sku,ean,name,action,actioned_at,supplier_name,available,incoming,daily_rate,days_left,order_qty,cost_price,image_url,urgency,source,basket_added_at,original_cost_price,case_price,order_cases,last_purchased_at,last_purchased_supplier,order_submitted,uploaded_at'),
+      loadLatestReplNotes(),
+    ]);
+    const bySku = {}, byEan = makeEanMap();
+    (data || []).forEach(r => {
+      const rec = { ...r, note: latestNotes[r.sku] || null };
+      bySku[r.sku] = rec;
+      const eanKey = (r.ean || '').trim().toLowerCase();
+      if (eanKey && (r.action === 'basket' || r.action === 'pur')) byEan[eanKey] = rec;
+    });
+    return { bySku, byEan };
+  } catch(e) { return { bySku: {}, byEan: makeEanMap() }; }
+}
+
+// Returns { sku: latestNoteText } — one entry per SKU, using the most recent thread message
+async function loadLatestReplNotes() {
+  try {
+    const { data } = await sb.from('replenishment_notes').select('sku,text,created_at').order('created_at', { ascending: true });
+    const latest = {};
+    (data || []).forEach(n => { latest[n.sku] = n.text; }); // ascending order means last write wins = latest
+    return latest;
+  } catch(e) { return {}; }
+}
+async function saveSkusToDB(skus) {
+  if (!sb) return;
+  try {
+    // Upsert all skus (non-rejected ones)
+    const rows = skus.map(x => ({
+      sku: x.s,
+      name: x.t,
+      ean: x.ean || null,
+      urgency: x.u,
+      available: x.av,
+      incoming: x.inc || 0,
+      daily_rate: x.r,
+      days_left: x.d,
+      order_qty: x.q,
+      cogs: x.cogs || null,
+      cost_price: x.cogs || null,
+      uploaded_at: new Date().toISOString(),
+      image_url: x.img || null,
+    }));
+    await sb.from('replenishment_skus').upsert(rows, { onConflict: 'sku' });
+  } catch(e) { console.warn('DB save error', e); }
+}
+
+async function saveActionToDB(sku, action) {
+  if (!sb) return;
+  try {
+    const update = {
+      action: action || null,
+      actioned_at: action ? new Date().toISOString() : null,
+      supplier_name: (action === 'basket' || action === 'pur') ? (basketSuppliers[sku] || null) : null,
+    };
+    // Only written when something is actually marked purchased — never cleared or
+    // overwritten by any other action, so it survives Reject/Defer/Undo indefinitely.
+    if (action === 'pur') {
+      update.last_purchased_at = update.actioned_at;
+      update.last_purchased_supplier = update.supplier_name;
+    }
+    await sb.from('replenishment_skus').update(update).eq('sku', sku);
+  } catch(e) {}
+}
+
+async function requeuePurchasedSkus(skus) {
+  if (!sb || !skus.length) return;
+  try {
+    for (let i = 0; i < skus.length; i += 200) {
+      await sb.from('replenishment_skus')
+        .update({ action: null, actioned_at: null, supplier_name: null, order_submitted: false, order_cases: null })
+        .in('sku', skus.slice(i, i + 200)).eq('action', 'pur');
+    }
+  } catch(e) { console.warn('Requeue purchased error', e); }
+}
+
+// Undoing a purchase removes that purchase from the history (replenishment_purchases)
+async function removePurchaseRecord(sku) {
+  if (!sb) return;
+  try {
+    const { data } = await sb.from('replenishment_skus').select('action,actioned_at').eq('sku', sku).maybeSingle();
+    if (data && data.action === 'pur' && data.actioned_at) {
+      await sb.from('replenishment_purchases').delete().eq('sku', sku).eq('actioned_at', data.actioned_at);
+    }
+  } catch(e) { console.warn('Remove purchase record error', e); }
+}
+
+async function clearNonRejectedFromDB() {
+  if (!sb) return;
+  try {
+    const cutoff = new Date(Date.now() - 60*24*60*60*1000).toISOString();
+    // Basket ('basket') and Purchased ('pur') rows are deliberately never cleared here —
+    // they persist across uploads so re-processing a file never loses or duplicates them.
+    await sb.from('replenishment_skus').delete()
+      .or(`action.is.null,action.eq.na,action.eq.def,and(action.eq.rej,actioned_at.lt.${cutoff})`);
+  } catch(e) { console.warn('DB clear error', e); }
+}
+
+// ── CSV PARSER ──
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (!lines.length) return [];
+  const delim = lines[0].includes('\t') ? '\t' : ',';
+  const headers = splitLine(lines[0], delim).map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_'));
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = splitLine(lines[i], delim);
+    if (vals.length < 2) continue;
+    const obj = {};
+    headers.forEach((h, idx) => { obj[h] = (vals[idx] || '').trim().replace(/^"|"$/g, ''); });
+    rows.push(obj);
+  }
+  return rows;
+}
+
+
+// ── STRIP HTML TAGS FROM TITLE ──
+function stripHtml(str) {
+  return (str || '')
+    .replace(/<[^>]*>/gi, '')
+    .replace(/\bdefault\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+  
+function splitLine(line, delim) {
+  const result = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; continue; }
+    if (c === delim && !inQ) { result.push(cur); cur = ''; continue; }
+    cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+
+// ── FILE HANDLING ──
+function dragOver(e, slot) { e.preventDefault(); document.getElementById('drop' + slot).classList.add('drag-over'); }
+function dragLeave(el) { el.classList.remove('drag-over'); }
+
+  
+function dropFile(e, slot) {
+  e.preventDefault();
+  document.getElementById('drop' + slot).classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) loadFile(file, slot);
+}
+function fileChosen(input, slot) {
+  if (input.files[0]) loadFile(input.files[0], slot);
+}
+function loadFile(file, slot) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const parsed = parseCSV(e.target.result);
+    if (slot === 1) rawF1 = parsed;
+    else if (slot === 2) rawF2 = parsed;
+    else if (slot === 3) rawF3 = parsed;
+    markDrop('drop' + slot, 'drop' + slot + 'text', file.name);
+    document.getElementById('processBtn').disabled = !(rawF1 && rawF2 && rawF3);
+  };
+  reader.readAsText(file);
+}
+
+function markDrop(dropId, textId, name) {
+  document.getElementById(dropId).classList.add('loaded');
+  document.getElementById(textId).textContent = name;
+}
+
+// ── PROCESS FILES ──
+async function processFiles() {
+  if (!rawF1 || !rawF2 || !rawF3) return;
+  const btn = document.getElementById('processBtn');
+  btn.disabled = true;
+  pendingBasketReview = [];
+  reviewOpenSku = null;
+  await clearNonRejectedFromDB();
+  btn.innerHTML = '<span class="spinner" style="width:13px;height:13px;border-width:2px;border-color:rgba(255,255,255,.3);border-top-color:#fff;margin-right:4px"></span>Processing…';
+
+  const [, seenSkus] = await Promise.all([loadPriceContext(), loadSeenSkus(), loadLastPurchaseInfo()]);
+
+const REJECT_EXPIRY_MS = 60 * 24 * 60 * 60 * 1000;
+  const rejectedSkus = new Set(
+    Object.entries(seenSkus.bySku).filter(([, v]) =>
+      v.action === 'rej' && v.actioned_at && (Date.now() - new Date(v.actioned_at).getTime()) < REJECT_EXPIRY_MS
+    ).map(([k]) => k)
+  );
+  
+
+  // Step 1 — build clearance exclusion set from File 2 using sellable_id
+  const clearanceIds = new Set(rawF2.map(r => (r.sellable_id || '').trim()).filter(Boolean));
+
+  // Step 2 — Full Forecast = File 1 minus File 2
+  const fullForecast = rawF1.filter(r => !clearanceIds.has((r.sellable_id || '').trim()));
+  const excludedCount = rawF1.length - fullForecast.length;
+
+// Strip HTML tags from title on all Full Forecast rows before File 3 comparison
+  fullForecast.forEach(r => { r.title = stripHtml(r.title); });
+
+  const f3Map = {}; // product_title (lowercased) → { sku_code, image_url }
+  rawF3.forEach(r => {
+    const tags = (r.tags || '').split(',').map(t => t.trim().toLowerCase());
+    if (tags.includes('clearance line')) return;
+    const title = stripHtml(r.product_title).toLowerCase();
+    if (!title) return;
+    f3Map[title] = {
+      sku: (r.sku_code || '').trim(),
+      img: (r.image_url || '').trim(),
+      cost: parseFloat(r.cost_price) || 0,
+    };
+  });
+
+  // Step 4 — Enrich Full Forecast: replace SKU and add image where title matches
+  let skuReplaced = 0;
+  let imgMatched = 0;
+  const enriched = fullForecast.map(r => {
+    const titleKey = (r.title || '').replace(/<[^>]*>/g, '').trim().toLowerCase();
+    const match = f3Map[titleKey];
+    const out = { ...r };
+    if (match) {
+      if (match.sku) { out.sku = match.sku; skuReplaced++; }
+      if (match.img) { out.image_url = match.img; imgMatched++; }
+      if (match.cost) { out.cost_price = match.cost; }
+    }
+    return out;
+  });
+
+  // Step 5 — Build grouped list (same logic as before, using enriched rows)
+  const mainIdxMap = {};
+  const grouped = [];
+
+  enriched.forEach(r => {
+    const sku = (r.sku || '').trim();
+    if (!sku) return;
+    const ean = (r.sku || '').trim();
+    const eanKey = ean.toLowerCase();
+    const skuMatch = seenSkus.bySku[sku];
+    const skuMatchIsTracked = skuMatch && (skuMatch.action === 'basket' || skuMatch.action === 'pur');
+    const existingBasket = (eanKey && seenSkus.byEan[eanKey]) || (skuMatchIsTracked ? skuMatch : null);
+
+          let obj;
+        // Purchased lines no longer wait for a cover period — they come straight back as fresh lines
+        // (each purchase is kept in replenishment_purchases, so history isn't lost).
+        if (existingBasket && existingBasket.action === 'basket') {
+      // Already in the basket — do NOT auto-apply this file's numbers.
+      // Keep showing the current, already-saved values; stash what THIS
+      // file would produce so the review modal can offer it as a choice.
+      const newDailyRate = parseFloat(r.daily_sell_out_rate) || 0;
+      const newAvailable = parseFloat(r.available_qty) || 0;
+      const newIncoming  = parseFloat(r.incoming_qty) || 0;
+      const newDaysLeft  = newDailyRate > 0 ? Math.round((newAvailable + newIncoming) / newDailyRate) : 999;
+      const newOrderQty  = Math.max(0, Math.round(newDailyRate * 30) - newAvailable - newIncoming);
+      const newUrgency   = newDaysLeft <= 0 ? 'C' : newDaysLeft < 7 ? 'C' : newDaysLeft < 20 ? 'R' : 'O';
+
+      const curAvailable = parseFloat(existingBasket.available) || 0;
+      const curIncoming  = parseFloat(existingBasket.incoming) || 0;
+      const curDailyRate = parseFloat(existingBasket.daily_rate) || 0;
+      const curDaysLeft  = parseFloat(existingBasket.days_left) || 0;
+      const curOrderQty  = parseInt(existingBasket.order_qty) || 0;
+      const curUrgency   = existingBasket.urgency || 'O';
+
+      obj = {
+        s: existingBasket.sku,
+        t: existingBasket.name || existingBasket.sku,
+        ean: existingBasket.ean || ean,
+        u: curUrgency,
+        av: curAvailable,
+        inc: curIncoming,
+        r: curDailyRate,
+        d: curDaysLeft,
+        q: curOrderQty,
+        cogs: parseFloat(existingBasket.cost_price) || 0,
+        lastSupplier: existingBasket.supplier_name || '',
+        img: existingBasket.image_url || '',
+        subsets: [],
+        __preserved: true,
+        __pendingReview: true,
+      };
+
+      pendingBasketReview.push({
+        sku: existingBasket.sku,
+        checked: false,
+        current:  { u: curUrgency, av: curAvailable, inc: curIncoming, r: curDailyRate, d: curDaysLeft, q: curOrderQty },
+        incoming: { u: newUrgency, av: newAvailable, inc: newIncoming, r: newDailyRate, d: newDaysLeft, q: newOrderQty },
+        full: existingBasket,
+      });
+    } else {
+      const dailyRate = parseFloat(r.daily_sell_out_rate) || 0;
+      const available = parseFloat(r.available_qty) || 0;
+      const incoming  = parseFloat(r.incoming_qty) || 0;
+      const daysLeft  = dailyRate > 0 ? Math.round((available + incoming) / dailyRate) : 999;
+      const orderQty  = Math.max(0, Math.round(dailyRate * 30) - available - incoming);
+      const urgency   = daysLeft <= 0 ? 'C' : daysLeft < 7 ? 'C' : daysLeft < 20 ? 'R' : 'O';
+      obj = {
+        s: sku,
+        t: (r.title || '').replace(/<[^>]*>/g, '').trim() || sku,
+        ean: ean,
+        u: urgency,
+        av: available,
+        inc: incoming,
+        r: dailyRate,
+        d: daysLeft,
+        q: orderQty,
+        cogs: parseFloat(r.cost_price) || 0,
+        lastSupplier: (r.supplier_name || '').trim(),
+        img: (r.image_url || '').trim(),
+        subsets: [],
+      };
+    }
+    if (mainIdxMap[obj.s] != null) return; // already added this cycle (e.g. two rows resolved to the same preserved item)
+    mainIdxMap[obj.s] = grouped.length;
+    grouped.push(obj);
+  });
+
+    ALL = grouped;
+  acts = {};
+  notes = {};
+
+  rejectedSkus.forEach(sku => {
+    const dbRec = seenSkus.bySku[sku];
+    if (dbRec && !acts[sku]) {
+      acts[sku] = dbRec.action;
+      if (dbRec.note) notes[sku] = dbRec.note;
+    }
+  });
+
+  grouped.forEach(x => {
+    if (!x.__preserved) return;
+    const dbRec = seenSkus.bySku[x.s];
+    if (!dbRec) return;
+    acts[x.s] = dbRec.action;
+    if (dbRec.note) notes[x.s] = dbRec.note;
+    if ((dbRec.action === 'basket' || dbRec.action === 'pur') && dbRec.supplier_name) {
+      basketSuppliers[x.s] = dbRec.supplier_name;
+    }
+  });
+
+  const pendingReviewSet = new Set(pendingBasketReview.map(p => p.sku));
+  const newSkus = grouped.filter(x => !rejectedSkus.has(x.s) && !pendingReviewSet.has(x.s));
+  // Purchased lines that are in this file go back to "needs review". Done before saving the new
+  // figures so the purchase record in replenishment_purchases keeps the numbers it was bought with.
+  const requeueSkus = newSkus.filter(x => seenSkus.bySku[x.s] && seenSkus.bySku[x.s].action === 'pur').map(x => x.s);
+  await requeuePurchasedSkus(requeueSkus);
+  await saveSkusToDB(newSkus);
+
+  btn.disabled = false;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>Generate List';
+
+  showContent();
+  render();
+  toast(`${ALL.length} SKUs · ${excludedCount} clearance excluded · ${skuReplaced} SKUs mapped · ${imgMatched} images matched`, 'success');
+
+  if (pendingBasketReview.length) openBasketReviewModal();
+}
+
+// ── SHOW/HIDE ──
+function showContent() {
+  document.getElementById('uploadZone').style.display = 'none';
+  document.getElementById('repContent').style.display = 'flex';
+  document.getElementById('repContent').style.flexDirection = 'column';
+}
+
+function showUpload() {
+  document.getElementById('uploadZone').style.display = 'flex';
+  document.getElementById('repContent').style.display = 'none';
+  rawF1 = null; rawF2 = null; rawF3 = null;
+  ['drop1','drop2','drop3'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('loaded');
+  });
+  const t1 = document.getElementById('drop1text');
+  const t2 = document.getElementById('drop2text');
+  const t3 = document.getElementById('drop3text');
+  if (t1) t1.textContent = 'Drop CSV here or click to browse';
+  if (t2) t2.textContent = 'Drop CSV here or click to browse';
+  if (t3) t3.textContent = 'Drop CSV here or click to browse';
+  document.getElementById('processBtn').disabled = true;
+}
+
+// ── PERSIST ──
+function persist() {} // DB is source of truth
+
+// ── RENDER ──
+function render() {
+  if (!ALL.length) return;
+  const q = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+  const pur  = ALL.filter(x => acts[x.s] === 'pur').length;
+  const pend = ALL.filter(x => !acts[x.s] || acts[x.s] === 'def').length;
+  const crit = ALL.filter(x => x.u === 'C').length;
+  const done = ALL.length - pend;
+  const pct  = ALL.length ? Math.round(done / ALL.length * 100) : 0;
+
+  const progFill = document.getElementById('progFill');
+  if (progFill) progFill.style.width = pct + '%';
+  setChip('chipTotal',     ALL.length + ' SKU' + (ALL.length !== 1 ? 's' : ''));
+  setChip('chipPurchased', pur + ' Purchased');
+  setChip('chipPending',   pend + ' Pending');
+  setChip('chipCritical',  crit + ' Critical');
+
+  const nonDeferred = ALL.filter(x => !acts[x.s]);
+  const deferredItems = ALL.filter(x => acts[x.s] === 'def');
+  let pending = nonDeferred.length > 0 ? nonDeferred : deferredItems;
+  const isShowingDeferred = nonDeferred.length === 0 && deferredItems.length > 0;
+  if (q) pending = pending.filter(x =>
+    x.s.toLowerCase().includes(q) || x.t.toLowerCase().includes(q) || (x.ean||'').toLowerCase().includes(q)
+  );
+  pending.sort((a, b) => a.d - b.d);
+
+  if (queueIdx >= pending.length) queueIdx = Math.max(0, pending.length - 1);
+
+const queuePanel = document.getElementById('queuePanel');
+  const allDone = pending.length === 0 && deferredItems.length === 0;
+  // Never shrink the panel — summary takes the full width
+  document.getElementById('queueCounter').textContent = isShowingDeferred
+  ? deferredItems.length + ' deferred (reviewing)'
+  : pend + ' pending';
+  document.getElementById('queueProgFill').style.width = pct + '%';
+
+    const queueBody = document.getElementById('queueBody');
+  if (_previewSku && !ALL.find(s => s.s === _previewSku)) _previewSku = null;
+  if (_previewSku) {
+    const x = ALL.find(s => s.s === _previewSku);
+    queueBody.innerHTML = buildFocusCard(x, false, true);
+    document.getElementById('queueCounter').textContent = 'Previewing';
+    document.getElementById('queueNav').style.display = 'none';
+  } else if (allDone) {
+    
+    saveWeeklySummary();
+    // ── compute summary stats ──
+    const purItems  = ALL.filter(x => acts[x.s] === 'pur');
+    const naItems   = ALL.filter(x => acts[x.s] === 'na');
+    const rejItems  = ALL.filter(x => acts[x.s] === 'rej');
+    const totalUnits = purItems.reduce((s, x) => s + x.q, 0);
+    const estSpend   = purItems.reduce((s, x) => s + (x.q * (x.cogs || 0)), 0);
+    const noPricePur = purItems.filter(x => !x.cogs).length;
+    const critNA     = naItems.filter(x => x.u === 'C').length;
+    const gapUnits   = ALL.filter(x => !acts[x.s]).reduce((s, x) => s + x.q, 0);
+
+    const alerts = [];
+    if (critNA > 0) alerts.push({ type: 'danger', icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>', text: `<strong>${critNA} critical SKU${critNA > 1 ? 's' : ''} marked Not available</strong> — these are out of stock and couldn't be sourced.` });
+    if (noPricePur > 0) alerts.push({ type: 'warn', icon: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>', text: `<strong>${noPricePur} purchased SKU${noPricePur > 1 ? 's' : ''} missing COGs</strong> — estimated spend may be understated.` });
+
+    queueBody.innerHTML = `<div class="queue-done-state">
+      <div class="summary-hero">
+        <div class="summary-hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div class="summary-hero-text">
+          <div class="summary-hero-title">Review complete</div>
+          <div class="summary-hero-sub">${ALL.length} SKUs · all actioned this session</div>
+        </div>
+      </div>
+
+      <div class="summary-section-label">Order Summary</div>
+      <div class="summary-grid">
+        <div class="summary-stat">
+          <div class="summary-stat-val green">${purItems.length}</div>
+          <div class="summary-stat-label">SKUs Purchased</div>
+          <div class="summary-stat-sub">${totalUnits.toLocaleString()} units to order</div>
+        </div>
+        <div class="summary-stat">
+          <div class="summary-stat-val ${estSpend > 0 ? 'blue' : ''}">${estSpend > 0 ? '£' + estSpend.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : '—'}</div>
+          <div class="summary-stat-label">Est. Spend</div>
+          <div class="summary-stat-sub">${estSpend > 0 ? 'based on COGs × qty' : 'no COGs data available'}</div>
+        </div>
+        <div class="summary-stat">
+          <div class="summary-stat-val amber">${naItems.length}</div>
+          <div class="summary-stat-label">Not available</div>
+          <div class="summary-stat-sub">${critNA > 0 ? critNA + ' are critical urgency' : 'none critical'}</div>
+        </div>
+        <div class="summary-stat">
+          <div class="summary-stat-val red">${rejItems.length}</div>
+          <div class="summary-stat-label">Rejected</div>
+          <div class="summary-stat-sub">permanently skipped</div>
+        </div>
+      </div>
+
+      ${alerts.length ? `<div class="summary-section-label">Alerts</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${alerts.map(a => `<div class="summary-alert ${a.type}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${a.icon}</svg>
+          <span>${a.text}</span>
+        </div>`).join('')}
+      </div>` : ''}
+
+      <div class="summary-section-label">Coverage</div>
+      <div class="summary-grid">
+        <div class="summary-stat">
+          <div class="summary-stat-val">${totalUnits.toLocaleString()}</div>
+          <div class="summary-stat-label">Units Committed</div>
+          <div class="summary-stat-sub">across purchased SKUs</div>
+        </div>
+        <div class="summary-stat">
+          <div class="summary-stat-val ${gapUnits > 0 ? 'red' : 'green'}">${gapUnits > 0 ? gapUnits.toLocaleString() : '0'}</div>
+          <div class="summary-stat-label">Coverage Gap</div>
+          <div class="summary-stat-sub">${gapUnits > 0 ? 'units still unactioned' : 'fully covered'}</div>
+        </div>
+      </div>
+    </div>`;
+    document.getElementById('queueNav').style.display = 'none';
+  } else {
+    const x = pending[queueIdx];
+    queueBody.innerHTML = buildFocusCard(x, isShowingDeferred);
+    document.getElementById('queueNav').style.display = 'flex';
+    document.getElementById('qnavPos').textContent = (queueIdx + 1) + ' / ' + pending.length;
+    document.getElementById('qnavPrev').disabled = queueIdx === 0;
+    document.getElementById('qnavNext').disabled = queueIdx >= pending.length - 1;
+  }
+
+  // Bucket
+let actioned = ALL.filter(x => !!acts[x.s]);
+  if (bucketTab !== 'all') actioned = actioned.filter(x => acts[x.s] === bucketTab);
+  if (q) actioned = actioned.filter(x =>
+    x.s.toLowerCase().includes(q) || x.t.toLowerCase().includes(q)
+  );
+  
+    actioned.sort((a, b) => {
+    const ai = actsOrder.indexOf(a.s);
+    const bi = actsOrder.indexOf(b.s);
+    const an = ai === -1 ? Infinity : ai;
+    const bn = bi === -1 ? Infinity : bi;
+    return an - bn;
+  });
+
+  const bucketCounts = { pur:0, na:0, def:0, basket:0, rej:0 };
+  ALL.forEach(x => { const a = acts[x.s]; if (a && bucketCounts[a] !== undefined) bucketCounts[a]++; });
+  ['pur','na','def','basket','rej'].forEach(k => {
+    const el = document.getElementById('btabcount-' + k);
+    if (el) el.textContent = bucketCounts[k];
+  });
+ ['all','pur','na','def','basket','rej'].forEach(k => {
+  document.getElementById('btab-' + k)?.classList.toggle('active', bucketTab === k);
+});
+
+  const bucketList = document.getElementById('bucketList');
+  if (!actioned.length) {
+    bucketList.innerHTML = `<div class="bucket-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      <div class="bucket-empty-txt">Nothing actioned yet</div>
+      <div class="bucket-empty-sub">Review products on the left to fill this bucket.</div>
+    </div>`;
+  } else {
+    bucketList.innerHTML = actioned.map(x => buildBucketCard(x)).join('');
+  }
+
+  document.getElementById('bucketCount').textContent = done + ' actioned';
+  document.getElementById('bucketProgress').textContent = pct + '% complete · ' + pend + ' remaining';
+}
+
+// ── BUILD FOCUS CARD ──
+function buildFocusCard(x, showingDeferred, isPreview) {
+  const a = acts[x.s];
+  const eanKey = (x.ean || '').toLowerCase();
+  const catEntries  = _catalogMap[eanKey]  || [];
+  const offerEntries = _offersMap[eanKey]  || [];
+  const hasPriceData = catEntries.length > 0 || offerEntries.length > 0;
+  const panelId = 'pp_' + x.s.replace(/[^a-zA-Z0-9]/g,'_');
+  const lastPurchaseChip = getLastPurchaseChip(x);
+
+  let daysCls, daysTxt;
+  if (x.d <= 0)      { daysCls = 'days-badge days-crit'; daysTxt = x.av <= 0 ? 'Out of stock' : x.av + ' in stock'; }
+  else if (x.d < 7)  { daysCls = 'days-badge days-crit'; daysTxt = x.d + 'd left'; }
+  else if (x.d < 20) { daysCls = 'days-badge days-warn'; daysTxt = x.d + 'd left'; }
+  else               { daysCls = 'days-badge days-ok';   daysTxt = x.d + 'd left'; }
+
+  const urgBadgeCls = x.u === 'C' ? 'urgency-badge badge-crit' : x.u === 'R' ? 'urgency-badge badge-order' : 'urgency-badge badge-ok';
+  const urgTxt = x.u === 'C' ? 'Critical' : x.u === 'R' ? 'Order' : 'OK';
+  const cardBorderCls = x.u === 'C' ? 'u-crit' : x.u === 'R' ? 'u-warn' : 'u-ok';
+
+  const allSorted = ALL.slice().sort((a,b) => a.d - b.d);
+  const pos = allSorted.findIndex(s => s.s === x.s) + 1;
+
+  // EAN link
+  const eanHtml = x.ean
+    ? `<a class="ean-link" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(x.ean)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="3" height="15"/><rect x="7" y="4" width="2" height="15"/><rect x="11" y="4" width="4" height="15"/><rect x="17" y="4" width="2" height="15"/></svg>
+        ${esc(x.ean)}
+       </a>`
+    : '';
+
+  // Qty breakdown
+  const target = Math.round(x.r * 30);
+  const qtyBreakdown = `<div class="qty-breakdown">
+    <div class="qty-row">
+      <span class="qty-row-label">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/></svg>
+        Target (${x.r.toFixed(1)}/day × 30)
+      </span>
+      <span class="qty-row-val val-rate">${target.toLocaleString()} units</span>
+    </div>
+    <div class="qty-row">
+      <span class="qty-row-label">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        On hand
+      </span>
+      <span class="qty-row-val val-available">− ${x.av.toLocaleString()} units</span>
+    </div>
+    <div class="qty-row">
+      <span class="qty-row-label">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.6"/></svg>
+        Incoming
+      </span>
+      <span class="qty-row-val val-incoming">− ${x.inc.toLocaleString()} units</span>
+    </div>
+    <div class="qty-row qty-total">
+      <span class="qty-row-label">Recommended order</span>
+      <span class="qty-row-val" style="color:var(--green);font-size:13px;">${x.q > 0 ? x.q.toLocaleString() + ' units' : 'None needed'}</span>
+    </div>
+  </div>`;
+
+  // Price panel
+  let pricePanelHtml = '';
+  if (hasPriceData) {
+    let catalogRows = catEntries.map(e =>
+      `<div class="price-row">
+        <span class="price-row-name">${esc(e.name)}</span>
+        <span class="price-row-cost">£${e.cost.toFixed(2)}</span>
+       </div>`
+    ).join('');
+    let offerRows = offerEntries.map(e =>
+      `<div class="price-row">
+        <span class="price-row-name">${esc(e.name)}</span>
+        <span class="price-row-cost" style="color:var(--accent)">£${e.cost.toFixed(2)}</span>
+       </div>`
+    ).join('');
+
+    const badgeTxt = catEntries.length + offerEntries.length;
+    pricePanelHtml = `<div class="price-panel" id="${panelId}">
+      <div class="price-panel-toggle" onclick="togglePricePanel('${panelId}')">
+        <div class="price-panel-toggle-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Catalog &amp; Offer Prices
+          <span style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:1px 6px;font-size:9.5px;color:var(--text4);font-weight:700">${badgeTxt}</span>
+        </div>
+         <svg class="price-panel-chevron" id="${panelId}_chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="price-panel-body" id="${panelId}_body">
+        ${catEntries.length ? `<div><div class="price-section-lbl">Catalog</div>${catalogRows}</div>` : ''}
+        ${offerEntries.length ? `<div><div class="price-section-lbl">Live Offers</div>${offerRows}</div>` : ''}
+      </div>
+    </div>`;
+  }
+
+const initials = x.t.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+  const avatarHtml = x.img
+    ? `<img src="${esc(x.img)}" alt="" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+    : '';
+  const focusThumb = `<div style="width:52px;height:52px;border-radius:var(--r-sm);overflow:hidden;background:var(--accent-bg);border:1px solid var(--accent-bd);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--accent);letter-spacing:-.5px;position:relative;">
+    ${avatarHtml}
+    <span style="display:${x.img ? 'none' : 'flex'};position:absolute;inset:0;align-items:center;justify-content:center;">${esc(initials)}</span>
+  </div>`;
+
+
+const previewBanner = isPreview ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--r-sm);padding:7px 11px;margin-bottom:10px;font-size:11.5px;font-weight:600;color:#1d4ed8;display:flex;align-items:center;justify-content:space-between;gap:6px;">
+  <span style="display:flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Previewing — status unchanged</span>
+  <span style="cursor:pointer;text-decoration:underline;" onclick="exitPreview()">Back to queue</span>
+</div>` : '';
+const basketInfo = acts[x.s] === 'basket' ? `<div style="background:var(--accent-bg);border:1px solid var(--accent-bd);border-radius:var(--r-sm);padding:9px 12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+  <div style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--accent);">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+    ${esc(basketSuppliers[x.s] || 'No supplier set')}
+  </div>
+  <div style="font-family:var(--mono);font-size:13px;font-weight:800;color:var(--accent);">${x.q.toLocaleString()} units</div>
+</div>` : '';
+  
+const deferBanner = showingDeferred ? `<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:var(--r-sm);padding:7px 11px;margin-bottom:10px;font-size:11.5px;font-weight:600;color:#6d28d9;display:flex;align-items:center;gap:6px;">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+  Deferred — reviewing these now
+</div>` : '';
+return `<div class="focus-card ${cardBorderCls}">
+  ${previewBanner}
+  ${deferBanner}
+  
+    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
+      ${focusThumb}
+      <div class="focus-card-name" style="margin-bottom:0;flex:1;min-width:0;">${esc(x.t)}</div>
+    </div>
+    <div class="focus-card-meta">
+      <span class="pill-sku">${esc(x.s)}</span>
+      <span class="${urgBadgeCls}">${urgTxt}</span>
+      <span class="${daysCls}">${daysTxt}</span>
+      <span class="rate-chip">${x.r.toFixed(1)}/day</span>
+    </div>
+           <div class="focus-card-row2">
+      ${eanHtml ? `<span>${eanHtml}</span><span class="card-meta-sep">·</span>` : ''}
+      ${x.cogs ? `<span>COGs £${x.cogs.toFixed(2)}</span><span class="card-meta-sep">·</span>` : ''}
+      <span>Last supplier: ${esc(x.lastSupplier || '—')}</span>
+    </div>
+    ${basketInfo}
+    ${lastPurchaseChip ? `<div style="margin-bottom:12px;">${lastPurchaseChip}</div>` : ''}
+    ${qtyBreakdown}
+    ${pricePanelHtml}
+    
+<div class="focus-card-actions card-actions">
+      <button class="abtn${a === 'def' ? ' on-def' : ''}" onclick="actAndAdvance('${esc(x.s)}','def')">
+        <svg viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/><polyline points="6,4 6,6 7.5,7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Defer
+      </button>
+      <button class="abtn${a === 'basket' ? ' on-pur' : ''}" onclick="actAndAdvance('${esc(x.s)}','basket')">
+        <svg viewBox="0 0 12 12" fill="none"><path d="M2 2.5h1.2l1.6 4.5h4l1.2-3H4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5.5" cy="9" r=".8" fill="currentColor"/><circle cx="8.5" cy="9" r=".8" fill="currentColor"/></svg>
+        Basket
+      </button>
+      <button class="abtn${a === 'na' ? ' on-na' : ''}" onclick="actAndAdvance('${esc(x.s)}','na')">
+        <svg viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/><line x1="2.5" y1="9.5" x2="9.5" y2="2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Not available
+      </button>
+      <button class="abtn${a === 'rej' ? ' on-rej' : ''}" onclick="actAndAdvance('${esc(x.s)}','rej')">
+        <svg viewBox="0 0 12 12" fill="none"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        Reject
+      </button>
+    </div>
+    <input class="focus-card-note" type="text" placeholder="Add a note…" value="${esc(notes[x.s] || '')}"
+      onchange="saveNote('${esc(x.s)}',this.value)" onclick="event.stopPropagation()">
+  </div>`;
+}
+
+// ── BUILD BUCKET CARD ──
+function buildBucketCard(x) {
+  const a = acts[x.s];
+  const pillCls  = a === 'pur' ? 'status-pill sp-pur' : a === 'na' ? 'status-pill sp-na' : a === 'def' ? 'status-pill sp-def' : a === 'basket' ? 'status-pill' : 'status-pill sp-rej';
+  const pillTxt  = a === 'pur' ? 'Purchased' : a === 'na' ? 'Not available' : a === 'def' ? 'Deferred' : a === 'basket' ? 'In Basket' : 'Rejected';
+  const borderCls = a === 'pur' ? 'bc-pur' : a === 'na' ? 'bc-na' : a === 'def' ? '' : a === 'basket' ? 'bc-pur' : 'bc-rej';
+  let daysCls, daysTxt;
+  if (x.d <= 0)      { daysCls = 'days-badge days-crit'; daysTxt = 'Out of stock'; }
+  else if (x.d < 7)  { daysCls = 'days-badge days-crit'; daysTxt = x.d + 'd'; }
+  else if (x.d < 20) { daysCls = 'days-badge days-warn'; daysTxt = x.d + 'd'; }
+  else               { daysCls = 'days-badge days-ok';   daysTxt = x.d + 'd'; }
+
+  const eanKey = (x.ean || '').toLowerCase();
+  const catEntries   = _catalogMap[eanKey]  || [];
+  const offerEntries = _offersMap[eanKey]   || [];
+  const hasPriceData = catEntries.length > 0 || offerEntries.length > 0;
+  const panelId = 'bpp_' + x.s.replace(/[^a-zA-Z0-9]/g,'_');
+  const lastPurchaseChip = getLastPurchaseChip(x);
+
+  let pricePanelHtml = '';
+  if (hasPriceData) {
+    let catalogRows = catEntries.map(e =>
+      `<div class="price-row">
+        <span class="price-row-name">${esc(e.name)}</span>
+        <span class="price-row-cost">£${e.cost.toFixed(2)}</span>
+       </div>`
+    ).join('');
+    let offerRows = offerEntries.map(e =>
+      `<div class="price-row">
+        <span class="price-row-name">${esc(e.name)}</span>
+        <span class="price-row-cost" style="color:var(--accent)">£${e.cost.toFixed(2)}</span>
+       </div>`
+    ).join('');
+
+    pricePanelHtml = `<div class="bucket-price-wrap">
+      <div class="price-panel" id="${panelId}">
+        <div class="price-panel-toggle" onclick="togglePricePanel('${panelId}')">
+          <div class="price-panel-toggle-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Prices
+            <span style="background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:1px 5px;font-size:9px;color:var(--text4);font-weight:700">${catEntries.length + offerEntries.length}</span>
+          </div>
+          <svg class="price-panel-chevron" id="${panelId}_chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="price-panel-body" id="${panelId}_body">
+          ${catEntries.length ? `<div><div class="price-section-lbl">Catalog</div>${catalogRows}</div>` : ''}
+          ${offerEntries.length ? `<div><div class="price-section-lbl">Live Offers</div>${offerRows}</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }
+
+return `<div class="bucket-card ${borderCls}">
+    <div class="bucket-card-top">
+      ${(()=>{
+        const ini = x.t.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+        return `<div style="width:36px;height:36px;border-radius:6px;overflow:hidden;background:var(--accent-bg);border:1px solid var(--accent-bd);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--accent);position:relative;">
+          ${x.img ? `<img src="${esc(x.img)}" alt="" style="width:100%;height:100%;object-fit:contain;position:absolute;inset:0;" onerror="this.style.display='none'">` : ''}
+          <span>${esc(ini)}</span>
+        </div>`;
+      })()}
+      <div class="bucket-card-body">
+        <div class="bucket-card-name" title="${esc(x.t)}">${esc(x.t)}</div>
+          <div class="bucket-card-meta">
+          <span class="${pillCls}">${pillTxt}</span>
+          <span class="pill-sku">${esc(x.s)}</span>
+          <span class="${daysCls}" style="font-size:10px;padding:1px 6px;">${daysTxt}</span>
+          ${x.q > 0 && a === 'pur' ? `<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--green);margin-left:auto;">× ${x.q.toLocaleString()}</span>` : ''}
+        </div>
+        ${lastPurchaseChip ? `<div style="margin-top:4px;">${lastPurchaseChip}</div>` : ''}
+        ${notes[x.s] ? `<div class="bucket-card-note">${esc(notes[x.s])}</div>` : ''}
+      </div>
+            <div class="bucket-card-actions">
+        <button class="bucket-undo" onclick="event.stopPropagation();previewInReview('${esc(x.s)}')" title="View in review">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <button class="bucket-undo" onclick="undoAct('${esc(x.s)}')" title="Undo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+        </button>
+      </div>
+    </div>
+    ${pricePanelHtml}
+  </div>`;
+}
+
+// ── PRICE PANEL TOGGLE ──
+function togglePricePanel(id) {
+  const body = document.getElementById(id + '_body');
+  const chev = document.getElementById(id + '_chev');
+  if (!body) return;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  body.style.display = isOpen ? 'none' : 'flex';
+  if (chev) chev.classList.toggle('open', !isOpen);
+}
+
+// ── ACTIONS ──
+function actAndAdvance(sku, key) {
+  _previewSku = null;
+  if (key === 'basket') {
+    openSupplierDialog(sku);
+    return;
+  }
+  acts[sku] = key;
+  actsOrder = actsOrder.filter(s => s !== sku);
+  actsOrder.unshift(sku);
+  persist();
+  saveActionToDB(sku, key);
+  render();
+}
+
+
+  async function openSupplierDialog(sku) {
+  _pendingBasketSku = sku;
+  _selectedSupplier = null;
+  const x = ALL.find(i => i.s === sku);
+  document.getElementById('supplierDialogSub').textContent = x ? x.t : sku;
+  document.getElementById('supplierConfirmBtn').disabled = true;
+  document.getElementById('supplierOverlay').classList.add('open');
+  const suppliers = await loadSuppliers();
+  const inquiryOption = `<div class="supplier-option" onclick="selectSupplier('Inquiry')" id="supopt_Inquiry" style="border-color:var(--amber-bd);background:var(--amber-bg);">
+    <div class="supplier-option-dot" style="background:var(--amber);"></div>
+    <span style="color:var(--amber);font-weight:700;">Inquiry</span>
+    <span style="font-size:10px;color:var(--text4);margin-left:auto;">supplier not listed</span>
+  </div>`;
+  document.getElementById('supplierDialogBody').innerHTML = inquiryOption
+    + (suppliers.length
+      ? suppliers.map(s => `<div class="supplier-option" onclick="selectSupplier('${esc(s)}')" id="supopt_${esc(s.replace(/[^a-zA-Z0-9]/g,'_'))}">
+          <div class="supplier-option-dot"></div>
+          ${esc(s)}
+        </div>`).join('')
+      : '<div style="text-align:center;padding:20px;color:var(--text4);font-size:12px;">No suppliers found</div>');
+}
+function selectSupplier(name) {
+  _selectedSupplier = name;
+  document.querySelectorAll('.supplier-option').forEach(el => el.classList.remove('selected'));
+  const id = 'supopt_' + name.replace(/[^a-zA-Z0-9]/g,'_');
+  const el = document.getElementById(id);
+  if (el) el.classList.add('selected');
+  document.getElementById('supplierConfirmBtn').disabled = false;
+}
+function confirmSupplierPick() {
+  if (!_pendingBasketSku || !_selectedSupplier) return;
+  const sku = _pendingBasketSku;
+  basketSuppliers[sku] = _selectedSupplier;
+  closeSupplierDialog();
+    acts[sku] = 'basket';
+  actsOrder = actsOrder.filter(s => s !== sku);
+  actsOrder.unshift(sku);
+  persist();
+  saveActionToDB(sku, 'basket');
+  render();
+  toast('Added to basket', 'success');
+}
+function closeSupplierDialog() {
+  document.getElementById('supplierOverlay').classList.remove('open');
+  _pendingBasketSku = null;
+  _selectedSupplier = null;
+}
+window.selectSupplier = selectSupplier;
+window.confirmSupplierPick = confirmSupplierPick;
+window.closeSupplierDialog = closeSupplierDialog;
+
+
+
+function toggleActionsMenu(e) {
+  e.stopPropagation();
+  document.getElementById('actionsMenu').classList.toggle('open');
+}
+function closeActionsMenu() {
+  document.getElementById('actionsMenu').classList.remove('open');
+}
+document.addEventListener('click', () => closeActionsMenu());
+window.toggleActionsMenu = toggleActionsMenu;
+window.closeActionsMenu = closeActionsMenu;
+
+
+function markBasketPurchased(sku) {
+  acts[sku] = 'pur';
+  saveActionToDB(sku, 'pur');
+  const item = ALL.find(x => x.s === sku);
+  if (item) {
+    const rec = { date: new Date().toISOString(), supplier: basketSuppliers[sku] || '' };
+    if (item.ean) _lastPurchase.byEan[String(item.ean).trim().toLowerCase()] = rec;
+    _lastPurchase.bySku[sku] = rec;
+  }
+  render();
+  renderBasketModal();
+  toast('Marked as purchased', 'success');
+}
+
+  
+function updateBasketSupplier(sku, supplierName) {
+  basketSuppliers[sku] = supplierName;
+  saveActionToDB(sku, 'basket');
+  renderBasketModal();
+}
+window.updateBasketSupplier = updateBasketSupplier;
+  
+function removeFromBasket(sku) {
+  delete acts[sku];
+  actsOrder = actsOrder.filter(s => s !== sku);
+  saveActionToDB(sku, null);
+  render();
+  renderBasketModal();
+}
+
+  
+window.markBasketPurchased = markBasketPurchased;
+window.removeFromBasket = removeFromBasket;
+
+
+async function undoAct(sku) {
+  const wasPurchased = acts[sku] === 'pur';
+  delete acts[sku];
+  actsOrder = actsOrder.filter(s => s !== sku);
+  persist();
+  if (wasPurchased) await removePurchaseRecord(sku);
+  saveActionToDB(sku, null);
+  // Find where this SKU lands in the pending list after undo, then jump to it
+  const pending = ALL.filter(x => !acts[x.s]);
+  pending.sort((a, b) => a.d - b.d);
+  const idx = pending.findIndex(x => x.s === sku);
+  if (idx !== -1) queueIdx = idx;
+  render();
+}
+  
+  
+function queueNav(dir) {
+  const nonDeferred = ALL.filter(x => !acts[x.s]);
+  const deferredItems = ALL.filter(x => acts[x.s] === 'def');
+  const pending = nonDeferred.length > 0 ? nonDeferred : deferredItems;
+  queueIdx = Math.max(0, Math.min(pending.length - 1, queueIdx + dir));
+  render();
+}
+
+let _previewSku = null;
+function previewInReview(sku) { _previewSku = sku; render(); }
+function exitPreview() { _previewSku = null; render(); }
+function setBucketTab(t) { bucketTab = t; render(); }
+  
+async function saveNote(sku, val) {
+  const text = val.trim();
+  if (!text) return;
+  if (notes[sku] === text) return; // unchanged — don't spam a duplicate thread entry
+  const author = _currentUserName();
+  if (!author) { toast('Unable to identify current user', 'error'); return; }
+  notes[sku] = text;
+  persist();
+  try {
+    await sb.from('replenishment_notes').insert({ sku, author_name: author, text });
+  } catch(e) { console.warn('Failed to save note', e); }
+}
+
+// ── CHIPS ──
+function setChip(id, txt) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const svg = el.querySelector('svg');
+  el.innerHTML = (svg ? svg.outerHTML : '') + '<span>' + esc(txt) + '</span>';
+}
+
+// ── RESET ──
+function confirmReset() {
+  openConfirm('Reset this week?',
+    'All actions and notes for the current list will be cleared. The uploaded data stays.',
+    async () => {
+      closeConfirm();
+      const includeRejected = document.getElementById('resetIncludeRejected')?.checked;
+      if (includeRejected) {
+        await sb.from('replenishment_skus').delete().neq('sku', '__never__');
+        acts = {}; notes = {}; actsOrder = [];
+      } else {
+        await clearNonRejectedFromDB();
+        /* Keep rejected in acts so they survive the reset */
+        Object.keys(acts).forEach(sku => {
+          if (acts[sku] !== 'rej') { delete acts[sku]; delete notes[sku]; }
+        });
+        actsOrder = actsOrder.filter(s => acts[s] === 'rej');
+      }
+      persist();
+      render();
+      toast(includeRejected ? 'All data deleted including rejected SKUs' : 'Week data deleted', 'info');
+    },
+    true 
+  );
+}
+
+// ── CONFIRM ──
+function openConfirm(title, msg, fn, showRejectedToggle) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+  confirmFn = fn;
+  const wrap = document.getElementById('resetRejectedWrap');
+  if (wrap) {
+    wrap.style.display = showRejectedToggle ? 'flex' : 'none';
+    const cb = document.getElementById('resetIncludeRejected');
+    if (cb) cb.checked = false;
+  }
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+function closeConfirm() { document.getElementById('confirmOverlay').classList.remove('open'); confirmFn = null; }
+function doConfirm() { if (confirmFn) confirmFn(); }
+
+// ── BASKET REVIEW MODAL ──
+function openBasketReviewModal() {
+  document.getElementById('reviewSelectAll').checked = false;
+  pendingBasketReview.sort((a, b) => Math.abs(b.current.d - b.incoming.d) - Math.abs(a.current.d - a.incoming.d));
+  const n = pendingBasketReview.length;
+  document.getElementById('reviewCount').textContent = n + (n === 1 ? ' item' : ' items');
+  renderBasketReviewList();
+  document.getElementById('reviewOverlay').classList.add('open');
+}
+
+function closeBasketReviewModalForce() {
+  document.getElementById('reviewOverlay').classList.remove('open');
+  pendingBasketReview = [];
+  reviewOpenSku = null;
+}
+
+function requestCloseReview() {
+  openConfirm(
+    'Close without saving?',
+    'Nothing will be applied — every item will simply keep its current numbers.',
+    () => { closeConfirm(); closeBasketReviewModalForce(); }
+  );
+}
+
+function toggleSelectAllReview(checked) {
+  pendingBasketReview.forEach(p => p.checked = checked);
+  renderBasketReviewList();
+}
+
+function toggleReviewChecked(sku, checked) {
+  const p = pendingBasketReview.find(x => x.sku === sku);
+  if (p) p.checked = checked;
+  const allChecked = pendingBasketReview.length && pendingBasketReview.every(x => x.checked);
+  document.getElementById('reviewSelectAll').checked = allChecked;
+  updateReviewProcessLabel();
+}
+
+function toggleReviewDetail(sku) {
+  reviewOpenSku = (reviewOpenSku === sku) ? null : sku;
+  renderBasketReviewList();
+}
+
+function updateReviewProcessLabel() {
+  const n = pendingBasketReview.filter(p => p.checked).length;
+  document.getElementById('reviewProcessBtn').textContent = n ? `Process (${n} refreshed)` : 'Process';
+}
+
+function fld(label, value, opts) {
+  opts = opts || {};
+  if (value === null || value === undefined || value === '') return '';
+  let display = esc(String(value));
+  if (opts.money) display = '£' + parseFloat(value).toFixed(2);
+  if (opts.date) { const d = new Date(value); if (!isNaN(d)) display = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
+  if (opts.bool) display = (value === true || value === 'true') ? 'Yes' : 'No';
+  return '<div class="review-detail-field"><span>' + label + '</span><span>' + display + '</span></div>';
+}
+
+function reviewCompareBlock(p) {
+  const curD = p.current.d, newD = p.incoming.d;
+  const curQ = p.current.q, newQ = p.incoming.q;
+  const same = curD === newD && curQ === newQ;
+  const cls = same ? '' : (newD < curD ? 'worse' : 'better');
+  const arrowSvg = '<svg class="review-compare-arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+
+  let out = '<div class="review-row-compare">'
+    + '<div class="review-compare-side">'
+    + '<div class="review-compare-label">Current</div>'
+    + '<div class="review-compare-qty">' + curQ.toLocaleString() + ' <span>units</span></div>'
+    + '<div class="review-compare-days">' + curD + 'd left</div>'
+    + '</div>';
+
+  if (same) {
+    out += '<div class="review-compare-same">No change from this file</div>';
+  } else {
+    out += arrowSvg
+      + '<div class="review-compare-side new ' + cls + '">'
+      + '<div class="review-compare-label">If Refreshed</div>'
+      + '<div class="review-compare-qty">' + newQ.toLocaleString() + ' <span>units</span></div>'
+      + '<div class="review-compare-days">' + newD + 'd left</div>'
+      + '</div>';
+  }
+  return out + '</div>';
+}
+
+function renderBasketReviewList() {
+  const list = document.getElementById('reviewList');
+  if (!pendingBasketReview.length) { list.innerHTML = ''; return; }
+
+  list.innerHTML = pendingBasketReview.map(p => {
+    const f = p.full;
+    const isOpen = reviewOpenSku === p.sku;
+    let detail = '';
+    if (isOpen) {
+      detail = '<div class="review-detail-sec">'
+        + fld('EAN', f.ean) + fld('Action', f.action) + fld('Order Submitted', f.order_submitted, {bool:true}) + fld('Supplier', f.supplier_name)
+        + '</div>';
+    }
+    return '<div class="review-row' + (p.checked ? ' checked' : '') + '">'
+      + '<div class="review-row-main">'
+      + '<input type="checkbox" onclick="event.stopPropagation()" ' + (p.checked ? 'checked' : '') + ' onchange="toggleReviewChecked(\'' + esc(p.sku) + '\',this.checked)">'
+      + '<span class="review-row-name" onclick="toggleReviewDetail(\'' + esc(p.sku) + '\')">' + esc(p.full.name || p.sku) + '</span>'
+      + '<svg class="review-row-chevron' + (isOpen ? ' open' : '') + '" onclick="toggleReviewDetail(\'' + esc(p.sku) + '\')" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
+      + '</div>'
+      + reviewCompareBlock(p)
+      + '<div class="review-detail' + (isOpen ? ' open' : '') + '">' + detail + '</div>'
+      + '</div>';
+  }).join('');
+  updateReviewProcessLabel();
+}
+
+async function processBasketReview() {
+  const toApply = pendingBasketReview.filter(p => p.checked);
+
+  if (toApply.length) {
+    const rows = toApply.map(p => ({
+      sku: p.sku,
+      name: p.full.name,
+      ean: p.full.ean || null,
+      urgency: p.incoming.u,
+      available: p.incoming.av,
+      incoming: p.incoming.inc,
+      daily_rate: p.incoming.r,
+      days_left: p.incoming.d,
+      order_qty: p.incoming.q,
+      cogs: p.full.cost_price || null,
+      cost_price: p.full.cost_price || null,
+      uploaded_at: new Date().toISOString(),
+      image_url: p.full.image_url || null,
+    }));
+    try { await sb.from('replenishment_skus').upsert(rows, { onConflict: 'sku' }); } catch(e) { console.warn('Review save error', e); }
+
+    // Reflect the change in the on-screen board immediately
+    toApply.forEach(p => {
+      const idx = ALL.findIndex(x => x.s === p.sku);
+      if (idx > -1) {
+        ALL[idx].u = p.incoming.u;
+        ALL[idx].av = p.incoming.av;
+        ALL[idx].inc = p.incoming.inc;
+        ALL[idx].r = p.incoming.r;
+        ALL[idx].d = p.incoming.d;
+        ALL[idx].q = p.incoming.q;
+      }
+    });
+  }
+
+  closeBasketReviewModalForce();
+  render();
+  toast(toApply.length ? `${toApply.length} basket item(s) refreshed` : 'Basket kept as-is', 'success');
+}
+
+window.toggleSelectAllReview = toggleSelectAllReview;
+window.toggleReviewChecked = toggleReviewChecked;
+window.toggleReviewDetail = toggleReviewDetail;
+window.processBasketReview = processBasketReview;
+window.requestCloseReview = requestCloseReview;
+
+  
+// ── TOAST ──
+function toast(msg, type) {
+  const c = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type || '');
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+
+// ── UTILS ──
+function esc(s) {
+  return String(s != null ? s : '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── KEYBOARD ──
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('supplierOverlay').classList.contains('open')) { closeSupplierDialog(); return; }
+  if (e.key === 'Escape' && document.getElementById('confirmOverlay').classList.contains('open')) { closeConfirm(); return; }
+});
+
+
+async function restoreFromDB() {
+  if (!sb) return;
+  try {
+    const [{ data, error }, latestNotes] = await Promise.all([
+      sb.from('replenishment_skus').select('*').order('days_left', { ascending: true }),
+      loadLatestReplNotes(),
+    ]);
+    if (error || !data || !data.length) return;
+
+    ALL = data.map(r => ({
+      subsets: [],
+      s: r.sku,
+      t: r.name || r.sku,
+      ean: r.ean || '',
+      u: r.urgency || 'O',
+      av: parseFloat(r.available) || 0,
+      inc: parseFloat(r.incoming) || 0,
+      r: parseFloat(r.daily_rate) || 0,
+      d: parseFloat(r.days_left) || 0,
+      q: parseInt(r.order_qty) || 0,
+      cogs: parseFloat(r.cost_price) || parseFloat(r.cogs) || 0,
+      lastSupplier: '',
+      img: r.image_url || '',
+    }));
+
+    acts = {};
+    notes = {};
+    data.forEach(r => {
+      if (r.action) acts[r.sku] = r.action;
+      if (latestNotes[r.sku]) notes[r.sku] = latestNotes[r.sku];
+      if (r.action === 'basket' && r.supplier_name) basketSuppliers[r.sku] = r.supplier_name;
+    });
+
+    // Sync sessionStorage too
+    showContent();
+    render();
+    persist();
+  } catch(e) {
+    console.warn('Could not restore from DB', e);
+  }
+}
+
+
+
+/* ══ REPLENISHMENTS INSIGHTS ══ */
+(function(){
+  var _riWeekStart = null;
+
+  function getMonday(d) {
+    var dt = new Date(d); dt.setHours(0,0,0,0);
+    var day = dt.getDay();
+    dt.setDate(dt.getDate() - day + (day === 0 ? -6 : 1));
+    return dt;
+  }
+  function riAddDays(d, n) { var dt = new Date(d); dt.setDate(dt.getDate() + n); return dt; }
+  function riISO(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function riFmtDay(d) {
+    return new Date(d).toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+  }
+  function riFmtWeekLabel(ws) {
+    return riFmtDay(ws) + ' – ' + riFmtDay(riAddDays(ws, 6)) + ', ' + new Date(ws).getFullYear();
+  }
+
+  window.openRepInsights = function() {
+    if (!_riWeekStart) _riWeekStart = getMonday(new Date());
+    document.getElementById('riOverlay').classList.add('open');
+    document.getElementById('riWeekLabel').textContent = riFmtWeekLabel(_riWeekStart);
+    loadRiData();
+  };
+
+  window.closeRepInsights = function() {
+    document.getElementById('riOverlay').classList.remove('open');
+  };
+
+  window.riShiftWeek = function(dir) {
+    _riWeekStart = riAddDays(_riWeekStart, dir * 7);
+    document.getElementById('riWeekLabel').textContent = riFmtWeekLabel(_riWeekStart);
+    loadRiData();
+  };
+
+  async function loadRiData() {
+    var body = document.getElementById('riModalBody');
+    body.innerHTML = '<div class="ri-loading"><div class="ri-loading-row"></div><div class="ri-loading-row"></div><div class="ri-loading-row" style="width:70%"></div></div>';
+
+    var ws = riISO(_riWeekStart);
+    var we = riISO(riAddDays(_riWeekStart, 7));
+
+    try {
+     var { data: summaryData, error } = await sb
+        .from('replenishment_weekly_summaries')
+        .select('snapshot, created_at')
+        .eq('week_start', ws)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!summaryData) {
+        body.innerHTML = '<div class="ri-empty">'
+          + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>'
+          + '<div class="ri-empty-title">No data for this week</div>'
+          + '<div class="ri-empty-sub">Upload and action SKUs during this week to see insights here.</div>'
+          + '</div>';
+        return;
+      }
+
+     var snap = summaryData.snapshot;
+      var purRows     = { length: snap.purchased };
+      var naRows      = { length: snap.notAvailable };
+      var rejRows     = { length: snap.rejected };
+      var pendRows    = { length: snap.pending };
+      var totalSkus   = snap.totalSkus;
+      var totalUnits  = snap.totalUnits;
+      var estSpend    = snap.estSpend;
+      var critNA      = snap.critNA;
+      var noPricePur  = snap.noPricePur;
+      var coverageGap = snap.coverageGap;
+      var actionPct   = snap.actionPct;
+
+      var actionBars = [
+        { label: 'Purchased',      count: snap.purchased,    color: 'var(--green)',  max: totalSkus },
+        { label: 'Not available',  count: snap.notAvailable, color: 'var(--amber)',  max: totalSkus },
+        { label: 'Rejected',       count: snap.rejected,     color: 'var(--red)',    max: totalSkus },
+        { label: 'Pending',        count: snap.pending,      color: 'var(--text4)',  max: totalSkus },
+      ];
+
+      var alerts = [];
+      if (critNA > 0)
+        alerts.push({ type: 'danger', icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>', text: '<strong>' + critNA + ' critical SKU' + (critNA > 1 ? 's' : '') + ' marked Not available</strong> — out of stock and couldn\'t be sourced.' });
+      if (noPricePur > 0)
+        alerts.push({ type: 'warn', icon: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>', text: '<strong>' + noPricePur + ' purchased SKU' + (noPricePur > 1 ? 's' : '') + ' missing COGs</strong> — estimated spend may be understated.' });
+      if (coverageGap > 0)
+        alerts.push({ type: 'info', icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>', text: '<strong>' + coverageGap.toLocaleString() + ' units still unactioned</strong> — some SKUs were not reviewed this week.' });
+      if (actionPct === 100 && snap.pending === 0)
+        alerts.push({ type: 'success', icon: '<polyline points="20 6 9 17 4 12"/>', text: '<strong>Full review complete</strong> — all ' + totalSkus + ' SKUs were actioned this week.' });
+
+      var topPurchased     = snap.topPurchased     || [];
+      var criticalActioned = snap.criticalActioned  || [];
+
+      var savedAt = snap.savedAt ? new Date(snap.savedAt).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+
+
+      var html = '';
+      if (savedAt) {
+        html += '<div style="font-size:11px;color:var(--text4);margin-bottom:14px;display:flex;align-items:center;gap:5px;">'
+          + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+          + 'Snapshot saved ' + riEsc(savedAt) + '</div>';
+      }
+
+      // Summary stats
+      html += '<div class="ri-summary-row">'
+        + riSummaryCard('SKUs Reviewed', totalSkus, actionPct + '% actioned', actionPct === 100 ? 'green' : '')
+        + riSummaryCard('Purchased', purRows.length, totalUnits.toLocaleString() + ' units to order', purRows.length > 0 ? 'green' : '')
+        + riSummaryCard('Est. Spend', estSpend > 0 ? '£' + estSpend.toLocaleString('en-GB', {minimumFractionDigits:2,maximumFractionDigits:2}) : '—', estSpend > 0 ? 'COGs × qty' : 'no COGs data', estSpend > 0 ? 'blue' : '')
+        + riSummaryCard('Not available', naRows.length, critNA > 0 ? critNA + ' critical' : 'none critical', naRows.length > 0 ? 'amber' : '')
+        + '</div>';
+
+// Action breakdown — pie chart
+      html += '<div class="ri-card">';
+      html += '<div class="ri-sec-lbl">Action Breakdown</div>';
+      html += '<div style="display:flex;align-items:center;gap:24px;">';
+      html += '<canvas id="riPieChart" width="160" height="160" style="flex-shrink:0;"></canvas>';
+      html += '<div style="display:flex;flex-direction:column;gap:8px;flex:1;">';
+      actionBars.forEach(function(b) {
+        var pct = totalSkus > 0 ? (b.count / totalSkus * 100).toFixed(1) : '0.0';
+        html += '<div style="display:flex;align-items:center;gap:8px;">'
+          + '<div style="width:10px;height:10px;border-radius:2px;background:' + b.color + ';flex-shrink:0;"></div>'
+          + '<div style="font-size:12px;font-weight:600;color:var(--text2);flex:1;">' + b.label + '</div>'
+          + '<div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text);">' + b.count + '</div>'
+          + '<div style="font-family:var(--mono);font-size:11px;color:var(--text4);min-width:36px;text-align:right;">' + pct + '%</div>'
+          + '</div>';
+      });
+      html += '</div></div>';
+      html += '</div>';
+
+      // Alerts
+      if (alerts.length) {
+        html += '<div class="ri-card">';
+        html += '<div class="ri-sec-lbl">Alerts</div>';
+        html += alerts.map(function(a) {
+          return '<div class="ri-alert ' + a.type + '">'
+            + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' + a.icon + '</svg>'
+            + '<span>' + a.text + '</span></div>';
+        }).join('');
+        html += '</div>';
+      }
+
+      // Top purchased SKUs
+      if (topPurchased.length) {
+        html += '<div class="ri-card">';
+        html += '<div class="ri-sec-lbl">Top Purchased by Order Qty</div>';
+        html += topPurchased.map(function(r) {
+          return '<div class="ri-sku-row">'
+            + '<div class="ri-sku-name" title="' + riEsc(r.name||r.sku) + '">' + riEsc(r.name||r.sku) + '</div>'
+            + '<div class="ri-sku-days">' + (r.daysLeft <= 0 ? 'Out of stock' : r.daysLeft + 'd left') + '</div>'
+            + '<div class="ri-sku-qty">× ' + (parseInt(r.qty)||0).toLocaleString() + '</div>'
+            + '</div>';
+        }).join('');
+        html += '</div>';
+      }
+
+      // Critical actioned
+      if (criticalActioned.length) {
+        html += '<div class="ri-card">';
+        html += '<div class="ri-sec-lbl">Critical SKUs This Week</div>';
+        html += criticalActioned.map(function(r) {
+          var pillCls = r.action === 'pur' ? 'pur' : r.action === 'na' ? 'na' : 'rej';
+          var pillTxt = r.action === 'pur' ? 'Purchased' : r.action === 'na' ? 'Not available' : 'Rejected';
+          var daysLbl = r.daysLeft <= 0 ? 'Out of stock' : r.daysLeft + 'd left';
+          return '<div class="ri-sku-row">'
+            + '<div class="ri-sku-name" title="' + riEsc(r.name||r.sku) + '">' + riEsc(r.name||r.sku) + '</div>'
+            + '<div class="ri-sku-days">' + riEsc(daysLbl) + '</div>'
+            + '<span class="ri-sku-pill ' + pillCls + '">' + pillTxt + '</span>'
+            + '</div>';
+        }).join('');
+        html += '</div>';
+      }
+
+      // Coverage
+      html += '<div class="ri-stat-grid">'
+        + riStat(totalUnits.toLocaleString(), 'Units Committed', 'across purchased SKUs', 'green')
+        + riStat(coverageGap > 0 ? coverageGap.toLocaleString() : '0', 'Coverage Gap', coverageGap > 0 ? 'units still unactioned' : 'fully covered', coverageGap > 0 ? 'red' : 'green')
+        + riStat(rejRows.length, 'Rejected', 'permanently skipped', rejRows.length > 0 ? 'red' : '')
+        + riStat(purRows.length + ' / ' + totalSkus, 'Completion', actionPct + '% actioned', actionPct === 100 ? 'green' : 'amber')
+        + '</div>';
+
+      body.innerHTML = html;
+
+      // Draw pie chart
+      (function() {
+        var canvas = document.getElementById('riPieChart');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        var w = canvas.width, h = canvas.height;
+        var cx = w / 2, cy = h / 2, r = 66, inner = 38;
+        var slices = actionBars.filter(function(b) { return b.count > 0; });
+        var total = slices.reduce(function(s, b) { return s + b.count; }, 0);
+        if (!total) return;
+
+        // Resolve CSS color vars to real colors
+        var colorMap = {
+          'var(--green)':  '#0c7a42',
+          'var(--amber)':  '#92400e',
+          'var(--red)':    '#b91c1c',
+          'var(--text4)':  '#98a7bc',
+        };
+
+        var start = -Math.PI / 2;
+        slices.forEach(function(b) {
+          var sweep = (b.count / total) * 2 * Math.PI;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.arc(cx, cy, r, start, start + sweep);
+          ctx.closePath();
+          ctx.fillStyle = colorMap[b.color] || b.color;
+          ctx.fill();
+          start += sweep;
+        });
+
+        // Donut hole
+        ctx.beginPath();
+        ctx.arc(cx, cy, inner, 0, 2 * Math.PI);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+
+        // Center label
+        ctx.fillStyle = '#0c1526';
+        ctx.font = 'bold 18px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(totalSkus, cx, cy - 7);
+        ctx.font = '600 10px Plus Jakarta Sans, sans-serif';
+        ctx.fillStyle = '#98a7bc';
+        ctx.fillText('SKUs', cx, cy + 10);
+      })();
+
+    } catch(e) {
+      body.innerHTML = '<div class="ri-empty"><div class="ri-empty-title">Failed to load</div><div class="ri-empty-sub">' + riEsc(e.message) + '</div></div>';
+    }
+  }
+
+  function riSummaryCard(label, val, sub, cls) {
+    return '<div class="ri-summary-card">'
+      + '<div class="ri-summary-label">' + label + '</div>'
+      + '<div class="ri-summary-val' + (cls ? ' ' + cls : '') + '">' + riEsc(String(val)) + '</div>'
+      + '<div class="ri-summary-sub">' + riEsc(sub) + '</div>'
+      + '</div>';
+  }
+
+  function riStat(val, label, sub, cls) {
+    return '<div class="ri-stat">'
+      + '<div class="ri-stat-val' + (cls ? ' ' + cls : '') + '">' + riEsc(String(val)) + '</div>'
+      + '<div class="ri-stat-label">' + riEsc(label) + '</div>'
+      + '<div class="ri-stat-sub">' + riEsc(sub) + '</div>'
+      + '</div>';
+  }
+
+  function riEsc(s) {
+    return String(s != null ? s : '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Close on Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.getElementById('riOverlay').classList.contains('open')) {
+      closeRepInsights();
+    }
+  });
+})();
+
+
+async function saveWeeklySummary() {
+  if (!sb || !ALL.length) return;
+  const purItems  = ALL.filter(x => acts[x.s] === 'pur');
+  const naItems   = ALL.filter(x => acts[x.s] === 'na');
+  const rejItems  = ALL.filter(x => acts[x.s] === 'rej');
+  const pendItems = ALL.filter(x => !acts[x.s]);
+  const totalUnits = purItems.reduce((s,x) => s + x.q, 0);
+  const estSpend   = purItems.reduce((s,x) => s + (x.q * (x.cogs||0)), 0);
+  const critNA     = naItems.filter(x => x.u === 'C').length;
+  const noPricePur = purItems.filter(x => !x.cogs).length;
+  const coverageGap = pendItems.reduce((s,x) => s + x.q, 0);
+
+// Get Monday of current week (ISO week: Mon=1 … Sun=7)
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setHours(0,0,0,0);
+  const dow = monday.getDay(); // 0=Sun,1=Mon…6=Sat
+  const diff = dow === 0 ? -6 : 1 - dow; // shift to Monday
+  monday.setDate(monday.getDate() + diff);
+  const weekStart = monday.getFullYear() + '-'
+    + String(monday.getMonth()+1).padStart(2,'0') + '-'
+    + String(monday.getDate()).padStart(2,'0');
+
+  const snapshot = {
+    totalSkus:    ALL.length,
+    purchased:    purItems.length,
+    notAvailable: naItems.length,
+    rejected:     rejItems.length,
+    pending:      pendItems.length,
+    totalUnits,
+    estSpend,
+    critNA,
+    noPricePur,
+    coverageGap,
+    actionPct: ALL.length ? Math.round(((purItems.length + naItems.length + rejItems.length) / ALL.length) * 100) : 0,
+    topPurchased: purItems
+      .sort((a,b) => b.q - a.q)
+      .slice(0, 10)
+      .map(x => ({ sku: x.s, name: x.t, qty: x.q, daysLeft: x.d, urgency: x.u })),
+    criticalActioned: ALL
+      .filter(x => x.u === 'C' && acts[x.s])
+      .sort((a,b) => a.d - b.d)
+      .slice(0, 8)
+      .map(x => ({ sku: x.s, name: x.t, action: acts[x.s], daysLeft: x.d })),
+    savedAt: new Date().toISOString(),
+  };
+
+  try {
+    await sb.from('replenishment_weekly_summaries')
+      .upsert({ week_start: weekStart, snapshot }, { onConflict: 'week_start' });
+  } catch(e) {
+    console.warn('Could not save weekly summary', e);
+  }
+}
+
+  
+// ── GLOBALS (called from inline HTML) ──
+window.openSupplierDialog = openSupplierDialog;
+window.closeSupplierDialog = closeSupplierDialog;
+window.selectSupplier = selectSupplier;
+window.confirmSupplierPick = confirmSupplierPick;
+window.markBasketPurchased = markBasketPurchased;
+window.removeFromBasket = removeFromBasket;
+window.toggleActionsMenu = toggleActionsMenu;
+window.closeActionsMenu = closeActionsMenu;
+window.dragOver = dragOver;
+window.dragLeave = dragLeave;
+window.dropFile = dropFile;
+window.fileChosen = fileChosen;
+window.processFiles = processFiles;
+window.showUpload = showUpload;
+window.actAndAdvance = actAndAdvance;
+window.undoAct = undoAct;
+window.queueNav = queueNav;
+window.setBucketTab = setBucketTab;
+window.previewInReview = previewInReview;
+window.exitPreview = exitPreview;
+  
+window.saveNote = saveNote;
+window.confirmReset = confirmReset;
+window.closeConfirm = closeConfirm;
+window.doConfirm = doConfirm;
+window.resetQueueIdx = function() { queueIdx = 0; };
+window.togglePricePanel = togglePricePanel;
+window.render = render;
+
+// Load price context on init (in case user already has data from a previous session)
+if (sb) init();
+
+async function init() {
+  await loadPriceContext();
+  await loadLastPurchaseInfo();
+  await restoreFromDB();
+}
+})();
+
+
+
+</script>
