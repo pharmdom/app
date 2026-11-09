@@ -95,9 +95,20 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sc-pref-x:hover{background:#f1f5f9;color:#0f172a}
 .sc-pref-x svg{width:15px;height:15px}
 .sc-pref-b{padding:12px 20px 6px}
-.sc-pref-sec{font-size:12.5px;font-weight:700;color:#0f172a;margin-bottom:2px}
-.sc-pref-sub{font-size:11.5px;color:#94a3b8;margin-bottom:10px}
-.sc-pref-opt{display:flex;align-items:flex-start;gap:11px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:11px;margin-bottom:7px;cursor:pointer;transition:border-color .12s,background .12s}
+.sc-pref-item{border:1px solid #e2e8f0;border-radius:12px;margin-bottom:8px;overflow:hidden;transition:border-color .15s}
+.sc-pref-item.open{border-color:#cbd5e1}
+.sc-pref-head{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border:0;background:#fff;cursor:pointer;text-align:left;font-family:var(--font)}
+.sc-pref-head:hover{background:#f8fafc}
+.sc-pref-head-t{flex:1;min-width:0}
+.sc-pref-sec{display:block;font-size:12.5px;font-weight:700;color:#0f172a}
+.sc-pref-sub{display:block;font-size:11.5px;color:#94a3b8;margin-top:1px}
+.sc-pref-val{font-size:11.5px;font-weight:600;color:var(--role,#1847d4);background:var(--role-bg,#eef2fd);border-radius:20px;padding:2px 9px;white-space:nowrap}
+.sc-pref-chev{width:14px;height:14px;color:#94a3b8;transition:transform .18s;flex-shrink:0}
+.sc-pref-item.open .sc-pref-chev{transform:rotate(180deg)}
+.sc-pref-opts{display:none;padding:2px 12px 10px;background:#fff}
+.sc-pref-item.open .sc-pref-opts{display:block;animation:scPrefIn .16s ease}
+@keyframes scPrefIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+.sc-pref-opt{display:flex;align-items:flex-start;gap:11px;padding:9px 11px;border:1px solid #e2e8f0;border-radius:11px;margin-bottom:7px;cursor:pointer;transition:border-color .12s,background .12s}
 .sc-pref-opt:hover{border-color:#cbd5e1;background:#f8fafc}
 .sc-pref-opt.on{border-color:var(--role-bd,#c7d6fb);background:var(--role-bg,#eef2fd)}
 .sc-pref-dot{width:16px;height:16px;border-radius:50%;border:1.5px solid #cbd5e1;flex-shrink:0;margin-top:1px;background:#fff}
@@ -112,8 +123,8 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 /* EAN click depends on each user's preference */
 .sc-ean-none .ean-copy{cursor:inherit}
 .sc-ean-none .ean-copy:hover{color:var(--text3);background:transparent}
-.sc-ean-google .ean-copy{cursor:pointer}
-.sc-ean-google .ean-copy:hover{text-decoration:underline}
+.sc-ean-google .ean-copy{cursor:pointer;text-decoration:underline;text-decoration-color:rgba(100,116,139,.45);text-decoration-thickness:1px;text-underline-offset:3px}
+.sc-ean-google .ean-copy:hover{color:var(--accent);background:transparent;text-decoration-color:currentColor}
 .sc-sup-action-item.danger:hover{background:#fef2f2}
 
 /* KPIs */
@@ -3077,23 +3088,30 @@ function scEanHtml(ean){
   return ean?`<span class="ean-copy" data-ean="${esc(ean)}" onclick="scEanClick(event,this)"${t?` title="${t}"`:''}>${esc(ean)}</span>`:`<span class="ean-copy" style="cursor:default">—</span>`;
 }
 
-/* Preferences dialog */
+/* Preferences dialog — one collapsible row per preference; add new ones to SC_PREFS */
+const SC_PREFS=[
+  { key:'ean_click', title:'Clicking an EAN', sub:"In a supplier's catalog and in All Catalog", get:()=>scEanMode(),
+    options:[
+      { v:'none',   t:'Do nothing',           d:'Nothing happens when you click it' },
+      { v:'copy',   t:'Copy the EAN',         d:'Copies the EAN to your clipboard' },
+      { v:'google', t:'Search Google Images', d:'Opens a Google image search for the EAN in a new tab' },
+    ] },
+];
 function scOpenPrefs(){
   scCloseKbHelp();scClosePrefs();
   const ov=document.createElement('div');ov.className='sc-pref-ov';ov.id='scPrefDlg';
   const role=document.getElementById('scRoot');
   if(role)['--role','--role-bg','--role-bd'].forEach(v=>{const x=role.style.getPropertyValue(v);if(x)ov.style.setProperty(v,x);});
-  const opt=(k,desc)=>`<div class="sc-pref-opt${scEanMode()===k?' on':''}" data-k="${k}" onclick="scPickEanMode('${k}')"><span class="sc-pref-dot"></span><div><b>${SC_EAN_MODES[k]}</b><span>${desc}</span></div></div>`;
+  const chev='<svg class="sc-pref-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+  const item=p=>{const cur=p.get();const curT=(p.options.find(o=>o.v===cur)||p.options[0]).t;
+    return `<div class="sc-pref-item" data-key="${p.key}">
+      <button type="button" class="sc-pref-head" onclick="scTogglePref('${p.key}')"><span class="sc-pref-head-t"><span class="sc-pref-sec">${esc(p.title)}</span><span class="sc-pref-sub">${esc(p.sub)}</span></span><span class="sc-pref-val">${esc(curT)}</span>${chev}</button>
+      <div class="sc-pref-opts">${p.options.map(o=>`<div class="sc-pref-opt${cur===o.v?' on':''}" data-v="${o.v}" onclick="scPickPref('${p.key}','${o.v}')"><span class="sc-pref-dot"></span><div><b>${esc(o.t)}</b><span>${esc(o.d)}</span></div></div>`).join('')}</div>
+    </div>`;};
   ov.innerHTML=`<div class="sc-pref" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
     <div class="sc-pref-h"><div><h3>Preferences</h3><p>These settings only apply to you.</p></div>
       <button class="sc-pref-x" onclick="scClosePrefs()" title="Close (Esc)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
-    <div class="sc-pref-b">
-      <div class="sc-pref-sec">Clicking an EAN</div>
-      <div class="sc-pref-sub">In a supplier's catalog and in All Catalog</div>
-      ${opt('none','Nothing happens when you click it')}
-      ${opt('copy','Copies the EAN to your clipboard')}
-      ${opt('google','Opens a Google image search for the EAN in a new tab')}
-    </div>
+    <div class="sc-pref-b">${SC_PREFS.map(item).join('')}</div>
     <div class="sc-pref-f"><span class="sc-pref-saved" id="scPrefSaved"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Saved</span><button class="sc-pref-done" onclick="scClosePrefs()">Done</button></div>
   </div>`;
   ov.addEventListener('click',scClosePrefs);
@@ -3101,14 +3119,26 @@ function scOpenPrefs(){
   requestAnimationFrame(()=>ov.classList.add('open'));
 }
 function scClosePrefs(){document.getElementById('scPrefDlg')?.remove();}
-async function scPickEanMode(k){
-  document.querySelectorAll('#scPrefDlg .sc-pref-opt').forEach(o=>o.classList.toggle('on',o.dataset.k===k));
-  if(scEanMode()===k)return;
-  const ok=await scSetPref('ean_click',k);
+function scTogglePref(key){
+  document.querySelectorAll('#scPrefDlg .sc-pref-item').forEach(i=>i.classList.toggle('open',i.dataset.key===key&&!i.classList.contains('open')));
+}
+function scPaintPref(key){
+  const p=SC_PREFS.find(x=>x.key===key);const it=document.querySelector(`#scPrefDlg .sc-pref-item[data-key="${key}"]`);if(!p||!it)return;
+  const cur=p.get();
+  it.querySelectorAll('.sc-pref-opt').forEach(o=>o.classList.toggle('on',o.dataset.v===cur));
+  it.querySelector('.sc-pref-val').textContent=(p.options.find(o=>o.v===cur)||p.options[0]).t;
+}
+async function scPickPref(key,v){
+  const p=SC_PREFS.find(x=>x.key===key);if(!p||p.get()===v)return;
+  const it=document.querySelector(`#scPrefDlg .sc-pref-item[data-key="${key}"]`);
+  it?.querySelectorAll('.sc-pref-opt').forEach(o=>o.classList.toggle('on',o.dataset.v===v));
+  const ok=await scSetPref(key,v);
+  scPaintPref(key);
+  if(!ok)return;
   const sv=document.getElementById('scPrefSaved');
-  if(!ok){document.querySelectorAll('#scPrefDlg .sc-pref-opt').forEach(o=>o.classList.toggle('on',o.dataset.k===scEanMode()));return;}
   if(sv){sv.classList.add('show');clearTimeout(sv._t);sv._t=setTimeout(()=>sv.classList.remove('show'),1400);}
 }
+function scPickEanMode(k){return scPickPref('ean_click',k);}
 
 /* All Catalog ⋮ menu: Preferences · Keyboard shortcuts */
 function scToggleAcMore(e){
@@ -3160,14 +3190,15 @@ window._scKbPopObs=new MutationObserver(()=>{
   window._scKbPopObs.disconnect();
 });
 window._scKbPopObs.observe(document.body,{childList:true,subtree:true});
-if(window._scKbPopClose){document.removeEventListener('click',window._scKbPopClose);document.removeEventListener('keydown',window._scKbPopClose);}
+if(window._scKbPopClose){document.removeEventListener('pointerdown',window._scKbPopClose,true);document.removeEventListener('click',window._scKbPopClose);document.removeEventListener('keydown',window._scKbPopClose);}
 window._scKbPopClose=function(e){
   if(e.type==='keydown'&&e.key!=='Escape')return;
   if(e.type==='keydown'&&document.getElementById('scPrefDlg')){scClosePrefs();return;}
-  if(e.type==='click'&&e.target.closest('#scKbPop'))return;
+  // any click anywhere — including on the list itself — closes the shortcuts list
+  if(e.type==='pointerdown'&&!document.getElementById('scKbPop'))return;
   scCloseKbHelp();
 };
-document.addEventListener('click',window._scKbPopClose);
+document.addEventListener('pointerdown',window._scKbPopClose,true);
 document.addEventListener('keydown',window._scKbPopClose);
 
 /* Count pills (Total · Rejected · Approved) + status-filter count */
@@ -3212,7 +3243,7 @@ function scRefreshStats(){
   });
 })();
 window.scCopyEan=scCopyEan;window.scToggleKbHelp=scToggleKbHelp;
-Object.assign(window,{scEanClick,scOpenPrefs,scClosePrefs,scPickEanMode,scToggleAcMore,scCloseAcMore});
+Object.assign(window,{scEanClick,scOpenPrefs,scClosePrefs,scPickEanMode,scPickPref,scTogglePref,scToggleAcMore,scCloseAcMore});
 scLoadPrefs();
 
 /* ── SPEED: instant local updates, cached sorting, no re-render animation ── */
