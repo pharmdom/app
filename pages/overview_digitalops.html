@@ -843,8 +843,8 @@ function renderAll(){
 function renderHero(){
   const myLeads=D.sourcingMine||[];
   const pendingApprovals=D.offersPending||[];
-  const critReplen=(D.replen||[]).filter(r=>r.urgency==='C'&&r.action==='def');
-  const pendReplen=(D.replen||[]).filter(r=>r.action==='def');
+  const critReplen=(D.replen||[]).filter(r=>r.urgency==='C'&&replIsPending(r));
+  const pendReplen=(D.replen||[]).filter(replIsPending);
   const fbaOpps=D.fbaOpps||[];
 
   // This week's submitted leads
@@ -923,7 +923,7 @@ function buildQueueItems(){
   }
 
   // Critical replen
-  const critReplen=replen.filter(r=>r.urgency==='C'&&r.action==='def');
+  const critReplen=replen.filter(r=>r.urgency==='C'&&replIsPending(r));
   if(critReplen.length) items.push({
     sev:'crit',
     t:`${critReplen.length} SKU${critReplen.length!==1?'s':''} critically low — action now`,
@@ -1061,12 +1061,14 @@ function renderOffersWidget(){
 
 
 /* ── REPLEN WIDGET ── */
+// A line still needs action if nobody has reviewed it yet, or it was deferred
+function replIsPending(x){ return !x.action || x.action==='def'; }
 function renderReplen(){
   const r=D.replen||[];
-  const crit=r.filter(x=>x.urgency==='C'&&x.action==='def').length;
-  const ord=r.filter(x=>x.urgency==='R'&&x.action==='def').length;
-  const pend=r.filter(x=>x.action==='def').length;
-  const done=r.filter(x=>x.action!=='def').length;
+  const crit=r.filter(x=>x.urgency==='C'&&replIsPending(x)).length;
+  const ord=r.filter(x=>x.urgency==='R'&&replIsPending(x)).length;
+  const pend=r.filter(replIsPending).length;
+  const done=r.filter(x=>!replIsPending(x)).length;
 
   document.getElementById('doReplenWidget').innerHTML=`
     <div class="mkpi-row">
@@ -1276,12 +1278,12 @@ function doOpenOffersDrawer(){
 
 function doOpenReplenDrawer(){
   const r=D.replen||[];
-  const crit=r.filter(x=>x.urgency==='C'&&x.action==='def');
-  const ord=r.filter(x=>x.urgency==='R'&&x.action==='def');
-  const done=r.filter(x=>x.action!=='def');
+  const crit=r.filter(x=>x.urgency==='C'&&replIsPending(x));
+  const ord=r.filter(x=>x.urgency==='R'&&replIsPending(x));
+  const done=r.filter(x=>!replIsPending(x));
 
-  const actionLabels={rej:'Rejected',pur:'Purchased',na:'Not Applicable',def:'Deferred — Needs Action',basket:'In Basket'};
-  const actionColors={rej:'var(--red)',pur:'var(--green)',na:'var(--text4)',def:'var(--amber)',basket:'var(--purple)'};
+  const actionLabels={rej:'Rejected',pur:'Purchased',na:'Not Applicable',def:'Deferred — Needs Action',basket:'In Basket',inquire:'Inquire',Unset:'Not reviewed yet'};
+  const actionColors={rej:'var(--red)',pur:'var(--green)',na:'var(--text4)',def:'var(--amber)',basket:'var(--purple)',inquire:'var(--amber)',Unset:'var(--amber)'};
   const byAction={};
   r.forEach(x=>{const k=x.action||'Unset';byAction[k]=(byAction[k]||0)+1;});
   const sortedActions=Object.entries(byAction).sort((a,b)=>b[1]-a[1]);
