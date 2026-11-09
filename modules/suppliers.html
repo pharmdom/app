@@ -3014,31 +3014,38 @@ function scEanHtml(ean){
 
 /* Shortcuts help popover */
 function scToggleKbHelp(btn){
-  let pop=document.getElementById('scKbPop');
-  if(!pop){
-    pop=document.createElement('div');pop.id='scKbPop';pop.className='sc-kb-pop';
-    const k=s=>`<span class="sc-kb-key">${s}</span>`;
-    pop.innerHTML=`<div class="sc-kb-pop-title">Keyboard shortcuts</div>
-      <div class="sc-kb-row"><span class="sc-kb-keys">${k('↑')}${k('↓')}</span><span class="sc-kb-lbl">Move</span></div>
-      <div class="sc-kb-row"><span class="sc-kb-keys">${k('A')}</span><span class="sc-kb-lbl">Amazon search</span></div>
-      <div class="sc-kb-row"><span class="sc-kb-keys">${k('G')}</span><span class="sc-kb-lbl">Google image</span></div>
-      <div class="sc-kb-row"><span class="sc-kb-keys">${k('L')}</span><span class="sc-kb-lbl ok">Approve</span></div>
-      <div class="sc-kb-row"><span class="sc-kb-keys">${k('X')}</span><span class="sc-kb-lbl no">Reject</span></div>
-      <div class="sc-kb-foot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Click an EAN to copy it</div>`;
-    document.getElementById('scKbPop')?.remove();document.body.appendChild(pop);
-  }
-  const wasOpen=pop.classList.contains('open')&&pop._btn===btn;
+  const cur=document.getElementById('scKbPop');
+  const wasOpen=!!(cur&&cur._btn===btn);
   scCloseKbHelp();
   if(wasOpen)return;
+  const pop=document.createElement('div');pop.id='scKbPop';pop.className='sc-kb-pop';
+  const k=s=>`<span class="sc-kb-key">${s}</span>`;
+  pop.innerHTML=`<div class="sc-kb-pop-title">Keyboard shortcuts</div>
+    <div class="sc-kb-row"><span class="sc-kb-keys">${k('↑')}${k('↓')}</span><span class="sc-kb-lbl">Move</span></div>
+    <div class="sc-kb-row"><span class="sc-kb-keys">${k('A')}</span><span class="sc-kb-lbl">Amazon search</span></div>
+    <div class="sc-kb-row"><span class="sc-kb-keys">${k('G')}</span><span class="sc-kb-lbl">Google image</span></div>
+    <div class="sc-kb-row"><span class="sc-kb-keys">${k('L')}</span><span class="sc-kb-lbl ok">Approve</span></div>
+    <div class="sc-kb-row"><span class="sc-kb-keys">${k('X')}</span><span class="sc-kb-lbl no">Reject</span></div>
+    <div class="sc-kb-foot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Click an EAN to copy it</div>`;
+  document.body.appendChild(pop);
   const r=btn.getBoundingClientRect();
   let left=r.left;if(left+236>window.innerWidth-10)left=r.right-236;
   pop.style.left=Math.max(10,left)+'px';pop.style.top=(r.bottom+8)+'px';
   pop._btn=btn;btn.classList.add('open');pop.classList.add('open');
 }
 function scCloseKbHelp(){
+  // The popup lives outside the page (so it isn't clipped); remove it completely when closed so it can never be left behind
   const pop=document.getElementById('scKbPop');if(!pop)return;
-  pop.classList.remove('open');pop._btn?.classList.remove('open');pop._btn=null;
+  pop._btn?.classList.remove('open');pop.remove();
 }
+// Leaving the Suppliers page by any route also removes the popup
+if(window._scKbPopObs)window._scKbPopObs.disconnect();
+window._scKbPopObs=new MutationObserver(()=>{
+  if(document.getElementById('scRoot'))return;
+  document.getElementById('scKbPop')?.remove();
+  window._scKbPopObs.disconnect();
+});
+window._scKbPopObs.observe(document.body,{childList:true,subtree:true});
 if(window._scKbPopClose){document.removeEventListener('click',window._scKbPopClose);document.removeEventListener('keydown',window._scKbPopClose);}
 window._scKbPopClose=function(e){
   if(e.type==='keydown'&&e.key!=='Escape')return;
