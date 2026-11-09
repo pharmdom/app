@@ -1377,20 +1377,19 @@ function _debounce(fn, wait) {
   }
 
   /* Purchased replenishment lines are read from the purchase history (replenishment_purchases).
-     Live replenishment lines come from the new Replenishment page's table (replen2_skus) and, while it
-     still exists, the old list (replenishment_skus). A table that no longer exists is simply skipped.
+     Live replenishment lines come from the Replenishments page's table (replen2_skus).
      Every row carries _t = the table it came from, so edits always go back to the right place. */
-  const CB_REPL_LIVE = ['replen2_skus', 'replenishment_skus'];
-  const CB_REPL_NOTES = { replen2_skus:'replen2_notes', replenishment_skus:'replenishment_notes' };
+  const CB_REPL_LIVE = ['replen2_skus'];
+  const CB_REPL_NOTES = { replen2_skus:'replen2_notes' };
   const _cbReplSrc = {};
   function _cbTagRepl(rows, t, remember) { (rows||[]).forEach(r => { r._t = t; if (remember!==false && r.sku) _cbReplSrc[r.sku] = t; }); return rows||[]; }
-  function _cbHistSrc(r) { return r && r.source==='replen2' ? 'replen2_skus' : 'replenishment_skus'; }
+  function _cbHistSrc(r) { return 'replen2_skus'; }
   function _cbLiveOf(skuOrRow) {
     if (skuOrRow && typeof skuOrRow==='object') return skuOrRow._t || _cbReplSrc[skuOrRow.sku] || CB_REPL_LIVE[0];
     const d = _drawerItem && _drawerItem.type==='repl' && _drawerItem.data.sku===skuOrRow ? _drawerItem.data : null;
     return (d && d._t) || _cbReplSrc[skuOrRow] || CB_REPL_LIVE[0];
   }
-  function _cbReplNotesTable(p) { return CB_REPL_NOTES[_cbLiveOf(p)] || 'replenishment_notes'; }
+  function _cbReplNotesTable(p) { return CB_REPL_NOTES[_cbLiveOf(p)] || 'replen2_notes'; }
   // Runs the same query on every live table and merges the rows (each tagged with its table)
   async function _cbReplFromLive(build) {
     const res = await Promise.all(CB_REPL_LIVE.map(async t => {
@@ -2226,7 +2225,7 @@ function _renderDrawerActions(type, p, isPurchased, isInquire) {
 window.cbToggleOrderSubmitted = async function(checked) {
   if (!_drawerItem) return;
   const { type, data: p } = _drawerItem;
-  const table = type === 'nl' ? 'sourcing' : 'replenishment_skus';
+  const table = type === 'nl' ? 'sourcing' : 'replen2_skus';
   const idCol = type === 'nl' ? 'opportunity_id' : 'sku';
   const idVal = type === 'nl' ? p.opportunity_id : p.sku;
   p.order_submitted = checked;
