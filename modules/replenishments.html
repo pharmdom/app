@@ -119,6 +119,12 @@
 #rp2 .fc-banner.ac{background:var(--acbg);border-color:var(--acbd);color:var(--ac)}
 #rp2 .fc-banner.am{background:var(--ambg);border-color:var(--ambd);color:var(--am)}
 #rp2 .fc-banner a{margin-left:auto;color:inherit;text-decoration:underline;cursor:pointer}
+#rp2 .fc-banner.rv-ban{background:var(--sf2);border-color:var(--bd2);color:var(--tx2);padding:9px 12px 9px 16px;gap:9px}
+#rp2 .rv-ban .pill{flex-shrink:0;font-size:10.5px;padding:2px 8px}
+#rp2 .rv-ban .fb-t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;font-weight:500;color:var(--tx3)}
+#rp2 .fb-back{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;border:1px solid var(--bd);background:#fff;color:var(--tx2);font-size:11.5px;font-weight:600;padding:4px 9px 4px 6px;border-radius:7px;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .15s}
+#rp2 .fb-back:hover{border-color:var(--acbd);color:var(--ac);background:var(--acbg)}
+#rp2 .fb-back svg{width:12px;height:12px}
 #rp2 .fc-head{display:flex;gap:12px;padding:14px 14px 12px;align-items:flex-start}
 #rp2 .thumb{width:58px;height:58px;border-radius:10px;border:1px solid var(--bd);background:#fff;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative}
 #rp2 .thumb img{width:100%;height:100%;object-fit:contain}
@@ -1109,8 +1115,12 @@
     const pr = S.prices[normEan(x.ean || x.sku)];
     const flags = x.flags || [];
     let banner = '';
-    if (S.preview && a) banner = `<div class="fc-banner ${a==='def'?'vi':'ac'}">${IC.info}Reviewed — <b>${esc(ACT[a] ? ACT[a].t : a)}</b>${x.supplier_name && (a==='basket'||a==='inquire'||a==='pur') ? ' · ' + esc(x.supplier_name) : ''}${x.actioned_by ? ' · by ' + esc(x.actioned_by) : ''}<a onclick="rp2.exitPreview()">Back to queue</a></div>`;
-    else if (S.preview) banner = `<div class="fc-banner ac">${IC.info}Viewing this line<a onclick="rp2.exitPreview()">Back to queue</a></div>`;
+    const backBtn = `<button class="fb-back" onclick="rp2.exitPreview()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Back to queue</button>`;
+    if (S.preview && a) {
+      const det = [x.supplier_name && (a === 'basket' || a === 'inquire' || a === 'pur') ? esc(x.supplier_name) : '', x.actioned_by ? 'by ' + esc(x.actioned_by) : ''].filter(Boolean).join(' · ');
+      banner = `<div class="fc-banner rv-ban"><span class="pill ${ACT[a] ? ACT[a].c : 'pend'}">${esc(ACT[a] ? ACT[a].t : a)}</span><span class="fb-t" title="${det.replace(/"/g,'&quot;')}">${det || 'Reviewed'}</span>${backBtn}</div>`;
+    }
+    else if (S.preview) banner = `<div class="fc-banner rv-ban"><span class="fb-t">Viewing this line</span>${backBtn}</div>`;
     else if (deferredMode) banner = `<div class="fc-banner vi">${IC.clock}Deferred lines — reviewing these now</div>`;
     if (isWatchOnly) banner += `<div class="fc-banner am">${IC.warn}Not in this week's reports — recorded out of stock, check ${x.watch_week || 1} of ${WATCH_WEEKS}. Check stock before ordering.</div>`;
 
