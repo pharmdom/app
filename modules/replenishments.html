@@ -1206,7 +1206,7 @@
   function doneCard(){
     const rows = S.rows;
     const c = k => rows.filter(x => x.action === k).length;
-    const inB = rows.filter(x => x.action === 'basket' || x.action === 'inquire' || x.action === 'pur');
+    const inB = rows.filter(x => x.action === 'basket' || x.action === 'inquire');
     const units = inB.reduce((a, x) => a + (x.order_qty || 0), 0);
     const value = inB.reduce((a, x) => a + (x.order_qty || 0) * (x.cost_price || 0), 0);
     const otherPending = Object.entries(FILTERS).filter(([k]) => k !== S.filter).map(([k, f]) => [k, f, rows.filter(x => !x.action && f.f(x)).length]).filter(e => e[2] > 0);
@@ -1233,10 +1233,11 @@
 
   /* side panel */
   const SIDE = [
-    { k:'basket', t:'Basket', f: x => x.action === 'basket' || x.action === 'inquire' || x.action === 'pur' },
+    { k:'basket', t:'Basket', f: x => x.action === 'basket' || x.action === 'inquire' },
     { k:'na', t:'N/A', f: x => x.action === 'na' },
     { k:'def', t:'Deferred', f: x => x.action === 'def' },
     { k:'rej', t:'Rejected', f: x => x.action === 'rej' },
+    { k:'pur', t:'Purchased', f: x => x.action === 'pur' },
   ];
   function renderSide(){
     $('rp2SideTabs').innerHTML = SIDE.map(s => `<button class="side-tab${S.side === s.k ? ' on' : ''}" onclick="rp2.side('${s.k}')"><b>${S.rows.filter(s.f).length}</b>${s.t}</button>`).join('');
@@ -1264,11 +1265,13 @@
           ${a !== 'pur' ? `<button class="iconbtn" title="${a === 'basket' || a === 'inquire' ? 'Remove from Basket & back to queue' : 'Undo — back to queue'}" onclick="rp2.undo('${jsq(x.sku)}')">${IC.undo}</button>` : ''}
         </div>
       </div>`;
-    }).join('') : `<div class="side-empty">${S.side === 'basket' ? 'Nothing added to the Basket yet.' : 'Nothing here yet.'}</div>`;
-    const inB = S.rows.filter(SIDE[0].f);
+    }).join('') : `<div class="side-empty">${S.side === 'basket' ? 'Nothing added to the Basket yet.' : S.side === 'pur' ? 'Nothing purchased this cycle yet.' : 'Nothing here yet.'}</div>`;
+    // footer totals: purchased lines on the Purchased tab, Basket lines everywhere else
+    const isPur = S.side === 'pur';
+    const inB = S.rows.filter((isPur ? SIDE.find(x => x.k === 'pur') : SIDE[0]).f);
     const units = inB.reduce((a, x) => a + (x.order_qty || 0), 0);
     const value = inB.reduce((a, x) => a + (x.order_qty || 0) * (x.cost_price || 0), 0);
-    $('rp2SideFoot').innerHTML = `<span>Basket <b>${inB.length}</b> lines · <b>${fmtN(units)}</b> units</span><span><b>${fmtGBP(value)}</b></span>`;
+    $('rp2SideFoot').innerHTML = `<span>${isPur ? 'Purchased' : 'Basket'} <b>${inB.length}</b> lines · <b>${fmtN(units)}</b> units</span><span><b>${fmtGBP(value)}</b></span>`;
   }
 
   /* ───────── actions ───────── */
