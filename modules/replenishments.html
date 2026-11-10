@@ -251,6 +251,12 @@
 #rp2 .act.na:hover{border-color:var(--sl);color:var(--sl);background:var(--slbg)}
 #rp2 .act.def:hover{border-color:var(--vi);color:var(--vi);background:var(--vibg)}
 #rp2 .act.rej:hover{border-color:var(--rd);color:var(--rd);background:var(--rdbg)}
+#rp2 .acts.acts-done{display:flex;align-items:center;gap:12px}
+#rp2 .ad-info{flex:1;min-width:0}
+#rp2 .ad-sup{font-size:13px;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rp2 .ad-meta{font-size:11.5px;color:var(--tx3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+#rp2 .ad-meta b{color:var(--tx2);font-weight:700}
+#rp2 .acts-done .btn{flex-shrink:0}
 #rp2 .act.cur{box-shadow:inset 0 0 0 2px currentColor}
 
 #rp2 .done{background:var(--sf);border:1px solid var(--bd);border-radius:16px;box-shadow:var(--sh2);padding:26px 18px;text-align:center;animation:rp2in .22s ease}
@@ -1197,7 +1203,15 @@
     const btn = (k, label, key) => `<button class="act ${k}${a === k ? ' cur' : ''}" title="${label} (${key})" onclick="rp2.act('${jsq(x.sku)}','${k}')">${IC[k]}${label}</button>`;
     const inBasketNow = a === 'basket' || a === 'inquire' || a === 'pur';
     const acts = inBasketNow
-      ? `<div class="acts" style="grid-template-columns:1fr auto"><div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--tx2)"><span class="pill ${ACT[a].c}">${ACT[a].t}</span>${esc(x.supplier_name || '')}${x.order_qty ? ' · <b>' + fmtN(x.order_qty) + ' units</b>' : ''}${x.cost_price != null ? ' · ' + fmtGBP(x.cost_price) + '/unit' : ''}</div>${a !== 'pur' ? `<button class="btn" onclick="rp2.undo('${jsq(x.sku)}')">${IC.undo}Remove from Basket</button>` : '<span class="muted">Purchased — manage it in the Basket</span>'}</div>`
+      ? `<div class="acts acts-done">
+          <div class="ad-info">
+            <div class="ad-sup" title="${esc(x.supplier_name || '')}">${esc(x.supplier_name || 'No supplier')}</div>
+            <div class="ad-meta">${x.order_qty ? '<b>' + fmtN(x.order_qty) + '</b> units' : 'No quantity'}${x.cost_price != null ? ' · ' + fmtGBP(x.cost_price) + '/unit' : ''}${x.order_qty && x.cost_price != null ? ' · <b>' + fmtGBP(x.order_qty * x.cost_price) + '</b>' : ''}</div>
+          </div>
+          ${a !== 'pur'
+            ? `<button class="btn" onclick="rp2.undo('${jsq(x.sku)}')">${IC.undo}Remove from Basket</button>`
+            : `<button class="btn" title="Purchased lines are managed in the Basket" onclick="rp2.goBasket()">${IC.basket}Open Basket</button>`}
+        </div>`
       : `<div class="acts">${btn('basket','Basket','B')}${btn('na','Not available','N')}${btn('def','Defer','D')}${btn('rej','Reject','R')}</div>`;
 
     return `<div class="fc" id="rp2Card">
