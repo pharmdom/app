@@ -179,6 +179,16 @@ col.col-agent     { width: 110px; }
 }
 .drawer-status-badge.purchased     { background: rgba(74,222,128,.15); border: 1px solid rgba(74,222,128,.3); color: #4ade80; }
 .drawer-status-badge.not-purchased { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); color: rgba(255,255,255,.55); white-space: nowrap; }
+.dpn-wrap { display: flex; align-items: center; gap: 4px; max-width: 100%; }
+.dpn-input { field-sizing: content; min-width: 60px; max-width: calc(100% - 30px); font: inherit; color: #fff; background: transparent; border: 1.5px solid transparent; border-radius: 7px; padding: 1px 6px; margin-left: -7px; outline: none; cursor: text; text-overflow: ellipsis; transition: border-color .15s, background .15s, box-shadow .15s; }
+.dpn-input::placeholder { color: rgba(255,255,255,.45); }
+.dpn-input:hover { border-color: rgba(255,255,255,.22); background: rgba(255,255,255,.06); }
+.dpn-input:focus { border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.1); box-shadow: 0 0 0 3px rgba(255,255,255,.08); }
+.dpn-pen { flex-shrink: 0; width: 24px; height: 24px; border: 0; border-radius: 6px; background: transparent; color: rgba(255,255,255,.5); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: color .15s, background .15s, opacity .15s; }
+.dpn-pen svg { width: 13px; height: 13px; }
+.dpn-wrap:hover .dpn-pen, .dpn-pen:hover { color: #fff; background: rgba(255,255,255,.1); }
+.dpn-input:focus + .dpn-pen { opacity: 0; pointer-events: none; }
+@supports not (field-sizing: content) { .dpn-input { width: 100%; } }
 .drawer-product-name  { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 3px; padding-right: 40px; line-height: 1.3; position: relative; z-index: 1; }
 .drawer-product-meta  { font-size: 12px; color: rgba(255,255,255,.4); margin-bottom: 14px; position: relative; z-index: 1; }
 .drawer-kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; position: relative; z-index: 1; }
@@ -1031,7 +1041,7 @@ function renderDrawer(row) {
     `<div class="drawer-hero">
       <button class="drawer-hero-close" onclick="closeDrawer()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       ${purchasedBadge}
-      <div class="drawer-product-name">${escHtml(row.product_name||'Product Details')}</div>
+      <div class="drawer-product-name dpn-wrap"><input type="text" class="dpn-input" id="dpnInput_${escAttr(id)}" value="${escAttr(row.product_name||'')}" placeholder="Product name" data-orig="${escAttr(row.product_name||'')}" title="Click to edit the product name" spellcheck="false" onblur="saveDrawerProductName('${escAttr(id)}',this)" onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){event.stopPropagation();this.value=this.dataset.orig;this.blur()}"><button type="button" class="dpn-pen" title="Edit product name" onmousedown="event.preventDefault()" onclick="const i=document.getElementById('dpnInput_${escAttr(id)}');i.focus();i.select()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button></div>
       <div class="drawer-product-meta">${escHtml(row.supplier_name||'')}</div>
       <div class="drawer-kpi-row">
         ${kpiCard('Amt. ROI',   !isNaN(amtROI)    ? '£'+amtROI.toFixed(2)    : '—', amtROI >= 0    ? 'positive' : 'negative', 'amtroi')}
@@ -1057,7 +1067,6 @@ function renderDrawer(row) {
   if (activeTab === 'overview') {
     body = section('Product Info',
       `<div class="info-grid">
-        ${editCard(id,'product_name',row.product_name||'','text')}
         ${asinCard(id, row)}
         ${staticCard('Agent', row.agent)}
         <div class="info-card"><label>Unit Quantity (Recommended) <span class="qty-info-icon" onclick="showQtyBreakdown('${escAttr(id)}')" title="How was this calculated?">ℹ</span></label><span id="static_unit_quantity_${escAttr(id)}">${row.unit_quantity || '—'}</span></div>
@@ -1221,6 +1230,17 @@ const reasonOpts = REJECT_REASONS.map(r => `<option value="${escAttr(r)}">${escH
     </button>`;
   applyYNColors();
 }
+/* Drawer title: the product name is edited in place */
+function saveDrawerProductName(id, el) {
+  const v = (el.value || '').trim();
+  const orig = el.dataset.orig || '';
+  if (!v) { el.value = orig; return; }                 // never save an empty name
+  if (v === orig) return;
+  el.dataset.orig = v;
+  saveField(id, 'product_name', v);
+}
+window.saveDrawerProductName = saveDrawerProductName;
+
 /* ══ KPI CARD ══ */
 function kpiCard(label, value, cls, key) {
   const icons = {
