@@ -23,10 +23,21 @@ html, body {
 .stat-chip.purple { background: #faf5ff; color: #7c3aed; border-color: #e9d5ff; }
 .stat-chip.slate  { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
 .stat-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
-.lv-export-btn { --role: #3b6ef8; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 9px; border: 1.5px solid var(--role); background: var(--role); color: #fff; font-size: 12.5px; font-weight: 700; font-family: inherit; cursor: pointer; box-shadow: 0 2px 8px color-mix(in srgb, var(--role) 28%, transparent); transition: transform .15s, box-shadow .15s, filter .15s; }
+.lv-export-wrap { --role: #3b6ef8; }
+.lv-export-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 9px; border: 1.5px solid var(--role); background: var(--role); color: #fff; font-size: 12.5px; font-weight: 700; font-family: inherit; cursor: pointer; box-shadow: 0 2px 8px color-mix(in srgb, var(--role) 28%, transparent); transition: transform .15s, box-shadow .15s, filter .15s; }
 .lv-export-btn:hover { transform: translateY(-1px); filter: brightness(1.06); box-shadow: 0 4px 14px color-mix(in srgb, var(--role) 38%, transparent); }
 .lv-export-btn:active { transform: translateY(0); }
 .lv-export-btn svg { width: 14px; height: 14px; }
+.lv-export-wrap { position: relative; }
+.lv-export-menu { display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; min-width: 290px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 12px 32px rgba(15,23,42,.14); padding: 6px; }
+.lv-export-menu.open { display: block; }
+.lv-export-opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 9px 11px; border: none; background: none; border-radius: 8px; font-family: inherit; font-size: 12.5px; font-weight: 600; color: #0f172a; cursor: pointer; text-align: left; }
+.lv-export-opt:hover { background: color-mix(in srgb, var(--role) 9%, #fff); color: var(--role); }
+.lv-export-opt small { display: block; font-size: 11px; font-weight: 500; color: #94a3b8; margin-top: 1px; }
+.lv-export-opt .n { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 100px; background: color-mix(in srgb, var(--role) 12%, #fff); color: var(--role); white-space: nowrap; }
+.kb-more-btn { flex-shrink: 0; margin: 2px 0 4px; padding: 8px 10px; border: 1.5px dashed #cbd5e1; border-radius: 10px; background: #f8fafc; color: #475569; font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; transition: all .15s; }
+.kb-more-btn span { font-size: 10.5px; font-weight: 500; color: #94a3b8; }
+.kb-more-btn:hover { border-color: #94a3b8; background: #f1f5f9; color: #0f172a; }
 
 .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; flex-shrink: 0; }
 .search-wrap { position: relative; flex: 1; min-width: 160px; max-width: 280px; }
@@ -253,10 +264,13 @@ html, body {
       <div class="stat-chip slate" id="statTotal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg><span>Loading…</span></div>
       <div class="stat-chip purple" id="statListed" onclick="showListedTable()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>Loading…</span></div>
     </div>
-    <button class="lv-export-btn" id="lvExportBtn" onclick="exportNeedsListing()" title="Download the products in the Needs Listing column as a CSV file">
+    <div class="lv-export-wrap" id="lvExportWrap">
+    <button class="lv-export-btn" id="lvExportBtn" onclick="lvExportClick(event)" title="Download every product in the Needs Listing column as a CSV file">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Export
     </button>
+    <div class="lv-export-menu" id="lvExportMenu"></div>
+    </div>
   </div>
 
   <div class="toolbar">
@@ -425,9 +439,16 @@ function startRealtime() {
 
 /* ── FETCH ── */
 async function fetchListing() {
-  const { data, error } = await sb.from('listing').select('*').order('date', { ascending: false });
-  if (error) { console.error(error); return []; }
-  const rows = data || [];
+  // Load in batches of 1,000 (the most the database returns per request) until everything is in
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await sb.from('listing').select('*')
+      .order('date', { ascending: false }).order('opportunity_id', { ascending: true })
+      .range(from, from + 999);
+    if (error) { console.error(error); if (!rows.length) return []; break; }
+    rows.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
   rows.forEach(applyAutoFields);
   await fetchSrcDetails(rows.map(r => r.opportunity_id).filter(Boolean));
   return rows;
@@ -587,8 +608,28 @@ function showListedTable() {
 }
 
 /* ── EXPORT: Needs Listing column → CSV ── */
-function exportNeedsListing() {
-  const rows = filtered.filter(r => getStage(r) === 'listing');
+function lvFiltersOn() {
+  return ['searchInput','fWarehouse','fArrived','fMerged','fBundled'].some(id => (document.getElementById(id)?.value || '').trim());
+}
+function lvExportClick(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('lvExportMenu');
+  if (menu.classList.contains('open')) { menu.classList.remove('open'); return; }
+  if (!lvFiltersOn()) { exportNeedsListing('all'); return; }   // nothing narrowed: export everything straight away
+  const nAll = allData.filter(r => getStage(r) === 'listing').length;
+  const nView = filtered.filter(r => getStage(r) === 'listing').length;
+  menu.innerHTML =
+    '<button class="lv-export-opt" onclick="exportNeedsListing(\'all\')"><div>All Needs Listing<small>Ignores search and filters</small></div><span class="n">' + nAll.toLocaleString('en-GB') + '</span></button>'
+    + '<button class="lv-export-opt" onclick="exportNeedsListing(\'view\')"><div>Current search &amp; filters<small>Only what the column matches now</small></div><span class="n">' + nView.toLocaleString('en-GB') + '</span></button>';
+  menu.classList.add('open');
+}
+document.addEventListener('pointerdown', e => {
+  const w = document.getElementById('lvExportWrap');
+  if (w && !w.contains(e.target)) document.getElementById('lvExportMenu')?.classList.remove('open');
+}, true);
+function exportNeedsListing(scope) {
+  document.getElementById('lvExportMenu')?.classList.remove('open');
+  const rows = (scope === 'view' ? filtered : allData).filter(r => getStage(r) === 'listing');
   if (!rows.length) { showToast('No products in Needs Listing to export', 'error'); return; }
   const cols = [];
   rows.forEach(r => Object.keys(r).forEach(k => { if (k[0] !== '_' && !cols.includes(k)) cols.push(k); }));
@@ -609,9 +650,9 @@ function exportNeedsListing() {
 (function(){
   const ROLE = { 'Admin':'#3b6ef8','Digital Ops':'#7c3aed','Warehouse':'#0d9488' };
   const role = (window.currentUser && window.currentUser.role) || 'Admin';
-  const b = document.getElementById('lvExportBtn'); if (b) b.style.setProperty('--role', ROLE[role] || ROLE.Admin);
+  const b = document.getElementById('lvExportWrap'); if (b) b.style.setProperty('--role', ROLE[role] || ROLE.Admin);
 })();
-window.exportNeedsListing = exportNeedsListing;
+window.exportNeedsListing = exportNeedsListing; window.lvExportClick = lvExportClick;
 
 function closeTableModal(e) {
   if (e && e.target !== document.getElementById('tableModalOverlay')) return;
@@ -648,6 +689,9 @@ function applyFilters() {
 
   filtered.sort((a,b) => new Date(b.date||0) - new Date(a.date||0));
 
+  const fKey = [q, fW, fA, fM, fB].join('|');
+  if (fKey !== kbFilterKey) { kbFilterKey = fKey; kbLimits = {}; }
+
   const any = fW || fA || fM || fB;
   document.getElementById('filterDot').style.display = any ? 'inline-block' : 'none';
   document.getElementById('filterClearBtn').classList.toggle('visible', !!any);
@@ -667,6 +711,12 @@ function clearFilters() {
 }
 
 /* ── KANBAN ── */
+const KB_PAGE = 100;            // cards shown per column at a time
+let kbLimits = {};              // column key -> how many cards are shown
+let kbFilterKey = null;         // resets the limits when search/filters change
+function kbShowMore(col) { kbLimits[col] = (kbLimits[col] || KB_PAGE) + KB_PAGE; renderKanban(); }
+window.kbShowMore = kbShowMore;
+
 function renderKanban() {
   const wrapper = document.getElementById('kanbanWrapper');
   const groups  = {}; COLUMNS.forEach(c => groups[c.key] = []);
@@ -693,7 +743,8 @@ function renderKanban() {
     if (!items.length) {
       body.innerHTML = '<div class="empty-state"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><p>No products</p></div>';
     } else {
-      items.forEach(row => {
+      const limit = kbLimits[col.key] || KB_PAGE;
+      items.slice(0, limit).forEach(row => {
         const id   = row.opportunity_id || '';
         const card = document.createElement('div');
         card.className = 'kanban-card'; card.draggable = true; card.dataset.id = id;
@@ -714,6 +765,14 @@ function renderKanban() {
         card.addEventListener('dragend', () => { dragSrcId = null; card.classList.remove('dragging'); document.querySelectorAll('.kanban-col-body').forEach(b => b.classList.remove('drag-over')); });
         body.appendChild(card);
       });
+      const left = items.length - limit;
+      if (left > 0) {
+        const more = document.createElement('button');
+        more.type = 'button'; more.className = 'kb-more-btn';
+        more.innerHTML = 'Show ' + Math.min(KB_PAGE, left) + ' more <span>' + left.toLocaleString('en-GB') + ' not shown</span>';
+        more.addEventListener('click', () => kbShowMore(col.key));
+        body.appendChild(more);
+      }
     }
     colEl.appendChild(body); wrapper.appendChild(colEl);
   });
