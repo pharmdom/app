@@ -423,18 +423,46 @@ function getStage(row) {
 /* ── REALTIME ── */
 function startRealtime() {
   sb.channel('listing-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'listing' }, async () => {
-      const fresh = await fetchListing();
-      allData = fresh;
-      applyFilters();
-      updateStats(allData);
-      if (currentDrawerId) {
-        const row = allData.find(p => p.opportunity_id === currentDrawerId);
-        if (row) renderDrawer(row);
-        else closeDrawer();
-      }
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'listing' }, payload => {
+      const id = (payload.new && payload.new.id) ?? (payload.old && payload.old.id);
+      if (id == null) return;
+      rtPending.add(id);
+      clearTimeout(rtTimer); rtTimer = setTimeout(rtApply, 300);   // group bursts (e.g. bulk imports) into one fetch
     })
     .subscribe();
+}
+
+/* Only the products that changed are re-fetched and swapped into the list */
+const rtPending = new Set(); let rtTimer = null;
+async function rtApply() {
+  const ids = [...rtPending]; rtPending.clear();
+  if (!ids.length) return;
+  const fresh = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data, error } = await sb.from('listing').select('*').in('id', ids.slice(i, i + 100));
+    if (error) { console.error(error); return; }
+    fresh.push(...(data || []));
+  }
+  fresh.forEach(applyAutoFields);
+  await fetchSrcDetails(fresh.map(r => r.opportunity_id).filter(Boolean), true);
+  const byId = new Map(fresh.map(r => [String(r.id), r]));
+  const touched = new Set();
+  allData = allData.filter(r => {
+    const k = String(r.id);
+    if (!ids.some(x => String(x) === k)) return true;
+    touched.add(r.opportunity_id);
+    return byId.has(k);                               // gone from the database → removed here
+  }).map(r => byId.get(String(r.id)) || r);
+  const have = new Set(allData.map(r => String(r.id)));
+  fresh.forEach(r => { if (!have.has(String(r.id))) allData.push(r); });
+  fresh.forEach(r => touched.add(r.opportunity_id));
+  applyFilters();
+  updateStats(allData);
+  if (currentDrawerId && touched.has(currentDrawerId)) {
+    const row = allData.find(p => p.opportunity_id === currentDrawerId);
+    if (row) renderDrawer(row);
+    else closeDrawer();
+  }
 }
 
 /* ── FETCH ── */
@@ -456,15 +484,23 @@ async function fetchListing() {
 
 /* ── PRODUCT DETAILS (VAT / Pack of / Parcel Size / Sales Vol. live on the sourcing record) ── */
 let srcDetails = {}; // opportunity_id -> { asins, vat_rate, pack_of, parcel_size, sales_volume }
-async function fetchSrcDetails(ids) {
-  const map = {};
-  for (let i = 0; i < ids.length; i += 100) {
-    const { data, error } = await sb.from('sourcing')
-      .select('opportunity_id,asins,vat_rate,map_recommended,pack_of,parcel_size,sales_volume')
-      .in('opportunity_id', ids.slice(i, i + 100));
-    if (error) { console.error(error); continue; }
-    (data || []).forEach(r => { map[r.opportunity_id] = r; });
-  }
+async function fetchSrcDetails(ids, merge) {
+  const map = merge ? srcDetails : {};
+  const chunks = [];
+  for (let i = 0; i < ids.length; i += 100) chunks.push(ids.slice(i, i + 100));
+  // Up to 6 requests at a time instead of one after another
+  let next = 0;
+  const worker = async () => {
+    while (next < chunks.length) {
+      const chunk = chunks[next++];
+      const { data, error } = await sb.from('sourcing')
+        .select('opportunity_id,asins,vat_rate,map_recommended,pack_of,parcel_size,sales_volume')
+        .in('opportunity_id', chunk);
+      if (error) { console.error(error); continue; }
+      (data || []).forEach(r => { map[r.opportunity_id] = r; });
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(6, chunks.length) }, worker));
   srcDetails = map;
 }
 function pdSplit(v) { return v ? String(v).split(',').map(s => s.trim()) : []; }
