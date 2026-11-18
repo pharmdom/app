@@ -3782,19 +3782,21 @@ function _cbPdfReplCost(p) {
       // right: logo, name and company details stacked together (right-aligned)
       const R = W - M;
       if (logo) { const lh = 11, lw2 = lh * logo.w / logo.h; doc.addImage(logo.data, 'PNG', R - lw2, 12, lw2, lh); }
-      font('bold'); doc.setFontSize(10.5); doc.setTextColor(...NAVY); doc.text('Pharm & Domestic', R, 28.4, { align:'right' });
-      font('medium'); doc.setFontSize(7.5); doc.setTextColor(...SOFT); doc.text(CO.ltd, R, 32.6, { align:'right' });
-      let hy = 32.6;
+      // "Pharm & Domestic  |  TOUSIF LTD" on one line
+      font('medium'); doc.setFontSize(7.5); doc.setTextColor(...SOFT); const ltdW = doc.getTextWidth(CO.ltd); doc.text(CO.ltd, R, 28.4, { align:'right' });
+      doc.setDrawColor(...HAIR); doc.setLineWidth(0.3); doc.line(R - ltdW - 2.6, 25.6, R - ltdW - 2.6, 29.2);
+      font('bold'); doc.setFontSize(10.5); doc.setTextColor(...NAVY); doc.text('Pharm & Domestic', R - ltdW - 5.2, 28.4, { align:'right' });
+      let hy = 29.4;
       font('regular'); doc.setFontSize(7.2);
       hy += 4.4; ICON.pin(R - tw(CO.addr[0], 7.2, 'regular') - 3.6, hy - 2.45, 2.6, MUTED); font('regular'); doc.setFontSize(7.2); doc.setTextColor(...SOFT); doc.text(CO.addr[0], R, hy, { align:'right' });
       hy += 3.6; doc.text(CO.addr[1], R, hy, { align:'right' });
       hy += 4.0; ICON.mail(R - tw(CO.email, 7.2, 'regular') - 3.6, hy - 2.45, 2.6, MUTED); font('regular'); doc.setFontSize(7.2); doc.setTextColor(...SOFT); doc.text(CO.email, R, hy, { align:'right' });
       // blue → grey divider
-      const dy = 48.5; const steps = 80;
+      const dy = 45; const steps = 80;
       for (let i = 0; i < steps; i++) { const t = i/(steps-1); doc.setFillColor(BLUE[0] + (HAIR[0]-BLUE[0])*t, BLUE[1] + (HAIR[1]-BLUE[1])*t, BLUE[2] + (HAIR[2]-BLUE[2])*t); doc.rect(M + i*(W-2*M)/steps, dy, (W-2*M)/steps + 0.2, 0.7, 'F'); }
 
       // ── title + request details
-      font('bold'); doc.setFontSize(17); doc.setTextColor(...NAVY); doc.text('Purchase Order Request', M, 66);
+      font('bold'); doc.setFontSize(17); doc.setTextColor(...NAVY); doc.text('Purchase Order Request', M, 62);
 
       // right: request no. + date, laid out like the invoice
       const lblW = t => { font('semibold'); doc.setFontSize(6.6); const u = t.toUpperCase(); return doc.getTextWidth(u) + 0.35*(u.length - 1); };
@@ -3805,16 +3807,16 @@ function _cbPdfReplCost(p) {
         lbl(label, lx, y - 0.2);
         ICON[icon](lx - 4.2, y - 2.75, 2.8, MUTED);
       };
-      metaRow('hash', 'PO Request No.', ref, 62.5, 13, BLUE);
-      metaRow('cal', 'Date', dateTxt, 69, 9, NAVY);
+      metaRow('hash', 'PO Request No.', ref, 58.5, 13, BLUE);
+      metaRow('cal', 'Date', dateTxt, 65, 9, NAVY);
 
       // summary strip
       const totalUnits = rows.reduce((a, r) => a + r.units, 0);
-      doc.setFillColor(248,250,252); doc.setDrawColor(...HAIR); doc.setLineWidth(0.2); doc.roundedRect(M, 76, W - 2*M, 13, 2, 2, 'FD');
+      doc.setFillColor(248,250,252); doc.setDrawColor(...HAIR); doc.setLineWidth(0.2); doc.roundedRect(M, 72, W - 2*M, 13, 2, 2, 'FD');
       const stat = (x, icon, label, val) => {
-        ICON[icon](x, 80.2, 4.6, BLUE);
-        lbl(label, x + 7.5, 81.6);
-        font('bold'); doc.setFontSize(10.5); doc.setTextColor(...NAVY); doc.text(val, x + 7.5, 86.4);
+        ICON[icon](x, 76.2, 4.6, BLUE);
+        lbl(label, x + 7.5, 77.6);
+        font('bold'); doc.setFontSize(10.5); doc.setTextColor(...NAVY); doc.text(val, x + 7.5, 82.4);
       };
       stat(M + 5, 'box', 'Products', rows.length.toLocaleString('en-GB'));
       stat(M + 50, 'layers', 'Total units', totalUnits.toLocaleString('en-GB'));
@@ -3822,7 +3824,7 @@ function _cbPdfReplCost(p) {
       // ── table (navy header, as on the invoices)
       const money = v => v != null ? '£' + v.toLocaleString('en-GB', { minimumFractionDigits:2, maximumFractionDigits:2 }) : '—';
       doc.autoTable({
-        startY: 96,
+        startY: 92,
         margin: { left: M, right: M, top: 30, bottom: 26 },
         head: [['#', 'Product', 'EAN', 'Total units', 'Last purchased price']],
         body: rows.map((r, i) => [String(i+1), r.name, r.ean, r.units.toLocaleString('en-GB'), money(r.price)]),
