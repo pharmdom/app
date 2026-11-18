@@ -160,6 +160,31 @@
   }
   .cb-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,.08); border-color: #bfdbfe; }
   .cb-card.inquire-card { border-color: #fde68a; background: #fffbeb; }
+  /* PO request bulk select (No Supplier column) */
+  .cb-po-av { position: relative; flex-shrink: 0; width: 36px; height: 36px; }
+  .cb-po-check { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(255,255,255,.92); border: 1.5px solid #cbd5e1; opacity: 0; transition: opacity .12s, background .12s, border-color .12s; cursor: pointer; }
+  .cb-po-check input { position: absolute; opacity: 0; pointer-events: none; }
+  .cb-po-check span { width: 18px; height: 18px; border-radius: 5px; border: 2px solid #94a3b8; background: #fff; display: flex; align-items: center; justify-content: center; transition: all .12s; }
+  .cb-po-check span::after { content: ''; width: 5px; height: 9px; border: solid #fff; border-width: 0 2.2px 2.2px 0; transform: rotate(45deg) translate(-1px,-1px); opacity: 0; }
+  .cb-card.cb-po-able:hover .cb-po-check, .cb-po-mode .cb-card.cb-po-able .cb-po-check { opacity: 1; }
+  .cb-po-check:hover span { border-color: #2aa8dc; }
+  .cb-card.cb-po-on { border-color: #2aa8dc; background: #f0f9ff; box-shadow: 0 0 0 1px #2aa8dc inset; }
+  .cb-card.cb-po-on .cb-po-check { opacity: 1; background: #e0f2fe; border-color: #2aa8dc; }
+  .cb-card.cb-po-on .cb-po-check span { background: #2aa8dc; border-color: #2aa8dc; }
+  .cb-card.cb-po-on .cb-po-check span::after { opacity: 1; }
+  .cb-po-all { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; color: #475569; cursor: pointer; padding: 2px 7px 2px 4px; border-radius: 6px; user-select: none; }
+  .cb-po-all:hover { background: #e2e8f0; color: #0f172a; }
+  .cb-po-all input { width: 13px; height: 13px; margin: 0; accent-color: #2aa8dc; cursor: pointer; }
+  .cb-po-bar { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 140%); z-index: 900; display: flex; align-items: center; gap: 6px; padding: 7px 7px 7px 16px; background: #0f172a; color: #fff; border-radius: 14px; box-shadow: 0 14px 40px rgba(15,23,42,.35); transition: transform .25s cubic-bezier(.2,.9,.3,1.2), opacity .2s; opacity: 0; pointer-events: none; white-space: nowrap; }
+  .cb-po-bar.show { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+  .cb-po-bar .cnt { font-size: 13px; font-weight: 700; margin-right: 2px; }
+  .cb-po-bar .sub { font-size: 11.5px; color: #94a3b8; margin-right: 10px; }
+  .cb-po-bar button { font-family: inherit; font-size: 12px; font-weight: 600; border: none; border-radius: 9px; padding: 8px 12px; cursor: pointer; background: transparent; color: #cbd5e1; transition: background .12s, color .12s; }
+  .cb-po-bar button:hover { background: rgba(255,255,255,.08); color: #fff; }
+  .cb-po-bar button.go { display: inline-flex; align-items: center; gap: 7px; background: linear-gradient(135deg,#2aa8dc,#3fb76a); color: #fff; font-weight: 700; padding: 8px 14px; margin-left: 4px; }
+  .cb-po-bar button.go:hover { filter: brightness(1.07); }
+  .cb-po-bar button.go:disabled { opacity: .6; cursor: progress; }
+  .cb-po-bar button.go svg { width: 14px; height: 14px; }
   .cb-card.inquire-card:hover { border-color: #f59e0b; box-shadow: 0 3px 10px rgba(245,158,11,.15); }
   .cb-card-name {
     font-size: 12.5px; font-weight: 600; color: #0f172a;
@@ -1750,6 +1775,7 @@ window.setCbTab = function(tab) {
     document.getElementById('cbTabInquire').classList.toggle('active', tab==='inquire');
     document.getElementById('cbTabPurchased').classList.toggle('active', tab==='purchased');
     document.getElementById('cbPdfBtn').style.display = tab==='purchased'?'inline-flex':'none';
+    _cbPoSyncUi();
     window.renderCentralBasket();
   };
 
@@ -2926,7 +2952,9 @@ const supObj = _cbSupplierList.find(s=>s.name===sup);
               <span style="font-size:9.5px;font-weight:700;color:${moqMet?'#15803d':'#92400e'};">${moqMet?'✓ Met':moqPct+'%'}</span>
             </div>
             <div class="cb-kanban-moq-track"><div class="cb-kanban-moq-fill" style="width:${moqPct}%;background:${moqMet?'#22c55e':'#f59e0b'};"></div></div>
-          </div>` : `<div style="font-size:9.5px;color:#94a3b8;">${fmtGBP(supVal)}</div>`}
+          </div>` : (_cbTab==='tobuy' && sup==='No Supplier'
+            ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;"><span style="font-size:9.5px;color:#94a3b8;">${fmtGBP(supVal)}</span><label class="cb-po-all" title="Select every line in this column for a PO request"><input type="checkbox" id="cbPoAll" onchange="window.cbPoSelectAll(this.checked)">Select all</label></div>`
+            : `<div style="font-size:9.5px;color:#94a3b8;">${fmtGBP(supVal)}</div>`)}
         </div>
         <div class="cb-kanban-subnav">
           <button class="cb-kanban-jump nl${!b.nl.length?' disabled':''}" onclick="window.cbJumpToSection('${nlSecId}')">New Lines <span>${b.nl.length}</span></button>
@@ -2958,6 +2986,7 @@ const supObj = _cbSupplierList.find(s=>s.name===sup);
     });
 const _cbKanbanEl = body.querySelector('.cb-kanban');
     if (_cbKanbanEl) _cbKanbanEl.scrollLeft = _cbKanbanScrollLeft;
+    _cbPoAfterRender();
   };
 
 
@@ -2995,9 +3024,10 @@ function _nlCard(p,isPurchased,isInquire) {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       Order Submitted
     </div>` : '';
-    return `<div class="cb-card${isInquire?' inquire-card':''}" onclick="window.openCbDrawer('nl','${_safeJson(p)}')">
+    const poAble = !isPurchased && !isInquire && _cbPoEligible(p); const poKey = _cbPoKey('nl', p); const poOn = poAble && _cbPoSel.has(poKey);
+    return `<div class="cb-card${isInquire?' inquire-card':''}${poAble?' cb-po-able':''}${poOn?' cb-po-on':''}"${poAble?` data-po-key="${escA(poKey)}"`:''} onclick="window.openCbDrawer('nl','${_safeJson(p)}')">
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px;">
-        ${_avatar(p.image_url||'', p.product_name, tagCls)}
+        ${poAble ? `<div class="cb-po-av">${_avatar(p.image_url||'', p.product_name, tagCls)}<label class="cb-po-check" title="Select for a PO request" onclick="event.stopPropagation()"><input type="checkbox"${poOn?' checked':''} onchange="window.cbPoToggle('${escA(poKey)}',this.checked)"><span></span></label></div>` : _avatar(p.image_url||'', p.product_name, tagCls)}
          <div style="flex:1;min-width:0;">
           <div class="cb-card-name" title="${escH(p.product_name||'')}">${escH(p.product_name||'—')}</div>
           <div class="cb-card-meta">
@@ -3024,9 +3054,10 @@ function _replCard(p,isPurchased,isInquire) {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       Order Submitted
     </div>` : '';
-    return `<div class="cb-card${isInquire?' inquire-card':''}" onclick="window.openCbDrawer('repl','${_safeJson(p)}')">
+    const poAble = !isPurchased && !isInquire && _cbPoEligible(p); const poKey = _cbPoKey('repl', p); const poOn = poAble && _cbPoSel.has(poKey);
+    return `<div class="cb-card${isInquire?' inquire-card':''}${poAble?' cb-po-able':''}${poOn?' cb-po-on':''}"${poAble?` data-po-key="${escA(poKey)}"`:''} onclick="window.openCbDrawer('repl','${_safeJson(p)}')">
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px;">
-        ${_avatar(p.image_url||'', p.name, tagCls)}
+        ${poAble ? `<div class="cb-po-av">${_avatar(p.image_url||'', p.name, tagCls)}<label class="cb-po-check" title="Select for a PO request" onclick="event.stopPropagation()"><input type="checkbox"${poOn?' checked':''} onchange="window.cbPoToggle('${escA(poKey)}',this.checked)"><span></span></label></div>` : _avatar(p.image_url||'', p.name, tagCls)}
 <div style="flex:1;min-width:0;">
           <div class="cb-card-name" title="${escH(p.name||'')}">${escH(p.name||'—')}</div>
           <div class="cb-card-meta">
@@ -3557,6 +3588,213 @@ function _cbPdfReplCost(p) {
     win.document.close();
     window.closeCbPdfModal();
     _cbToast('Opening interactive summary…','success');
+  };
+
+  /* ── PO REQUEST: bulk select in "No Supplier" (To Purchase) → branded PDF ── */
+  const _cbPoSel = new Map();   // key → { kind, item }
+  function _cbPoEligible(p) { return _cbTab==='tobuy' && !(p.supplier_name||'').trim(); }
+  function _cbPoKey(kind, p) { return kind + '::' + (kind==='nl' ? p.opportunity_id : p.sku); }
+  function _cbPoNoSup() {
+    return [
+      ..._cbLoadedNL.filter(p => !(p.supplier_name||'').trim()).map(p => ({ kind:'nl', p })),
+      ..._cbLoadedRepl.filter(p => !(p.supplier_name||'').trim()).map(p => ({ kind:'repl', p })),
+    ];
+  }
+  function _cbPoUnits(kind, p) { return kind==='nl' ? (parseFloat(p.unit_quantity)||0) : (parseInt(p.order_qty)||0); }
+  function _cbPoSyncUi() {
+    let bar = document.getElementById('cbPoBar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'cbPoBar'; bar.className = 'cb-po-bar';
+      bar.innerHTML = `<span class="cnt" id="cbPoCnt"></span><span class="sub" id="cbPoSub"></span>
+        <button type="button" onclick="window.cbPoSelectAll(true)">Select all</button>
+        <button type="button" onclick="window.cbPoClear()">Clear</button>
+        <button type="button" class="go" id="cbPoGo" onclick="window.cbPoDownload()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>Download PO request (PDF)</button>`;
+      (document.querySelector('.cb-page') || document.body).appendChild(bar);
+    }
+    const n = _cbPoSel.size, show = n > 0 && _cbTab==='tobuy';
+    bar.classList.toggle('show', show);
+    if (n) {
+      let units = 0; _cbPoSel.forEach(v => units += _cbPoUnits(v.kind, v.item));
+      document.getElementById('cbPoCnt').textContent = n + ' line' + (n!==1?'s':'') + ' selected';
+      document.getElementById('cbPoSub').textContent = units.toLocaleString('en-GB') + ' units';
+    }
+    document.querySelector('.cb-kanban')?.classList.toggle('cb-po-mode', n > 0);
+    const all = document.getElementById('cbPoAll');
+    if (all) {
+      const list = _cbPoNoSup(); const on = list.filter(x => _cbPoSel.has(_cbPoKey(x.kind, x.p))).length;
+      all.checked = list.length > 0 && on === list.length && _cbNLDone && _cbReplDone;
+      all.indeterminate = on > 0 && !all.checked;
+    }
+  }
+  function _cbPoAfterRender() {
+    // keep each selected line's data fresh; drop lines that now have a supplier
+    const byKey = {};
+    _cbLoadedNL.forEach(p => byKey[_cbPoKey('nl', p)] = { kind:'nl', p });
+    _cbLoadedRepl.forEach(p => byKey[_cbPoKey('repl', p)] = { kind:'repl', p });
+    [..._cbPoSel.keys()].forEach(k => {
+      const hit = byKey[k]; if (!hit) return;
+      if ((hit.p.supplier_name||'').trim()) _cbPoSel.delete(k);
+      else _cbPoSel.set(k, { kind: hit.kind, item: hit.p });
+    });
+    _cbPoSyncUi();
+  }
+  window.cbPoToggle = function(key, on) {
+    const [kind, ...rest] = key.split('::'); const id = rest.join('::');
+    const item = (kind==='nl' ? _cbLoadedNL.find(p => p.opportunity_id===id) : _cbLoadedRepl.find(p => p.sku===id));
+    if (on && item) _cbPoSel.set(key, { kind, item }); else _cbPoSel.delete(key);
+    document.querySelectorAll('.cb-card[data-po-key]').forEach(c => { if (c.getAttribute('data-po-key')===key) c.classList.toggle('cb-po-on', _cbPoSel.has(key)); });
+    _cbPoSyncUi();
+  };
+  window.cbPoSelectAll = async function(on) {
+    if (!on) { _cbPoNoSup().forEach(x => _cbPoSel.delete(_cbPoKey(x.kind, x.p))); await window.renderCentralBasket({ appendOnly:true }); return; }
+    // make sure every line of the column is loaded, then select them all
+    try {
+      while (!_cbNLDone)   { const rows = await _cbFetchNLPage(_cbNLPage);     _cbLoadedNL = _cbLoadedNL.concat(rows);     _cbNLPage++; }
+      while (!_cbReplDone) { const rows = await _cbFetchReplPage(_cbReplPage); _cbLoadedRepl = _cbLoadedRepl.concat(rows); _cbReplPage++; }
+    } catch(e) { console.warn('PO select all: load', e); }
+    const list = _cbPoNoSup();
+    list.forEach(x => _cbPoSel.set(_cbPoKey(x.kind, x.p), { kind:x.kind, item:x.p }));
+    _cbRevealCounts['No Supplier::nl']   = Math.max(_cbRevealCounts['No Supplier::nl']   || CB_REVEAL_STEP, list.filter(x => x.kind==='nl').length);
+    _cbRevealCounts['No Supplier::repl'] = Math.max(_cbRevealCounts['No Supplier::repl'] || CB_REVEAL_STEP, list.filter(x => x.kind==='repl').length);
+    await window.renderCentralBasket({ appendOnly:true });
+  };
+  window.cbPoClear = function() {
+    _cbPoSel.clear();
+    document.querySelectorAll('.cb-card.cb-po-on').forEach(c => { c.classList.remove('cb-po-on'); const i = c.querySelector('.cb-po-check input'); if (i) i.checked = false; });
+    _cbPoSyncUi();
+  };
+
+  function _cbLoadScript(src) {
+    return new Promise((ok, bad) => {
+      if (document.querySelector(`script[data-src="${src}"]`)) { const t = setInterval(() => { if (window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API.autoTable) { clearInterval(t); ok(); } }, 50); setTimeout(() => { clearInterval(t); ok(); }, 8000); return; }
+      const sc = document.createElement('script'); sc.src = src; sc.setAttribute('data-src', src);
+      sc.onload = () => ok(); sc.onerror = () => bad(new Error('Could not load ' + src));
+      document.head.appendChild(sc);
+    });
+  }
+  async function _cbPdfLibs() {
+    if (!(window.jspdf && window.jspdf.jsPDF)) await _cbLoadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+    if (!window.jspdf.jsPDF.API.autoTable) await _cbLoadScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js');
+  }
+  function _cbLogoData() {
+    return new Promise(ok => {
+      const img = new Image();
+      img.onload = () => { try { const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight; c.getContext('2d').drawImage(img, 0, 0); ok({ data: c.toDataURL('image/png'), w: img.naturalWidth, h: img.naturalHeight }); } catch(e) { ok(null); } };
+      img.onerror = () => ok(null);
+      img.src = '/assets/logo_pharm_and_domestic.png';
+    });
+  }
+  function _cbPoRef(d) {
+    const p2 = n => String(n).padStart(2, '0');
+    let ref = 'PDR-' + String(d.getFullYear()).slice(2) + p2(d.getMonth()+1) + p2(d.getDate()) + '-' + p2(d.getHours()) + p2(d.getMinutes());
+    let last = null; try { last = localStorage.getItem('cbPoLastRef'); } catch(e) {}
+    if (last && last.slice(0, ref.length) === ref) ref += p2(d.getSeconds());   // same minute → add the seconds so it stays unique
+    try { localStorage.setItem('cbPoLastRef', ref); } catch(e) {}
+    return ref;
+  }
+
+  window.cbPoDownload = async function() {
+    if (!_cbPoSel.size) return;
+    const btn = document.getElementById('cbPoGo'); if (btn) btn.disabled = true;
+    try {
+      // read each line's current basket values (quantity + unit price) straight from the database
+      const nlIds = [], skus = [];
+      _cbPoSel.forEach(v => { if (v.kind==='nl') nlIds.push(v.item.opportunity_id); else skus.push(v.item.sku); });
+      const fresh = {};
+      for (let i = 0; i < nlIds.length; i += 100) {
+        const { data, error } = await sb.from('sourcing').select('opportunity_id,product_name,code,unit_quantity,cost_of_unit,supplier_name,purchased').in('opportunity_id', nlIds.slice(i, i+100));
+        if (error) throw error; (data||[]).forEach(r => fresh['nl::' + r.opportunity_id] = r);
+      }
+      for (let i = 0; i < skus.length; i += 100) {
+        const { data, error } = await sb.from(CB_REPL_LIVE[0]).select('sku,name,ean,order_qty,cost_price,original_cost_price,supplier_name,action').in('sku', skus.slice(i, i+100));
+        if (error) throw error; (data||[]).forEach(r => fresh['repl::' + r.sku] = r);
+      }
+      const rows = []; let skipped = 0;
+      _cbPoSel.forEach((v, k) => {
+        const p = fresh[k] || v.item;
+        const gone = v.kind==='nl' ? !!p.purchased : (p.action && p.action !== 'basket');
+        if (gone || (p.supplier_name||'').trim()) { skipped++; return; }
+        const name = (v.kind==='nl' ? p.product_name : p.name) || '—';
+        const ean = v.kind==='nl' ? ((p.code||'').split(',')[0].split(':')[0].trim() || '—') : (p.ean || p.sku || '—');
+        const units = _cbPoUnits(v.kind, p);
+        const price = v.kind==='nl' ? parseFloat(p.cost_of_unit) : _cbReplDisplayCost(p);
+        rows.push({ name, ean, units, price: (price > 0 ? price : null) });
+      });
+      if (!rows.length) { _cbToast('None of the selected lines are still without a supplier', 'error'); return; }
+      rows.sort((a, b) => a.name.localeCompare(b.name));
+
+      await _cbPdfLibs();
+      const logo = await _cbLogoData();
+      const now = new Date(); const ref = _cbPoRef(now);
+      const dateTxt = now.toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit:'mm', format:'a4' });
+      const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 16;
+      const BLUE = [42,168,220], GREEN = [79,191,74], INK = [15,23,42], MUTED = [100,116,139], LINE = [226,232,240];
+      const band = (y, h) => { const n = 60; for (let i = 0; i < n; i++) { const t = i/(n-1); doc.setFillColor(BLUE[0]+(GREEN[0]-BLUE[0])*t, BLUE[1]+(GREEN[1]-BLUE[1])*t, BLUE[2]+(GREEN[2]-BLUE[2])*t); doc.rect(i*W/n, y, W/n+0.3, h, 'F'); } };
+
+      // header
+      band(0, 3);
+      let x = M;
+      if (logo) { const lh = 14, lw = lh * logo.w / logo.h; doc.addImage(logo.data, 'PNG', M, 13, lw, lh); x = M + lw + 4; }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(...INK); doc.text('Pharm & Domestic', x, 19.5);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...MUTED); doc.text('Procurement', x, 24.5);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...BLUE); doc.text('PURCHASE ORDER REQUEST', W - M, 14.5, { align:'right', charSpace:0.4 });
+      doc.setFontSize(15); doc.setTextColor(...INK); doc.text(ref, W - M, 21.5, { align:'right' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...MUTED); doc.text(dateTxt, W - M, 26.5, { align:'right' });
+      doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(M, 33, W - M, 33);
+
+      // summary
+      const totalUnits = rows.reduce((a, r) => a + r.units, 0);
+      const chip = (cx, label, val) => {
+        doc.setFillColor(248,250,252); doc.setDrawColor(...LINE); doc.roundedRect(cx, 38, 42, 14, 2, 2, 'FD');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(148,163,184); doc.text(label, cx + 4, 43.2, { charSpace:0.3 });
+        doc.setFontSize(11); doc.setTextColor(...INK); doc.text(val, cx + 4, 49.2);
+      };
+      chip(M, 'PRODUCTS', rows.length.toLocaleString('en-GB'));
+      chip(M + 46, 'TOTAL UNITS', totalUnits.toLocaleString('en-GB'));
+
+      doc.autoTable({
+        startY: 58,
+        margin: { left: M, right: M, top: 20, bottom: 18 },
+        head: [['#', 'Product', 'EAN', 'Total units', 'Last purchased price']],
+        body: rows.map((r, i) => [String(i+1), r.name, r.ean, r.units.toLocaleString('en-GB'), r.price != null ? '£' + r.price.toLocaleString('en-GB', { minimumFractionDigits:2, maximumFractionDigits:2 }) : '—']),
+        theme: 'plain',
+        styles: { font:'helvetica', fontSize:9, textColor:INK, cellPadding:{ top:3.2, bottom:3.2, left:3, right:3 }, valign:'middle', lineColor:LINE, lineWidth:{ bottom:0.2 } },
+        headStyles: { fillColor:INK, textColor:255, fontStyle:'bold', fontSize:7.5, cellPadding:{ top:3.6, bottom:3.6, left:3, right:3 }, lineWidth:0 },
+        alternateRowStyles: { fillColor:[246,249,252] },
+        columnStyles: {
+          0: { cellWidth:10, halign:'center', textColor:MUTED, fontSize:8 },
+          1: { cellWidth:'auto', fontStyle:'bold' },
+          2: { cellWidth:36, font:'courier', fontSize:9 },
+          3: { cellWidth:24, halign:'right' },
+          4: { cellWidth:36, halign:'right', fontStyle:'bold' },
+        },
+        didParseCell: d => { if (d.section==='head' && (d.column.index===3 || d.column.index===4)) d.cell.styles.halign = 'right'; if (d.section==='head' && d.column.index===0) d.cell.styles.halign = 'center'; },
+        didDrawPage: () => {
+          const pg = doc.internal.getCurrentPageInfo().pageNumber;
+          if (pg > 1) { band(0, 3); doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...MUTED); doc.text('Purchase order request · ' + ref, M, 12); }
+        },
+      });
+      const pages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(M, H - 13, W - M, H - 13);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(148,163,184);
+        doc.text('Pharm & Domestic  ·  ' + ref + '  ·  ' + dateTxt, M, H - 8);
+        doc.text('Page ' + i + ' of ' + pages, W - M, H - 8, { align:'right' });
+        band(H - 2, 2);
+      }
+      doc.save('PO-Request_' + ref + '.pdf');
+      window.cbPoClear();
+      _cbToast('PO request ' + ref + ' downloaded · ' + rows.length + ' line' + (rows.length!==1?'s':'') + (skipped ? ' (' + skipped + ' skipped — no longer without a supplier)' : ''), 'success');
+    } catch (e) {
+      console.error('PO request PDF', e);
+      _cbToast('Could not create the PDF — ' + (e.message || 'please try again'), 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   };
 
   /* ── TOAST ── */
