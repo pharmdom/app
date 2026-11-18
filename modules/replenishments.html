@@ -352,6 +352,9 @@
 #rp2 .fld label{display:block;font-size:11px;font-weight:700;color:var(--tx3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
 #rp2 .fld input{width:100%;border:1px solid var(--bd);border-radius:8px;padding:8px 10px;font-size:13px;outline:none;font-family:inherit;color:var(--tx);background:#fff}
 #rp2 .fld input:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--acglow)}
+#rp2 .fld input[readonly]{background:#f8fafc;color:var(--tx2,#475569);cursor:default;font-variant-numeric:tabular-nums}
+#rp2 .fld input[readonly]:focus{border-color:var(--bd);box-shadow:none}
+#rp2 .fld input[readonly]::placeholder{color:var(--tx3);font-style:italic}
 #rp2 .fld{position:relative}
 #rp2 .fld label{display:flex;align-items:center;gap:5px}
 #rp2 .ib{border:0;background:transparent;padding:0;width:15px;height:15px;color:var(--tx4);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;transition:color .15s}
@@ -539,7 +542,7 @@
       <div class="dlg-b">
         <div class="row2">
           <div class="fld"><label>Order quantity <button type="button" class="ib" onclick="rp2.bkTip(event,'rp2BkQtyHint')" title="Where this comes from"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button></label><div class="tip" id="rp2BkQtyHint"></div><input id="rp2BkQty" type="number" min="1" step="1" oninput="rp2.bkCalc()"></div>
-          <div class="fld"><label>Unit cost (£) <button type="button" class="ib" id="rp2BkCostIb" onclick="rp2.bkTip(event,'rp2BkCostHint')" title="Where this comes from"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button></label><div class="tip" id="rp2BkCostHint"></div><input id="rp2BkCost" type="number" min="0" step="0.01" oninput="rp2.bkCostTyped()"></div>
+          <div class="fld"><label>Unit cost (£) <button type="button" class="ib" id="rp2BkCostIb" onclick="rp2.bkTip(event,'rp2BkCostHint')" title="Where this comes from"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button></label><div class="tip" id="rp2BkCostHint"></div><input id="rp2BkCost" type="text" readonly tabindex="-1" title="The line's own unit cost — not editable here"></div>
         </div>
         <div class="fld"><label>Supplier</label><input id="rp2BkQ" placeholder="Search suppliers…" oninput="rp2.bkRender()"></div>
         <div class="sup-list" id="rp2BkList"></div>
@@ -1358,8 +1361,12 @@
     const q = x.order_qty > 0 ? x.order_qty : '';
     $('rp2BkQty').value = q;
     $('rp2BkQtyHint').textContent = x.source === 'oos_watch' ? 'Not in this week\'s reports — enter a quantity' : (x.order_qty > 0 ? 'Calculated order quantity' : 'Calculated order quantity is 0');
-    $('rp2BkCost').value = cost != null ? cost.toFixed(2) : (x.report_cost != null ? Number(x.report_cost).toFixed(2) : '');
-    $('rp2BkCostHint').textContent = cost != null ? 'Price from ' + supplier : (x.report_cost != null ? 'Cost from the purchases report' : 'No cost on file — enter the unit cost');
+    // Always the line's own unit cost — picking a supplier never changes it
+    const own = x.report_cost != null ? Number(x.report_cost) : (x.cost_price != null ? Number(x.cost_price) : null);
+    S.bk.cost = own != null && !isNaN(own) ? own : null;
+    $('rp2BkCost').value = S.bk.cost != null ? S.bk.cost.toFixed(2) : '';
+    $('rp2BkCost').placeholder = S.bk.cost != null ? '' : 'No cost on file';
+    $('rp2BkCostHint').textContent = S.bk.cost != null ? 'The line\'s own unit cost, from the purchases report. Picking a supplier doesn\'t change it.' : 'This line has no unit cost on file, so it will be added to the Basket without one.';
     $('rp2BkQ').value = '';
     $('rp2BasketOv').classList.add('open');
     bkRender(); bkCalc();
@@ -1388,12 +1395,6 @@
   function bkPick(name){
     if (!S.bk) return;
     S.bk.sel = name;
-    const x = S.bySku[S.bk.sku]; const pr = S.prices[normEan(x.ean || x.sku)];
-    if (pr && !S.bk.costTyped) {
-      const c = [...pr.cat, ...pr.off].filter(e => e.name === name).sort((a, b) => a.cost - b.cost)[0];
-      if (c) { $('rp2BkCost').value = c.cost.toFixed(2); $('rp2BkCostHint').textContent = 'Price from ' + name; }
-      else if (x.report_cost != null) { $('rp2BkCost').value = Number(x.report_cost).toFixed(2); $('rp2BkCostHint').textContent = 'Cost from the purchases report'; }
-    }
     bkRender();
   }
   function bkCostTyped(){ if (S.bk) { S.bk.costTyped = true; $('rp2BkCostHint').textContent = 'Entered by you'; } bkCalc(); }
@@ -1408,16 +1409,16 @@
   }
   function bkCalc(){
     if (!S.bk) return;
-    const q = parseInt($('rp2BkQty').value, 10), c = parseFloat($('rp2BkCost').value);
-    $('rp2BkTotal').textContent = fmtGBP((q > 0 ? q : 0) * (c >= 0 ? c : 0));
-    $('rp2BkOk').disabled = !(S.bk.sel && q > 0 && c >= 0);
+    const q = parseInt($('rp2BkQty').value, 10), c = S.bk.cost;
+    $('rp2BkTotal').textContent = c != null ? fmtGBP((q > 0 ? q : 0) * c) : '—';
+    $('rp2BkOk').disabled = !(S.bk.sel && q > 0);
   }
   function closeBasket(){ closeTips(); $('rp2BasketOv').classList.remove('open'); S.bk = null; }
   async function confirmBasket(){
     if (!S.bk) return;
     const sku = S.bk.sku, x = S.bySku[sku];
-    const qty = parseInt($('rp2BkQty').value, 10), cost = parseFloat($('rp2BkCost').value);
-    if (!(S.bk.sel && qty > 0 && cost >= 0)) return;
+    const qty = parseInt($('rp2BkQty').value, 10), cost = S.bk.cost;
+    if (!(S.bk.sel && qty > 0)) return;
     const now = new Date().toISOString();
     const patch = { action:'basket', actioned_at:now, actioned_by:userName(), supplier_name:S.bk.sel, order_qty:qty, cost_price:cost, original_cost_price:cost,
       basket_added_at:now, order_submitted:false, order_cases:null, case_price:null };
