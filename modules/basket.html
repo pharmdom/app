@@ -3678,7 +3678,7 @@ function _cbPdfReplCost(p) {
     if (!window.jspdf.jsPDF.API.autoTable) await _cbLoadScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js');
   }
   // Inter (the portal's font) for the PDF; falls back to Helvetica if it can't load
-  const CB_PDF_FONTS = { regular:'400Regular/Inter_400Regular.ttf', medium:'500Medium/Inter_500Medium.ttf', semibold:'600SemiBold/Inter_600SemiBold.ttf' };
+  const CB_PDF_FONTS = { regular:'400Regular/Inter_400Regular.ttf', medium:'500Medium/Inter_500Medium.ttf', semibold:'600SemiBold/Inter_600SemiBold.ttf', bold:'700Bold/Inter_700Bold.ttf' };
   let _cbPdfFontData = null;
   async function _cbPdfFonts() {
     if (_cbPdfFontData) return true;
@@ -3754,70 +3754,102 @@ function _cbPdfReplCost(p) {
       const F = fontsOk ? 'Inter' : 'helvetica';
       const font = w => doc.setFont(F, fontsOk ? w : (w === 'regular' ? 'normal' : 'bold'));
       const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 20;
-      const INK = [17,24,39], SOFT = [75,85,99], MUTED = [156,163,175], HAIR = [229,231,235], BRAND = [21,146,196];
-      const lbl = (t, x, y, opt) => { font('medium'); doc.setFontSize(6.8); doc.setTextColor(...MUTED); doc.text(t.toUpperCase(), x, y, Object.assign({ charSpace:0.35 }, opt||{})); };
+      // Brand — same identity as the invoices (modules/invoices.html)
+      const CO = { name:'PHARM & DOMESTIC', ltd:'TOUSIF LTD', addr:['Unit A, 82 James Carter Road', 'IP28 7DE, Ipswich, United Kingdom'], email:'info@pharm-supplies.co.uk', vat:'455602104GB', no:'13865809' };
+      const NAVY = [15,23,42], BLUE = [37,99,235], SOFT = [71,85,105], MUTED = [148,163,184], HAIR = [226,232,240];
+      const lbl = (t, x, y, opt) => { font('semibold'); doc.setFontSize(6.6); doc.setTextColor(...MUTED); doc.text(t.toUpperCase(), x, y, Object.assign({ charSpace:0.35 }, opt||{})); };
+      const tw = (t, size, w) => { font(w); doc.setFontSize(size); return doc.getTextWidth(t); };
       const logoAt = (x, y, h) => { if (!logo) return 0; const w = h * logo.w / logo.h; doc.addImage(logo.data, 'PNG', x, y, w, h); return w; };
 
-      // ── page 1 header
-      const lw = logoAt(M, 16, 10.5);
-      font('semibold'); doc.setFontSize(12); doc.setTextColor(...INK);
-      doc.text('Pharm & Domestic', M + (lw ? lw + 3.5 : 0), 22.6);
-      font('regular'); doc.setFontSize(8); doc.setTextColor(...SOFT);
-      doc.text('Procurement', W - M, 22.6, { align:'right' });
+      // ── small line icons (vector, so they stay crisp)
+      const ic = (c) => { doc.setDrawColor(...(c||BLUE)); doc.setLineWidth(0.28); doc.setLineCap('round'); doc.setLineJoin('round'); };
+      const ICON = {
+        pin:  (x, y, s, c) => { ic(c); const cx = x + s/2, cy = y + s*0.36, r = s*0.3; doc.circle(cx, cy, r, 'S'); doc.line(cx - r*0.82, cy + r*0.57, cx, y + s); doc.line(cx + r*0.82, cy + r*0.57, cx, y + s); doc.setFillColor(...(c||BLUE)); doc.circle(cx, cy, r*0.32, 'F'); },
+        mail: (x, y, s, c) => { ic(c); doc.roundedRect(x, y + s*0.2, s, s*0.62, s*0.08, s*0.08, 'S'); doc.lines([[s/2, s*0.32], [s/2, -s*0.32]], x, y + s*0.22, [1,1], 'S', false); },
+        hash: (x, y, s, c) => { ic(c); doc.line(x + s*0.38, y + s*0.12, x + s*0.28, y + s*0.88); doc.line(x + s*0.72, y + s*0.12, x + s*0.62, y + s*0.88); doc.line(x + s*0.12, y + s*0.36, x + s*0.9, y + s*0.36); doc.line(x + s*0.08, y + s*0.64, x + s*0.86, y + s*0.64); },
+        cal:  (x, y, s, c) => { ic(c); doc.roundedRect(x, y + s*0.16, s, s*0.8, s*0.12, s*0.12, 'S'); doc.line(x, y + s*0.4, x + s, y + s*0.4); doc.line(x + s*0.3, y, x + s*0.3, y + s*0.26); doc.line(x + s*0.7, y, x + s*0.7, y + s*0.26); },
+        box:  (x, y, s, c) => { ic(c); doc.lines([[s/2, -s*0.22], [s/2, s*0.22], [0, s*0.56], [-s/2, s*0.22], [-s/2, -s*0.22]], x, y + s*0.22, [1,1], 'S', true); doc.lines([[s/2, s*0.22], [s/2, -s*0.22]], x, y + s*0.22, [1,1], 'S', false); doc.line(x + s/2, y + s*0.44, x + s/2, y + s); },
+        layers:(x, y, s, c) => { ic(c); doc.lines([[s/2, -s*0.2], [s/2, s*0.2], [-s/2, s*0.2], [-s/2, -s*0.2]], x, y + s*0.3, [1,1], 'S', true); doc.lines([[s/2, s*0.2], [s/2, -s*0.2]], x, y + s*0.55, [1,1], 'S', false); doc.lines([[s/2, s*0.2], [s/2, -s*0.2]], x, y + s*0.78, [1,1], 'S', false); },
+      };
+      const footer = (i, pages) => {
+        doc.setDrawColor(...HAIR); doc.setLineWidth(0.2); doc.line(M, H - 20, W - M, H - 20);
+        font('regular'); doc.setFontSize(7); doc.setTextColor(...MUTED);
+        doc.text(`${CO.name}  ·  ${CO.ltd}  ·  VAT Reg: ${CO.vat}  ·  Co. No: ${CO.no}`, W/2, H - 14.5, { align:'center' });
+        doc.text(`${ref}  ·  Page ${i} of ${pages}`, W/2, H - 10.5, { align:'center' });
+      };
 
-      font('semibold'); doc.setFontSize(24); doc.setTextColor(...INK);
-      doc.text('Purchase Order Request', M, 48);
-      doc.setFillColor(...BRAND); doc.rect(M, 52.5, 14, 0.9, 'F');
+      // ── page 1: brand header (as on the invoices)
+      logoAt(M, 15, 13);
+      const R = W - M; let hy = 19.5;
+      font('bold'); doc.setFontSize(12); doc.setTextColor(...NAVY); doc.text(CO.name, R, hy, { align:'right' });
+      hy += 4.6; font('medium'); doc.setFontSize(7); doc.setTextColor(...SOFT); doc.text(CO.ltd, R, hy, { align:'right' });
+      font('regular'); doc.setFontSize(7.2);
+      hy += 4.4; ICON.pin(R - tw(CO.addr[0], 7.2, 'regular') - 3.6, hy - 2.45, 2.6, MUTED); font('regular'); doc.setFontSize(7.2); doc.setTextColor(...SOFT); doc.text(CO.addr[0], R, hy, { align:'right' });
+      hy += 3.6; doc.text(CO.addr[1], R, hy, { align:'right' });
+      hy += 4.0; ICON.mail(R - tw(CO.email, 7.2, 'regular') - 3.6, hy - 2.45, 2.6, MUTED); font('regular'); doc.setFontSize(7.2); doc.setTextColor(...SOFT); doc.text(CO.email, R, hy, { align:'right' });
+      // blue → grey divider
+      const dy = 42; const steps = 80;
+      for (let i = 0; i < steps; i++) { const t = i/(steps-1); doc.setFillColor(BLUE[0] + (HAIR[0]-BLUE[0])*t, BLUE[1] + (HAIR[1]-BLUE[1])*t, BLUE[2] + (HAIR[2]-BLUE[2])*t); doc.rect(M + i*(W-2*M)/steps, dy, (W-2*M)/steps + 0.2, 0.7, 'F'); }
 
+      // ── title + request details
+      font('bold'); doc.setFontSize(17); doc.setTextColor(...NAVY); doc.text('Purchase Order Request', M, 59);
+
+      // right: request no. + date, laid out like the invoice
+      const lblW = t => { font('semibold'); doc.setFontSize(6.6); const u = t.toUpperCase(); return doc.getTextWidth(u) + 0.35*(u.length - 1); };
+      const metaRow = (icon, label, val, y, size, color) => {
+        font('bold'); doc.setFontSize(size); const vW = doc.getTextWidth(val);
+        doc.setTextColor(...color); doc.text(val, R - vW, y);
+        const lx = R - vW - 3 - lblW(label);
+        lbl(label, lx, y - 0.2);
+        ICON[icon](lx - 4.2, y - 2.75, 2.8, MUTED);
+      };
+      metaRow('hash', 'PO Request No.', ref, 55.5, 13, BLUE);
+      metaRow('cal', 'Date', dateTxt, 62, 9, NAVY);
+
+      // summary strip
       const totalUnits = rows.reduce((a, r) => a + r.units, 0);
-      const meta = [['Reference', ref], ['Date', dateTxt], ['Products', rows.length.toLocaleString('en-GB')], ['Total units', totalUnits.toLocaleString('en-GB')]];
-      const colW = (W - 2*M) / 4;
-      meta.forEach(([k, v], i) => {
-        const x = M + i*colW;
-        lbl(k, x, 66);
-        font(i === 0 ? 'semibold' : 'regular'); doc.setFontSize(10.5); doc.setTextColor(...INK); doc.text(v, x, 72);
-      });
+      doc.setFillColor(248,250,252); doc.setDrawColor(...HAIR); doc.setLineWidth(0.2); doc.roundedRect(M, 69, W - 2*M, 13, 2, 2, 'FD');
+      const stat = (x, icon, label, val) => {
+        ICON[icon](x, 73.2, 4.6, BLUE);
+        lbl(label, x + 7.5, 74.6);
+        font('bold'); doc.setFontSize(10.5); doc.setTextColor(...NAVY); doc.text(val, x + 7.5, 79.4);
+      };
+      stat(M + 5, 'box', 'Products', rows.length.toLocaleString('en-GB'));
+      stat(M + 50, 'layers', 'Total units', totalUnits.toLocaleString('en-GB'));
 
-      // ── table
+      // ── table (navy header, as on the invoices)
       const money = v => v != null ? '£' + v.toLocaleString('en-GB', { minimumFractionDigits:2, maximumFractionDigits:2 }) : '—';
       doc.autoTable({
-        startY: 84,
-        margin: { left: M, right: M, top: 30, bottom: 24 },
-        head: [['', 'Product', 'EAN', 'Total units', 'Last purchased price']],
-        body: rows.map((r, i) => [String(i+1).padStart(2, '0'), r.name, r.ean, r.units.toLocaleString('en-GB'), money(r.price)]),
+        startY: 89,
+        margin: { left: M, right: M, top: 30, bottom: 26 },
+        head: [['#', 'Product', 'EAN', 'Total units', 'Last purchased price']],
+        body: rows.map((r, i) => [String(i+1), r.name, r.ean, r.units.toLocaleString('en-GB'), money(r.price)]),
         theme: 'plain',
-        styles: { font:F, fontStyle: fontsOk ? 'regular' : 'normal', fontSize:9, textColor:INK, cellPadding:{ top:3.6, bottom:3.6, left:0, right:3 }, valign:'middle', lineColor:HAIR, lineWidth:{ bottom:0.2 } },
-        headStyles: { font:F, fontStyle: fontsOk ? 'medium' : 'bold', fontSize:6.8, textColor:MUTED, cellPadding:{ top:0, bottom:3, left:0, right:3 }, lineColor:INK, lineWidth:{ bottom:0.35 } },
+        styles: { font:F, fontStyle: fontsOk ? 'regular' : 'normal', fontSize:8.8, textColor:NAVY, cellPadding:{ top:3.4, bottom:3.4, left:3.2, right:3.2 }, valign:'middle', lineColor:HAIR, lineWidth:{ bottom:0.2 } },
+        headStyles: { fillColor:NAVY, textColor:255, font:F, fontStyle: fontsOk ? 'semibold' : 'bold', fontSize:6.8, cellPadding:{ top:4.2, bottom:4.2, left:3.2, right:3.2 }, lineWidth:0 },
         columnStyles: {
-          0: { cellWidth:10, textColor:MUTED, fontSize:8 },
+          0: { cellWidth:11, halign:'center', textColor:MUTED, fontSize:8 },
           1: { cellWidth:'auto', fontStyle: fontsOk ? 'medium' : 'bold' },
           2: { cellWidth:34, textColor:SOFT },
           3: { cellWidth:24, halign:'right' },
-          4: { cellWidth:34, halign:'right', fontStyle: fontsOk ? 'semibold' : 'bold', cellPadding:{ top:3.6, bottom:3.6, left:0, right:0 } },
+          4: { cellWidth:36, halign:'right', fontStyle: fontsOk ? 'bold' : 'bold' },
         },
         didParseCell: d => {
           if (d.section !== 'head') return;
           d.cell.text = d.cell.text.map(t => t.toUpperCase());
           if (d.column.index >= 3) d.cell.styles.halign = 'right';
-          if (d.column.index === 4) d.cell.styles.cellPadding = { top:0, bottom:3, left:0, right:0 };
+          if (d.column.index === 0) d.cell.styles.halign = 'center';
         },
         didDrawPage: () => {
           if (doc.internal.getCurrentPageInfo().pageNumber === 1) return;
-          const w = logoAt(M, 12, 6.5);
-          font('semibold'); doc.setFontSize(8.5); doc.setTextColor(...INK); doc.text('Pharm & Domestic', M + (w ? w + 2.5 : 0), 16.4);
-          font('regular'); doc.setFontSize(8); doc.setTextColor(...SOFT); doc.text('Purchase Order Request  ·  ' + ref, W - M, 16.4, { align:'right' });
+          logoAt(M, 11, 8);
+          font('bold'); doc.setFontSize(9); doc.setTextColor(...NAVY); doc.text(CO.name, W - M, 15, { align:'right' });
+          font('semibold'); doc.setFontSize(8); doc.setTextColor(...BLUE); doc.text(ref, W - M, 19.5, { align:'right' });
         },
       });
 
-      // footer on every page
       const pages = doc.internal.getNumberOfPages();
-      for (let i = 1; i <= pages; i++) {
-        doc.setPage(i);
-        doc.setDrawColor(...HAIR); doc.setLineWidth(0.2); doc.line(M, H - 16, W - M, H - 16);
-        font('regular'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
-        doc.text('Pharm & Domestic', M, H - 10.5);
-        doc.text(ref + '   ·   ' + i + ' / ' + pages, W - M, H - 10.5, { align:'right' });
-      }
+      for (let i = 1; i <= pages; i++) { doc.setPage(i); footer(i, pages); }
       doc.save('PO-Request_' + ref + '.pdf');
       window.cbPoClear();
       _cbToast('PO request ' + ref + ' downloaded · ' + rows.length + ' line' + (rows.length!==1?'s':'') + (skipped ? ' (' + skipped + ' skipped — no longer without a supplier)' : ''), 'success');
