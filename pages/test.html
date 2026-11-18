@@ -1354,7 +1354,7 @@ window.ivSetMode = function(mode) {
   w.classList.toggle('iv-vault-on', mode === 'vault');
   document.querySelectorAll('.iv-mode').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   try { localStorage.setItem('ivMode', mode); } catch(e) {}
-  if (mode === 'vault' && !st.loaded) { st.loaded = true; ivvLoadFacets().then(ivvUpgradeOld); ivvSearch(); }
+  if (mode === 'vault' && !st.loaded) { st.loaded = true; ivvLoadFacets().then(ivvUpgradeOld); ivvSearch(); ivvOpenLatest(); }
   if (mode === 'vault') setTimeout(() => $('ivvQ')?.focus(), 50);
 };
 
@@ -1438,7 +1438,7 @@ function ivvRender() {
     const meta = sup + bits.map(b => '<span class="ivv-dot"></span><span>' + esc(b) + '</span>').join('') + (r.has_text ? '' : '<span class="ivv-dot"></span><span class="ivv-pill warn">No readable text</span>');
     const more = r.match_lines > 1 ? `<div class="ivv-snip-more">+${r.match_lines - 1} more matching line${r.match_lines === 2 ? '' : 's'} in this invoice</div>` : '';
     const snip = r.snippet && st.q ? `<div class="ivv-snip"><span class="pg">Page ${r.match_page || 1}</span><div class="ln">${ivvMark(r.snippet, terms)}</div></div>${more}` : '';
-    return `<div class="ivv-item${st.sel && st.sel.id === r.id ? ' sel' : ''}" data-i="${i}" onclick="ivvSelect(${i})">
+    return `<div class="ivv-item${st.sel && st.sel.id === r.id ? ' sel' : ''}" data-i="${i}" data-id="${esc(r.id)}" onclick="ivvSelect(${i})">
       <div class="ivv-ico${r.has_text ? '' : ' nt'}">${ICO_PDF}PDF</div>
       <div class="ivv-main"><div class="ivv-name" title="${esc(r.file_name)}">${ivvMark(r.file_name, terms)}</div><div class="ivv-meta">${meta}</div>${snip}</div>
       <button class="ivv-dl" title="Download" onclick="event.stopPropagation();ivvDownload(${i})">${ICO_DL}</button>
@@ -1452,10 +1452,17 @@ async function ivvSignedUrl(r, download) {
   const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(r.storage_path, 3600, download ? { download: r.file_name } : undefined);
   if (error) throw error; return data.signedUrl;
 }
-window.ivvSelect = async function(i) {
-  const r = st.rows[i]; if (!r) return;
+window.ivvSelect = i => ivvOpen(st.rows[i]);
+// open the most recently added invoice (used when the vault opens, after uploads and after a delete)
+const VAULT_COLS = 'id,supplier_name,file_name,storage_path,folder_path,year,quarter,invoice_date,file_size,page_count,has_text,uploaded_at,uploaded_by';
+async function ivvOpenLatest() {
+  const { data } = await sb.from('supplier_invoices').select(VAULT_COLS).order('uploaded_at', { ascending: false }).limit(1);
+  if (data && data[0]) ivvOpen(st.rows.find(x => x.id === data[0].id) || data[0]);
+}
+async function ivvOpen(r) {
+  if (!r) return;
   st.sel = r;
-  document.querySelectorAll('#ivvResults .ivv-item').forEach(el => el.classList.toggle('sel', +el.dataset.i === i));
+  document.querySelectorAll('#ivvResults .ivv-item').forEach(el => el.classList.toggle('sel', el.dataset.id === String(r.id)));
   $('ivvPrevHead').style.display = 'flex';
   $('ivvPrevT').textContent = r.file_name;
   $('ivvPrevS').textContent = [r.supplier_name || 'No supplier', period(r), r.invoice_date ? 'Invoice date ' + new Date(r.invoice_date + 'T00:00:00Z').toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', timeZone:'UTC' }) : '', r.uploaded_at ? 'Added ' + new Date(r.uploaded_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) + (r.uploaded_by ? ' by ' + r.uploaded_by : '') : ''].filter(Boolean).join('  ·  ');
@@ -1623,7 +1630,7 @@ window.ivvDoDelete = async function() {
   ivvCloseDel(); toast('Invoice deleted', 'success');
   st.sel = null; st.url = null; $('ivvPrevHead').style.display = 'none'; $('ivvPrevNote').style.display = 'none';
   $('ivvPrevBody').innerHTML = '<div class="ivv-empty"><div class="bub">' + ICO_PDF + '</div><h4>Select an invoice</h4><p>Pick an invoice from the list to preview it here.</p></div>';
-  ivvLoadFacets(); ivvSearch();
+  ivvLoadFacets(); await ivvSearch(); ivvOpenLatest();
 };
 
 /* ── re-read invoices uploaded before line-by-line reading (fills supplier/period if missing) ── */
@@ -1834,7 +1841,7 @@ window.ivvStartUpload = async function() {
   up.running = false; renderQueue();
   const added = up.items.filter(x => x.status === 'ok' || x.status === 'nt').length;
   toast(added ? added + ' invoice' + (added === 1 ? '' : 's') + ' added to the vault' : 'No new invoices added', added ? 'success' : 'warn');
-  await ivvLoadFacets(); ivvSearch();
+  await ivvLoadFacets(); await ivvSearch(); if (added) ivvOpenLatest();
 };
 
 /* ── wire up ── */
