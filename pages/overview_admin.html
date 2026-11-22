@@ -345,6 +345,18 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .pt-tip:hover::after,.pt-tip:hover::before{opacity:1;}
 .pt-tip:hover::after{transform:translateY(0);}
   
+/* ── REVENUE TARGET: fold / unfold ── */
+.rt-hdr{transition:margin-bottom .25s ease;}
+.rt-toggle{margin-left:auto;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 12px;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text3);font-size:11.5px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;flex-shrink:0;}
+.rt-toggle:hover{border-color:var(--accent-bd);color:var(--accent);background:var(--accent-bg);}
+.rt-toggle svg{width:13px;height:13px;transition:transform .25s ease;}
+.rt-panel.open .rt-toggle svg{transform:rotate(180deg);}
+.rt-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s cubic-bezier(.4,0,.2,1);}
+.rt-body>.rt-cols{overflow:hidden;min-height:0;}
+.rt-panel.open .rt-body{grid-template-rows:1fr;}
+.rt-panel:not(.open){padding-top:16px;padding-bottom:16px;}
+.rt-panel:not(.open) .rt-hdr{margin-bottom:0;}
+.rt-panel:not(.open) .rt-hdr{cursor:pointer;}
 </style>
 <div class="ov-toasts" id="ovToasts"></div>
 <div class="pbar" id="ovPbar"></div>
@@ -388,18 +400,21 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
     </div>
   </div>
     <div class="ov-main">
-    <div class="rt-panel">
-      <div class="rt-hdr">
+    <div class="rt-panel" id="rtPanel">
+      <div class="rt-hdr" onclick="if(!document.getElementById('rtPanel').classList.contains('open'))rtToggle()">
         <div class="rt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
         <div>
           <div class="rt-title">Revenue Target (MoM)</div>
           <div class="rt-sub">£1,000,000 Gross</div>
         </div>
+        <button type="button" class="rt-toggle" id="rtToggle" onclick="event.stopPropagation();rtToggle()" aria-expanded="false" title="Show / hide"><span id="rtToggleTxt">Show</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       </div>
+      <div class="rt-body">
       <div class="rt-cols">
         <div class="rt-col" id="rtCol7"></div>
         <div class="rt-col" id="rtCol14"></div>
         <div class="rt-col" id="rtCol30"></div>
+      </div>
       </div>
     </div>
     <div class="ov-sec">Right Now</div>
@@ -1036,10 +1051,42 @@ function rtRefresh(){
   [7,14,30].forEach(d=>rtLoadWindow(d));
 }
 
+/* ── REVENUE TARGET: fold / unfold — closed by default, each person's choice is remembered
+   (saved to their account preferences so it follows them; this browser keeps a copy for an instant first paint) ── */
+const RT_PREF='ov_revenue_target';
+let _rtLoaded=false;
+function rtApply(open,animate){
+  const panel=document.getElementById('rtPanel');if(!panel)return;
+  if(!animate){const b=panel.querySelector('.rt-body');if(b){b.style.transition='none';requestAnimationFrame(()=>requestAnimationFrame(()=>b.style.transition=''));}}
+  panel.classList.toggle('open',open);
+  const t=document.getElementById('rtToggle');if(t){t.setAttribute('aria-expanded',open?'true':'false');t.title=open?'Hide':'Show';}
+  const tx=document.getElementById('rtToggleTxt');if(tx)tx.textContent=open?'Hide':'Show';
+  if(open&&!_rtLoaded){_rtLoaded=true;rtInit();}
+}
+function rtLocal(){try{return localStorage.getItem(RT_PREF);}catch(e){return null;}}
+function rtBoot(){
+  rtApply(rtLocal()==='open',false);
+  Promise.resolve(sb.rpc('get_my_preferences')).then(({data,error})=>{
+    if(error||!data||typeof data!=='object'||Array.isArray(data))return;
+    const v=data[RT_PREF];if(v!=='open'&&v!=='closed')return;
+    try{localStorage.setItem(RT_PREF,v);}catch(e){}
+    const isOpen=document.getElementById('rtPanel')?.classList.contains('open');
+    if((v==='open')!==isOpen)rtApply(v==='open',false);
+  }).catch(()=>{});
+}
+window.rtToggle=function(){
+  const open=!document.getElementById('rtPanel').classList.contains('open');
+  rtApply(open,true);
+  const v=open?'open':'closed';
+  try{localStorage.setItem(RT_PREF,v);}catch(e){}
+  Promise.resolve(sb.rpc('set_my_preference',{p_key:RT_PREF,p_value:v})).then(({error})=>{if(error)console.warn('Revenue Target preference not saved:',error.message);}).catch(()=>{});
+};
+
+
 async function init(){
   if(!sb)return;
   pStart();
-  rtInit();
+  rtBoot();
   const fastGroup=[loadReplenishments(),loadFBA(),loadFaults(),loadRota(),loadPacking()];
   const slowGroup=[loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadOffers(),loadRefunds(),loadPaycheck(),loadSuppliersMoq()];
   const fastResults=await Promise.allSettled(fastGroup);
@@ -1932,7 +1979,7 @@ function ovCloseDrawer(){
 /* ── SILENT REFRESH ── */
 async function silentRefresh(){
   if(!sb)return;
-  rtRefresh();
+  if(_rtLoaded)rtRefresh();
   const results=await Promise.allSettled([
     loadVeeqo(),loadLineItems(),loadSourcing(),loadCatalog(),loadOffers(),loadRefunds(),loadReplenishments(),
     loadFBA(),loadFaults(),loadRota(),loadPaycheck(),loadPacking(),
