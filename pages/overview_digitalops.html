@@ -1111,7 +1111,70 @@ function buildQueueItems(){
     sev:'crit',
     t:`${critReplen.length} SKU${critReplen.length!==1?'s':''} critically low — action now`,
     s:'Out of stock or under 7 days cover — order or mark N/A',
-    meta:'Replenishments',tag:{cls:'sb-amber',txt:'Stock Alert'},fn:'doOpenReplenDrawer()'
+    meta:'Replenishments',tag:{cls:'sb-amber',txt:'Stock Alert'},fn:'ovOpenReplenishModal()'
+  });
+  // Replenishments waiting for a decision (only when nothing is critical, as on Admin)
+  const pendReplen=replen.filter(replIsPending);
+  if(pendReplen.length&&!critReplen.length) items.push({
+    sev:'warn',
+    t:`${pendReplen.length} replenishment SKU${pendReplen.length!==1?'s':''} pending review`,
+    s:'Purchase, add to basket, defer or mark N/A',
+    meta:'Replenishments',tag:{cls:'sb-amber',txt:'Replenishments'},fn:'ovOpenReplenishModal()'
+  });
+
+  // ── Team sourcing pipeline ──
+  const team=A.sourcing||[];
+  const now=Date.now(),ageD=p=>p.created_at?Math.floor((now-new Date(p.created_at).getTime())/86400000):0;
+  const teamPending=team.filter(p=>!p.approved&&!(p.sourcing_approvals||[]).some(a=>a.status==='rejected'));
+  const stalePending=teamPending.filter(p=>ageD(p)>=7);
+  if(stalePending.length){
+    const oldest=Math.max(...stalePending.map(ageD));
+    const val=stalePending.reduce((s,p)=>s+(parseFloat(p.total_cost)||0),0);
+    items.push({
+      sev:oldest>=14?'crit':'warn',
+      t:`${stalePending.length} sourcing product${stalePending.length!==1?'s':''} waiting 7+ days for approval`,
+      s:`Oldest waiting ${oldest} days${val>0?' · '+fmtGBP(val)+' in the pipeline':''}`,
+      meta:'Sourcing Pipeline',tag:{cls:'sb-blue',txt:'Pipeline'},fn:'ovOpenSourcingDrawer()'
+    });
+  }
+  const awaitPurchase=team.filter(p=>p.approved&&!p.purchased&&!p.inquire);
+  if(awaitPurchase.length){
+    const val=awaitPurchase.reduce((s,p)=>s+(parseFloat(p.total_cost)||0),0);
+    const oldest=Math.max(...awaitPurchase.map(ageD));
+    items.push({
+      sev:oldest>=7?'warn':'info',
+      t:`${awaitPurchase.length} approved product${awaitPurchase.length!==1?'s':''} not yet purchased`,
+      s:`${val>0?fmtGBP(val)+' approved, not yet bought':'Approved and waiting to be ordered'}${oldest>=7?' · oldest '+oldest+' days':''}`,
+      meta:'Sourcing Pipeline',tag:{cls:'sb-blue',txt:'To Purchase'},fn:'ovOpenSourcingDrawer()'
+    });
+  }
+
+  // ── Catalog ──
+  if(A.catPending){
+    items.push({
+      sev:'info',
+      t:`${A.catPending.toLocaleString()} catalog line${A.catPending!==1?'s':''} need review`,
+      s:`${(A.catApproved||0).toLocaleString()} approved · ${(A.catRejected||0).toLocaleString()} rejected so far${A.catNewThisWeek?' · +'+A.catNewThisWeek.toLocaleString()+' new this week':''}`,
+      meta:'Catalog',tag:{cls:'sb-purple',txt:'Catalog'},fn:'ovOpenCatalogDrawer()'
+    });
+  }
+  const suppAges=Object.entries(A.catSupplierLastUpdate||{}).map(([name,t])=>({name,days:Math.floor((now-t)/86400000)}));
+  const staleCat=suppAges.filter(s=>s.days>=14).sort((a,b)=>b.days-a.days);
+  if(staleCat.length){
+    const worst=staleCat[0];
+    items.push({
+      sev:worst.days>=30?'warn':'info',
+      t:`${staleCat.length} supplier catalog${staleCat.length!==1?'s':''} not updated in 14+ days`,
+      s:`Oldest: ${worst.name} · ${worst.days} days — upload a fresh price list`,
+      meta:'Catalog',tag:{cls:'sb-purple',txt:'Catalog'},fn:"ovOpenCatalogDrawer();ovDrwTab('suppliers')"
+    });
+  }
+  const noCat=A.catNoDataSuppliers||[];
+  if(noCat.length) items.push({
+    sev:'info',
+    t:`${noCat.length} supplier${noCat.length!==1?'s':''} with no catalog yet`,
+    s:noCat.slice(0,3).join(', ')+(noCat.length>3?` +${noCat.length-3} more`:''),
+    meta:'Catalog',tag:{cls:'sb-purple',txt:'Catalog'},fn:"ovOpenCatalogDrawer();ovDrwTab('suppliers')"
   });
 
   // Sourcing leads pending approval (my leads only)
