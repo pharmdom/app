@@ -385,6 +385,7 @@ col.col-agent     { width: 110px; }
 /* ── Modal ASIN + Pack Of row ── */
 .modal-asin-row .form-control.asin-modal-input { flex: 1; min-width: 0; }
 .modal-asin-row .form-control.packof-modal-input { width: 80px; flex-shrink: 0; }
+.modal-asin-row .form-control.salesvol-modal-input { flex: 0 0 104px; width: 104px; }
 
 /* ── Drawer ASIN horizontal row ── */
 .asin-card-full { grid-column: 1 / -1; }
@@ -2172,9 +2173,9 @@ function buildAddForm() {
         <div class="form-group"><label>Fulfillment</label><select class="form-control" id="f_primaryFulfillment"><option value="">Select…</option><option>FBM</option><option>FBA</option><option>Both</option></select></div>
         <div class="form-group"><label>SAS Combined Sales</label><input class="form-control" id="f_keepa" type="text" placeholder="e.g. 120"></div>
         <div class="form-group full"><label> </label>
-  <div style="display:flex;gap:8px;margin-bottom:4px;padding-right:32px"><span style="flex:1;font-size:11px;font-weight:600;color:#64748b">Asin (s)</span><span style="width:80px;flex-shrink:0;font-size:11px;font-weight:600;color:#64748b;text-align:left">Pack of</span></div>
+  <div style="display:flex;gap:8px;margin-bottom:4px;padding-right:32px"><span style="flex:1;font-size:11px;font-weight:600;color:#64748b">Asin (s)</span><span style="width:104px;flex-shrink:0;font-size:11px;font-weight:600;color:#64748b;text-align:left">Sales Volume</span><span style="width:80px;flex-shrink:0;font-size:11px;font-weight:600;color:#64748b;text-align:left">Pack of</span></div>
   <div class="modal-asin-list" id="modal_asinList">
-    <div class="modal-asin-row"><input class="form-control asin-modal-input" type="text" placeholder="e.g. B08XYZ123"><input class="form-control packof-modal-input" type="number" min="1" placeholder="1" title="Pack of"><button type="button" class="btn-icon danger" onclick="removeModalAsin(this)" style="opacity:.3;pointer-events:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-asin-row"><input class="form-control asin-modal-input" type="text" placeholder="e.g. B08XYZ123"><input class="form-control salesvol-modal-input" type="number" min="0" placeholder="0" title="Sales volume"><input class="form-control packof-modal-input" type="number" min="1" placeholder="1" title="Pack of"><button type="button" class="btn-icon danger" onclick="removeModalAsin(this)" style="opacity:.3;pointer-events:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     </div>
   <button type="button" class="modal-asin-add-btn" onclick="addModalAsin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add another ASIN</button>
 </div>
@@ -2310,7 +2311,8 @@ function addModalAsin() {
   const row  = document.createElement('div');
   row.className = 'modal-asin-row';
   row.innerHTML = `<input class="form-control asin-modal-input" type="text" placeholder="e.g. B08XYZ123">
-    <input class="form-control packof-modal-input" type="number" min="1" placeholder="Pack of" title="Pack of">
+    <input class="form-control salesvol-modal-input" type="number" min="0" placeholder="0" title="Sales volume">
+    <input class="form-control packof-modal-input" type="number" min="1" placeholder="1" title="Pack of">
     <button type="button" class="btn-icon danger" onclick="removeModalAsin(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
   list.appendChild(row);
   row.querySelector('.asin-modal-input').focus();
@@ -2340,6 +2342,15 @@ function getModalPackOfs() {
     const asin = r.querySelector('.asin-modal-input')?.value.trim();
     const pack = r.querySelector('.packof-modal-input')?.value.trim();
     return asin ? (pack || '') : null;
+  }).filter(v => v !== null).join(', ');
+}
+function getModalSalesVols() {
+  const list = document.getElementById('modal_asinList');
+  if (!list) return '';
+  return Array.from(list.querySelectorAll('.modal-asin-row')).map(r => {
+    const asin = r.querySelector('.asin-modal-input')?.value.trim();
+    const vol  = r.querySelector('.salesvol-modal-input')?.value.trim();
+    return asin ? (vol || '') : null;
   }).filter(v => v !== null).join(', ');
 }
 async function saveProduct() {
@@ -2380,7 +2391,7 @@ const opportunityId = 'SRC-' + String(lastNum + 1).padStart(6, '0');
     asins:                getModalAsins(),
     pack_of:              getModalPackOfs(),
     parcel_size:          '',
-    sales_volume:         '',
+    sales_volume:         getModalSalesVols(),
     cost_of_unit: (()=>{
       const isMulti = document.getElementById('fEanMulti')?.style.display === 'flex';
       if (!isMulti) return parseFloat(document.getElementById('f_costOfUnit').value) || 0;
@@ -3207,7 +3218,11 @@ function _saveFormValues() {
   // Save ASIN rows
   const asinList = document.getElementById('modal_asinList');
   if (asinList) {
-    vals._asins = Array.from(asinList.querySelectorAll('.asin-modal-input')).map(i => i.value);
+    vals._asins = Array.from(asinList.querySelectorAll('.modal-asin-row')).map(r => ({
+      asin: r.querySelector('.asin-modal-input')?.value || '',
+      vol:  r.querySelector('.salesvol-modal-input')?.value || '',
+      pack: r.querySelector('.packof-modal-input')?.value || ''
+    }));
   }
    vals._wizardStep = wizardCurrentStep;
   return vals;
@@ -3225,10 +3240,13 @@ function _restoreFormValues(vals) {
     if (!list) return;
     // Clear the default empty row first
     list.innerHTML = '';
-    vals._asins.forEach((asinVal, i) => {
+    vals._asins.forEach((v, i) => {
+      const r = typeof v === 'string' ? { asin: v, vol: '', pack: '' } : v;
       const row = document.createElement('div');
       row.className = 'modal-asin-row';
-      row.innerHTML = `<input class="form-control asin-modal-input" type="text" value="${escAttr(asinVal)}" placeholder="e.g. B08XYZ123">
+      row.innerHTML = `<input class="form-control asin-modal-input" type="text" value="${escAttr(r.asin)}" placeholder="e.g. B08XYZ123">
+        <input class="form-control salesvol-modal-input" type="number" min="0" placeholder="0" title="Sales volume" value="${escAttr(r.vol)}">
+        <input class="form-control packof-modal-input" type="number" min="1" placeholder="1" title="Pack of" value="${escAttr(r.pack)}">
         <button type="button" class="btn-icon danger" onclick="removeModalAsin(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
       list.appendChild(row);
     });
