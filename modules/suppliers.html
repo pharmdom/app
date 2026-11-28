@@ -2038,6 +2038,22 @@ async function updateStatus(id,status){
 }
 
 
+
+/* Amazon search text: the product name without sizes, VAT/duty notes, codes, dates and prices */
+function scAmazonQuery(raw){
+  let t=' '+String(raw||'')+' ';
+  t=t.replace(/\([^)]*\)|\[[^\]]*\]|\{[^}]*\}/g,' ');                                   // (0% VAT) (C) [PM £1.99]
+  t=t.replace(/-?\s*\bduty\b\s*-?\s*\d+(\.\d+)?\s*%/gi,' ');                             // - Duty - 4%
+  t=t.replace(/\b\d+(\.\d+)?\s*%\s*vat\b|\bvat\b|\bzero\s*rated\b/gi,' ');                // 20% VAT
+  t=t.replace(/\bp\.?m\.?\s*£?\s*\d+(\.\d+)?p?\b|£\s*\d+(\.\d+)?|\b\d+p\b/gi,' ');        // PM £1.99, £2, 99p
+  t=t.replace(/\b\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}\b/g,' ');                           // 12/09/27
+  t=t.replace(/\bpack\s+of\s+\d+\b|\b\d+\s*(x|×)\s*\d+(\.\d+)?\s*[a-z]*\b|\b(x|×)\s*\d+\b|\b\d+\s*(x|×)\b/gi,' '); // pack of 6, 4x50ml, x6, 6x
+  t=t.replace(/\b\d+(\.\d+)?\s*(ml|millilitre?s?|cl|ltr?s?|litre?s?|liter?s?|l|g|gm?s|grams?|gr|kg|kgs|mg|oz|fl\.?\s*oz|lbs?|cm|mm|m|pk|pks|pck|pack|packs|pcs|pc|pieces?|tabs?|tablets?|caps|capsules?|sheets?|rolls?|wipes?|bags?|sachets?|count|ct)\b/gi,' '); // 300ml 95G 1.5L 12pk
+  t=t.replace(/\b\d+'?s\b/gi,' ');                                                         // 100's
+  t=t.replace(/\b\d+(\.\d+)?\s*%/g,' ');                                                    // leftover 4%
+  t=t.replace(/\s[-–—\/|,+]+(?=\s)/g,' ').replace(/^[\s\-–—\/|,+&]+|[\s\-–—\/|,+&]+$/g,'');
+  return t.replace(/\s{2,}/g,' ').trim();
+}
 /* ══ REJECT ACROSS SUPPLIERS ══
    After a line is rejected, list every other supplier with the same EAN (all ticked) so they can be rejected in one click. */
 function scEanVariants(v){const b=normEan(v);if(!b)return[];const out=new Set([String(v).trim(),b]);let x=b;while(x.length<14){x='0'+x;out.add(x);}return[...out];}
@@ -3393,7 +3409,11 @@ window._scKbHandler=function(e){
   if(key==='a'){
     const name=(row.product_name||'').trim();
     if(!name){toast('No product name to search','error');return;}
-    window.open('https://www.amazon.co.uk/s?k='+encodeURIComponent(name),'_blank','noopener');
+    const q=scAmazonQuery(name)||name;
+    // one Amazon tab is reused for every search
+    const w=window.open('https://www.amazon.co.uk/s?k='+encodeURIComponent(q),'pdAmazonSearch');
+    try{w&&w.focus();}catch(_){}
+    toast('Amazon: '+q,'info',1800);
   }else if(key==='g'){
     const ean=String(row.ean||'').trim();
     if(!ean){toast('No EAN for this product','error');return;}
