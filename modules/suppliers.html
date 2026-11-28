@@ -684,6 +684,37 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sc-pxg-note{display:flex;gap:8px;align-items:flex-start;font-size:11.5px;color:#64748b;background:#f8fafc;border-radius:10px;padding:9px 11px;margin-top:4px;line-height:1.45}
 .sc-pxg-note svg{width:14px;height:14px;flex-shrink:0;margin-top:1px;color:#94a3b8}
 @media(max-width:560px){.sc-pxg-flow{flex-direction:column}.sc-pxg-arrow{display:none}}
+
+/* Reject at other suppliers */
+.sc-rej{width:500px}
+.sc-rej .sc-pref-b{max-height:min(60vh,520px);overflow-y:auto;padding-top:8px}
+.rj-ean{font-family:var(--mono);font-weight:700;color:#334155}
+.rj-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:6px;cursor:pointer;transition:border-color .15s,background .15s}
+.rj-row:hover{border-color:#cbd5e1;background:#f8fafc}
+.rj-row input{width:16px;height:16px;margin:0;flex-shrink:0;cursor:pointer;accent-color:var(--red,#dc2626)}
+.rj-row:has(input:checked){border-color:rgba(220,38,38,.28);background:rgba(220,38,38,.035)}
+.rj-row.done{cursor:default;opacity:.6}
+.rj-row.done:hover{border-color:#e2e8f0;background:transparent}
+.rj-this{cursor:default;background:#f8fafc}
+.rj-this:hover{border-color:#e2e8f0}
+.rj-tick{width:16px;height:16px;border-radius:4px;background:#e2e8f0;color:#64748b;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rj-tick svg{width:10px;height:10px}
+.rj-av{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0}
+.rj-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.rj-txt b{font-size:12.5px;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rj-txt span{font-size:11px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rj-pr{font-size:13px;font-weight:800;color:#0f172a;font-variant-numeric:tabular-nums;flex-shrink:0;min-width:52px;text-align:right}
+.rj-st{font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:100px;flex-shrink:0;white-space:nowrap}
+.rj-st.ap{background:#dcfce7;color:#15803d}.rj-st.rj{background:#fee2e2;color:#b91c1c}.rj-st.np{background:#fef3c7;color:#b45309}.rj-st.nw{background:var(--role-bg,#eef2fd);color:var(--role,#1847d4)}
+.rj-head{display:flex;align-items:center;justify-content:space-between;margin:12px 2px 7px;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8}
+.rj-all{border:0;background:transparent;font-family:var(--font);font-size:11px;font-weight:700;color:var(--role,#1847d4);cursor:pointer;padding:2px 4px;text-transform:none;letter-spacing:0}
+.rj-all:hover{text-decoration:underline}
+.rj-keep{padding:8px 14px;border-radius:9px;border:1px solid #e2e8f0;background:#fff;color:#475569;font-size:12.5px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.rj-keep:hover{background:#f8fafc;border-color:#cbd5e1}
+.sc-rej .rj-go{display:inline-flex;align-items:center;gap:6px;background:var(--red,#dc2626)}
+.sc-rej .rj-go svg{width:13px;height:13px}
+.sc-rej .rj-go:disabled{background:#cbd5e1;cursor:not-allowed}
+.sc-rej .rj-go:focus-visible{outline:3px solid rgba(220,38,38,.25);outline-offset:2px}
 </style>
 
 
@@ -1919,9 +1950,121 @@ async function updateStatus(id,status){
     const{error}=await sb.from('catalog').update({status:status||null,agent:agent||null}).eq('id',id);
     if(error)throw error;
     toast('Status updated','success');
+    // Rejected one line → offer to reject the same EAN at the other suppliers too
+    if(status==='Rejected'&&prev.status!=='Rejected'&&first)scOfferEanReject(first);
   }catch(e){paint(prev.status,prev.agent);scNoteEdit([id],prev.status,prev.agent);scSyncSend({t:'status',ids:[id],status:prev.status,agent:prev.agent});toast('Update failed: '+e.message,'error');}
 }
 
+
+/* ══ REJECT ACROSS SUPPLIERS ══
+   After a line is rejected, list every other supplier with the same EAN (all ticked) so they can be rejected in one click. */
+function scEanVariants(v){const b=normEan(v);if(!b)return[];const out=new Set([String(v).trim(),b]);let x=b;while(x.length<14){x='0'+x;out.add(x);}return[...out];}
+let _scRejSeq=0;
+async function scOfferEanReject(row){
+  const ean=String(row.ean||'').trim();if(!ean)return;
+  const seq=++_scRejSeq;
+  let others=[];
+  try{
+    const{data,error}=await sb.from('catalog').select('id,ean,supplier_id,supplier_name,product_name,cost,status').in('ean',scEanVariants(ean));
+    if(error)throw error;
+    others=(data||[]).filter(r=>String(r.id)!==String(row.id)&&normEan(r.ean)===normEan(ean));
+  }catch(e){console.warn('Other suppliers lookup failed',e);return;}
+  if(seq!==_scRejSeq)return;                         // a newer rejection took over
+  // keep what's on screen in step with the latest local edits
+  others.forEach(r=>{const e=_scEdits.get(String(r.id));if(e)r.status=e.status;});
+  const open=others.filter(r=>r.status!=='Rejected');
+  if(!open.length)return;                            // nothing left to reject
+  others.sort((a,b)=>(a.status==='Rejected')-(b.status==='Rejected')||(parseFloat(a.cost)||1e9)-(parseFloat(b.cost)||1e9));
+  scShowEanReject(row,others);
+}
+function scShowEanReject(row,others){
+  document.getElementById('scRejDlg')?.remove();
+  const ov=document.createElement('div');ov.className='sc-pref-ov';ov.id='scRejDlg';
+  const role=document.getElementById('scRoot');
+  if(role)['--role','--role-bg','--role-bd'].forEach(v=>{const x=role.style.getPropertyValue(v);if(x)ov.style.setProperty(v,x);});
+  const money=v=>{const n=parseFloat(v);return isNaN(n)?'—':'£'+n.toFixed(2);};
+  const badge=st=>st==='Approved'?'<span class="rj-st ap">Approved</span>':st==='Rejected'?'<span class="rj-st rj">Rejected</span>':st==='New price'?'<span class="rj-st np">Price change</span>':st==='New'?'<span class="rj-st nw">New</span>':'';
+  const supName=r=>scPxSupName(r.supplier_id,r.supplier_name);
+  const item=r=>{
+    const done=r.status==='Rejected';
+    const nm=supName(r);const[bg,co]=avColors(nm);
+    return `<label class="rj-row${done?' done':''}" title="${esc(r.product_name||'')}">
+      <input type="checkbox" value="${esc(String(r.id))}"${done?' disabled':' checked'}>
+      <span class="rj-av" style="background:${bg};color:${co}">${esc(initials(nm))}</span>
+      <span class="rj-txt"><b>${esc(nm)}</b><span>${esc(r.product_name||'')}</span></span>
+      ${badge(r.status)}
+      <span class="rj-pr">${money(r.cost)}</span>
+    </label>`;};
+  const open=others.filter(r=>r.status!=='Rejected');
+  const thisName=supName(row);const[tbg,tco]=avColors(thisName);
+  ov.innerHTML=`<div class="sc-pref sc-rej" role="dialog" aria-modal="true">
+    <div class="sc-pref-h"><div><h3>Reject at other suppliers too?</h3><p>${open.length} other supplier${open.length!==1?'s':''} ${open.length!==1?'have':'has'} EAN <span class="rj-ean">${esc(String(row.ean||''))}</span></p></div>
+      <button class="sc-pref-x" data-act="keep" title="Close (Esc)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="sc-pref-b">
+      <div class="rj-row rj-this">
+        <span class="rj-tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        <span class="rj-av" style="background:${tbg};color:${tco}">${esc(initials(thisName))}</span>
+        <span class="rj-txt"><b>${esc(thisName)}</b><span>${esc(row.product_name||'')}</span></span>
+        <span class="rj-st rj">Rejected</span>
+        <span class="rj-pr">${money(row.cost)}</span>
+      </div>
+      <div class="rj-head"><span>Other suppliers</span><button type="button" class="rj-all" data-act="all"></button></div>
+      <div class="rj-list">${others.map(item).join('')}</div>
+    </div>
+    <div class="sc-pref-f">
+      <button type="button" class="rj-keep" data-act="keep">Only this one</button>
+      <button type="button" class="sc-pref-done rj-go" data-act="go"></button>
+    </div>
+  </div>`;
+  const boxes=()=>[...ov.querySelectorAll('.rj-list input:not(:disabled)')];
+  const sync=()=>{
+    const n=boxes().filter(b=>b.checked).length,all=boxes().length;
+    const go=ov.querySelector('.rj-go');go.disabled=!n;
+    go.innerHTML=n?`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject ${n} more`:'Select suppliers to reject';
+    ov.querySelector('.rj-all').textContent=n===all?'Untick all':'Tick all';
+  };
+  const close=()=>{ov.remove();document.removeEventListener('keydown',onKey,true);};
+  const go=async()=>{
+    const ids=boxes().filter(b=>b.checked).map(b=>b.value);if(!ids.length)return;
+    close();
+    const agent=getAgent();
+    const prev=scApplyLocal(ids,'Rejected',agent);
+    scPaintStatus(ids);
+    const tid=toast('Rejecting '+ids.length+'…','loading',0);
+    try{
+      const{error}=await sb.from('catalog').update({status:'Rejected',agent:agent||null}).in('id',ids);
+      if(error)throw error;
+      removeToast(tid);toast(`Rejected at ${ids.length} more supplier${ids.length!==1?'s':''}`,'success');
+    }catch(e){scRestoreLocal(prev);scPaintStatus(ids);removeToast(tid);toast('Failed: '+e.message,'error');}
+  };
+  const onKey=e=>{
+    if(!document.getElementById('scRejDlg'))return;
+    if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close();}
+    else if(e.key==='Enter'&&!e.target.closest('input[type=text],textarea')){e.preventDefault();e.stopPropagation();go();}
+  };
+  ov.addEventListener('click',e=>{
+    const a=e.target.closest('[data-act]')?.dataset.act;
+    if(a==='keep'){close();return;}
+    if(a==='go'){go();return;}
+    if(a==='all'){const b=boxes(),on=!b.every(x=>x.checked);b.forEach(x=>x.checked=on);sync();return;}
+    if(e.target===ov)close();      // click on the dimmed backdrop
+  });
+  ov.addEventListener('change',sync);
+  document.addEventListener('keydown',onKey,true);
+  document.body.appendChild(ov);sync();
+  requestAnimationFrame(()=>{ov.classList.add('open');ov.querySelector('.rj-go')?.focus();});
+}
+// Repaint the status pickers / agent names of rows already on screen
+function scPaintStatus(ids){
+  ids.forEach(id=>{
+    const r=[catalogData,allCatalogData,_acAllData].map(a=>a.find(x=>String(x.id||'')===String(id))).find(Boolean);
+    const st=r?r.status:'Rejected',ag=r?r.agent:'';
+    const cls='sc-status-sel'+(st==='Approved'?' approved':st==='Rejected'?' rejected':'');
+    ['status_','ac_status_'].forEach(p=>{const el=document.getElementById(p+id);if(el){el.value=st||'';el.className=cls;}});
+    ['agent_','ac_agent_'].forEach(p=>{const el=document.getElementById(p+id);if(el){el.textContent=scFirstName(ag);el.title=ag||'';}});
+  });
+  scRefreshStats();
+}
 
 let _catSrcStartTime=null;
 let _catSrcTimerInterval=null;
@@ -3144,6 +3287,7 @@ function scKbFlash(box,id){
 }
 function scKbBlocked(){
   if(document.querySelector('#scCatSourcingModal.open,#scConfirmOverlay.open,#scDownloadOverlay.open,#scImportDrawer.open,#scEditDrawer.open,#gwPanel.open'))return true;
+  if(document.getElementById('scRejDlg'))return true;
   if(typeof dropdownOpen!=='undefined'&&dropdownOpen)return true;
   if(typeof window.pgTourActive==='function'&&window.pgTourActive())return true;
   return false;
