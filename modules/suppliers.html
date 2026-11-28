@@ -146,8 +146,13 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .px-offpop-hd svg{width:12px;height:12px}
 .px-offpop-hd span{margin-left:auto;font-size:10px;font-weight:600;letter-spacing:0;text-transform:none;color:#94a3b8}
 .px-offpop-list{max-height:220px;overflow-y:auto}
-.px-offpop-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;font-size:12px;color:#334155}
+.px-offpop-row{display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;border:0;background:transparent;border-radius:7px;font-size:12px;color:#334155;font-family:inherit;text-align:left}
+.px-offpop-row[data-oid]{cursor:pointer}
+.px-offpop-row .go{width:12px;height:12px;color:#cbd5e1;flex-shrink:0;transition:transform .15s,color .15s}
+.px-offpop-row[data-oid]:hover .go{color:var(--role,#1847d4);transform:translateX(2px)}
+.px-offpop-ft{border-top:1px solid #f1f5f9;margin-top:4px;padding:7px 8px 3px;font-size:10.5px;color:#94a3b8}
 .px-offpop-row:hover{background:#f8fafc}
+.px-offpop-row[data-oid]:hover{background:var(--role-bg,#eef2fd)}
 .px-offpop-row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .px-offpop-row .pr{font-weight:800;color:#0f172a;font-variant-numeric:tabular-nums}
 .px-offpop-row .df{font-size:10.5px;font-weight:700;color:#059669;background:#ecfdf5;border-radius:5px;padding:1px 5px;font-variant-numeric:tabular-nums}
@@ -645,7 +650,17 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sc-pxg-step i{font-style:normal;display:inline-block;width:17px;height:17px;border-radius:50%;background:var(--role,#1847d4);color:#fff;font-size:10px;font-weight:800;text-align:center;line-height:17px;margin-right:5px}
 .sc-pxg-arrow{display:flex;align-items:center;color:#cbd5e1;font-size:13px}
 .sc-pxg-h{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;margin:4px 2px 8px}
-.sc-pxg-card{border:1px solid #e2e8f0;border-radius:12px;padding:11px 12px;margin-bottom:8px}
+.sc-pxg-card{border:1px solid #e2e8f0;border-radius:12px;margin-bottom:8px;overflow:hidden;transition:border-color .15s,box-shadow .15s}
+.sc-pxg-card.open{border-color:#cbd5e1;box-shadow:0 2px 8px rgba(15,23,42,.05)}
+.sc-pxg-hd{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border:0;background:#fff;cursor:pointer;text-align:left;font-family:var(--font)}
+.sc-pxg-hd:hover{background:#f8fafc}
+.sc-pxg-hd .sc-pxg-ttl{flex:1;margin:0}
+.sc-pxg-chev{width:14px;height:14px;color:#94a3b8;flex-shrink:0;transition:transform .2s}
+.sc-pxg-card.open .sc-pxg-chev{transform:rotate(180deg);color:var(--role,#1847d4)}
+.sc-pxg-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .22s cubic-bezier(.4,0,.2,1)}
+.sc-pxg-card.open .sc-pxg-body{grid-template-rows:1fr}
+.sc-pxg-in{overflow:hidden;min-height:0;padding:0 12px}
+.sc-pxg-card.open .sc-pxg-in{padding-bottom:12px}
 .sc-pxg-card .sc-px{margin:0 0 7px;padding:6px 8px;background:#f8fafc;border-radius:8px;overflow:visible}
 .sc-pxg-card .sc-px .px-offbtn{cursor:default}
 .sc-pxg-ttl{font-size:12.5px;font-weight:800;color:#0f172a;margin-bottom:3px}
@@ -1027,13 +1042,13 @@ function initials(n){const p=(n||'?').trim().split(/\s+/);return p.length>=2?(p[
 
 async function loadOffersForCatalog(){
   try{
-    const{data}=await sb.from('offers').select('ean,supplier_name,cost_of_unit').not('ean','is',null).not('cost_of_unit','is',null);
+    const{data}=await sb.from('offers').select('id,ean,supplier_name,cost_of_unit').not('ean','is',null).not('cost_of_unit','is',null);
     _catalogOffersMap=makeEanMap();
     (data||[]).forEach(r=>{
       const k=String(r.ean||'').trim();
       if(!k)return;
       if(!_catalogOffersMap[k])_catalogOffersMap[k]=[];
-      _catalogOffersMap[k].push({name:r.supplier_name||'',cost:r.cost_of_unit});
+      _catalogOffersMap[k].push({id:r.id,name:r.supplier_name||'',cost:r.cost_of_unit});
     });
   }catch(e){console.warn('Could not load offers for catalog',e);}
   if(typeof scPxRepaint==='function')scPxRepaint();
@@ -3191,7 +3206,15 @@ function scPxHtml(el){
   return offBtn+parts.join('<span class="px-sep">·</span>');
 }
 function scPxOffers(ean,cost){
-  return (_catalogOffersMap[ean]||[]).map(o=>({name:o.name||'Unknown',cost:parseFloat(o.cost)})).filter(o=>!isNaN(o.cost)&&(isNaN(cost)||o.cost<cost)).sort((a,b)=>a.cost-b.cost);
+  return (_catalogOffersMap[ean]||[]).map(o=>({id:o.id,name:o.name||'Unknown',cost:parseFloat(o.cost)})).filter(o=>!isNaN(o.cost)&&(isNaN(cost)||o.cost<cost)).sort((a,b)=>a.cost-b.cost);
+}
+// Open a specific offer on the Offers page (its drawer opens once the page has loaded)
+async function scGoToOffer(id){
+  scPxOfferClose();
+  if(typeof window.loadModule!=='function'){toast('Offers page is not available here','error');return;}
+  window.__openOfferId=String(id);
+  await window.loadModule('offers');
+  if(sessionStorage.getItem('currentPage')!=='offers'){window.__openOfferId=null;toast("You don't have access to the Offers page",'error');}
 }
 function scPxOfferClose(){
   document.getElementById('pxOffPop')?.remove();
@@ -3212,7 +3235,9 @@ function scPxOfferToggle(e,btn){
   pop.addEventListener('pointerdown',ev=>ev.stopPropagation());
   pop.addEventListener('click',ev=>ev.stopPropagation());
   pop.innerHTML=`<div class="px-offpop-hd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Cheaper offers<span>${isNaN(cost)?'':'vs £'+cost.toFixed(2)}</span></div>
-    <div class="px-offpop-list">${offers.map(o=>`<div class="px-offpop-row"><span class="nm" title="${esc(o.name)}">${esc(o.name)}</span><span class="pr">£${o.cost.toFixed(2)}</span>${isNaN(cost)?'':`<span class="df">−£${(cost-o.cost).toFixed(2)}</span>`}</div>`).join('')}</div>`;
+    <div class="px-offpop-list">${offers.map(o=>`<button type="button" class="px-offpop-row"${o.id!=null?` data-oid="${esc(String(o.id))}" title="Open this offer on the Offers page"`:''}><span class="nm">${esc(o.name)}</span><span class="pr">£${o.cost.toFixed(2)}</span>${isNaN(cost)?'':`<span class="df">−£${(cost-o.cost).toFixed(2)}</span>`}<svg class="go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>`).join('')}</div>
+    <div class="px-offpop-ft">Click an offer to open it on the Offers page</div>`;
+  pop.querySelectorAll('.px-offpop-row[data-oid]').forEach(b=>b.addEventListener('click',()=>scGoToOffer(b.dataset.oid)));
   document.body.appendChild(pop);
   btn.classList.add('open');
   const r=btn.getBoundingClientRect(),pw=pop.offsetWidth,ph=pop.offsetHeight;
@@ -3457,7 +3482,11 @@ function scOpenPriceGuide(){
   const ov=document.createElement('div');ov.className='sc-pref-ov';ov.id='scPrefDlg';
   const role=document.getElementById('scRoot');
   if(role)['--role','--role-bg','--role-bd'].forEach(v=>{const x=role.style.getPropertyValue(v);if(x)ov.style.setProperty(v,x);});
-  const card=(line,title,txt,eg)=>`<div class="sc-pxg-card"><div class="sc-px">${line}</div><div class="sc-pxg-ttl">${title}</div><div class="sc-pxg-txt">${txt}</div>${eg?`<div class="sc-pxg-eg">${eg}</div>`:''}</div>`;
+  let _n=0;
+  const card=(line,title,txt,eg)=>{const open=_n++===0;return `<div class="sc-pxg-card${open?' open':''}">
+      <button type="button" class="sc-pxg-hd" aria-expanded="${open}"><span class="sc-pxg-ttl">${title}</span><svg class="sc-pxg-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <div class="sc-pxg-body"><div class="sc-pxg-in"><div class="sc-px">${line}</div><div class="sc-pxg-txt">${txt}</div>${eg?`<div class="sc-pxg-eg">${eg}</div>`:''}</div></div>
+    </div>`;};
   ov.innerHTML=`<div class="sc-pref sc-pxg" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
     <div class="sc-pref-h"><div><h3>How prices are compared</h3><p>What the line under each product name means.</p></div>
       <button class="sc-pref-x" onclick="scClosePrefs()" title="Close (Esc)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
@@ -3479,12 +3508,18 @@ function scOpenPriceGuide(){
         'No other supplier has this EAN in their catalog, so there is nothing to compare against.','')}
       ${card(`<button type="button" class="px-offbtn" tabindex="-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>2</button><span class="px-goodt">Cheapest: <span class="px-good">£</span></span>`,
         'Cheaper offers',
-        'The tag appears when an <b>Offer</b> (from the Offers page) for the same EAN costs <b>less than this supplier\'s price</b>. The number shows how many there are. Click the tag to see each offer, its price and how much less it is.','')}
+        'The tag appears when an <b>Offer</b> (from the Offers page) for the same EAN costs <b>less than this supplier\'s price</b>. The number shows how many there are. Click the tag to see each offer, its price and how much less it is — then click an offer to open it on the Offers page.','')}
       <div class="sc-pxg-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg><span>Cheapest, Next, Joint cheapest and Cheaper only compare <b>catalog</b> prices. Offers never change them — they only show as the tag.</span></div>
     </div>
     <div class="sc-pref-f"><button class="sc-pref-done" onclick="scClosePrefs()">Got it</button></div>
   </div>`;
   ov.addEventListener('click',scClosePrefs);
+  // one section open at a time
+  ov.querySelectorAll('.sc-pxg-hd').forEach(h=>h.addEventListener('click',()=>{
+    const card=h.closest('.sc-pxg-card'),willOpen=!card.classList.contains('open');
+    ov.querySelectorAll('.sc-pxg-card').forEach(c=>{c.classList.remove('open');c.querySelector('.sc-pxg-hd').setAttribute('aria-expanded','false');});
+    if(willOpen){card.classList.add('open');h.setAttribute('aria-expanded','true');}
+  }));
   document.body.appendChild(ov);
   requestAnimationFrame(()=>ov.classList.add('open'));
 }
