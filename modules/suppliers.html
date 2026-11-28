@@ -220,6 +220,9 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sc-right-title-icon{width:32px;height:32px;border-radius:9px;background:var(--accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .sc-right-title-icon svg{width:15px;height:15px;color:var(--accent)}
 .sc-right-title-text{font-size:13.5px;font-weight:800;color:var(--text);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.sc-title-n{flex-shrink:0;display:inline-flex;align-items:baseline;gap:4px;padding:3px 10px;border-radius:100px;background:var(--role-bg,#eef2fd);color:var(--role,#1847d4);font-size:11.5px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sc-title-n b{font-weight:800;font-size:12px}
+.sc-title-n i{font-style:normal;opacity:.7}
 .sc-right-title-count{font-size:11px;font-weight:700;background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-bd);padding:2px 9px;border-radius:100px;flex-shrink:0;}
 
 .sc-hdr-btn{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--surface2);font-size:11.5px;font-weight:700;font-family:var(--font);color:var(--text3);cursor:pointer;transition:all .15s;flex-shrink:0;white-space:nowrap;}
@@ -1033,6 +1036,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
         </div>
         <div class="sc-right-title-text" id="scCatTitle">Catalog</div>
+        <span class="sc-title-n" id="scTitleN" style="display:none"></span>
       </div>
       <div class="sc-right-title-count" id="scCatCount" style="display:none">0 products</div>
       <button class="sc-hdr-btn sc-role-soft" onclick="openAllCatalog()">
@@ -1815,6 +1819,7 @@ async function doDeleteSupplier(sid){
       document.getElementById('scSupFilterVal').textContent='Select a supplier…';
       scSetPickerAvatar(null);
       document.getElementById('scCatTitle').textContent='Catalog';
+      document.getElementById('scTitleN').style.display='none';
       document.getElementById('scSupCard').innerHTML='<div class="sc-left-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><p>Select a supplier</p></div>';
       document.getElementById('scCatContent').innerHTML='<div class="sc-state"><p>Select a supplier</p></div>';
       document.getElementById('scCatCount').style.display='none';
@@ -4098,9 +4103,22 @@ function scAcSorted(){
 let _scAnimSup=null;
 
 // Re-apply current-row box and counts after every table render
+// Count next to "Supplier — Catalog": what the current search / status / filters show, out of the catalog's total
+function scUpdateTitleCount(){
+  const el=document.getElementById('scTitleN');if(!el)return;
+  if(!currentSupId||document.querySelector('#scCatContent .sc-spin')){el.style.display='none';return;}
+  const total=scVisible(catalogData).length;
+  const n=getFiltered().length;
+  const narrowed=n!==total;
+  const f=x=>x.toLocaleString();
+  el.innerHTML=narrowed?`<b>${f(n)}</b><i>of ${f(total)}</i>`:`<b>${f(total)}</b><i>product${total!==1?'s':''}</i>`;
+  el.title=narrowed?`${f(n)} shown with the current search / filters, out of ${f(total)} products`:`${f(total)} products in this catalog`;
+  el.style.display='';
+}
 const _scRenderCatalog=renderCatalog;
 renderCatalog=function(){
   _scRenderCatalog.apply(this,arguments);
+  scUpdateTitleCount();
   const tbl=document.querySelector('#scCatContent .sc-cat-table');
   if(tbl){if(_scAnimSup===currentSupId)tbl.classList.add('no-anim');else _scAnimSup=currentSupId;}
   scRefreshStats();scKbReapply('cat');
