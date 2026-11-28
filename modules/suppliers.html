@@ -134,6 +134,21 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sc-px .px-off{color:var(--text3,#64748b);overflow:hidden;text-overflow:ellipsis}
 .sc-px .px-off b{color:var(--text2,#334155)}
 .sc-px .px-next{color:#b45309;overflow:hidden;text-overflow:ellipsis}
+.sc-px .px-offbtn{display:inline-flex;align-items:center;gap:3px;height:17px;padding:0 5px;border-radius:5px;border:1px solid #ddd6fe;background:#f5f3ff;color:#7c3aed;cursor:pointer;flex-shrink:0;font-family:inherit;font-size:10px;font-weight:800;line-height:1;transition:background .15s,border-color .15s,box-shadow .15s}
+.sc-px .px-offbtn svg{width:11px;height:11px}
+.sc-px .px-offbtn:hover,.sc-px .px-offbtn.open{background:#ede9fe;border-color:#c4b5fd;box-shadow:0 0 0 3px rgba(124,58,237,.10)}
+.px-offpop{position:fixed;z-index:9800;min-width:220px;max-width:300px;background:#fff;border:1px solid #e2e8f0;border-radius:11px;box-shadow:0 14px 34px rgba(15,23,42,.16);padding:6px;animation:pxPopIn .14s ease both;font-family:inherit}
+@keyframes pxPopIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+.px-offpop-hd{display:flex;align-items:center;gap:6px;padding:6px 8px 7px;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.55px;color:#7c3aed}
+.px-offpop-hd svg{width:12px;height:12px}
+.px-offpop-hd span{margin-left:auto;font-size:10px;font-weight:600;letter-spacing:0;text-transform:none;color:#94a3b8}
+.px-offpop-list{max-height:220px;overflow-y:auto}
+.px-offpop-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;font-size:12px;color:#334155}
+.px-offpop-row:hover{background:#f8fafc}
+.px-offpop-row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.px-offpop-row .pr{font-weight:800;color:#0f172a;font-variant-numeric:tabular-nums}
+.px-offpop-row .df{font-size:10.5px;font-weight:700;color:#059669;background:#ecfdf5;border-radius:5px;padding:1px 5px;font-variant-numeric:tabular-nums}
+.px-offpop-row:first-child .nm::after{content:'Best';margin-left:6px;font-size:9px;font-weight:800;color:#7c3aed;background:#f5f3ff;border-radius:4px;padding:1px 5px;vertical-align:1px}
 .sc-px .px-next b{font-weight:700}
 .sc-px .px-gap{display:inline-flex;align-items:center;height:16px;padding:0 5px;margin-left:3px;border-radius:5px;background:#fef3c7;color:#b45309;font-weight:700;font-size:10.5px}
 .sc-ean-none .ean-copy{cursor:inherit}
@@ -3128,13 +3143,47 @@ function scPxHtml(el){
     }
     else parts.push(`<span class="px-bad" title="Cheapest in All Catalog">Cheaper: ${esc(best.name)} <b>£${best.cost.toFixed(2)}</b></span>`);
   }
-  const offers=(_catalogOffersMap[ean]||[]).map(o=>({name:o.name||'Unknown',cost:parseFloat(o.cost)})).filter(o=>!isNaN(o.cost)&&(isNaN(cost)||o.cost<cost)).sort((a,b)=>a.cost-b.cost);
-  if(offers.length){
-    const o=offers[0],more=offers.length-1;
-    parts.push(`<span class="px-off" title="${esc(offers.map(x=>x.name+' £'+x.cost.toFixed(2)).join('\n'))}">Offer: ${esc(o.name)} <b>£${o.cost.toFixed(2)}</b>${more?` +${more}`:''}</span>`);
-  }
-  return parts.join('<span class="px-sep">·</span>');
+  // Cheaper Offers: a small icon first on the line; clicking it reveals the prices
+  const offers=scPxOffers(ean,cost);
+  const offBtn=offers.length?`<button type="button" class="px-offbtn" title="${offers.length} cheaper offer${offers.length!==1?'s':''} · click to see" aria-label="Show cheaper offers" onpointerdown="event.stopPropagation()" onclick="scPxOfferToggle(event,this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>${offers.length>1?offers.length:''}</button>`:'';
+  return offBtn+parts.join('<span class="px-sep">·</span>');
 }
+function scPxOffers(ean,cost){
+  return (_catalogOffersMap[ean]||[]).map(o=>({name:o.name||'Unknown',cost:parseFloat(o.cost)})).filter(o=>!isNaN(o.cost)&&(isNaN(cost)||o.cost<cost)).sort((a,b)=>a.cost-b.cost);
+}
+function scPxOfferClose(){
+  document.getElementById('pxOffPop')?.remove();
+  document.querySelectorAll('.px-offbtn.open').forEach(b=>b.classList.remove('open'));
+}
+function scPxOfferToggle(e,btn){
+  e.stopPropagation();e.preventDefault();
+  const wasOpen=btn.classList.contains('open');
+  scPxOfferClose();
+  if(wasOpen)return;
+  const box=btn.closest('.sc-px');if(!box)return;
+  const cost=parseFloat(box.dataset.cost);
+  const offers=scPxOffers(box.dataset.ean,cost);if(!offers.length)return;
+  const pop=document.createElement('div');
+  pop.id='pxOffPop';pop.className='px-offpop';
+  pop.addEventListener('pointerdown',ev=>ev.stopPropagation());
+  pop.addEventListener('click',ev=>ev.stopPropagation());
+  pop.innerHTML=`<div class="px-offpop-hd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Cheaper offers<span>${isNaN(cost)?'':'vs £'+cost.toFixed(2)}</span></div>
+    <div class="px-offpop-list">${offers.map(o=>`<div class="px-offpop-row"><span class="nm" title="${esc(o.name)}">${esc(o.name)}</span><span class="pr">£${o.cost.toFixed(2)}</span>${isNaN(cost)?'':`<span class="df">−£${(cost-o.cost).toFixed(2)}</span>`}</div>`).join('')}</div>`;
+  document.body.appendChild(pop);
+  btn.classList.add('open');
+  const r=btn.getBoundingClientRect(),pw=pop.offsetWidth,ph=pop.offsetHeight;
+  let left=Math.min(r.left,window.innerWidth-pw-8),top=r.bottom+6;
+  if(top+ph>window.innerHeight-8)top=Math.max(8,r.top-ph-6);
+  pop.style.left=Math.max(8,left)+'px';pop.style.top=top+'px';
+}
+if(window._pxOffClose){document.removeEventListener('pointerdown',window._pxOffClose,true);window.removeEventListener('scroll',window._pxOffClose,true);window.removeEventListener('resize',window._pxOffClose);document.removeEventListener('keydown',window._pxOffKey);}
+window._pxOffClose=e=>{if(e&&e.target&&e.target.closest&&(e.target.closest('#pxOffPop')||e.target.closest('.px-offbtn')))return;scPxOfferClose();};
+window._pxOffKey=e=>{if(e.key==='Escape')scPxOfferClose();};
+document.addEventListener('pointerdown',window._pxOffClose,true);
+window.addEventListener('scroll',window._pxOffClose,true);
+window.addEventListener('resize',window._pxOffClose);
+document.addEventListener('keydown',window._pxOffKey);
+window.scPxOfferToggle=scPxOfferToggle;
 function scPxPaint(root){
   const els=[...(root||document).querySelectorAll('.sc-px:not([data-done])')];if(!els.length)return;
   const missing=new Set();
