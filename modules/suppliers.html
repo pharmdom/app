@@ -133,6 +133,9 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sc-px .px-sep{color:var(--border,#e2e8f0)}
 .sc-px .px-off{color:var(--text3,#64748b);overflow:hidden;text-overflow:ellipsis}
 .sc-px .px-off b{color:var(--text2,#334155)}
+.sc-px .px-next{color:#b45309;overflow:hidden;text-overflow:ellipsis}
+.sc-px .px-next b{font-weight:700}
+.sc-px .px-gap{display:inline-flex;align-items:center;height:16px;padding:0 5px;margin-left:3px;border-radius:5px;background:#fef3c7;color:#b45309;font-weight:700;font-size:10.5px}
 .sc-ean-none .ean-copy{cursor:inherit}
 .sc-ean-none .ean-copy:hover{color:var(--text3);background:transparent}
 .sc-ean-google .ean-copy{cursor:pointer;text-decoration:underline;text-decoration-color:rgba(100,116,139,.45);text-decoration-thickness:1px;text-underline-offset:3px}
@@ -3109,7 +3112,20 @@ function scPxHtml(el){
   if(!others.length)parts.push(`<span class="px-none">Unavailable in All Catalog</span>`);
   else{
     const best=others.reduce((a,b)=>b.cost<a.cost?b:a);
-    if(!isNaN(cost)&&cost<=best.cost)parts.push(`<span class="px-goodt" title="Cheapest in All Catalog · next: ${esc(best.name)} £${best.cost.toFixed(2)}">Cheapest: <span class="px-good">£</span></span>`);
+    const same=(a,b)=>Math.abs(a-b)<0.005;
+    const namesAt=c=>[...new Set(others.filter(x=>same(x.cost,c)).map(x=>x.name))];
+    const joinNames=n=>n.length<=2?n.join(' & '):n.slice(0,2).join(', ')+` +${n.length-2}`;
+    if(!isNaN(cost)&&same(cost,best.cost)){
+      // Joint cheapest: name the other supplier(s) on the same price
+      const n=namesAt(best.cost);
+      parts.push(`<span class="px-goodt" title="Joint cheapest in All Catalog with ${esc(n.join(', '))}">Joint cheapest <span class="px-good">£</span></span>`);
+      parts.push(`<span class="px-next" title="${esc(n.join('\n'))}">also ${esc(joinNames(n))} <b>£${best.cost.toFixed(2)}</b></span>`);
+    }else if(!isNaN(cost)&&cost<best.cost){
+      // Cheapest: show the runner-up and how much more they charge
+      const n=namesAt(best.cost);
+      parts.push(`<span class="px-goodt" title="Cheapest in All Catalog">Cheapest: <span class="px-good">£</span></span>`);
+      parts.push(`<span class="px-next" title="Next cheapest: ${esc(n.join(', '))} £${best.cost.toFixed(2)}">Next: ${esc(joinNames(n))} <b>£${best.cost.toFixed(2)}</b><span class="px-gap">+£${(best.cost-cost).toFixed(2)}</span></span>`);
+    }
     else parts.push(`<span class="px-bad" title="Cheapest in All Catalog">Cheaper: ${esc(best.name)} <b>£${best.cost.toFixed(2)}</b></span>`);
   }
   const offers=(_catalogOffersMap[ean]||[]).map(o=>({name:o.name||'Unknown',cost:parseFloat(o.cost)})).filter(o=>!isNaN(o.cost)&&(isNaN(cost)||o.cost<cost)).sort((a,b)=>a.cost-b.cost);
