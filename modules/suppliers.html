@@ -756,6 +756,11 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sc-flt-mm input{flex:1;min-width:0;width:100%;border:0;background:transparent;outline:none;font-family:inherit;font-size:12.5px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
 .sc-flt-mm input::-webkit-outer-spin-button,.sc-flt-mm input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .sc-flt-tog{display:flex;align-items:center;gap:12px;cursor:pointer}
+.sc-flt-tog-off{margin-top:12px;padding-top:12px;border-top:1px dashed #eef1f5}
+.sc-flt-offic{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-right:6px;border-radius:5px;background:var(--role-bg,#eef2fd);border:1px solid var(--role-bd,#c7d2fe);color:var(--role,#1847d4);vertical-align:-4px}
+.sc-flt-offic svg{width:10px;height:10px}
+.sc-flt-offic svg path{fill:currentColor}
+.sc-flt-offic svg line{stroke:#fff;stroke-width:3.2}
 .sc-flt-tog-t{flex:1;display:flex;flex-direction:column;gap:2px}
 .sc-flt-tog-t b{font-size:12.5px;font-weight:700;color:#0f172a}
 .sc-flt-tog-t span{font-size:11px;color:#94a3b8;line-height:1.35}
@@ -1153,6 +1158,10 @@ async function loadOffersForCatalog(){
     });
   }catch(e){console.warn('Could not load offers for catalog',e);}
   if(typeof scPxRepaint==='function')scPxRepaint();
+  try{
+    if(_scF.cat.offers&&currentSupId)renderCatalog();
+    if(_scF.ac.offers&&document.getElementById('scAllCatOverlay')?.classList.contains('open'))renderAllCatalog();
+  }catch(_){}
 }
   
 /* ── PROGRESS BAR ── */
@@ -1854,6 +1863,7 @@ function getFiltered(){
     }
     if(!scFltPriceOk('cat',r))return false;
     if(_scF.cat.cheap&&!scIsCheapestHere(r))return false;
+    if(_scF.cat.offers&&!scHasOffer(r))return false;
     return true;
   });
 }
@@ -3772,7 +3782,9 @@ window.scOpenPriceGuide=scOpenPriceGuide;
 
 /* ══ FILTERS: price range + cheapest ══
    cat = a supplier's catalog, ac = All Catalog. Cheapest compares catalog prices only (offers still show as the tag). */
-const _scF={cat:{min:null,max:null,cheap:false},ac:{min:null,max:null,cheap:false}};
+const _scF={cat:{min:null,max:null,cheap:false,offers:false},ac:{min:null,max:null,cheap:false,offers:false}};
+// Has a cheaper offer = the line shows the offer tag
+function scHasOffer(r){const e=String(r.ean||'').trim();return !!e&&scPxOffers(e,parseFloat(r.cost)).length>0;}
 const _scPxTried=new Set();   // EANs already asked for (so a failed lookup isn't retried in a loop)
 function scFltCost(r){const n=parseFloat(getCatalogEffectiveCost(r));return isNaN(n)?null:n;}
 function scFltPriceOk(v,r){
@@ -3782,8 +3794,8 @@ function scFltPriceOk(v,r){
   if(f.max!=null&&c>f.max+1e-9)return false;
   return true;
 }
-function scFltActive(v){const f=_scF[v];return f.cheap||f.min!=null||f.max!=null;}
-function scFltCount(v){const f=_scF[v];return (f.cheap?1:0)+((f.min!=null||f.max!=null)?1:0);}
+function scFltActive(v){const f=_scF[v];return f.cheap||f.offers||f.min!=null||f.max!=null;}
+function scFltCount(v){const f=_scF[v];return (f.cheap?1:0)+(f.offers?1:0)+((f.min!=null||f.max!=null)?1:0);}
 // Supplier view: cheapest or joint cheapest here, or nobody else stocks it
 function scCatMissingPrices(){
   const out=new Set();catalogData.forEach(r=>{const e=String(r.ean||'').trim();if(e&&_scPx[e]===undefined&&!_scPxWait.has(normEan(e))&&!_scPxTried.has(normEan(e)))out.add(e);});
@@ -3825,7 +3837,7 @@ function scFltSyncBtn(v){
   if(b)b.classList.toggle('on',n>0);
   if(c){c.textContent=n||'';c.style.display=n?'':'none';}
 }
-function scFltClear(v){_scF[v]={min:null,max:null,cheap:false};const pop=document.getElementById('scFltPop');if(pop&&pop.dataset.v===v){pop.remove();scToggleFilters(null,v);}scFltRender(v);}
+function scFltClear(v){_scF[v]={min:null,max:null,cheap:false,offers:false};const pop=document.getElementById('scFltPop');if(pop&&pop.dataset.v===v){pop.remove();scToggleFilters(null,v);}scFltRender(v);}
 function scFltPaintCount(v){
   const el=document.getElementById('scFltShow');if(!el)return;
   const n=v==='cat'?getFiltered().length:scAcFiltered().length;
@@ -3878,6 +3890,10 @@ function scToggleFilters(e,v){
         <span class="sc-flt-tog-t"><b>${v==='cat'?'Only where this supplier is cheapest':'Only the cheapest supplier per EAN'}</b><span>${v==='cat'?'Includes joint cheapest and lines only this supplier has':'One row per EAN — joint cheapest shows once'}</span></span>
         <input type="checkbox" id="scFltCheap"${f.cheap?' checked':''}><span class="sc-flt-sw"></span>
       </label>
+      <label class="sc-flt-tog sc-flt-tog-off">
+        <span class="sc-flt-tog-t"><b><span class="sc-flt-offic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span>Only with cheaper offers</b><span>Lines showing the offer tag</span></span>
+        <input type="checkbox" id="scFltOffers"${f.offers?' checked':''}><span class="sc-flt-sw"></span>
+      </label>
     </div>
     <div class="sc-flt-foot"><span id="scFltShow"></span><button type="button" class="sc-flt-clear" data-act="clear">Clear all</button></div>`;
   document.body.appendChild(pop);
@@ -3913,10 +3929,11 @@ function scToggleFilters(e,v){
   [loI,hiI].forEach(x=>x.addEventListener('pointerdown',()=>{loI.style.zIndex=x===loI?3:2;hiI.style.zIndex=x===hiI?3:2;}));
   mnI.addEventListener('input',fromBox);mxI.addEventListener('input',fromBox);
   pop.querySelector('#scFltCheap').addEventListener('change',ev=>{_scF[v].cheap=ev.target.checked;scFltRender(v);});
+  pop.querySelector('#scFltOffers').addEventListener('change',ev=>{_scF[v].offers=ev.target.checked;scFltRender(v);});
   pop.addEventListener('click',ev=>{
     const a=ev.target.closest('[data-act]')?.dataset.act;
     if(a==='rp'){_scF[v].min=null;_scF[v].max=null;loI.value=0;hiI.value=FLT_N;mnI.value='';mxI.value='';paint();scFltRender(v);}
-    if(a==='clear'){_scF[v]={min:null,max:null,cheap:false};loI.value=0;hiI.value=FLT_N;mnI.value='';mxI.value='';pop.querySelector('#scFltCheap').checked=false;paint();scFltRender(v);}
+    if(a==='clear'){_scF[v]={min:null,max:null,cheap:false,offers:false};loI.value=0;hiI.value=FLT_N;mnI.value='';mxI.value='';pop.querySelector('#scFltCheap').checked=false;pop.querySelector('#scFltOffers').checked=false;paint();scFltRender(v);}
   });
   pop.addEventListener('pointerdown',ev=>ev.stopPropagation());
   paint();scFltPaintCount(v);
@@ -3945,6 +3962,7 @@ function scAcApply(rows){
   let out=(_scHide.brand||_scHide.cat)?rows.filter(r=>!scIsHidden(r)):rows;
   if(q)out=out.filter(r=>(String(r.ean||'')+' '+String(r.product_name||'')+' '+String(r.supplier_name||'')).toLowerCase().includes(q));
   if(_scF.ac.cheap){const keep=scAcCheapestSet();out=out.filter(r=>keep.has(r));}
+  if(_scF.ac.offers)out=out.filter(scHasOffer);
   if(_scF.ac.min!=null||_scF.ac.max!=null)out=out.filter(r=>scFltPriceOk('ac',r));
   return out;
 }
