@@ -33,6 +33,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sc-sup-filter:hover{border-color:#cbd5e1}
 .sc-sup-filter-icon{width:28px;height:28px;border-radius:7px;background:#eef2fd;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .sc-sup-filter-icon svg{width:14px;height:14px;color:#1847d4}
+.sc-sup-filter-icon.is-av{font-size:10.5px;font-weight:800;letter-spacing:.2px;box-shadow:0 1px 3px rgba(15,23,42,.08)}
 .sc-sup-filter-text{flex:1;min-width:0}
 .sc-sup-filter-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#94a3b8;margin-bottom:1px}
 .sc-sup-filter-value{font-size:12.5px;font-weight:700;color:#0f172a;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
@@ -62,7 +63,17 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
 .sc-sup-card::-webkit-scrollbar{width:3px}
 .sc-sup-card::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
 
-.sc-sup-hero{display:flex;align-items:center;gap:12px;margin-bottom:16px;animation:fadeSlideUp .3s ease both;}
+.sc-sup-hero{display:flex;align-items:center;gap:10px;margin:2px 0 10px;animation:fadeSlideUp .3s ease both;}
+.sc-sup-upd{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:5px 10px 5px 8px;border-radius:100px;background:var(--role-bg,#eef2fd);color:var(--role,#1847d4);font-size:11px;line-height:1;white-space:nowrap;overflow:hidden}
+.sc-sup-upd svg{width:12px;height:12px;flex-shrink:0;opacity:.85}
+.sc-sup-upd .k{font-weight:600;opacity:.75}
+.sc-sup-upd .v{font-weight:800;overflow:hidden;text-overflow:ellipsis}
+.sc-sup-upd.none{background:#f1f5f9;color:#94a3b8}
+.sc-sup-upd.none .v{font-weight:600}
+/* supplier ⋮: just the dots, in the role colour */
+#scSupActionBtn{width:28px;height:28px;background:transparent;border:0;border-radius:7px;color:var(--role,#1847d4);box-shadow:none}
+#scSupActionBtn svg{width:16px;height:16px;stroke-width:3}
+#scSupActionBtn:hover,#scSupActionBtn.open{background:var(--role-bg,#eef2fd);color:var(--role,#1847d4)}
 @keyframes fadeSlideUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 .sc-sup-av-lg{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;box-shadow:0 2px 6px rgba(15,23,42,.08);}
 .sc-sup-hero-info{flex:1;min-width:0}
@@ -904,7 +915,7 @@ html,body{font-family:var(--font);font-size:14px;color:var(--text);background:va
     <div class="sc-left-inner">
       <div class="sc-left-top">
         <div class="sc-sup-filter" id="scSupFilter" onclick="toggleSupDropdown()">
-          <div class="sc-sup-filter-icon">
+          <div class="sc-sup-filter-icon" id="scSupFilterIcon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
           <div class="sc-sup-filter-text">
@@ -1154,6 +1165,7 @@ async function selectSupplier(sid){
   const s=allSuppliers.find(x=>x.supplier_id===sid);
   if(!s)return;
   document.getElementById('scSupFilterVal').textContent=s.name||'Unknown';
+  scSetPickerAvatar(s.name||'Unknown');
   document.getElementById('scCatTitle').textContent=(s.name||'Supplier')+' — Catalog';
   renderSupplierCard(s);
   renderSupDropdown();
@@ -1195,6 +1207,15 @@ async function selectSupplier(sid){
   cnt.innerHTML=scStatsHtml(scVisible(catalogData));
 }
 
+/* Picker icon: the selected supplier's initials avatar (people icon when none is selected) */
+const SC_PICKER_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+function scSetPickerAvatar(name){
+  const ic=document.getElementById('scSupFilterIcon');if(!ic)return;
+  if(!name){ic.className='sc-sup-filter-icon';ic.removeAttribute('style');ic.innerHTML=SC_PICKER_ICON;return;}
+  const [bg,color]=avColors(name);
+  ic.className='sc-sup-filter-icon is-av';ic.style.background=bg;ic.style.color=color;ic.textContent=initials(name);
+}
+
 /* ── SUPPLIER CARD ── */
 function renderSupplierCard(s){
   const name=s.name||'Unknown';
@@ -1206,11 +1227,7 @@ function renderSupplierCard(s){
   const hero=document.createElement('div');
   hero.className='sc-sup-hero';
   hero.innerHTML=`
-    <div class="sc-sup-av-lg" style="background:${bg};color:${color}">${esc(initials(name))}</div>
-    <div class="sc-sup-hero-info">
-      <div class="sc-sup-hero-name">${esc(name)}</div>
-      <div class="sc-sup-hero-id">${getSupLastUpdated(s.supplier_id)}</div>
-    </div>
+    <div class="sc-sup-hero-info">${scLastUpdatedHtml(s.supplier_id)}</div>
     <div class="sc-sup-action-wrap">
       <button class="sc-sup-action-btn" id="scSupActionBtn" onclick="toggleSupActionMenu(event)" title="Actions">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
@@ -1349,6 +1366,14 @@ function yesNoBadge(v){
 }
 
 
+function scLastUpdatedHtml(sid){
+  const t=getSupLastUpdated(sid);
+  const m=t.match(/^Last updated — (.+)$/);
+  const ico='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>';
+  return m
+    ?`<div class="sc-sup-upd">${ico}<span class="k">Last updated</span><span class="v">${esc(m[1].replace(',',''))}</span></div>`
+    :`<div class="sc-sup-upd none">${ico}<span class="v">${esc(t)}</span></div>`;
+}
 function getSupLastUpdated(sid){
   const rows=allCatalogData.filter(c=>c.supplier_id===sid&&c.date);
   if(!rows.length)return'No imports yet';
@@ -1657,6 +1682,7 @@ if(currentSupId===editingSupId){
   const s=allSuppliers.find(x=>x.supplier_id===editingSupId);
   if(s){
     document.getElementById('scSupFilterVal').textContent=s.name||'Unknown';
+    scSetPickerAvatar(s.name||'Unknown');
     document.getElementById('scCatTitle').textContent=(s.name||'Supplier')+' — Catalog';
     const card=document.getElementById('scSupCard');
     card.innerHTML='';
@@ -1703,6 +1729,7 @@ async function doDeleteSupplier(sid){
       currentSupId=null;
       catalogData=[];
       document.getElementById('scSupFilterVal').textContent='Select a supplier…';
+      scSetPickerAvatar(null);
       document.getElementById('scCatTitle').textContent='Catalog';
       document.getElementById('scSupCard').innerHTML='<div class="sc-left-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><p>Select a supplier</p></div>';
       document.getElementById('scCatContent').innerHTML='<div class="sc-state"><p>Select a supplier</p></div>';
