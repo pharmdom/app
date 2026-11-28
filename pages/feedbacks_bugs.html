@@ -146,6 +146,15 @@
 .fb-paste-zone-text{font-size:12px;font-weight:600;}
 .fb-paste-zone-sub{font-size:10.5px;color:#c7cbd6;}
 .fb-paste-zone:hover .fb-paste-zone-sub,.fb-paste-zone:focus .fb-paste-zone-sub{color:#93b4f9;}
+.fb-paste-zone{cursor:text;}
+.fb-paste-zone.drag{border-color:#3b6ef8;border-style:solid;background:#eff6ff;color:#3b6ef8;box-shadow:0 0 0 4px rgba(59,110,248,.12);}
+.fb-paste-zone.ok{border-color:#16a34a;background:#f0fdf4;color:#16a34a;}
+.fb-paste-zone.ok .fb-paste-zone-sub{color:#16a34a;font-weight:700;}
+.fb-paste-zone-text{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:center;}
+.fb-kbd{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:5px;border:1px solid #d1d5db;border-bottom-width:2px;background:#fff;color:#6b7280;font-size:10px;font-weight:700;font-family:inherit;}
+.fb-upload-btn{margin-top:6px;display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:9px;border:1px solid #d1d5db;background:#fff;color:#374151;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;}
+.fb-upload-btn svg{width:13px;height:13px;}
+.fb-upload-btn:hover{border-color:#3b6ef8;color:#3b6ef8;background:#fff;box-shadow:0 2px 8px rgba(59,110,248,.12);}
 /* previews */
 .fb-preview-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;}
 .fb-preview-thumb{position:relative;aspect-ratio:1;border-radius:9px;overflow:hidden;border:1px solid #e5e7eb;background:#f5f6fa;}
@@ -433,17 +442,52 @@
     input.value = '';
   }
   function fbHandlePaste(e){
+    if (e.__fbDone) return; e.__fbDone = true;     // zone + form-wide listener: handle once
     const items = (e.clipboardData || window.clipboardData)?.items;
     if (!items) return;
-    let found = false;
+    let found = 0;
     for (const item of items) {
       if (item.type.indexOf('image') !== -1) {
         const file = item.getAsFile();
-        if (file) { fbAddPendingImage(file); found = true; }
+        if (file) { fbAddPendingImage(fbNameShot(file)); found++; }
       }
     }
-    if (found) e.preventDefault();
+    if (found) { e.preventDefault(); fbZoneFlash(found + ' screenshot' + (found!==1?'s':'') + ' added'); }
   }
+  // pasted images arrive as "image.png" — give each a clear, unique name
+  function fbNameShot(file){
+    if (file.name && file.name !== 'image.png') return file;
+    const ext = (file.type.split('/')[1] || 'png').replace('jpeg','jpg');
+    try { return new File([file], 'screenshot-' + Date.now() + '-' + Math.random().toString(36).slice(2,6) + '.' + ext, { type: file.type }); }
+    catch(_) { return file; }
+  }
+  function fbZoneFlash(msg){
+    const z = document.getElementById('fbPasteZone'); if (!z) return;
+    const t = z.querySelector('.fb-paste-zone-sub'); if (!t) return;
+    const orig = 'or drag images in · you can add several';
+    z.classList.add('ok'); t.textContent = '✓ ' + msg;
+    clearTimeout(z._t); z._t = setTimeout(() => { z.classList.remove('ok'); t.textContent = orig; }, 1600);
+  }
+  function fbDragOver(e){
+    if (![...(e.dataTransfer?.types || [])].includes('Files')) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+    document.getElementById('fbPasteZone')?.classList.add('drag');
+  }
+  function fbDragLeave(e){
+    const z = document.getElementById('fbPasteZone');
+    if (z && !z.contains(e.relatedTarget)) z.classList.remove('drag');
+  }
+  function fbDrop(e){
+    e.preventDefault();
+    const z = document.getElementById('fbPasteZone'); z?.classList.remove('drag');
+    const imgs = [...(e.dataTransfer?.files || [])].filter(f => f.type.startsWith('image/'));
+    imgs.forEach(f => fbAddPendingImage(f));
+    if (imgs.length) fbZoneFlash(imgs.length + ' image' + (imgs.length!==1?'s':'') + ' added');
+  }
+  // Paste a screenshot anywhere in the new-report form (e.g. while typing the description)
+  if (window._fbPasteAny) document.removeEventListener('paste', window._fbPasteAny);
+  window._fbPasteAny = e => { if (document.getElementById('fbPasteZone')) fbHandlePaste(e); };
+  document.addEventListener('paste', window._fbPasteAny);
 
   // ── NEW FORM ──
   function fbShowForm(){
@@ -474,10 +518,14 @@
       </div>
       <div class="fb-form-group">
         <label class="fb-form-label">Screenshots</label>
-        <div class="fb-paste-zone" tabindex="0" onclick="document.getElementById('fbImageFileInput').click()" onpaste="fbHandlePaste(event)">
+        <div class="fb-paste-zone" id="fbPasteZone" tabindex="0" onpaste="fbHandlePaste(event)" ondragover="fbDragOver(event)" ondragleave="fbDragLeave(event)" ondrop="fbDrop(event)" aria-label="Paste, drop or upload screenshots">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-          <span class="fb-paste-zone-text">Click to browse, or paste a screenshot</span>
-          <span class="fb-paste-zone-sub">You can add several</span>
+          <span class="fb-paste-zone-text">Paste a screenshot here <span class="fb-kbd">Ctrl</span><span class="fb-kbd">V</span></span>
+          <span class="fb-paste-zone-sub">or drag images in · you can add several</span>
+          <button type="button" class="fb-upload-btn" onclick="event.stopPropagation();document.getElementById('fbImageFileInput').click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload from PC
+          </button>
         </div>
         <input type="file" id="fbImageFileInput" accept="image/*" multiple style="display:none" onchange="fbFileChosen(this,'image')">
         <div class="fb-preview-grid" id="fbImagePreviewGrid"></div>
@@ -994,6 +1042,7 @@
   window.fbSetType = fbSetType;
   window.fbFileChosen = fbFileChosen;
   window.fbHandlePaste = fbHandlePaste;
+  window.fbDragOver = fbDragOver; window.fbDragLeave = fbDragLeave; window.fbDrop = fbDrop;
   window.fbRemovePendingImage = fbRemovePendingImage;
   window.fbRemovePendingVideo = fbRemovePendingVideo;
   window.fbSubmit = fbSubmit;
