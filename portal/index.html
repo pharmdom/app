@@ -972,9 +972,12 @@ function pinGroup(id) {
   function positionExpandTab() {
     const tab = document.getElementById('secExpandTab');
     if (!tab || !collapsedGroupId) return;
+    // while the rail is hovered it is temporarily widened (labels shift the icons) — re-measure once the mouse leaves it
+    if (document.getElementById('sidebar')?.matches(':hover')) return;
     const rail = document.getElementById('sidebar')?.getBoundingClientRect();
     const head = document.getElementById(`group-header-${collapsedGroupId}`)?.getBoundingClientRect();
-    if (rail) tab.style.left = Math.round(rail.right) + 'px';
+    // the rail is always the slim 50px bar here; hovering widens it for a moment, so never measure its live width
+    if (rail) tab.style.left = Math.round(rail.left + 50) + 'px';
     if (head && head.height) tab.style.top = Math.round(head.top + head.height / 2 - 17) + 'px';
   }
   function collapseSecondary() {
@@ -1025,6 +1028,7 @@ window.handleGroupClick = handleGroupClick;
   window.pinGroup = pinGroup;
   window.unpinGroup = unpinGroup;
   document.getElementById('sidebar')?.addEventListener('mouseleave', () => {
+    if (collapsedGroupId) setTimeout(positionExpandTab, 320); // after the rail shrinks back
     document.getElementById('sidebar')?.classList.remove('force-collapsed');
     document.getElementById('sidebar')?.classList.remove('hover-elevate');
   });
